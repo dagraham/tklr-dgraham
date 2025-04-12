@@ -1,12 +1,16 @@
-Recent tagged changes as of 2025-04-12 15:40:19.230288:
-- 0 seconds ago (HEAD -> working, tag: 0.0.0a3) Daniel Graham
+Recent tagged changes as of 2025-04-12 17:29:56.714497:
+- 0 seconds ago (HEAD -> working, tag: 0.0.0a4) Daniel Graham
+    9b9b898 2025-04-12 17:29:56 -0400
+    Tagged version 0.0.0a4.
+
+- 2 hours ago (tag: 0.0.0a3) Daniel Graham
     c931e96 2025-04-12 15:40:19 -0400
     Tagged version 0.0.0a3.
 
-- 2 hours ago (tag: 0.0.0a2) Daniel Graham
+- 3 hours ago (tag: 0.0.0a2) Daniel Graham
     601d35d 2025-04-12 14:09:12 -0400
     Tagged version 0.0.0a2.
 
-- 7 hours ago (tag: 0.0.0a1) Daniel Graham
+- 9 hours ago (tag: 0.0.0a1) Daniel Graham
     31fd221 2025-04-12 08:59:10 -0400
     Tagged version 0.0.0a1.
