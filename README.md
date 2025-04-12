@@ -1,6 +1,8 @@
 # Tklr
 
-Short for "Task Lister", pronounced "Tickler"
+Short for "Task Lister", pronounced "Tickler".
+
+**Preliminary and incomplete version** This notice will be removed when the code is ready for release.
 
 A task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of *etm*. Requires: Python, SQLite3, DateUtil and Textual.
 
@@ -47,7 +49,7 @@ If and when an instance is completed or the single instance deleted and the recu
 
 ## Tasks with component jobs
 
-This is a simplification of the current implementation in *etm*. The need to manually enter job ids and prerequisites has been eliminated by using the position of the job in the sequence and its indentation level.
+This is a simplification of the current implementation in *etm*. **The need to manually enter job ids and prerequisites has been eliminated by using the position of the job in the sequence and its indentation level.**
 
 A task with @j (job) entries forms a group of related implied tasks, one for each @j entry. The prerequisites for a job, if any, are determined by the position of the @j entry in the job list and its indention level, ((number_of_spaces - 1) // 2), between the "@j" and the first, non-space character of the job. Viewed as an outline, each job depends upon (requires) all subsequently listed jobs that have a greater indention level.
 
@@ -56,12 +58,13 @@ Here are some simple examples of tasks with jobs. In each case "Entry" gives the
 ### jobs without prerequisites
 
 ```python
-entry:
+input:
 - jobs without prerequisites @d No prerequisites for any job
     @j A
     @j B
     @j C
 
+# Computed from the input
 prereqs
   0: {1, 2}
   1: {2}
@@ -78,12 +81,13 @@ jobs:
 ### each job depends on the following jobs
 
 ```python
-entry:
+input:
 - jobs in simple order  @d A requires B and B requires C
     @j A
     @j   B
     @j     C
 
+# Computed from the input
 prereqs
   0: {1, 2}
   1: {2}
@@ -110,6 +114,7 @@ input:
     @j       get hardware &c Lowes
     @j   get paint &c Lowes
 
+# Computed from the input
 prereqs
   0: {1, 2, 3, 4, 5, 6}
   1: {2, 3, 4, 5}
@@ -152,6 +157,7 @@ input:
     @j     lowes
     @j     plan
 
+# Computed from the input
 prereqs
   0: {1, 2, 3, 4, 5, 6, 7, 8}
   1: {2, 3, 4, 5, 6, 7}
@@ -201,6 +207,7 @@ input:
     @j     lowes
     @j     plan
 
+# Computed from the input
 prereqs
   0: {1, 2, 3, 4, 7, 8}
   1: {2, 3, 4, 7}
