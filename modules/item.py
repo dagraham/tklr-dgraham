@@ -441,7 +441,7 @@ class Item:
         """
         digits = "1234567890" * ceil(len(entry) / 10)
         self._tokenize(entry)
-        print(f"\n\n### parse_input ###\ninput:\n{entry}")
+        print(f"\n\n### parse_input ###\ninput:\n{entry}\n\n# Computed from input:")
         self._parse_tokens(entry)
         self.parse_ok = True
         self.previous_entry = entry

@@ -2,7 +2,7 @@
 
 Short for "Task Lister", pronounced "Tickler".
 
-**Preliminary and incomplete version** This notice will be removed when the code is ready for release.
+*Preliminary and incomplete version.* This notice will be removed when the code is ready for release.
 
 A task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of *etm*. Requires: Python, SQLite3, DateUtil and Textual.
 
@@ -397,7 +397,3 @@ Tasks are ordered by **urgency**. Columns include
 - name
 - (context)
 - (project)
-
-The columns are sortable and the rows are filterable. The default view is a list of tasks with the following columns:
-
-###
