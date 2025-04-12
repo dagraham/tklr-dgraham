@@ -9,16 +9,53 @@ import textwrap
 
 from collections import defaultdict
 from math import ceil
+from copy import deepcopy
 
 from typing import Union, Tuple, Optional
 from typing import List, Dict, Any, Callable, Mapping
-from common import timedelta_string_to_seconds
-import pprint
+from common import timedelta_string_to_seconds, log_msg
 
 # JOB_PATTERN = re.compile(r"(^@j) (\d*):\s*(.*)")
 # JOB_PATTERN = re.compile(r"^@j ( +)(\S.*)")
 JOB_PATTERN = re.compile(r"^@j ( *)([^&]*)(?:(&.*))?")
 LETTER_SET = set("abcdefghijklmnopqrstuvwxyz")  # Define once
+
+
+def pp_set(s):
+    return "{}" if not s else str(s)
+
+
+def extract_labeled_subtrees(jobs):
+    labels = {}
+    i = 0
+    while i < len(jobs):
+        job = jobs[i]
+        if "l" in job:
+            label = job["l"]
+            if label in labels:
+                raise ValueError(f"Duplicate label: {label}")
+            base_node = job["node"]
+            subtree = [deepcopy(job)]
+            i += 1
+            while i < len(jobs) and jobs[i]["node"] > base_node:
+                subtree.append(deepcopy(jobs[i]))
+                i += 1
+            # Remove the 'l' key from the root of the labeled subtree
+            del subtree[0]["l"]
+            labels[label] = subtree
+        else:
+            i += 1
+    return labels
+
+
+def inject_subtree(label_name, target_node, labels):
+    if label_name not in labels:
+        raise ValueError(f"Unknown label: {label_name}")
+    subtree = deepcopy(labels[label_name])
+    base_node = subtree[0]["node"]
+    for job in subtree:
+        job["node"] = target_node + (job["node"] - base_node)
+    return subtree
 
 
 def is_lowercase_letter(char):
@@ -138,8 +175,8 @@ def ruleset_to_rulehsh(rrset: rruleset) -> dict[str, str]:
 
 
 def ruleset_to_rulestr(rrset: rruleset) -> str:
-    # print(f"rrset: {rrset}; {type(rrset) = }; {rrset.__dict__}")
-    # print(f"{list(rrset) = }")
+    print(f"rrset: {rrset}; {type(rrset) = }; {rrset.__dict__}")
+    print(f"{list(rrset) = }")
     parts = []
     # parts.append("rrules:")
     for rule in rrset._rrule:
@@ -240,11 +277,16 @@ class Paragraph:
         return unwrapped_text
 
 
-class Task:
+class Item:
     token_keys = {
+        "itemtype": [
+            "item type",
+            "character from * (event), - (task), % (journal), ~ (goal), + (track) or ! (inbox)",
+            "do_itemtype",
+        ],
         "subject": [
             "subject",
-            "brief task description. Append an '@' to add an option.",
+            "brief item description. Append an '@' to add an option.",
             "do_summary",
         ],
         "s": ["scheduled", "starting date or datetime", "do_datetime"],
@@ -254,29 +296,36 @@ class Task:
         "+": ["rdate", "recurrence dates", "do_rdate"],
         "-": ["exdate", "exception dates", "do_exdate"],
         # Add more `&` token handlers for @j here as needed
-        # "a": ["alerts", "list of alerts", "do_alert"],
+        "a": ["alerts", "list of alerts", "do_alert"],
         "b": ["beginby", "number of days for beginby notices", "do_beginby"],
-        "c": ["context", "calendar", "do_context"],
-        "d": ["deleted", "datetime deleted", "do_deleted"],
-        "e": ["estimate", "timeperiod", "do_estimate"],
-        "f": ["finish", "completion done -> due", "do_finish"],
+        "c": ["context", "context", "do_string"],
+        "d": ["description", "description", "do_description"],
+        "e": ["extent", "timeperiod", "do_extent"],
+        "w": ["wrap", "list of two timeperiods", "do_two_periods"],
+        "f": ["finish", "completion done -> due", "do_completion"],
         "g": ["goto", "url or filepath", "do_string"],
         "h": [
-            "history",
-            "list of finish datetimes",
-            "do_history",
+            "completions",
+            "list of completion datetimes",
+            "do_completions",
         ],
-        "i": ["importance", "Character from importance_list", "do_importance"],
-        "n": ["note", "note", "do_string"],
+        "i": ["index", "forward slash delimited string", "do_string"],
+        "l": [
+            "label",
+            "label for job clone",
+            "do_string",
+        ],
+        "m": ["mask", "string to be masked", "do_mask"],
+        "n": ["attendee", "name <email address>", "do_string"],
         "o": [
             "overdue",
             "character from (r)estart, (s)kip or (k)eep",
             "do_overdue",
         ],
         "p": [
-            "project",
-            "project name",
-            "do_project",
+            "priority",
+            "priority from 0 (none) to 4 (urgent)",
+            "do_priority",
         ],
         "z": [
             "timezone",
@@ -320,7 +369,7 @@ class Task:
         "jj": [
             "subject",
             "job subject. Append an '&' to add a job option.",
-            "do_job_name",
+            "do_string",
         ],
         "ja": [
             "alert",
@@ -330,8 +379,10 @@ class Task:
         "jb": ["beginby", " integer number of days", "do_beginby"],
         "jd": ["description", " string", "do_description"],
         "je": ["extent", " timeperiod", "do_duration"],
-        "jf": ["finish", " completion done", "do_finish"],
-        "jc": ["job context", " string", "do_string"],
+        "jf": ["finish", " completion done -> due", "do_completion"],
+        "ji": ["unique id", " integer or string", "do_string"],
+        "jl": ["label", " string", "do_string"],
+        "jm": ["mask", "string to be masked", "do_mask"],
         "jp": [
             "prerequisite ids",
             "list of ids of immediate prereqs",
@@ -346,7 +397,6 @@ class Task:
         "j?": ["job &-key", "enter &-key", "do_ampj"],
     }
 
-    importance_list = ["N", "H", "M", "L"]
     wkd_list = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"]
     wkd_str = ", ".join(wkd_list)
 
@@ -391,41 +441,21 @@ class Task:
         """
         digits = "1234567890" * ceil(len(entry) / 10)
         self._tokenize(entry)
-        # print(
-        #     f"entry to tokens:\n   |{digits[: len(entry)]}|\n   |{entry}|\n   {self.tokens}"
-        # )
+        print(f"\n\n### parse_input ###\ninput:\n{entry}")
         self._parse_tokens(entry)
         self.parse_ok = True
         self.previous_entry = entry
         self.previous_tokens = self.tokens.copy()
         if self.rrule_tokens:
             success, rruleset_str = self.finalize_rruleset()
-            print(f"\n{success = } for:\n'{self.entry}'\n{rruleset_str}")
+            print(f"{rruleset_str = }")
         if self.jobs:
             success, jobs = self.finalize_jobs()
-            # print(f"\n{success = } for:\n'{self.entry}'")
-            # for job in jobs:
-            #     print(job)
-        # if self.tags:
-        #     print(f"\n{success = } for:\n'{self.entry}'")
-        #     print(f"tags: {', '.join(self.tags)}")
-        #
-
-    def __repr__(self):
-        result = []
-        result.append(f"Entry:\n{self.entry}")
-        if self.rrule_tokens:
-            success, rruleset_str = self.finalize_rruleset()
-            result.append(f"rruleset:\n{rruleset_str}")
-        if self.jobs:
-            success, jobs = self.finalize_jobs()
-            result.append("jobs:")
+            print("\njobs: ")
             for job in jobs:
-                result.append(f"{pprint.pformat(job, sort_dicts=False)}")
+                print(f"  {job})")
         if self.tags:
-            result.append("tags:")
-            result.append(f"{pprint.pformat(self.tags)}")
-        return "\n".join(result)
+            print(f"tags: {', '.join(self.tags)}")
 
     def _tokenize(self, entry: str):
         self.entry = entry
@@ -445,6 +475,8 @@ class Task:
     def _sub_tokenize(self, entry):
         pattern = r"(@\w+ [^&]+)|(^\S+)|(\S[^&]*)"
         matches = re.finditer(pattern, entry)
+        if matches is None:
+            return []
         tokens_with_positions = []
         for match in matches:
             # print(f"{match = }")
@@ -488,11 +520,15 @@ class Task:
                 self._dispatch_token(token, start_pos, end_pos, "itemtype")
             elif i == 1:
                 self._dispatch_token(token, start_pos, end_pos, "subject")
-            elif token:
+            else:
+                # print(f"processing token: {token}")
                 token_type = token.split()[0][
                     1:
                 ]  # Extract token type (e.g., 's' from '@s')
-                self._dispatch_token(token, start_pos, end_pos, token_type)
+                if token_type:
+                    self._dispatch_token(token, start_pos, end_pos, token_type)
+                else:
+                    return
 
     def _find_changes(self, previous: str, current: str):
         # Find the range of changes between the previous and current strings
@@ -545,6 +581,7 @@ class Task:
                 token_type = token
         if token_type in self.token_keys:
             # print(f"Dispatching token: {token} as {token_type}")
+            # print(f"Dispatching token: {token.rstrip()}")
             method_name = self.token_keys[token_type][2]
             # print(f"method_name = {method_name}")
             method = getattr(self, method_name)
@@ -566,9 +603,9 @@ class Task:
                     self.item[token_type] = result
             else:
                 self.parse_ok = False
-                print(f"Error processing '{token_type}': {result}")
+                log_msg(f"Error processing '{token_type}': {result}")
         else:
-            print(f"No handler for token: {token}")
+            log_msg(f"No handler for token: {token}")
 
     def _dispatch_sub_tokens(self, sub_tokens, prefix):
         for part in sub_tokens:
@@ -579,7 +616,7 @@ class Task:
                 if token_type in self.token_keys:
                     method_name = self.token_keys[token_type][2]
                     method = getattr(self, method_name)
-                    is_valid, result = method(token_value)
+                    is_valid, result, *sub_tokens = method(token_value)
                     # print(f"{token_value} => {is_valid}, {result}")
                     if is_valid:
                         if prefix == "r":
@@ -588,10 +625,12 @@ class Task:
                             self.job_tokens[-1][1][token_type] = result
                     else:
                         self.parse_ok = False
-                        print(f"Error processing sub-token '{token_type}': {result}")
+                        log_msg(f"Error processing sub-token '{token_type}': {result}")
+                        return False, result, []
                 else:
                     self.parse_ok = False
-                    print(f"No handler for sub-token: {token_type}")
+                    log_msg(f"No handler for sub-token: {token_type}")
+                    return False, f"Invalid sub-token: {token_type}", []
 
     def _validate(self):
         # Overall validation logic if needed
@@ -610,6 +649,17 @@ class Task:
         return None, text  # If no match, return None for number and the entire string
 
     @classmethod
+    def do_itemtype(cls, token):
+        # Process item type token
+        # print(f"Processing item type token: {token}")
+        valid_itemtypes = {"*", "-", "%", "~", "+", "!"}
+        itemtype = token[0]
+        if itemtype in valid_itemtypes:
+            return True, itemtype, []
+        else:
+            return False, f"Invalid item type: {itemtype}", []
+
+    @classmethod
     def do_summary(cls, token):
         # Process subject token
         # print(f"Processing subject token: {token}")
@@ -624,7 +674,7 @@ class Task:
         # print(f"processing duration: {arg}")
         if not arg:
             return False, f"time period {arg}"
-        # print(f"calling timedelta_string_to_seconds with {arg}")
+        print(f"calling timedelta_string_to_seconds with {arg}")
         ok, res = timedelta_string_to_seconds(arg)
         return ok, res
 
@@ -682,16 +732,16 @@ class Task:
         else:
             return False, rep, []
 
-    def do_estimate(self, token):
+    def do_extent(self, token):
         # Process datetime token
-        estimate = re.sub("^@. ", "", token.strip())
-        # print(f"Processing extent token: '{estimate}'")
-        ok, extent_obj = timedelta_string_to_seconds(estimate)
+        extent = re.sub("^@. ", "", token.strip())
+        # print(f"Processing extent token: '{extent}'")
+        ok, extent_obj = timedelta_string_to_seconds(extent)
         if ok:
-            self.extent = estimate_obj
-            return True, estimate_obj, []
+            self.extent = extent_obj
+            return True, extent_obj, []
         else:
-            return False, estimate_obj, []
+            return False, extent_obj, []
 
     def do_tag(self, token):
         # Process datetime token
@@ -813,33 +863,29 @@ class Task:
         # print(f"Processing job token: {token}")
         node, summary, tokens_remaining = self._extract_job_node_and_summary(token)
         # print(f"{node = }; {summary = }; {tokens_remaining = }")
-        parts = self._sub_tokenize(tokens_remaining) if tokens_remaining else []
-        # print(f"do_job {parts = }")
-        # if len(parts) < 1:
-        #     return False, f"Missing job subject: {token}", []
-        # print(f"job parts = {parts}")
-
         job_params = {"j": summary}
-
-        for part in parts:
-            # print(f"processing part: {part}")
-            key, *value = part
-            # print(f"processing key: {key}, value: {value}")
-            k = key[1]
-            v = " ".join(value)
-            job_params[k] = v
-        if node is not None:
-            job_params["node"] = node
-        # print(f"appending job_params: {job_params}")
-        # self.jobs.append(job_params)
-
-        # Collect & tokens that follow @j
-        # sub_tokens = self._extract_sub_tokens(token, '&')
+        job_params["node"] = node
         sub_tokens = []
-        # self.job_tokens.append((token, job_params))
-        self.job_tokens.append((token, job_params))
-        # print(f"returning {job_params = }; {sub_tokens = }")
-        return True, job_params, []
+        if tokens_remaining is not None:
+            parts = self._sub_tokenize(tokens_remaining)
+            # print(f"{parts = }")
+
+            for part in parts:
+                # print(f"processing part: {part}")
+                key, *value = part
+                # print(f"processing key: {key}, value: {value}")
+                k = key[1]
+                v = " ".join(value)
+                job_params[k] = v
+            # if node is not None:
+            #     job_params["node"] = node
+
+            # Collect & tokens that follow @j
+            sub_tokens = self._extract_sub_tokens(token, "&")
+            # self.job_tokens.append((token, job_params))
+            self.job_tokens.append((token, job_params))
+            # print(f"returning {job_params = }; {sub_tokens = }")
+        return True, job_params, sub_tokens
 
     def _extract_sub_tokens(self, token, delimiter):
         # Use regex to extract sub-tokens
@@ -860,7 +906,7 @@ class Task:
         """
         wkd_str = wkd_str.upper()
         wkd_regex = r"(?<![\w-])([+-][1-4])?(MO|TU|WE|TH|FR|SA|SU)(?!\w)"
-        print(f"in do_weekdays with wkd_str = |{wkd_str}|")
+        # print(f"in do_weekdays with wkd_str = |{wkd_str}|")
         matches = re.findall(wkd_regex, wkd_str)
         _ = [f"{x[0]}{x[1]}" for x in matches]
         all = [x.strip() for x in wkd_str.split(",")]
@@ -1041,7 +1087,7 @@ class Task:
 
     def do_rdate(self, token):
         # Process rdate token
-        print(f"Processing rdate token: {token}")
+        # print(f"Processing rdate token: {token}")
         parts = re.sub("^@. ", "", token)
         print(f"rdate {parts = }")
         try:
@@ -1052,7 +1098,7 @@ class Task:
 
     def do_exdate(self, token):
         # Process exdate token
-        print(f"Processing exdate token: {token}")
+        # print(f"Processing exdate token: {token}")
         parts = re.sub("^@. ", "", token)
         print(f"exdate {parts = }")
         try:
@@ -1186,74 +1232,102 @@ class Task:
 
     def finalize_jobs(self):
         """
-        Format combined task subject and job subject
+        From the list of jobs, assign ids taking account of jobs shared
+        through labels and then from the place of the job in the sequence, its
+        node (level of indention) and its finished status, determine the
+        relevant prequisites, and the lists of available, waiting and finished
+        jobs.
         """
         jobs = self.jobs
         if not jobs:
             return False, "No jobs to process"
         if not self.parse_ok:
             return False, "Error parsing tokens"
-        # available / waiting / completed
-        # completed if 'f' in item
 
-        subject = self.item["subject"]
+        # subject = self.item["subject"]
         job_hsh = {}
 
-        job_hsh = {i: x for i, x in enumerate(jobs)}
-
-        # finished = [i for i, x in enumerate(jobs) if "f" in x]
-        finished = set()
-        waiting = []
-        available = []
-        prereqs = {}
         branch = []
         branches = []
-        current_node = 0
         job_names = {}
-        last_job_number = 0
+        labels = {}
+        idx = 0
+        finalized_jobs = []
         last_job = {}
-        all = set()
-        for i, job in job_hsh.items():
-            all.add(i)
-            last_job_number = i
-            last_job = job
-            job_names[i] = job["j"]
-            if "f" in job:
-                finished.add(i)
-            if "node" in job:
-                if job["node"] > 0 and len(branch) > job["node"]:
+        last_node = 0
+        for _, job in enumerate(jobs):
+            bump_idx = False
+            job_name = job["j"]
+            if job_name in labels:
+                # this is an instance of labeled job and should use the idx of the label
+                # take the node level from the job
+                this_node = job.get("node", 0)
+                # use the labeled job for the rest
+                this_job = deepcopy(labels[job_name])
+                this_i = this_job.get("i", 0)
+                this_job["node"] = this_node
+                this_job["i"] = this_i
+                job_names[idx] = this_job["j"]
+                # print(f"{this_job = }")
+            else:
+                # a job needing an idx, perhaps with a lobel
+                bump_idx = True
+                this_job = deepcopy(job)
+                this_job["i"] = idx
+                job_names[idx] = this_job["j"]
+
+                if "l" in this_job:
+                    label = this_job["l"]
+                    if label in labels:
+                        raise ValueError(f"Duplicate label: {label}")
+                    job_copy = deepcopy(this_job)
+                    del job_copy["l"]
+                    if "jl" in job_copy:
+                        del job_copy["jl"]
+                    labels[label] = job_copy
+                    this_job = job_copy
+
+            if "node" in this_job:
+                if this_job["node"] > 0 and len(branch) > this_job["node"]:
                     branches.append(branch)
-                    branch = branch[: job["node"]]
-                branch.append(i)
+                    branch = branch[: this_job["node"]]
+                branch.append(this_job["i"])
+            else:
+                log_msg(f"node missing from {this_job = }")
+
+            job_hsh[idx] = this_job
+            finalized_jobs.append(this_job)
+            last_job = this_job
+            if bump_idx:
+                idx += 1
 
         if "node" in last_job:
-            branch = branch[: last_job["node"]]
-            # prereqs[i] = branch
-            branch.append(last_job_number)
             branches.append(branch)
             branch = []
 
+        all = set()
+        prereqs = {}
         if branches:
-            # available_names = set()
-            # waiting_names = set()
-            prereqs = {}
             for branch in branches:
                 # print(f"branch = {branch}")
                 for _ in branch:
                     all.add(_)
-                # leaf = branch[-1]
                 for position, i in enumerate(branch):
                     branch_tail = branch[position + 1 :]
                     if branch_tail:
                         prereqs.setdefault(i, set())
                         for j in branch_tail:
                             prereqs[i].add(j)
-        # print(f"\n\n{all = }\n\n{prereqs = }\n\n{waiting = }")
 
+        finished = set(job["i"] for job in finalized_jobs if "f" in job)
+        empty = []
         for j, req in prereqs.items():
             prereqs[j] = req - finished
+            if not prereqs[j]:
+                empty.append(j)
 
-        # print("\n\n{prereqs = }\n\n{available = }\n\n{waiting = }")
+        for j in empty:
+            del prereqs[j]
 
         available = set()
         waiting = set()
@@ -1266,41 +1340,86 @@ class Task:
             elif j not in finished:
                 available.add(j)
 
-        status = f"{len(available)}/{len(waiting)}/{len(finished)}"
-        jobs = []
+        self.item["j"] = finalized_jobs
+        print("prereqs")
+        for i, reqs in prereqs.items():
+            print(f"  {i}: {reqs}")
+        for name, value in {
+            "available": available,
+            "waiting": waiting,
+            "finished": finished,
+        }.items():
+            print(f"{name} = {pp_set(value)}")
 
-        for i, job in job_hsh.items():
-            if i in finished:
-                job["itemtype"] = "x"
-            elif i in waiting:
-                job["itemtype"] = "+"
-            elif i in available:
-                job["itemtype"] = "-"
-            else:
-                job["itemtype"] = "?"
-            loc = job.get("l", "")
-            loc = f" ({loc}) " if loc else " "
-            job["subject"] = f"{job['j']}{loc}{status}"
-            if i in prereqs:
-                job["prereqs"] = prereqs[i]
-            job["i"] = i
-            jobs.append(job)
+        return True, finalized_jobs
 
-        # jobs_names = []
-        #
-        # for i, job in job_hsh.items():
-        #     if i in available:
-        #         job_names["itemtype"] = "-"
-        #     elif i in waiting:
-        #         job["itemtype"] = "+"
-        #     elif i in finished:
-        #         job["itemtype"] = "x"
-        #     else:
-        #         job["itemtype"] = "?"
-        #     job["subject"] = f"{job['j']}: {subject} {status}"
-        #     job["i"] = i
-        #     jobs.append(job)
+    def do_completion(self, token):
+        """ "process completion command"""
+        print("TODO: do_completion() -> implement")
+        return False, token, []
 
-        self.item["j"] = jobs
-        # print(f"\n\n{prereqs = }\n\n{available = }\n\n{waiting = }")
-        return True, jobs
+
+# class ItemManager:
+#     def __init__(self):
+#         self.doc_view_data = {}  # Primary structure: dict[doc_id, dict[view, list[row]]]
+#         self.view_doc_data = defaultdict(
+#             lambda: defaultdict(list)
+#         )  # Secondary index: dict[view, dict[doc_id, list[row]])
+#         self.view_cache = {}  # Cache for views
+#         self.doc_view_contribution = defaultdict(
+#             set
+#         )  # Tracks views each doc_id contributes to
+#
+#     def add_or_update_item(self, item):
+#         doc_id = item.doc_id
+#         new_views_and_rows = item.get_weekly_rows()
+#
+#         # Invalidate cache for views that will be affected by this doc_id
+#         self.invalidate_cache_for_doc(doc_id)
+#
+#         # Update the primary structure
+#         self.doc_view_data[doc_id] = new_views_and_rows
+#
+#         # Update the secondary index
+#         for view, rows in new_views_and_rows.items():
+#             self.view_doc_data[view][doc_id] = rows
+#             self.doc_view_contribution[doc_id].add(view)
+#
+#     def get_view_data(self, view):
+#         # Check if the view is in the cache
+#         if view in self.view_cache:
+#             return self.view_cache[view]
+#
+#         # Retrieve data for a specific view
+#         view_data = dict(self.view_doc_data[view])
+#
+#         # Cache the view data
+#         self.view_cache[view] = view_data
+#         return view_data
+#
+#     def get_reminder_data(self, doc_id):
+#         # Retrieve data for a specific reminder
+#         return self.doc_view_data.get(doc_id, {})
+#
+#     def remove_item(self, doc_id):
+#         # Invalidate cache for views that will be affected by this doc_id
+#         self.invalidate_cache_for_doc(doc_id)
+#
+#         # Remove reminder from primary structure
+#         if doc_id in self.doc_view_data:
+#             views_and_rows = self.doc_view_data.pop(doc_id)
+#             # Remove from secondary index
+#             for view in views_and_rows:
+#                 if doc_id in self.view_doc_data[view]:
+#                     del self.view_doc_data[view][doc_id]
+#
+#             # Remove doc_id from contribution tracking
+#             if doc_id in self.doc_view_contribution:
+#                 del self.doc_view_contribution[doc_id]
+#
+#     def invalidate_cache_for_doc(self, doc_id):
+#         # Invalidate cache entries for views affected by this doc_id
+#         if doc_id in self.doc_view_contribution:
+#             for view in self.doc_view_contribution[doc_id]:
+#                 if view in self.view_cache:
+#                     del self.view_cache[view]
