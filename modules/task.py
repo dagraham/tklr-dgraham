@@ -259,31 +259,24 @@ class Task:
         "c": ["context", "calendar", "do_context"],
         "d": ["deleted", "datetime deleted", "do_deleted"],
         "e": ["estimate", "timeperiod", "do_estimate"],
-        "w": ["wrap", "list of two timeperiods", "do_two_periods"],
-        "f": ["finish", "completion done -> due", "do_completion"],
+        "f": ["finish", "completion done -> due", "do_finish"],
         "g": ["goto", "url or filepath", "do_string"],
         "h": [
-            "completions",
-            "list of completion datetimes",
-            "do_completions",
+            "history",
+            "list of finish datetimes",
+            "do_history",
         ],
-        "i": ["index", "forward slash delimited string", "do_string"],
-        "l": [
-            "location",
-            "location or context, e.g., home, office, errands",
-            "do_string",
-        ],
-        "m": ["mask", "string to be masked", "do_mask"],
-        "n": ["attendee", "name <email address>", "do_string"],
+        "i": ["importance", "Character from importance_list", "do_importance"],
+        "n": ["note", "note", "do_string"],
         "o": [
             "overdue",
             "character from (r)estart, (s)kip or (k)eep",
             "do_overdue",
         ],
         "p": [
-            "priority",
-            "priority from 0 (none) to 4 (urgent)",
-            "do_priority",
+            "project",
+            "project name",
+            "do_project",
         ],
         "z": [
             "timezone",
@@ -327,7 +320,7 @@ class Task:
         "jj": [
             "subject",
             "job subject. Append an '&' to add a job option.",
-            "do_string",
+            "do_job_name",
         ],
         "ja": [
             "alert",
@@ -337,10 +330,8 @@ class Task:
         "jb": ["beginby", " integer number of days", "do_beginby"],
         "jd": ["description", " string", "do_description"],
         "je": ["extent", " timeperiod", "do_duration"],
-        "jf": ["finish", " completion done -> due", "do_completion"],
-        "ji": ["unique id", " integer or string", "do_string"],
-        "jl": ["location", " string", "do_string"],
-        "jm": ["mask", "string to be masked", "do_mask"],
+        "jf": ["finish", " completion done", "do_finish"],
+        "jc": ["job context", " string", "do_string"],
         "jp": [
             "prerequisite ids",
             "list of ids of immediate prereqs",
@@ -355,6 +346,7 @@ class Task:
         "j?": ["job &-key", "enter &-key", "do_ampj"],
     }
 
+    importance_list = ["N", "H", "M", "L"]
     wkd_list = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"]
     wkd_str = ", ".join(wkd_list)
 

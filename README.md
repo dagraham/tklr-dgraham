@@ -1,6 +1,6 @@
 # Tklr
 
-Short for "Task Lister" but pronounced "Tickler"
+Short for "Task Lister", pronounced "Tickler"
 
 A task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of *etm*. Requires: Python, SQLite3, DateUtil and Textual.
 
@@ -39,6 +39,12 @@ Generally the same format as *etm* for a task entry but without the beginning it
 - P) Postponed (has @b and @s entries and @s - @b is in the future - corresponds to waiting in TW)
 - W) Waiting (has one or more unfinished prerequisites - corresponds to blocked in TW)
 
+## Repeating tasks
+
+The @r entry is a *rrule* (recurrence rule) as implemented in *etm*. A copy of the task is created in the Instances table with the id of parent task used as the task_id, the next occurrence of the task used for @s, the current datetime for the *created* and *modified* datetimes and with the @r entry removed. This instance of the recurring task is then treated as a normal task with a scheduled date and time.
+
+If and when an instance is completed or the single instance deleted and the recurrence rule in the parent task calls for another instance, this process is repeated.
+
 ## Tasks with component jobs
 
 This is a simplification of the current implementation in *etm*. The need to manually enter job ids and prerequisites has been eliminated by using the position of the job in the sequence and its indentation level.
@@ -50,92 +56,174 @@ Here are some simple examples of tasks with jobs. In each case "Entry" gives the
 ### jobs without prerequisites
 
 ```python
-Entry:
-jobs without prerequisites 
-  @j Alpha 
-  @j Beta 
-  @j Gamma
+entry:
+- jobs without prerequisites @d No prerequisites for any job
+    @j A
+    @j B
+    @j C
+
+prereqs
+  0: {1, 2}
+  1: {2}
+available = {2}
+waiting = {0, 1}
+finished = {}
 
 jobs:
-{'j': 'Alpha', 'node': 0, 'i': 0}
-{'j': 'Beta', 'node': 0, 'i': 1}
-{'j': 'Gamma', 'node': 0, 'i': 2}
+  {'j': 'A', 'node': 0, 'i': 0})
+  {'j': 'B', 'node': 0, 'i': 1})
+  {'j': 'C', 'node': 0, 'i': 2})
 ```
 
 ### each job depends on the following jobs
 
 ```python
-Entry:
-each job depends on the following jobs  
-  @j Alpha 
-  @j   Beta
-  @j     Gamma
+entry:
+- jobs in simple order  @d A requires B and B requires C
+    @j A
+    @j   B
+    @j     C
+
+prereqs
+  0: {1, 2}
+  1: {2}
+available = {2}
+waiting = {0, 1}
+finished = {}
 
 jobs:
-{'j': 'Alpha', 'node': 0, 'prereqs': {1, 2}, 'i': 0}
-{'j': 'Beta', 'node': 1, 'prereqs': {2}, 'i': 1}
-{'j': 'Gamma', 'node': 2, 'i': 2}
+  {'j': 'A', 'node': 0, 'i': 0})
+  {'j': 'B', 'node': 1, 'i': 1})
+  {'j': 'C', 'node': 2, 'i': 2})
 ```
 
 ### more complex prerequisites - make a dog house
 
 ```python
-Entry:
-dog house @s 2025-05-15
-  @j paint &c shop
-  @j   sand &c shop
-  @j     assemble &c shop
-  @j       cut pieces &c shop
-  @j          get wood &c Lowes
-  @j       get hardware &c Lowes
-  @j   get paint &c Lowes
+input:
+- dog house @s 2025-05-15
+    @j paint &c shop
+    @j   sand &c shop
+    @j     assemble &c shop
+    @j       cut pieces &c shop
+    @j          get wood &c Lowes
+    @j       get hardware &c Lowes
+    @j   get paint &c Lowes
+
+prereqs
+  0: {1, 2, 3, 4, 5, 6}
+  1: {2, 3, 4, 5}
+  2: {3, 4, 5}
+  3: {4}
+available = {4, 5, 6}
+waiting = {0, 1, 2, 3}
+finished = {}
 
 jobs:
-{'j': 'paint',
- 'c': 'shop',
- 'node': 0,
- 'prereqs': {1, 2, 3, 4, 5, 6},
- 'i': 0}
-{'j': 'sand',
- 'c': 'shop',
- 'node': 1,
- 'prereqs': {2, 3, 4, 5},
- 'i': 1}
-{'j': 'assemble',
- 'c': 'shop',
- 'node': 2,
- 'prereqs': {3, 4, 5},
- 'i': 2}
-{'j': 'cut pieces',
- 'c': 'shop',
- 'node': 3,
- 'prereqs': {4},
- 'i': 3}
-{'j': 'get wood',
- 'c': 'Lowes',
- 'node': 4,
- 'i': 4}
-{'j': 'get hardware',
- 'c': 'Lowes',
- 'node': 3,
- 'i': 5}
-{'j': 'get paint',
- 'c': 'Lowes',
- 'node': 1,
- 'i': 6}
+  {'j': 'paint', 'node': 0, 'c': 'shop', 'i': 0})
+  {'j': 'sand', 'node': 1, 'c': 'shop', 'i': 1})
+  {'j': 'assemble', 'node': 2, 'c': 'shop', 'i': 2})
+  {'j': 'cut pieces', 'node': 3, 'c': 'shop', 'i': 3})
+  {'j': 'get wood', 'node': 4, 'c': 'Lowes', 'i': 4})
+  {'j': 'get hardware', 'node': 3, 'c': 'Lowes', 'i': 5})
+  {'j': 'get paint', 'node': 1, 'c': 'Lowes', 'i': 6})
 ```
 
 Note that the outline structure incorporates *backward induction* - what must be done last is considered first. When will "dog house" be done? When "paint" is completed. What has to be done before "paint"? The jobs "sand" and "get paint". And so forth. Also note the handy role of *context*.
 
+### more complex prerequisites - dog house with shared jobs
+
+Here two jobs are added, "go to Lowes" and "create plan and parts list", which are both prerequisites for the jobs "get wood", "get hardware" and "get paint". Since the latter three jobs are on different branches, the "lowes" and "plan" jobs will need to be added to each of the three branches. To do this without creating copies of the jobs, labels will be created the first time the jobs are inserted using "&l" and then the label will be used subsequently to represent the same job.
+
 ```python
-row S  name        context
- a  A  get wood     Lowes 
- b  A  get hardware Lowes 
- c  A  get paint    Lowes 
- d  B  cut pieces   shop 
- e  B  assemble     shop 
- f  B  sand         shop 
- g  B  paint        shop 
+input:
+- dog house @s 2025-05-15
+    @j paint &c shop
+    @j   sand &c shop
+    @j     assemble &c shop
+    @j       cut pieces &c shop
+    @j          get wood &c Lowes
+    @j            go to Lowes &l lowes &c errands
+    @j            create plan and parts list &l plan
+    @j       get hardware &c Lowes
+    @j         lowes
+    @j         plan
+    @j   get paint &c Lowes
+    @j     lowes
+    @j     plan
+
+prereqs
+  0: {1, 2, 3, 4, 5, 6, 7, 8}
+  1: {2, 3, 4, 5, 6, 7}
+  2: {3, 4, 5, 6, 7}
+  3: {4, 5, 6}
+  4: {5, 6}
+  7: {5, 6}
+  8: {5, 6}
+available = {5, 6}
+waiting = {0, 1, 2, 3, 4, 7, 8}
+finished = {}
+
+jobs:
+  {'j': 'paint', 'node': 0, 'c': 'shop', 'i': 0})
+  {'j': 'sand', 'node': 1, 'c': 'shop', 'i': 1})
+  {'j': 'assemble', 'node': 2, 'c': 'shop', 'i': 2})
+  {'j': 'cut pieces', 'node': 3, 'c': 'shop', 'i': 3})
+  {'j': 'get wood', 'node': 4, 'c': 'Lowes', 'i': 4})
+  {'j': 'go to Lowes', 'node': 5, 'c': 'errands', 'i': 5})
+  {'j': 'create plan and parts list', 'node': 5, 'i': 6})
+  {'j': 'get hardware', 'node': 3, 'c': 'Lowes', 'i': 7})
+  {'j': 'go to Lowes', 'node': 4, 'c': 'errands', 'i': 5})
+  {'j': 'create plan and parts list', 'node': 4, 'i': 6})
+  {'j': 'get paint', 'node': 1, 'c': 'Lowes', 'i': 8})
+  {'j': 'go to Lowes', 'node': 2, 'c': 'errands', 'i': 5})
+  {'j': 'create plan and parts list', 'node': 2, 'i': 6})
+```
+
+### more complex prerequisites - dog house with shared jobs and completions
+
+Here the 2 shared jobs "lowes" and "plan" have been finished and the 3 lowes jobs "get wood", "get hardware" and "get paint" have thus become available.
+
+```python
+input:
+- dog house @s 2025-05-15
+    @j paint &c shop
+    @j   sand &c shop
+    @j     assemble &c shop
+    @j       cut pieces &c shop
+    @j          get wood &c Lowes
+    @j            go to Lowes &l lowes &c errands &f 2025-03-26 4:00pm
+    @j            create plan &l plan &f 2025-03-24 2:00pm
+    @j       get hardware &c Lowes
+    @j         lowes
+    @j         plan
+    @j   get paint &c Lowes
+    @j     lowes
+    @j     plan
+
+prereqs
+  0: {1, 2, 3, 4, 7, 8}
+  1: {2, 3, 4, 7}
+  2: {3, 4, 7}
+  3: {4}
+available = {4, 7, 8}
+waiting = {0, 1, 2, 3}
+finished = {5, 6}
+
+jobs:
+  {'j': 'paint', 'node': 0, 'c': 'shop', 'i': 0})
+  {'j': 'sand', 'node': 1, 'c': 'shop', 'i': 1})
+  {'j': 'assemble', 'node': 2, 'c': 'shop', 'i': 2})
+  {'j': 'cut pieces', 'node': 3, 'c': 'shop', 'i': 3})
+  {'j': 'get wood', 'node': 4, 'c': 'Lowes', 'i': 4})
+  {'j': 'go to Lowes', 'node': 5, 'c': 'errands', 'f': '2025-03-26 4:00pm', 'i': 5})
+  {'j': 'create plan', 'node': 5, 'f': '2025-03-24 2:00pm', 'i': 6})
+  {'j': 'get hardware', 'node': 3, 'c': 'Lowes', 'i': 7})
+  {'j': 'go to Lowes', 'node': 4, 'c': 'errands', 'f': '2025-03-26 4:00pm', 'i': 5})
+  {'j': 'create plan', 'node': 4, 'f': '2025-03-24 2:00pm', 'i': 6})
+  {'j': 'get paint', 'node': 1, 'c': 'Lowes', 'i': 8})
+  {'j': 'go to Lowes', 'node': 2, 'c': 'errands', 'f': '2025-03-26 4:00pm', 'i': 5})
+  {'j': 'create plan', 'node': 2, 'f': '2025-03-24 2:00pm', 'i': 6})
 ```
 
 Note that the two available jobs, "cut pieces" and "get paint", would each be "blocking" since they are prerequisites for other jobs and would thus get the associated urgency.blocking points.
@@ -306,22 +394,3 @@ Tasks are ordered by **urgency**. Columns include
 The columns are sortable and the rows are filterable. The default view is a list of tasks with the following columns:
 
 ###
-
-```
-dog house @s 2025-05-15
-  @l Lowes: go to Lowes &c errands 
-  @j paint &c shop
-  @j   sand &c shop
-  @j     assemble &c shop
-  @j       cut pieces &c shop
-  @j         get wood &c Lowes 
-  @j            :Lowes:
-  @j       get hardware &c Lowes
-  @j          :Lowes:
-  @j   get paint &c Lowes
-  @j     :Lowes:
-```
-
-Here the @l creates a label :Lowes: which must be unique, receives an id "l0" for label and being the first label. The @j job entries follow and are numbered consecutively starting from 0 unless the job string following the @j consists of a word surrounded by colons which corresponds to a label.
-
-The jobs are indented to show their hierarchy and the context is shown in parentheses. The jobs are sorted by urgency and the labels are not shown in the list view. The label id is used to identify the label in the job entry.
