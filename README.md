@@ -1,6 +1,6 @@
 # Tklr
 
-# _Last modified: {{LAST_MODIFIED}}_
+_Last modified: {{LAST_MODIFIED}}_
 
 Short for "Task Lister", pronounced "Tickler".
 
