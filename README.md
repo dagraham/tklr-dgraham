@@ -7,10 +7,6 @@ Short for "Task Lister", pronounced "Tickler".
 
 _Preliminary and incomplete version._ This notice will be removed when the code is ready for release.
 
-Short for "Task Lister", pronounced "Tickler".
-
-_Preliminary and incomplete version._ This notice will be removed when the code is ready for release.
-
 A task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of _etm_. Requires: Python, SQLite3, DateUtil and Textual.
 
 ## Task attributes
