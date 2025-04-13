@@ -1,10 +1,18 @@
-<div style="display: flex; align-items: center; gap: 16px;">
-<img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.png" alt="tklr" title="Tklr" width="200px" />
-  <p>
-    <strong>Tklr</strong> - short for "Task Lister" but pronounced "Tickler". A task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of <strong>etm</strong>. Requires: Python, SQLite3, DateUtil and Textual.
-  </p>
-</div>
-_Preliminary and incomplete version._ This notice will be removed when the code is ready for release.
+<table>
+  <tr>
+    <td style="width: 220px; vertical-align: top;">
+      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.png" alt="tklr" title="Tklr" width="220px" />
+    </td>
+    <td>
+      <strong>Tklr</strong> - short for "Task Lister" but pronounced "Tickler". A task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of <strong>etm</strong>.
+  <p>Make the most of your time!</p>
+    </td>
+  </tr>
+</table>
+
+Requires: Python, SQLite3, DateUtil and Textual.
+
+_Preliminary and incomplete version._ This notice will be removed when the code is ready for use.
 
 ## Task attributes
 
