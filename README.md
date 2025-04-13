@@ -1,7 +1,7 @@
 <table>
   <tr>
-    <td style="width: 220px; vertical-align: top;">
-      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.png" alt="tklr" title="Tklr" width="220px" />
+    <td style="width: 240px; vertical-align: top;">
+      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.png" alt="tklr" title="Tklr" width="240px" />
     </td>
     <td>
       <strong>Tklr</strong> - short for "Task Lister" but pronounced "Tickler". A task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of <strong>etm</strong>.
@@ -11,6 +11,8 @@
 </table>
 
 Requires: Python, SQLite3, DateUtil and Textual.
+
+💬 Join the conversation on the [Discussions tab](https://github.com/dagraham/tklr-dgraham/discussions)
 
 _Preliminary and incomplete version._ This notice will be removed when the code is ready for use.
 
