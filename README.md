@@ -1,14 +1,10 @@
+<div style="display: flex; align-items: center; gap: 16px;">
 <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.png" alt="tklr" title="Tklr" width="200px" />
-
-# Tklr
-
-> _Last modified: 2025-04-13 12:45 UTC_
-
-Short for "Task Lister", pronounced "Tickler".
-
+  <p>
+    <strong>Tklr</strong> - short for "Task Lister" but pronounced "Tickler". A task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of <strong>etm</strong>. Requires: Python, SQLite3, DateUtil and Textual.
+  </p>
+</div>
 _Preliminary and incomplete version._ This notice will be removed when the code is ready for release.
-
-A task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of _etm_. Requires: Python, SQLite3, DateUtil and Textual.
 
 ## Task attributes
 
