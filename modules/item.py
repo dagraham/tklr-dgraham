@@ -451,9 +451,9 @@ class Item:
             print(f"{rruleset_str = }")
         if self.jobs:
             success, jobs = self.finalize_jobs()
-            print("\njobs: ")
-            for job in jobs:
-                print(f"  {job})")
+            # print("\njobs: ")
+            # for job in jobs:
+            #     print(f"  {job})")
         if self.tags:
             print(f"tags: {', '.join(self.tags)}")
 
@@ -1288,7 +1288,7 @@ class Item:
                     this_job = job_copy
 
             if "node" in this_job:
-                if this_job["node"] > 0 and len(branch) > this_job["node"]:
+                if this_job["node"] >= 0 and len(branch) >= this_job["node"]:
                     branches.append(branch)
                     branch = branch[: this_job["node"]]
                 branch.append(this_job["i"])
@@ -1339,6 +1339,10 @@ class Item:
                     available.add(j)
             elif j not in finished:
                 available.add(j)
+
+        print("jobs: ")
+        for job in finalized_jobs:
+            print(f"  {job})")
 
         self.item["j"] = finalized_jobs
         print("prereqs")

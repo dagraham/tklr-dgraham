@@ -1,14 +1,16 @@
 # Tklr
 
+# _Last modified: {{LAST_MODIFIED}}_
+
 Short for "Task Lister", pronounced "Tickler".
 
-*Preliminary and incomplete version.* This notice will be removed when the code is ready for release.
+_Preliminary and incomplete version._ This notice will be removed when the code is ready for release.
 
-A task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of *etm*. Requires: Python, SQLite3, DateUtil and Textual.
+A task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of _etm_. Requires: Python, SQLite3, DateUtil and Textual.
 
 ## Task attributes
 
-Generally the same format as *etm* for a task entry but without the beginning item type character: the name of the task, followed by a list of @ and & delineated attributes. The attributes are separated by spaces and include the following:
+Generally the same format as _etm_ for a task entry but without the beginning item type character: the name of the task, followed by a list of @ and & delineated attributes. The attributes are separated by spaces and include the following:
 
 - @b begin:timedelta requires @s (task status = postponed before @s - @b then available)
 - @c context:str (home, shop, work, ...) alternatives specified in config.
@@ -25,12 +27,12 @@ Generally the same format as *etm* for a task entry but without the beginning it
 - @j job (can be used multiple times - examples below)
 - @n note:str
 - @p project:str
-- @r rrule - requires @s (as implemented in *etm*)
+- @r rrule - requires @s (as implemented in _etm_)
 - @s scheduled:datetime - a date or datetime (corresponds to due date in TW)
 - @t tag:str (can be used multiple times)
 - @u until:timedelta - requires @s (task status = deleted after @s + @u if pending before)
 
-- The (unique) id for a task and its *created* and (last) *modified* dates are maintained internally.
+- The (unique) id for a task and its _created_ and (last) _modified_ dates are maintained internally.
 
 ## Task status characters and meaning
 
@@ -43,17 +45,17 @@ Generally the same format as *etm* for a task entry but without the beginning it
 
 ## Repeating tasks
 
-The @r entry is a *rrule* (recurrence rule) as implemented in *etm*. A copy of the task is created in the Instances table with the id of parent task used as the task_id, the next occurrence of the task used for @s, the current datetime for the *created* and *modified* datetimes and with the @r entry removed. This instance of the recurring task is then treated as a normal task with a scheduled date and time.
+The @r entry is a _rrule_ (recurrence rule) as implemented in _etm_. A copy of the task is created in the Instances table with the id of parent task used as the task_id, the next occurrence of the task used for @s, the current datetime for the _created_ and _modified_ datetimes and with the @r entry removed. This instance of the recurring task is then treated as a normal task with a scheduled date and time.
 
 If and when an instance is completed or the single instance deleted and the recurrence rule in the parent task calls for another instance, this process is repeated.
 
 ## Tasks with component jobs
 
-This is a simplification of the current implementation in *etm*. **The need to manually enter job ids and prerequisites has been eliminated by using the position of the job in the sequence and its indentation level.**
+This is a simplification of the current implementation in _etm_. **The need to manually enter job ids and prerequisites has been eliminated by using the position of the job in the sequence and its indentation level.**
 
 A task with @j (job) entries forms a group of related implied tasks, one for each @j entry. The prerequisites for a job, if any, are determined by the position of the @j entry in the job list and its indention level, ((number_of_spaces - 1) // 2), between the "@j" and the first, non-space character of the job. Viewed as an outline, each job depends upon (requires) all subsequently listed jobs that have a greater indention level.
 
-Here are some simple examples of tasks with jobs. In each case "Input" gives the multiline task as it would be entered. What follows are the results of processing by *tklr*.  Using the "i" (id) elements from the list of "jobs", "prereqs" gives the prerequisites for each job, if any, using the "i" entries of the relevant jobs. Similarly "available" gives the ids of jobs that are available for completion, i.e., jobs without unfinished prerequisites, "waiting"  gives the ids of the jobs that are not available because of unfinished prerequisites and "finished" give the ids of the jobs that have been finished.  
+Here are some examples of tasks with jobs. In each case "input" gives the multiline task as it would be entered. What follows are the results of processing by _tklr_. The list of jobs adds an id, "i" for each job, just the jobs position in the list starting from 0, and an integer indention level, "node", again starting from 0.   Using the "i" (id) elements from the list of "jobs", "prereqs" gives the prerequisites for each job, if any, using the "i" entries of the relevant jobs. Similarly "available" gives the ids of jobs that are available for completion, i.e., jobs without unfinished prerequisites, "waiting"  gives the ids of the jobs that are not available because of unfinished prerequisites and "finished" give the ids of the jobs that have been finished.  
 
 ### jobs without prerequisites
 
@@ -64,41 +66,39 @@ input:
     @j B
     @j C
 
-# Computed from the input
+
+# Computed from input:
+jobs:
+  {'j': 'A', 'node': 0, 'i': 0})
+  {'j': 'B', 'node': 0, 'i': 1})
+  {'j': 'C', 'node': 0, 'i': 2})
 prereqs
   0: {1, 2}
   1: {2}
 available = {2}
 waiting = {0, 1}
 finished = {}
-
-jobs:
-  {'j': 'A', 'node': 0, 'i': 0})
-  {'j': 'B', 'node': 0, 'i': 1})
-  {'j': 'C', 'node': 0, 'i': 2})
 ```
 
 ### each job depends on the following jobs
 
 ```python
 input:
-- jobs in simple order  @d A requires B and B requires C
+- jobs without prerequisites @d No prerequisites for any job
     @j A
-    @j   B
-    @j     C
+    @j B
+    @j C
 
-# Computed from the input
-prereqs
-  0: {1, 2}
-  1: {2}
-available = {2}
-waiting = {0, 1}
-finished = {}
 
+# Computed from input:
 jobs:
   {'j': 'A', 'node': 0, 'i': 0})
-  {'j': 'B', 'node': 1, 'i': 1})
-  {'j': 'C', 'node': 2, 'i': 2})
+  {'j': 'B', 'node': 0, 'i': 1})
+  {'j': 'C', 'node': 0, 'i': 2})
+prereqs
+available = {0, 1, 2}
+waiting = {}
+finished = {}
 ```
 
 ### more complex prerequisites - make a dog house
@@ -114,16 +114,8 @@ input:
     @j       get hardware &c Lowes
     @j   get paint &c Lowes
 
-# Computed from the input
-prereqs
-  0: {1, 2, 3, 4, 5, 6}
-  1: {2, 3, 4, 5}
-  2: {3, 4, 5}
-  3: {4}
-available = {4, 5, 6}
-waiting = {0, 1, 2, 3}
-finished = {}
 
+# Computed from input:
 jobs:
   {'j': 'paint', 'node': 0, 'c': 'shop', 'i': 0})
   {'j': 'sand', 'node': 1, 'c': 'shop', 'i': 1})
@@ -132,9 +124,17 @@ jobs:
   {'j': 'get wood', 'node': 4, 'c': 'Lowes', 'i': 4})
   {'j': 'get hardware', 'node': 3, 'c': 'Lowes', 'i': 5})
   {'j': 'get paint', 'node': 1, 'c': 'Lowes', 'i': 6})
+prereqs
+  0: {1, 2, 3, 4, 5, 6}
+  1: {2, 3, 4, 5}
+  2: {3, 4, 5}
+  3: {4}
+available = {4, 5, 6}
+waiting = {0, 1, 2, 3}
+finished = {}
 ```
 
-Note that the outline structure incorporates *backward induction* - what must be done last is considered first. When will "dog house" be done? When "paint" is completed. What has to be done before "paint"? The jobs "sand" and "get paint". And so forth. Also note the handy role of *context*.
+Note that the outline structure incorporates _backward induction_ - what must be done last is considered first. When will "dog house" be done? When "paint" is completed. What has to be done before "paint"? The jobs "sand" and "get paint". And so forth. Also note the handy role of _context_.
 
 ### more complex prerequisites - dog house with shared jobs
 
@@ -149,7 +149,7 @@ input:
     @j       cut pieces &c shop
     @j          get wood &c Lowes
     @j            go to Lowes &l lowes &c errands
-    @j            create plan and parts list &l plan
+    @j            create plan &l plan
     @j       get hardware &c Lowes
     @j         lowes
     @j         plan
@@ -157,7 +157,22 @@ input:
     @j     lowes
     @j     plan
 
-# Computed from the input
+
+# Computed from input:
+jobs:
+  {'j': 'paint', 'node': 0, 'c': 'shop', 'i': 0})
+  {'j': 'sand', 'node': 1, 'c': 'shop', 'i': 1})
+  {'j': 'assemble', 'node': 2, 'c': 'shop', 'i': 2})
+  {'j': 'cut pieces', 'node': 3, 'c': 'shop', 'i': 3})
+  {'j': 'get wood', 'node': 4, 'c': 'Lowes', 'i': 4})
+  {'j': 'go to Lowes', 'node': 5, 'c': 'errands', 'i': 5})
+  {'j': 'create plan', 'node': 5, 'i': 6})
+  {'j': 'get hardware', 'node': 3, 'c': 'Lowes', 'i': 7})
+  {'j': 'go to Lowes', 'node': 4, 'c': 'errands', 'i': 5})
+  {'j': 'create plan', 'node': 4, 'i': 6})
+  {'j': 'get paint', 'node': 1, 'c': 'Lowes', 'i': 8})
+  {'j': 'go to Lowes', 'node': 2, 'c': 'errands', 'i': 5})
+  {'j': 'create plan', 'node': 2, 'i': 6})
 prereqs
   0: {1, 2, 3, 4, 5, 6, 7, 8}
   1: {2, 3, 4, 5, 6, 7}
@@ -169,21 +184,6 @@ prereqs
 available = {5, 6}
 waiting = {0, 1, 2, 3, 4, 7, 8}
 finished = {}
-
-jobs:
-  {'j': 'paint', 'node': 0, 'c': 'shop', 'i': 0})
-  {'j': 'sand', 'node': 1, 'c': 'shop', 'i': 1})
-  {'j': 'assemble', 'node': 2, 'c': 'shop', 'i': 2})
-  {'j': 'cut pieces', 'node': 3, 'c': 'shop', 'i': 3})
-  {'j': 'get wood', 'node': 4, 'c': 'Lowes', 'i': 4})
-  {'j': 'go to Lowes', 'node': 5, 'c': 'errands', 'i': 5})
-  {'j': 'create plan and parts list', 'node': 5, 'i': 6})
-  {'j': 'get hardware', 'node': 3, 'c': 'Lowes', 'i': 7})
-  {'j': 'go to Lowes', 'node': 4, 'c': 'errands', 'i': 5})
-  {'j': 'create plan and parts list', 'node': 4, 'i': 6})
-  {'j': 'get paint', 'node': 1, 'c': 'Lowes', 'i': 8})
-  {'j': 'go to Lowes', 'node': 2, 'c': 'errands', 'i': 5})
-  {'j': 'create plan and parts list', 'node': 2, 'i': 6})
 ```
 
 ### more complex prerequisites - dog house with shared jobs and completions
@@ -207,16 +207,9 @@ input:
     @j     lowes
     @j     plan
 
-# Computed from the input
-prereqs
-  0: {1, 2, 3, 4, 7, 8}
-  1: {2, 3, 4, 7}
-  2: {3, 4, 7}
-  3: {4}
-available = {4, 7, 8}
-waiting = {0, 1, 2, 3}
-finished = {5, 6}
 
+# Computed from input:
+TODO: do_completion() -> implement
 jobs:
   {'j': 'paint', 'node': 0, 'c': 'shop', 'i': 0})
   {'j': 'sand', 'node': 1, 'c': 'shop', 'i': 1})
@@ -231,6 +224,14 @@ jobs:
   {'j': 'get paint', 'node': 1, 'c': 'Lowes', 'i': 8})
   {'j': 'go to Lowes', 'node': 2, 'c': 'errands', 'f': '2025-03-26 4:00pm', 'i': 5})
   {'j': 'create plan', 'node': 2, 'f': '2025-03-24 2:00pm', 'i': 6})
+prereqs
+  0: {1, 2, 3, 4, 7, 8}
+  1: {2, 3, 4, 7}
+  2: {3, 4, 7}
+  3: {4}
+available = {8, 4, 7}
+waiting = {0, 1, 2, 3}
+finished = {5, 6}
 ```
 
 Note that the two available jobs, "cut pieces" and "get paint", would each be "blocking" since they are prerequisites for other jobs and would thus get the associated urgency.blocking points.
