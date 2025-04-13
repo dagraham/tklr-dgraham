@@ -73,10 +73,8 @@ jobs:
   {'j': 'B', 'node': 0, 'i': 1})
   {'j': 'C', 'node': 0, 'i': 2})
 prereqs
-  0: {1, 2}
-  1: {2}
-available = {2}
-waiting = {0, 1}
+available = {0, 1, 2}
+waiting = {}
 finished = {}
 ```
 
