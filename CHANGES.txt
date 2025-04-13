@@ -1,21 +1,25 @@
-Recent tagged changes as of 2025-04-13 14:31:18.590882:
-- 0 seconds ago (HEAD -> working, tag: 0.0.0a13) Daniel Graham
+Recent tagged changes as of 2025-04-13 15:02:18.746856:
+- 0 seconds ago (HEAD -> working, tag: 0.0.0a14) Daniel Graham
+    a62fcab 2025-04-13 15:02:18 -0400
+    Tagged version 0.0.0a14.
+
+- 31 minutes ago (tag: 0.0.0a13) Daniel Graham
     c779f61 2025-04-13 14:31:18 -0400
     Tagged version 0.0.0a13.
 
-- 50 minutes ago (tag: 0.0.0a12) Daniel Graham
+- 81 minutes ago (tag: 0.0.0a12) Daniel Graham
     84753d4 2025-04-13 13:41:21 -0400
     Tagged version 0.0.0a12.
 
-- 89 minutes ago (tag: 0.0.0a11) Daniel Graham
+- 2 hours ago (tag: 0.0.0a11) Daniel Graham
     444cbdf 2025-04-13 13:02:26 -0400
     Tagged version 0.0.0a11.
 
-- 4 hours ago (tag: 0.0.0a10) Daniel Graham
+- 5 hours ago (tag: 0.0.0a10) Daniel Graham
     56833d0 2025-04-13 10:32:28 -0400
     Tagged version 0.0.0a10.
 
-- 4 hours ago (tag: 0.0.0a9) Daniel Graham
+- 5 hours ago (tag: 0.0.0a9) Daniel Graham
     332f86d 2025-04-13 10:25:58 -0400
     Tagged version 0.0.0a9.
 
@@ -23,19 +27,19 @@ Recent tagged changes as of 2025-04-13 14:31:18.590882:
     d45ee86 2025-04-13 08:39:12 -0400
     Tagged version 0.0.0a8.
 
-- 6 hours ago (tag: 0.0.0a7) Daniel Graham
+- 7 hours ago (tag: 0.0.0a7) Daniel Graham
     a744ea9 2025-04-13 08:31:29 -0400
     Tagged version 0.0.0a7.
 
-- 6 hours ago (tag: 0.0.0a6) Daniel Graham
+- 7 hours ago (tag: 0.0.0a6) Daniel Graham
     403ffe8 2025-04-13 08:16:14 -0400
     Tagged version 0.0.0a6.
 
-- 6 hours ago (tag: 0.0.0a5) Daniel Graham
+- 7 hours ago (tag: 0.0.0a5) Daniel Graham
     c982a85 2025-04-13 08:13:52 -0400
     Tagged version 0.0.0a5.
 
-- 21 hours ago (tag: 0.0.0a4) Daniel Graham
+- 22 hours ago (tag: 0.0.0a4) Daniel Graham
     9b9b898 2025-04-12 17:29:56 -0400
     Tagged version 0.0.0a4.
 
@@ -43,7 +47,7 @@ Recent tagged changes as of 2025-04-13 14:31:18.590882:
     c931e96 2025-04-12 15:40:19 -0400
     Tagged version 0.0.0a3.
 
-- 24 hours ago (tag: 0.0.0a2) Daniel Graham
+- 25 hours ago (tag: 0.0.0a2) Daniel Graham
     601d35d 2025-04-12 14:09:12 -0400
     Tagged version 0.0.0a2.
 
