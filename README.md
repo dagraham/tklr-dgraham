@@ -1,6 +1,6 @@
 # Tklr
 
-_Last modified: {{LAST_MODIFIED}}_
+> _Last modified: 2025-04-13 10:00 UTC_
 
 Short for "Task Lister", pronounced "Tickler".
 
