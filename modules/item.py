@@ -1,4 +1,5 @@
 import re, shutil
+import json
 from dateutil.parser import parse
 from dateutil import rrule
 from dateutil.rrule import rruleset, rrulestr
@@ -13,7 +14,7 @@ from copy import deepcopy
 
 from typing import Union, Tuple, Optional
 from typing import List, Dict, Any, Callable, Mapping
-from common import timedelta_string_to_seconds, log_msg
+from common import timedelta_string_to_seconds, log_msg, fmt_dt
 
 # JOB_PATTERN = re.compile(r"(^@j) (\d*):\s*(.*)")
 # JOB_PATTERN = re.compile(r"^@j ( +)(\S.*)")
@@ -431,6 +432,7 @@ class Item:
         self.rrules = []
         self.jobs = []
         self.tags = []
+        self.alerts = []
         self.rdates = []
         self.exdates = []
         self.dtstart = None
@@ -451,11 +453,12 @@ class Item:
             print(f"{rruleset_str = }")
         if self.jobs:
             success, jobs = self.finalize_jobs()
-            # print("\njobs: ")
-            # for job in jobs:
-            #     print(f"  {job})")
         if self.tags:
-            print(f"tags: {', '.join(self.tags)}")
+            self.item["t"] = self.tags
+            print(f"tags: {self.tags}")
+        if self.alerts:
+            self.item["a"] = self.alerts
+            print(f"alerts: {self.alerts}")
 
     def _tokenize(self, entry: str):
         self.entry = entry
@@ -678,8 +681,7 @@ class Item:
         ok, res = timedelta_string_to_seconds(arg)
         return ok, res
 
-    @classmethod
-    def do_alert(cls, arg):
+    def do_alert(self, arg):
         """
         Process an alert string, validate it and return a corresponding string
         with the timedelta components replaced by integer seconds.
@@ -718,6 +720,7 @@ class Item:
                 issues.append("; ".join(probs))
         if issues:
             return False, "\n".join(issues), []
+        self.alerts.extend(res)
         return True, "; ".join(res), []
 
     def do_description(self, token):
@@ -828,6 +831,7 @@ class Item:
             datetime_str = re.sub("^@. ", "", token)
             datetime_obj = parse(datetime_str)
             self.dtstart = datetime_obj
+            # self.dtstart = fmt_dt(datetime_obj)
             return True, datetime_obj, []
         except ValueError as e:
             return False, f"Invalid datetime: {datetime_str}. Error: {e}", []
@@ -1340,11 +1344,18 @@ class Item:
             elif j not in finished:
                 available.add(j)
 
+        jobs = []
         print("jobs: ")
         for job in finalized_jobs:
+            i = job["i"]
+            req = prereqs.get(i, [])
+            if req:
+                job["prereqs"] = req
             print(f"  {job})")
+            jobs.append(job)
 
-        self.item["j"] = finalized_jobs
+        self.item["j"] = jobs
+
         print("prereqs")
         for i, reqs in prereqs.items():
             print(f"  {i}: {reqs}")
@@ -1355,7 +1366,7 @@ class Item:
         }.items():
             print(f"{name} = {pp_set(value)}")
 
-        return True, finalized_jobs
+        return True, jobs
 
     def do_completion(self, token):
         """ "process completion command"""
