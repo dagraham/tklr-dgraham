@@ -1,5 +1,9 @@
-Recent tagged changes as of 2025-04-15 18:19:56.914567:
-- 0 seconds ago (HEAD -> working, tag: 0.0.0a15) Daniel Graham
+Recent tagged changes as of 2025-04-15 18:22:30.701506:
+- 0 seconds ago (HEAD -> working, tag: 0.0.0a16) Daniel Graham
+    7399197 2025-04-15 18:22:30 -0400
+    Tagged version 0.0.0a16.
+
+- 3 minutes ago (tag: 0.0.0a15) Daniel Graham
     21039ce 2025-04-15 18:19:56 -0400
     Tagged version 0.0.0a15.
 
