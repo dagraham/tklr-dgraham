@@ -2,6 +2,7 @@
   <tr>
     <td>
       <strong>Tklr</strong> - short for "Task Lister" but pronounced "Tickler". A task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of <strong>etm</strong>.
+      <p></p>
   <p>Make the most of your time!</p>
     </td>
     <td style="width: 300px; vertical-align: top;">
