@@ -1,9 +1,13 @@
-Recent tagged changes as of 2025-04-15 18:22:30.701506:
-- 0 seconds ago (HEAD -> working, tag: 0.0.0a16) Daniel Graham
+Recent tagged changes as of 2025-04-15 20:20:21.726204:
+- 0 seconds ago (HEAD -> working, tag: 0.0.0a17) Daniel Graham
+    d30fcd5 2025-04-15 20:20:21 -0400
+    Tagged version 0.0.0a17.
+
+- 2 hours ago (tag: 0.0.0a16) Daniel Graham
     7399197 2025-04-15 18:22:30 -0400
     Tagged version 0.0.0a16.
 
-- 3 minutes ago (tag: 0.0.0a15) Daniel Graham
+- 2 hours ago (tag: 0.0.0a15) Daniel Graham
     21039ce 2025-04-15 18:19:56 -0400
     Tagged version 0.0.0a15.
 
@@ -31,19 +35,19 @@ Recent tagged changes as of 2025-04-15 18:22:30.701506:
     332f86d 2025-04-13 10:25:58 -0400
     Tagged version 0.0.0a9.
 
-- 2 days ago (tag: 0.0.0a8) Daniel Graham
+- 3 days ago (tag: 0.0.0a8) Daniel Graham
     d45ee86 2025-04-13 08:39:12 -0400
     Tagged version 0.0.0a8.
 
-- 2 days ago (tag: 0.0.0a7) Daniel Graham
+- 3 days ago (tag: 0.0.0a7) Daniel Graham
     a744ea9 2025-04-13 08:31:29 -0400
     Tagged version 0.0.0a7.
 
-- 2 days ago (tag: 0.0.0a6) Daniel Graham
+- 3 days ago (tag: 0.0.0a6) Daniel Graham
     403ffe8 2025-04-13 08:16:14 -0400
     Tagged version 0.0.0a6.
 
-- 2 days ago (tag: 0.0.0a5) Daniel Graham
+- 3 days ago (tag: 0.0.0a5) Daniel Graham
     c982a85 2025-04-13 08:13:52 -0400
     Tagged version 0.0.0a5.
 
