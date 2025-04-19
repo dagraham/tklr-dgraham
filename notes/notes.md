@@ -1,4 +1,4 @@
-# Notes
+# Notes - A staging ground for README 
 
 ## item types and status
 
