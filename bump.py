@@ -117,11 +117,16 @@ check_output(f"git commit -a -m '{tmsg}'")
 ok, version_info = check_output("git log --pretty=format:'%ai' -n 1")
 check_output(f"git tag -a -f '{new_version}' -m '{version_info}'")
 
-check_output(f"echo 'Recent tagged changes as of {datetime.now()}:' > CHANGES.txt")
-check_output(
-    f"git log --pretty=format:'- %ar%d %an%n    %h %ai%n%w(70,4,4)%B' --max-count=20 --no-walk --tags >> CHANGES.txt"
+# Generate CHANGES.txt but do NOT commit it
+changes_text = f"Recent tagged changes as of {datetime.now()}:\n"
+ok, changelog = check_output(
+    f"git log --pretty=format:'- %ar%d %an%n    %h %ai%n%w(70,4,4)%B' --max-count=20 --no-walk --tags"
 )
-check_output(f"git commit -a --amend -m '{tmsg}'")
+if ok:
+    with open("CHANGES.txt", "w") as changes_file:
+        changes_file.write(changes_text)
+        changes_file.write(changelog)
+    print("CHANGES.txt generated (not committed).")
 
 if input("switch to master, merge working and push to origin? [yN] ").lower() == "y":
     check_output(
