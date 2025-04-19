@@ -1,14 +1,106 @@
 # Notes
 
+## item types and status
+
+Three types of reminders are supported, 1) *task*, 2) *event* and 3) *note*.
+The type of reminder is indicated by the first character of the subject line, which is one of the following:
+
+- task: `-`
+- event: `*`
+- note: `%`
+
+*tasks* and their component *jobs* are further characterized by their *status* so that while the recorded item type is `-`, the type that will be displayed in any list of tasks will be the first status code that applies from the following list:
+
+- deleted: "x" - the task or job has been deleted, i.e., has either an `@x` (task) or an `&x` (job) datetime entry.
+- finished: "✓" - the task or job has been finished, i.e., has either an `@f` (task) or an `&f` (job) entry.
+- postponed: "~" - this is a task with a `@s datetime` entry and `datetime < now`.
+- waiting: "+" - this is a job with one or more unfinished prerequisites.
+- blocking: "⏹" - this is a job that is a prerequisite for another job.
+- active: "!" - this is a task or job that is currently in progress, i.e., has an `@s` (task) or `&s` (job) entry with `datetime < now`.
+- available: "-" - a task or job not meeting any of the above criteria.
+
+Note that "⏹" and "-" correspond to tasks and jobs that are **available for completion** - these are the tasks and jobs listed by *urgency* in the default "agenda" view.
+
+When a task or event is repeating, "↻" is appended to the subject.
+
+## Standard Views
+
+### Agenda
+
+This is the "action" view for *tklr*. It lists *relevant* events for the current date and time and tasks and jobs that are available for completion. A *relevant* event is one that occupies part of the reminder of the current date. More formally, an event for which 1) in the `@s scheduled` entry, *scheduled* specifies a datetime object and not a date, 2) `scheduled.date() <= date.today()`, 3) an `@e extent` entry is specified with *extent* a timedelta object and with `extent.total_seconds() > 0` and 4) `scheduled + extent > now`.
+
+Events and tasks are sorted as follows:
+
+1) the event, if any, for which `datetime < now`. I.e., the busy period for the event is currently in progress.
+
+2) tasks and jobs that are available for completion sorted by *urgency* (descending).
+
+3) events, if any, for which `datetime > now` sorted by *datetime* (ascending).
+
+Note that a period could be blocked off for a *sprint* using an *event* with a subject entry corresponding to the task(s) to be completed during the sprint and with `@s` and `@e` entries to block off the relevant period.
+
+### Status History
+
+When the details of a task are displayed, various keybindings are enabled including these which affect the "status" of the task:
+
+Possible status values include:
+
+- active
+- inactive (default)
+- paused
+- completed
+- deleted
+
+- A)ctivate: change the status of the task to "active" and if another task is active, change its status to "paused".
+
 ## SQLite3 Database
 
+Scheduled datetimes from `@s` entries become part of the record's rrulestr expression in one of two ways:
+
+  1. for records that *have*  an accompanying @r entry, the datetime is stored as the *DTSTART* component, followed by the remaining rrulestr components. E.g.,
+
+    ```python
+    * datetime repeating @s 2024-08-07 14:00 @r d &i 2
+
+# becomes
+
+  {
+      "itemtype": "*",
+      "subject": "datetime repeating",
+      "rruleset": "DTSTART:20240807T140000\nRRULE:FREQ=DAILY;INTERVAL=2",
+  }
+    ```
+
+  1. for records that *do not have* an accompanying @r entry, the datetime is  stored as as the *RDATE* component, E.g.,
+
+    ```python
+    * datetime only @s 2024-08-07 14:00 @e 1h30m
+
+# becomes
+
+    {
+      "itemtype": "*",
+      "subject": "datetime only",
+      "e": 5400,
+      "rruleset": "RDATE:20240807T140000"
+    }
+    ```
+
 ### Tables
+
+#### Records
+
+- unique_id: int
+- created: int (seconds since epoch)
+- modified: int (seconds since epoch)
+- input: text (string entered by the user)
+- output: text (json version of the dictionary containing the parsed data from "input")
 
 - Items
   - id
   - itemtype: text
   - scheduled: int (seconds since epoch)
-  - created: int (seconds since epoch)
+  - created: int (seconds sinc e epoch)
   - modified: int (seconds since epoch)
   - entry: text
   - hash: text (json)

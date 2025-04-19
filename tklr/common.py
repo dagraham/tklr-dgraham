@@ -219,21 +219,34 @@ def format_extent(
     return f"{beg_fmt}{beg_suffix}-{end_fmt}{end_suffix}"
 
 
-def timedelta_string_to_seconds(time_str):
-    units = {
-        "w": 7 * 24 * 60 * 60,  # weeks to seconds
-        "d": 24 * 60 * 60,  # days to seconds
-        "h": 60 * 60,  # hours to seconds
-        "m": 60,  # minutes to seconds
-        "s": 1,  # seconds
+def timedelta_str_to_seconds(time_str: str) -> int:
+    """
+    Converts a time string composed of integers followed by 'w', 'd', 'h', or 'm'
+    into the total number of seconds.
+    Args:
+        time_str (str): The time string (e.g., '3h15s').
+    Returns:
+        int: The total number of seconds.
+    Raises:
+        ValueError: If the input string is not in the expected format.
+    """
+    # Define time multipliers for each unit
+    multipliers = {
+        "w": 7 * 24 * 60 * 60,  # Weeks to seconds
+        "d": 24 * 60 * 60,  # Days to seconds
+        "h": 60 * 60,  # Hours to seconds
+        "m": 60,  # Minutes to seconds
     }
-    time_str = time_str.strip()
-    match = re.fullmatch(r"(-?\d+)([wdhms])", time_str)
-    if not match:
-        return False, f"Invalid timedelta format: {time_str}"
-
-    value, unit = match.groups()
-    return True, int(value) * units[unit]
+    # Match all integer-unit pairs (e.g., "3h", "15s")
+    matches = re.findall(r"(\d+)([wdhm])", time_str)
+    if not matches:
+        return (
+            False,
+            "Invalid time string format. Expected integers followed by 'w', 'd', 'h', or 'm'.",
+        )
+    # Convert each match to seconds and sum them
+    total_seconds = sum(int(value) * multipliers[unit] for value, unit in matches)
+    return True, total_seconds
 
 
 def fmt_td(seconds: int, short=True):

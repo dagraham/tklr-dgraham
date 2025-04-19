@@ -25,7 +25,7 @@ Generally the same format as _etm_ for a task entry but without the beginning it
 - @b begin:timedelta requires @s (task status = postponed before @s - @b then available)
 - @c context:str (home, shop, work, ...) alternatives specified in config.
   As with TW, specifying a context would limit the list display to tasks with that context.
-- @d deleted:datetime
+- @d due:datetime -
 - @e estimate:timedelta estimated time required for completion
 
     a. Perhaps a "quick" command to order tasks by extent, shortest first? Someway of taking advantage of having, say 15 minutes, before a meeting?
@@ -33,7 +33,7 @@ Generally the same format as _etm_ for a task entry but without the beginning it
     c. Should due urgency be adjusted for the estimated time?
 
 - @f finished:datetime
-- @i importance:["N", "H", "M", "L"] numeric values in config (corresponds to next (tag) and priority in TW)
+- @i importance:[N)ext, H)igh, M)edium, L)low, S)omeday] numeric values in config (corresponds to next (tag) and priority in TW)
 - @j job (can be used multiple times - examples below)
 - @n note:str
 - @p project:str
@@ -41,6 +41,7 @@ Generally the same format as _etm_ for a task entry but without the beginning it
 - @s scheduled:datetime - a date or datetime (corresponds to due date in TW)
 - @t tag:str (can be used multiple times)
 - @u until:timedelta - requires @s (task status = deleted after @s + @u if pending before)
+- @x deleted:datetime
 
 - The (unique) id for a task and its _created_ and (last) _modified_ dates are maintained internally.
 
@@ -279,11 +280,13 @@ urgency.blocking: 8.0
 # is pending and a prerequisite for another job
 
 urgency.age: 2.0 # coefficient for age
-urgency.due: 12.0 # overdue or near due date
-urgency.tag.H: 5.0 # high Priority
-urgency.tag.M: 2.0 # medium Priority
-urgency.tag.L: -1.0 # low Priority
-urgency.tag.next: 15.0 # has a "next" tag
+urgency.scheduled: 12.0 # past scheduled
+urgency.due: 16.0 # past due or near due date
+urgency.importance.next: 15.0 # next 
+urgency.importance.high: 6.0 # high 
+urgency.importance.medium: 2.0 # medium 
+urgency.importance.low: -2.0 # low 
+urgency.importance.someday: -6.0 # someday 
 urgency.note: 1.0 # has a note
 urgency.project: 1.0 # is assigned to a project
 
@@ -297,7 +300,7 @@ As in TaskWarrior the most important urgency components are (1) having a "next" 
 
 ### due
 
-For tasks with a due date, the contribution of due to the urgency of the task is calculated as follows:
+For tasks with an `@d` due datetime, the contribution of due to the urgency of the task is calculated as follows:
 
 ```python
 def urgency_due(due: datetime) -> float:
@@ -314,11 +317,11 @@ def urgency_due(due: datetime) -> float:
 
     now = datetime.now()
 
-    days_overdue = (now - due).total_seconds() / 86400.0
-    if days_overdue >= 7.0:
+    days_past = (now - due).total_seconds() / 86400.0
+    if days_past >= 7.0:
         return 1.0  # < 1 wk ago
-    elif days_overdue >= -14.0:
-        return ((days_overdue + 14.0) * 0.8 / 21.0) + 0.2
+    elif days_past >= -14.0:
+        return ((days_past + 14.0) * 0.8 / 21.0) + 0.2
     else:
         return 0.2  # > 2 wks
 ```

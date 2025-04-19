@@ -1,0 +1,18 @@
+[project]
+name = "tklr-dgraham"
+dynamic = ["version"]                                               # 👈 tell tools it's not hardcoded
+description = "CLI task and job planning tool"
+authors = [{ name = "Daniel Graham", email = "dnlgrhm@gmail.com" }]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["textual>=0.42.0", "python-dateutil>=2.8.2"]
+
+[project.scripts]
+tklr = "tklr:main" # Update this if your entry point is elsewhere
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = { attr = "tklr.__version__.version" }

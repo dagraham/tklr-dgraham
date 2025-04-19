@@ -14,7 +14,7 @@ from copy import deepcopy
 
 from typing import Union, Tuple, Optional
 from typing import List, Dict, Any, Callable, Mapping
-from common import timedelta_string_to_seconds, log_msg, fmt_dt
+from common import timedelta_str_to_seconds, log_msg, fmt_dt
 
 # JOB_PATTERN = re.compile(r"(^@j) (\d*):\s*(.*)")
 # JOB_PATTERN = re.compile(r"^@j ( +)(\S.*)")
@@ -451,6 +451,12 @@ class Item:
         if self.rrule_tokens:
             success, rruleset_str = self.finalize_rruleset()
             print(f"{rruleset_str = }")
+        elif self.dtstart:
+            rdate = self.dtstart.strftime("%Y%m%dT%H%M%S")
+            self.item["rruleset"] = f"RDATE:{rdate}"
+        for i in ["r", "s"]:
+            if i in self.item:
+                del self.item[i]
         if self.jobs:
             success, jobs = self.finalize_jobs()
         if self.tags:
@@ -677,8 +683,8 @@ class Item:
         # print(f"processing duration: {arg}")
         if not arg:
             return False, f"time period {arg}"
-        print(f"calling timedelta_string_to_seconds with {arg}")
-        ok, res = timedelta_string_to_seconds(arg)
+        print(f"calling timedelta_str_to_seconds with {arg}")
+        ok, res = timedelta_str_to_seconds(arg)
         return ok, res
 
     def do_alert(self, arg):
@@ -708,7 +714,7 @@ class Item:
                     ok = False
                     probs.append(f"  Invalid command: {cmd}")
             for td in [x.strip() for x in timedeltas.split(",")]:
-                ok, td_seconds = timedelta_string_to_seconds(td)
+                ok, td_seconds = timedelta_str_to_seconds(td)
                 if ok:
                     secs.append(str(td_seconds))
                 else:
@@ -738,8 +744,7 @@ class Item:
     def do_extent(self, token):
         # Process datetime token
         extent = re.sub("^@. ", "", token.strip())
-        # print(f"Processing extent token: '{extent}'")
-        ok, extent_obj = timedelta_string_to_seconds(extent)
+        ok, extent_obj = timedelta_str_to_seconds(extent)
         if ok:
             self.extent = extent_obj
             return True, extent_obj, []
