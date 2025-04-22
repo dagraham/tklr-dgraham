@@ -6,7 +6,7 @@
   <p>Make the most of your time!</p>
     </td>
     <td style="width: 300px; vertical-align: top;">
-      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.png" alt="tklr" title="Tklr" width="300px" />
+      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif" alt="tklr" title="Tklr" width="300px" />
     </td>
 
   </tr>
@@ -254,6 +254,10 @@ By way of contrast, a list of jobs with the same zero indention level would be t
 @s scheduled date or datetime.
 
 When an `@s` entry specifies a date without a time, i.e., a date instead of a datetime, the interpretation is that the task is due sometime on that day. Specifically, it is not due until `00:00:00` on that day and not past due until `00:00:00` on the following day. The interpretation of `@b` and `@u` in this circumstance is similar. For example, if `@s 2025-04-06` is specified with `@b 3d` and `@u 2d` then the task status would change from waiting to pending at `2025-04-03 00:00:00` and, if not completed, to deleted at `2025-04-09 00:00:00`.
+
+### Timezone
+
+When a datetime is specified, the timezone is assumed to be the local timezone. The datetime is converted to UTC for storage in the database. When a datetime is displayed, it is converted back to the local timezone.
 
 ## configuration
 
