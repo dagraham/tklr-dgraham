@@ -1,4 +1,4 @@
-# Notes - A staging ground for README 
+# Notes - A staging ground for README
 
 ## item types and status
 
@@ -59,32 +59,36 @@ Scheduled datetimes from `@s` entries become part of the record's rrulestr expre
 
   1. for records that *have*  an accompanying @r entry, the datetime is stored as the *DTSTART* component, followed by the remaining rrulestr components. E.g.,
 
-    ```python
-    * datetime repeating @s 2024-08-07 14:00 @r d &i 2
+      ```python
+      * datetime repeating @s 2024-08-07 14:00 @r d &i 2
+      ```
 
-# becomes
+      becomes
 
-  {
-      "itemtype": "*",
-      "subject": "datetime repeating",
-      "rruleset": "DTSTART:20240807T140000\nRRULE:FREQ=DAILY;INTERVAL=2",
-  }
-    ```
+      ```python
+        {
+            "itemtype": "*",
+            "subject": "datetime repeating",
+            "rruleset": "DTSTART:20240807T140000\nRRULE:FREQ=DAILY;INTERVAL=2",
+        }
+      ```
 
   1. for records that *do not have* an accompanying @r entry, the datetime is  stored as as the *RDATE* component, E.g.,
 
-    ```python
-    * datetime only @s 2024-08-07 14:00 @e 1h30m
+      ```python
+      * datetime only @s 2024-08-07 14:00 @e 1h30m
+      ```
 
-# becomes
+      becomes
 
-    {
-      "itemtype": "*",
-      "subject": "datetime only",
-      "e": 5400,
-      "rruleset": "RDATE:20240807T140000"
-    }
-    ```
+      ```python
+      {
+        "itemtype": "*",
+        "subject": "datetime only",
+        "e": 5400,
+        "rruleset": "RDATE:20240807T140000"
+      }
+      ```
 
 ### Tables
 
@@ -212,7 +216,7 @@ Here are two examples of input and the corresponding output:
 - Dog house:
   - input:
 
-    ```
+    ```python
     - dog house @s 2025-05-15
         @j paint &c shop
         @j   sand &c shop
@@ -227,9 +231,10 @@ Here are two examples of input and the corresponding output:
         @j   get paint &c Lowes
         @j     lowes
         @j     plan
+    ```
 
-   ```
-  - output: 
+  - output:
+
     ```json
       {
         "itemtype": "-",
