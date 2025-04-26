@@ -1,5 +1,7 @@
 # Notes - A staging ground for README
 
+![image](tklr_logo.png)
+
 ## item types and status
 
 Three types of reminders are supported, 1) *task*, 2) *event* and 3) *note*.

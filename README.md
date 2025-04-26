@@ -1,12 +1,15 @@
 <table>
   <tr>
     <td>
-      <strong>Tklr</strong> - short for "Task Lister" but pronounced "Tickler". A task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of <strong>etm</strong>.
-      <p></p>
+  <h1>tklr</h1>
+      Short for "Task Lister" but pronounced "Tickler" -
+      a task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of <strong>etm</strong>.</p>
   <p>Make the most of your time!</p>
+      <p></p>
     </td>
-    <td style="width: 300px; vertical-align: top;">
-      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif" alt="tklr" title="Tklr" width="300px" />
+    <td style="width: 180px; vertical-align: top;">
+      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif" alt="tklr" title="Tklr" width="200px" />
+      <!-- <img src="mouse_short_bkgrnd.avif" alt="tklr" title="Tklr" width="180px" /> -->
     </td>
 
   </tr>
@@ -41,7 +44,7 @@ Generally the same format as _etm_ for a task entry but without the beginning it
 - @s scheduled:datetime - a date or datetime (corresponds to due date in TW)
 - @t tag:str (can be used multiple times)
 - @u until:timedelta - requires @s (task status = deleted after @s + @u if pending before)
-- @x deleted:datetime
+- @x deleted:d/noteatetime
 
 - The (unique) id for a task and its _created_ and (last) _modified_ dates are maintained internally.
 
@@ -62,9 +65,9 @@ If and when an instance is completed or the single instance deleted and the recu
 
 ## Tasks with component jobs
 
-This is a simplification of the current implementation in _etm_. **The need to manually enter job ids and prerequisites has been eliminated by using the position of the job in the sequence and its indentation level.**
+This is a simplification of the current implementation in _etm_. __The need to manually enter job ids and prerequisites has been eliminated by using the position of the job in the sequence and its indentation level.__
 
-A task with @j (job) entries forms a group of related implied tasks, one for each @j entry. The prerequisites for a job, if any, are determined by the position of the @j entry in the job list and its indention level, ((number_of_spaces - 1) // 2), between the "@j" and the first, non-space character of the job. Viewed as an outline, each job depends upon (requires) all subsequently listed jobs that have a greater indention level.
+A task with @j (job) entries forms a group of related implied tasks, one for each @j entry. The prerequisites for a job, if any, are
 
 Here are some examples of tasks with jobs. In each case "input" gives the multiline task as it would be entered. What follows are the results of processing by _tklr_. The list of jobs adds an id, "i" for each job, just the jobs position in the list starting from 0, and an integer indention level, "node", again starting from 0.   Using the "i" (id) elements from the list of "jobs", "prereqs" gives the prerequisites for each job, if any, using the "i" entries of the relevant jobs. Similarly "available" gives the ids of jobs that are available for completion, i.e., jobs without unfinished prerequisites, "waiting"  gives the ids of the jobs that are not available because of unfinished prerequisites and "finished" give the ids of the jobs that have been finished.  
 
@@ -251,13 +254,98 @@ By way of contrast, a list of jobs with the same zero indention level would be t
 
 ## Dates and times
 
-@s scheduled date or datetime.
+When an `@s` scheduled entry specifies a date without a time, i.e., a date instead of a datetime, the interpretation is that the task is due sometime on that day. Specifically, it is not due until `00:00:00` on that day and not past due until `00:00:00` on the following day. The interpretation of `@b` and `@u` in this circumstance is similar. For example, if `@s 2025-04-06` is specified with `@b 3d` and `@u 2d` then the task status would change from waiting to pending at `2025-04-03 00:00:00` and, if not completed, to deleted at `2025-04-09 00:00:00`.
 
-When an `@s` entry specifies a date without a time, i.e., a date instead of a datetime, the interpretation is that the task is due sometime on that day. Specifically, it is not due until `00:00:00` on that day and not past due until `00:00:00` on the following day. The interpretation of `@b` and `@u` in this circumstance is similar. For example, if `@s 2025-04-06` is specified with `@b 3d` and `@u 2d` then the task status would change from waiting to pending at `2025-04-03 00:00:00` and, if not completed, to deleted at `2025-04-09 00:00:00`.
+## Recurrence
 
-### Timezone
+### @r and, by requirement, @s are given
+
+When an item is specified with an `@r` entry, an `@s` entry is required and is used as the `DTSTART` entry in the recurrence rule. E.g.,
+
+  ```python
+  * datetime repeating @s 2024-08-07 14:00 @r d &i 2
+  ```
+
+  is serialized (stored) as
+
+  ```python
+    {
+        "itemtype": "*",
+        "subject": "datetime repeating",
+        "rruleset": "DTSTART:20240807T140000\nRRULE:FREQ=DAILY;INTERVAL=2",
+    }
+  ```
+
+__Note__: The datetimes generated by the rrulestr correspond to datetimes matching the specification of `@r` which  occur __on or after__ the datetime specified by `@s`. The datetime corresponding to `@s` itself will only be generated if it matches the specification of `@r`.
+
+### @s is given but not @r
+
+On the other hand, if an `@s` entry is specified, but `@r` is not, then the `@s` entry is stored as an `RDATE` in the recurrence rule. E.g.,
+
+  ```python
+  * datetime only @s 2024-08-07 14:00 @e 1h30m
+  ```
+
+  is serialized (stored) as
+
+  ```python
+  {
+    "itemtype": "*",
+    "subject": "datetime only",
+    "e": 5400,
+    "rruleset": "RDATE:20240807T140000"
+  }
+  ```
+
+The datetime corresponding to `@s` itself is, of course, generated in this case.
+
+### @+ is specified, with or without @r
+
+When `@s` is specified, an `@+` entry can be used to specify one or more, comma separated datetimes.  When `@r` is given, these datetimes are added to those generated by the `@r` specification. Otherwise, they are added to the datetime specified by `@s`. E.g.,   is a special case. It is used to specify a datetime that is relative to the current datetime. E.g.,
+
+  ```python
+  * rdates @s 2024-08-07 14:00 @+ 2024-08-09 21:00 
+  ```
+
+  would be serialized (stored) as
+
+  ```python
+  {
+    "itemtype": "*",
+    "subject": "rdates",
+    "rruleset": "RDATE:20240807T140000, 20240809T210000"
+  }
+  ```
+
+This option is particularly useful for irregular recurrences such as annual doctor visits. After the initial visit, subsequent visits can simply be added to the `@+` entry of the existing event once the new appointment is made.
+
+__Note__: Without `@r`, the `@s` datetime is included in the datetimes generated but with `@r`, it is only used to set the beginning of the recurrence and otherwise ignored.
+
+### Timezone considerations
+
+[[timezones.md]]
 
 When a datetime is specified, the timezone is assumed to be the local timezone. The datetime is converted to UTC for storage in the database. When a datetime is displayed, it is converted back to the local timezone.
+
+This would work perfectly but for _recurrence_ and _daylight savings time_. The recurrence rules are stored in UTC and the datetimes generated by the rules are also in UTC. When these datetimes are displayed, they are converted to the local timezone.  
+
+```python
+- fall back @s 2024-11-01 10:00 EST  @r d &i 1 &c 4
+```
+
+```python
+rruleset_str = 'DTSTART:20241101T140000\nRRULE:FREQ=DAILY;INTERVAL=1;COUNT=4'
+item.entry = '- fall back @s 2024-11-01 10:00 EST  @r d &i 1 &c 4'
+{
+  "itemtype": "-",
+  "subject": "fall back",
+  "rruleset": "DTSTART:20241101T140000\nRRULE:FREQ=DAILY;INTERVAL=1;COUNT=4"
+}
+  Fri 2024-11-01 10:00 EDT -0400
+  Sat 2024-11-02 10:00 EDT -0400
+  Sun 2024-11-03 09:00 EST -0500
+  Mon 2024-11-04 09:00 EST -0500
+```
 
 ## configuration
 
@@ -406,7 +494,7 @@ Pressing the key or keys corresponding to row number opens a view showing the de
 
 ### Next - the default view
 
-Tasks are ordered by **urgency**. Columns include
+Tasks are ordered by __urgency__. Columns include
 
 - row number (a, b, c, ...)
 - status
