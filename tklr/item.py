@@ -56,9 +56,10 @@ def get_local_zoneinfo():
     except Exception:
         return None
 
+
 def localize_datetime(dt: datetime, tzid: str) -> datetime:
     """Attach timezone info to naive datetime based on tzid."""
-    zone = None if tzid == 'none' else ZoneInfo(tzid).key
+    zone = None if tzid == "none" else ZoneInfo(tzid).key
     print(f"localize_datetime: {dt} with tzid: {tzid} => {zone = }")
     return dt.replace(tzinfo=zone)
 
@@ -489,7 +490,8 @@ class Item:
         """
         digits = "1234567890" * ceil(len(entry) / 10)
         self._tokenize(entry)
-        print(f"\n\n### parse_input ###\ninput:\n{entry}\n\n# Computed from input:")
+        # print(f"\n\n### parse_input ###\ninput:\n{entry}\n\n# Computed from input:")
+        # print(f"\n\n-----\n{entry}")
         self._parse_tokens(entry)
         self.parse_ok = True
         self.previous_entry = entry
@@ -499,27 +501,32 @@ class Item:
         added_rdates = added_exdates = ""
         if self.rdates:
             add = []
-            print(f"{self.timezone = }; {self.timezone.key = }")
+            # print(f"{self.timezone = }; {self.timezone.key = }")
             for dt in self.rdates:
                 # ldt = localize_datetime(dt, self.timezone)
                 dt_str = dt.strftime("%Y%m%dT%H%M%S%z")
                 add.append(dt_str)
             added_rdates = ",".join(add)
             # added_rdates = ",".join(localize_datetime(dt, self.timezone).strftime("%Y%m%dT%H%M%S%z") for dt in self.rdates)
-        print(f"added_rdates: {added_rdates}")
+        # print(f"added_rdates: {added_rdates}")
         if self.exdates:
-            added_exdates = ",".join(localize_datetime(dt, self.timezone).strftime("%Y%m%dT%H%M%S%z") for dt in self.exdates)
-        print(f"added_exdates: {added_exdates}")
+            added_exdates = ",".join(
+                localize_datetime(dt, self.timezone).strftime("%Y%m%dT%H%M%S%z")
+                for dt in self.exdates
+            )
+        # print(f"added_exdates: {added_exdates}")
         if self.rrule_tokens:
-            print(f"rrule_tokens: {self.rrule_tokens}")
+            # print(f"rrule_tokens: {self.rrule_tokens}")
             success, rruleset_str = self.finalize_rruleset()
-            print(f"rruleset_str: {rruleset_str}")
-            self.item["rruleset"] = rruleset_str #+ added_rdates + added_exdates
+            # print(f"rruleset_str: {rruleset_str}")
+            self.item["rruleset"] = rruleset_str  # + added_rdates + added_exdates
             if added_rdates:
                 self.item["rruleset"] += f"\nRDATE:{added_rdates}"
             if added_exdates:
                 self.item["rruleset"] += f"\nEXDATE:{added_exdates}"
-        elif self.rdstart_str:  # set by do_datetime when @s is parsed - will have tzinfo 
+        elif (
+            self.rdstart_str
+        ):  # set by do_datetime when @s is parsed - will have tzinfo
             self.item["rruleset"] = self.rdstart_str
             if added_rdates:
                 self.item["rruleset"] += f"\nRDATE:{added_rdates}"
@@ -593,8 +600,8 @@ class Item:
                     self._dispatch_token(token, start_pos, end_pos)
 
     def _parse_all_tokens(self):
-        print(f"{self.tokens = }")
-        second_pass = []
+        # print(f"{self.tokens = }")
+        # second_pass = []
 
         # first pass
         for i, token_info in enumerate(self.tokens):
@@ -940,7 +947,6 @@ class Item:
 
             # Handle timezone
             if tz_str:
-                print("got here")
                 if tz_str.lower() in {"float", "naive", "none"}:
                     datetime_obj = datetime_obj.replace(tzinfo=None)
                 else:
@@ -967,7 +973,7 @@ class Item:
     def do_timezone(self, token: str):
         """Handle @z timezone declaration."""
         tz_str = token.strip()[2:].strip()
-        print(f"{tz_str = }")
+        # print(f"{tz_str = }")
         if tz_str.lower() in {"float", "naive", "none"}:
             self.timezone = "none"
             return True, "none", []
@@ -984,12 +990,12 @@ class Item:
         Leave `datetime` objects unchanged.
         """
         if isinstance(dt, date) and not isinstance(dt, datetime):
+            print(f"promoting {dt} to datetime")
             if self.item.get("itemtype") == "-":
                 return datetime(dt.year, dt.month, dt.day, 23, 59, 59)
             else:
                 return datetime(dt.year, dt.month, dt.day, 0, 0)
         return dt
-
 
     def do_datetime(self, token):
         """
@@ -1007,31 +1013,49 @@ class Item:
 
             # Parse the datetime
             dt = parse(datetime_str)
+            # print(f"{datetime_str = }, {dt = }")
+            # Promote pure date to datetime if necessary
+            if (
+                isinstance(dt, date) and not isinstance(dt, datetime)
+                # or (
+                #     isinstance(dt, datetime) and dt.hour == 0 and dt.minute == 0
+                # )  # parse does this for dates
+            ):
+                # print(f"promoting {dt} to datetime, {isinstance(dt, date) = }")
+                if self.item.get("itemtype") == "-":
+                    dt = datetime(dt.year, dt.month, dt.day, 23, 59, 59, tzinfo=None)
+                else:
+                    dt = datetime(dt.year, dt.month, dt.day, 0, 0, 0, tzinfo=None)
+                dt.replace(tzinfo=tz.tzlocal())
+                # self.dtstart_str = f"DTSTART:{dt.strftime('%Y%m%dT%H%M%S%z')}"
+                # self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT%H%M%S%z')}"
 
             # my zone logic
             if self.timezone:
-                print(f"{self.timezone = }, {dt = }")
+                # print(f"{self.timezone = }, {dt = }")
                 if self.timezone == "none":
                     dt = dt.replace(tzinfo=None)
                     self.dtstart_str = f"DTSTART:{dt.strftime('%Y%m%dT%H%M%S')}"
-                    self.rdstart_str =  f"RDATE:{dt.strftime('%Y%m%dT%H%M%S')}"
+                    self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT%H%M%S')}"
                 else:
                     dt = dt.replace(tzinfo=self.timezone)
                     self.dtstart_str = f"DTSTART;TZID={self.timezone.key}:{dt.strftime('%Y%m%dT%H%M%S')}"
                     self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT%H%M%S%z')}"
                     dt = dt.astimezone(tz.UTC)
                 # print(f"as UTC {dt = }")
-
-            # Promote pure date to datetime if necessary
-            if isinstance(dt, date) and not isinstance(dt, datetime):
-                if self.item.get("itemtype") == "-":
-                    dt = datetime(
-                        dt.year, dt.month, dt.day, 23, 59, 59, tzinfo=dt.tzinfo
-                    )
+            else:
+                # No timezone provided — assume local and convert to UTC
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=tz.tzlocal())
+                    # dt = dt.astimezone(tz.UTC)
+                    self.dtstart_str = f"DTSTART:{dt.strftime('%Y%m%dT%H%M%S')}"
+                    self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT%H%M%S')}"
                 else:
-                    dt = datetime(dt.year, dt.month, dt.day, 0, 0, 0, tzinfo=dt.tzinfo)
+                    self.dtstart_str = f"DTSTART;TZID={self.timezone.key}:{dt.strftime('%Y%m%dT%H%M%S')}"
+                    self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT%H%M%S')}"
 
             self.dtstart = dt
+            # print(f"{datetime_str = }, new {dt = }")
             return True, dt, []
 
         except ValueError as e:
@@ -1464,7 +1488,6 @@ class Item:
                     self.rdates.append(dt)
             print(f"{self.rdates = }")
 
-
             # Build serialized RDATE string with TZID format
             # if self.timezone:
             #     # Always include the TZID from the global timezone
@@ -1479,7 +1502,7 @@ class Item:
             #         dt.strftime("%Y%m%dT%H%M%S") for dt in parsed
             #     )
             # self.rdate_str = rdate_serialized
-            return True, self.rdates, [] #FIXME: do i need to return the rdates?
+            return True, self.rdates, []  # FIXME: do i need to return the rdates?
         except Exception as e:
             return False, f"Invalid @+ value: {e}", []
 
@@ -1554,6 +1577,7 @@ class Item:
                         dt = datetime(dt.year, dt.month, dt.day, 0, 0, 0)
                 # remove dt from rdates if possible, if not, add to exdates
                 removed_it = False
+                self.rdates = [rd for rd in self.rdates if rd != dt]
                 while dt in self.rdates:
                     self.rdates.remove(dt)
                     removed_it = True
@@ -1565,7 +1589,7 @@ class Item:
             # )
             # self.rruleset += f"\n{exdate_line}"
 
-            return True, self.exdates, [] #FIXME: do i need to return the exdates?
+            return True, self.exdates, []  # FIXME: do i need to return the exdates?
 
         except Exception as e:
             return False, f"Invalid @- token: {token}. Error: {e}", []
@@ -1692,7 +1716,7 @@ class Item:
 
         rruleset_str = "\n".join(components)
         self.item["rruleset"] = rruleset_str
-        self.item["r"] = self.rrule_to_entry(rruleset_str.rstrip())
+        # self.item["r"] = self.rrule_to_entry(rruleset_str.rstrip())
 
         # must reset these to avoid duplicates
         self.rrule_tokens = []
