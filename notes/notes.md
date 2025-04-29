@@ -1,7 +1,5 @@
 # Notes - A staging ground for README
 
-![image](tklr_logo.png)
-
 ## item types and status
 
 Three types of reminders are supported, 1) *task*, 2) *event* and 3) *note*.
@@ -49,11 +47,12 @@ Possible status values include:
 
 - active
 - inactive (default)
-- paused
 - completed
 - deleted
 
-- A)ctivate: change the status of the task to "active" and if another task is active, change its status to "paused".
+Among the keybindings would be "A":
+
+- A)ctivate: toggle the "active" status of the task between "active" and "inactive". If inactive and another task is active, change its status to "inactive". Whenever the status of a task is changed, record the id of the task, the current timestamp and the new status of the task in the status history.
 
 ## SQLite3 Database
 
@@ -250,9 +249,19 @@ Here are two examples of input and the corresponding output:
           {"j": "get wood", "node": 4, "c": "Lowes", "i": 4},
           {"j": "go to Lowes", "node": 5, "c": "errands", "f": "2025-03-26T16:00:00", "i": 5},
           {"j": "create plan", "node": 5, "f": "2025-03-24T14:00:00", "i": 6},
-          {"j": "get hardware", "node": 3, "c": "Lowes", "i": 7},
+          {"j": "get hardware", "node": 3 b, "c": "Lowes", "i": 7},
           {"j": "go to Lowes", "node": 4, "c": "errands", "f": "", i: 8},
           {"j": "", node: "", c: "", f: "", i: ""},
         ]
       }
     ```
+
+It seems to me that treating dates as datetimes, which was intended to simplify things, is turning out to be quite a complication. Thinking backwards from the main, "agenda" view intended for the application, I realized that sorting by datetime is not that important. Here's the ordering that is intended:
+
+1) all day events are listed separately from the main view.
+2) events with datetimes that fall on the current date are listed if the @s DATETIME and @e TIMEDELTA entries for the event are such that @s + @e > now. If additionally, @s < now, then the event is currently in progress and is listed first. Otherwise, if @s > now it is listed last with other similar events ordered by their @s DATETIME entries. Events for which @s + @e < now are not listed.
+3) relevant tasks are listed after the current event, if any, and before any events scheduled for later in the day. They are sorted by their urgency which depends on many things including the @s DATE | DATETIME entry for the task, if there is one.
+
+This leads me to think that if parse returns a datetime object for @s for which dt.hour == dt.minute == dt.second == 0, then the @s entry should be recorded as dt.date() rather than as a datetime. This would allow an isinstance test for date and not datetime to separate all day events and tasks and, being naive, remove all the timezone complications.
+
+What do you think?
