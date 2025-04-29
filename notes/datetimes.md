@@ -1,5 +1,9 @@
 # Timezone considerations
 
+self.timezone = "none" # default set in item.__init__
+
+use naive datetimes in rrule settings
+
 Python supports datetime objects that can be either timezone-aware or naive (without timezone information). The program *python-dateutil* provides 1) datetime parsing, 2) timezone handling and 3) recurrence rules. Much experience dealing with aware datetimes
 
 1) Datetimes entered by a user for, say, `@s` should be interpreted as aware datetimes in the local timezone unless an `@z` entry specifies otherwise. E.g., in New York, the first two of the following would be equivalent:
@@ -214,6 +218,7 @@ two-pass solution:
 ```
 
 input:
+
 - Tiki Roundtable Meeting @s 14:00 @z UTC @e 1h30m @r m &w +3TH &c 12
 
 # Computed from input
@@ -244,3 +249,9 @@ Without conversion:
   Thu 2025-12-18 14:00 UTC +0000
   Thu 2026-01-15 14:00 UTC +0000
   Thu 2026-02-19 14:00 UTC +0000
+
+dt = datetime.datetime(2024, 8, 7, 0, 0), after_dt = datetime.datetime(2025, 4, 29, 11, 14, 33, 470012, tzinfo=datetime.timezone(datetime.timedelta(days=-1, seconds=72000), 'EDT'))
+  File "/Users/dag/tklr-dgraham/tklr/item.py", line 256, in preview_rule_instances
+    if dt < after_dt:
+       ^^^^^^^^^^^^^
+TypeError: can't compare offset-naive and offset-aware datetimes
