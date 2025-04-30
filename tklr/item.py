@@ -9,6 +9,7 @@ from datetime import time, date, datetime, timedelta
 import pytz
 import textwrap
 from dateutil import tz
+from dateutil.tz import gettz
 
 from collections import defaultdict
 from math import ceil
@@ -37,69 +38,6 @@ def get_local_zoneinfo():
         return None
 
 
-# def promote_date_to_datetime(dt: Union[datetime], itemtype: str = "*") -> datetime:
-#     """
-#     Convert a `date` to a `datetime`, using itemtype to choose 00:00 or 23:59:59.
-#     Leave `datetime` objects unchanged.
-#     """
-#     if isinstance(dt, date) and not isinstance(dt, datetime):
-#         print(f"promoting {dt} to datetime")
-#         if itemtype == "-":
-#             return datetime(dt.year, dt.month, dt.day, 23, 59, 59)
-#         return datetime(dt.year, dt.month, dt.day, 0, 0)
-#     return dt
-#
-
-# def promote_date_to_datetime(dt: Union[datetime], itemtype: str = "*") -> datetime:
-#     """
-#     Convert a `date` to a `datetime`, using itemtype to choose 00:00 or 23:59:59.
-#     Leave `datetime` objects unchanged.
-#     """
-#     if dt.hour == dt.minute == dt.second == 0:
-#         print(f"promoting {dt} to datetime")
-#         if itemtype == "-":
-#             return datetime.combine(dt, time(hour=23, minute=59, second=59))
-#         return datetime.combine(dt, time(second=1))
-#     return dt
-
-
-# def promote_date_to_datetime(dt: datetime, itemtype: str = "*") -> datetime:
-#     """
-#     If dt is exactly midnight (00:00:00), adjust:
-#     - For events (*): move to 00:00:01
-#     - For tasks (-): move to 23:59:59
-#     """
-#     if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
-#         if itemtype == "-":
-#             return dt.replace(hour=23, minute=59, second=59)
-#         else:
-#             return dt.replace(second=1)
-#     return dt
-#
-#
-# def enforce_date(self, dt: datetime, itemtype: str = "*") -> datetime:
-#     """
-#     Force dt to behave like a date (no meaningful time component).
-#     Always promote time to:
-#     - 00:00:01 for events (*)
-#     - 23:59:59 for tasks (-)
-#     """
-#     if itemtype == "-":
-#         return dt.replace(hour=23, minute=59, second=59, microsecond=0)
-#     else:
-#         return dt.replace(hour=0, minute=0, second=1, microsecond=0)
-
-
-# def is_date(dt: datetime) -> bool:
-#     """
-#     Check if a datetime object represents a date without a meaningful time component.
-#     A date is considered to have no meaningful time component if it is exactly at midnight (00:00:00).
-#     """
-#     return (dt.hour == 23 and dt.minute == 59 and dt.second == 59) or (
-#         dt.hour == 0 and dt.minute == 0 and dt.second == 1
-#     )
-
-
 def is_date(obj):
     return isinstance(obj, date) and not isinstance(obj, datetime)
 
@@ -120,10 +58,7 @@ def localize_rule_instances(
     - If to_localtime=True, also convert to the system local timezone.
     Yields timezone-aware datetime objects.
     """
-    print(f"localize_rule_instances: {timezone = }")
-    if timezone == "date":
-        timezone = None
-    elif timezone == "local":
+    if timezone == "local":
         timezone = get_local_zoneinfo()
     for dt in rule:
         if dt.tzinfo is None:
@@ -133,37 +68,6 @@ def localize_rule_instances(
         if to_localtime and not is_date(dt):
             dt = as_timezone(dt, timezone)  # Convert to system local timezone
         yield dt
-
-
-# def localize_rule_instances(
-#     rule: Iterable[Union[datetime, date]],
-#     timezone: Union[ZoneInfo, str],
-#     to_localtime: bool = False,
-# ):
-#     """
-#     Iterate over instances from a rule parsed by rrulestr.
-#
-#     - Dates are yielded unchanged.
-#     - Naive datetimes are attached the given timezone.
-#     - If to_localtime=True, convert aware datetimes to system localtime.
-#     Yields datetime or date as appropriate.
-#     """
-#     if timezone == "local":
-#         timezone = get_local_zoneinfo()
-#
-#     for dt in rule:
-#         if is_date(dt):
-#             # Leave date unchanged
-#             yield dt
-#         else:
-#             # It's a datetime
-#             if dt.tzinfo is None:
-#                 dt = dt.replace(tzinfo=timezone)
-#
-#             if to_localtime:
-#                 dt = dt.astimezone()
-#
-#             yield dt
 
 
 def localize_rule_instances(
@@ -183,15 +87,17 @@ def localize_rule_instances(
 
     for dt in rule:
         if is_date(dt):
-            print(f"Yielding date: {dt}")
+            # print(f"Yielding date: {dt}")
             yield dt
         else:
             # dt is a datetime
-            print(f"Yielding datetime: {dt}")
+            # print(f"Yielding datetime: {dt}")
             if dt.tzinfo is None:
                 if timezone is not None:
+                    # print(f"Attaching timezone: {timezone} to naive datetime {dt}")
                     dt = dt.replace(tzinfo=timezone)
                 else:
+                    # print(f"Attaching timezone: {timezone} to naive datetime {dt}")
                     dt = dt.replace(
                         # tzinfo=tz.UTC
                         tzinfo=tz.tzlocal()
@@ -276,28 +182,28 @@ def preview_rule_instances(
         if is_date(dt):
             # dt is a date
             # print(f"{dt = }")
-            if isinstance(after, datetime):
-                after_date = after.date()
-            else:
-                after_date = after
+            # if isinstance(after, datetime):
+            #     after_date = after.date()
+            # else:
+            after_date = after
 
             if dt < after_date:
-                print(f"Skipping {dt} as it is before {after_date}")
+                # print(f"Skipping {dt} as it is before {after_date}")
                 continue
         else:
             # dt is a datetime
             # print(f"{dt = }")
-            if isinstance(after, date) and not isinstance(after, datetime):
-                # Promote date to datetime with same tzinfo
-                after_dt = datetime(
-                    after.year, after.month, after.day, tzinfo=dt.tzinfo
-                )
-            else:
-                after_dt = after
+            # if isinstance(after, date) and not isinstance(after, datetime):
+            #     # Promote date to datetime with same tzinfo
+            #     after_dt = datetime(
+            #         after.year, after.month, after.day, tzinfo=dt.tzinfo
+            #     )
+            # else:
+            after_dt = after
 
             # print(f"{dt = }, {after_dt = }")
             if dt < after_dt:
-                print(f"Skipping {dt} as it is before {after_dt}")
+                # print(f"Skipping {dt} as it is before {after_dt}")
                 continue
 
         instances.append(dt)
@@ -733,7 +639,7 @@ class Item:
         self.rdate_str = None
         self.rdstart_str = None
         self.exdate_str = None
-        self.timezone = "local"
+        self.timezone = gettz("local")
         self.enforce_dates = False
 
     def parse_input(self, entry: str):
@@ -1124,51 +1030,6 @@ class Item:
             rep = f"invalid: {token}"
         return obj, rep, []
 
-    # def do_datetime(self, token):
-    #     """
-    #     Process a datetime token such as "@s 2p fri &z US/Pacific".
-    #     - Supports '&z TIMEZONE' to specify timezone, e.g.:
-    #         - 'US/Pacific' → parsed as aware, then converted to UTC
-    #         - 'float', 'naive', 'none' → parsed as naive datetime
-    #     - If no '&z', default to tzlocal(), then convert to UTC.
-    #     - Returns all aware datetimes as UTC.
-    #     """
-    #     try:
-    #         # Split on '&z' to isolate datetime and optional timezone
-    #         parts = token.split("&z", 1)
-    #         datetime_str = parts[0].strip()
-    #         tz_str = parts[1].strip() if len(parts) > 1 else None
-    #
-    #         # Remove prefix like '@s '
-    #         datetime_str = re.sub(r"^@.\s+", "", datetime_str)
-    #
-    #         # Parse the datetime
-    #         datetime_obj = parse(datetime_str)
-    #
-    #         # Handle timezone
-    #         if tz_str:
-    #             if tz_str.lower() in {"float", "naive", "none"}:
-    #                 datetime_obj = datetime_obj.replace(tzinfo=None)
-    #             else:
-    #                 zone = tz.gettz(tz_str)
-    #                 if zone is not None:
-    #                     datetime_obj = datetime_obj.replace(
-    #                         tzinfo=zone
-    #                     )  # .astimezone(tz.UTC)
-    #                 else:
-    #                     return False, f"Unknown timezone: '{tz_str}'", []
-    #         else:
-    #             # TODO: is is correct?
-    #             if datetime_obj.tzinfo is None:
-    #                 datetime_obj = datetime_obj.replace(tzinfo=tz.tzlocal())
-    #             #
-    #
-    #         self.dtstart = datetime_obj
-    #         return True, datetime_obj, []
-    #
-    #     except ValueError as e:
-    #         return False, f"Invalid datetime: :Required{datetime_str}. Error: {e}", []
-
     def do_timezone(self, token: str):
         """Handle @z timezone declaration in user input."""
         tz_str = token.strip()[2:].strip()
@@ -1222,16 +1083,15 @@ class Item:
             # Parse the datetime
             odt = parse(datetime_str)
             dt = self.promote_date_to_datetime(odt)
+            is_date = dt != odt
             self.enforce_dates = dt != odt
-            dt_fmt = (
-                dt.strftime(":%Y%m%dT%H%M%S")
-                if dt == odt
-                else dt.strftime(";VALUE=DATE:%Y%m%d")
-            )
-            print(f"{dt_fmt = }")
-            self.dtstart_str = f"DTSTART{dt_fmt}"
-
-            self.rdstart_str = f"RDATE:{dt_fmt}"
+            # self.rdstart will be used if there is no recurrence rule
+            if is_date:
+                self.dtstart_str = f"DTSTART;VALUE=DATE:{dt.strftime('%Y%m%d')}"
+                self.rdstart_str = f"RDATE;VALUE=DATE:{dt.strftime('%Y%m%d')}"
+            else:
+                self.dtstart_str = f"DTSTART:{dt.strftime('%Y%m%dT%H%M%S')}"
+                self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT%H%M%S')}"
 
             self.dtstart = dt
             return True, dt, []
@@ -1597,6 +1457,7 @@ class Item:
             # Split on commas to get individual date strings
             print(f"{token_body = }")
             dt_strs = [s.strip() for s in token_body.split(",") if s.strip()]
+            print(f"{dt_strs = }")
 
             # Process each entry
             rdates = []
@@ -1608,15 +1469,18 @@ class Item:
                 # If dt is naive and a global timezone is available, use it
                 if dt.tzinfo is None and self.timezone and not self.enforce_dates:
                     print(f"replacing tzinfo with {self.timezone} in {dt = }")
-                    dt = dt.replace(tzinfo=self.timezone)
+                    dt.replace(tzinfo=self.timezone)
+                    print(f"replaced {dt = }")
                 # Promote a date to a datetime if necessary (using your helper)
                 # dt = self.promote_date_to_datetime(dt)
+                print(f"adding {dt = } to rdates")
                 if dt not in self.rdates:
+                    print(f"added {dt = } to rdates")
                     rdates.append(dt)
             print(f"{rdates = }")
             self.rdates = rdates
             # Prepend RDATE in finalize_rruleset after possible insertion of DTSTART
-            fmt_str = ";VALUE=DATE:%Y%m%d" if self.enforce_dates else ":%Y%m%dT%H%M%S"
+            fmt_str = ";VALUE=DATE:%Y%m%d" if self.enforce_dates else "%Y%m%dT%H%M%S"
             self.rdate_str = ",".join([dt.strftime(f"{fmt_str}") for dt in rdates])
             return True, self.rdate_str, []
         except Exception as e:
@@ -1647,7 +1511,7 @@ class Item:
                 if not removed_it and dt not in self.exdates:
                     exdates.append(dt)
             self.exdates = exdates
-            fmt_str = ";VALUE=DATE:%Y%m%d" if self.enforce_dates else ":%Y%m%dT%H%M%S"
+            fmt_str = ";VALUE=DATE:%Y%m%d" if self.enforce_dates else "%Y%m%dT%H%M%S"
             self.exdate_str = ",".join([dt.strftime(f"{fmt_str}") for dt in exdates])
             return True, self.exdate_str, []
 
@@ -1692,10 +1556,10 @@ class Item:
                 # rdates = ",".join([x.strftime("%Y%m%dT%H%M%S") for x in self.rdates])
                 # print(f"appending {rdates = }")
 
-                components.append(f"{self.rdate_str}")
+                components.append(f"RDATE:{self.rdate_str}")
 
             if self.exdate_str:
-                components.append(f"{self.exdate_str}")
+                components.append(f"EXDATE:{self.exdate_str}")
 
             rruleset_str = "\n".join(components)
             self.item["rruleset"] = rruleset_str
@@ -1706,7 +1570,7 @@ class Item:
             self.exdates = []
             return True, rruleset_str
 
-        if self.rdstart_str:
+        elif self.rdstart_str:
             # print("finalizing rruleset with rdate only")
             components = [self.rdstart_str]
             if self.rdate_str:
@@ -1883,7 +1747,9 @@ class Item:
         is_date = "VALUE=DATE" in rule_string
         # print(f"{is_date = }")
         fmt_str = "    %a %Y-%m-%d" if is_date else "    %a %Y-%m-%d %H:%M:%S %Z %z"
-        rule = rrulestr(rule_string, ignoretz=True)
+        # rule = rrulestr(rule_string, ignoretz=True), ignoretz=True
+        print(f"list_rrule: {rule_string = }")
+        rule = rrulestr(rule_string)
         # try:
         #     res = list(rule)
         #     # Print the occurrences
@@ -1902,7 +1768,7 @@ class Item:
         #     return False
 
         timezone = (
-            "date" if is_date else self.timezone
+            None if is_date else self.timezone
         )  # assuming you store ZoneInfo in self.timezone
         # to_localtime = to_localtime and not self.enforce_dates
         # print(
