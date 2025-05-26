@@ -36,7 +36,6 @@ from typing import Literal
 # logger = logging.getLogger('etm')
 # settings = None
 
-import etm.__version__ as version
 from ruamel.yaml import __version__ as ruamel_version
 from dateutil import __version__ as dateutil_version
 from tinydb import __version__ as tinydb_version
@@ -386,7 +385,8 @@ class TimeIt(object):
 
 python_version = platform.python_version()
 system_platform = platform.platform(terse=True)
-etm_version = version.version
+# etm_version = version.version
+etm_version = "not defined"
 sys_platform = platform.system()
 mac = sys.platform == "darwin"
 windoz = sys_platform in ("Windows", "Microsoft")

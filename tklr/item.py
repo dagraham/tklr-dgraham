@@ -229,41 +229,113 @@ def pp_set(s):
     return "{}" if not s else str(s)
 
 
-def extract_labeled_subtrees(jobs):
-    labels = {}
-    i = 0
-    while i < len(jobs):
-        job = jobs[i]
-        if "l" in job:
-            label = job["l"]
-            if label in labels:
-                raise ValueError(f"Duplicate label: {label}")
-            base_node = job["node"]
-            subtree = [deepcopy(job)]
-            i += 1
-            while i < len(jobs) and jobs[i]["node"] > base_node:
-                subtree.append(deepcopy(jobs[i]))
-                i += 1
-            # Remove the 'l' key from the root of the labeled subtree
-            del subtree[0]["l"]
-            labels[label] = subtree
-        else:
-            i += 1
-    return labels
-
-
-def inject_subtree(label_name, target_node, labels):
-    if label_name not in labels:
-        raise ValueError(f"Unknown label: {label_name}")
-    subtree = deepcopy(labels[label_name])
-    base_node = subtree[0]["node"]
-    for job in subtree:
-        job["node"] = target_node + (job["node"] - base_node)
-    return subtree
+# def extract_labeled_subtrees(jobs):
+#     labels = {}
+#     i = 0
+#     while i < len(jobs):
+#         job = jobs[i]
+#         if "l" in job:
+#             label = job["l"]
+#             if label in labels:
+#                 raise ValueError(f"Duplicate label: {label}")
+#             base_node = job["node"]
+#             subtree = [deepcopy(job)]
+#             i += 1
+#             while i < len(jobs) and jobs[i]["node"] > base_node:
+#                 subtree.append(deepcopy(jobs[i]))
+#                 i += 1
+#             # Remove the 'l' key from the root of the labeled subtree
+#             del subtree[0]["l"]
+#             labels[label] = subtree
+#         else:
+#             i += 1
+#     return labels
+#
+#
+# def inject_subtree(label_name, target_node, labels):
+#     if label_name not in labels:
+#         raise ValueError(f"Unknown label: {label_name}")
+#     subtree = deepcopy(labels[label_name])
+#     base_node = subtree[0]["node"]
+#     for job in subtree:
+#         job["node"] = target_node + (job["node"] - base_node)
+#     return subtree
+#
 
 
 def is_lowercase_letter(char):
     return char in LETTER_SET  # O(1) lookup
+
+
+# def build_rruleset_from_structured_tokens(tokens, dtstart=None) -> str:
+#     """
+#     Build an rruleset string from structured_tokens list.
+#
+#     Arguments:
+#         tokens: list of structured tokens from `_tokenize`
+#         dtstart: optional start date string (e.g. '2025/11/01')
+#
+#     Returns:
+#         Multi-line rruleset string with DTSTART, RRULE, RDATE, EXDATE entries
+#     """
+#
+#     def parse_freq_code(code):
+#         return {"y": "YEARLY", "m": "MONTHLY", "w": "WEEKLY", "d": "DAILY"}.get(
+#             code.lower()
+#         )
+#
+#     lines = []
+#
+#     if dtstart:
+#         try:
+#             dt = datetime.strptime(dtstart.strip(), "%Y/%m/%d")
+#             dt_line = f"DTSTART;VALUE=DATE:{dt.strftime('%Y%m%d')}"
+#             lines.append(dt_line)
+#         except ValueError:
+#             pass  # Ignore invalid DTSTART
+#
+#     i = 0
+#     while i < len(tokens):
+#         token = tokens[i]
+#         if token["type"] == "@":
+#             key = token["key"]
+#             value = token["token"].split(maxsplit=1)[1].strip()
+#
+#             # RRULE block
+#             if key == "r":
+#                 rrule = {"FREQ": parse_freq_code(value)}
+#                 i += 1
+#                 # Collect all subsequent & tokens as part of this rrule
+#                 while i < len(tokens) and tokens[i]["type"] == "&":
+#                     k, v = tokens[i]["token"][1:].split(maxsplit=1)
+#                     k = k.upper()
+#                     v = v.strip()
+#                     # Normalize keys
+#                     if k == "M":
+#                         rrule["BYMONTH"] = v
+#                     elif k == "W":
+#                         rrule["BYDAY"] = v
+#                     elif k == "D":
+#                         rrule["BYMONTHDAY"] = v
+#                     elif k == "I":
+#                         rrule["INTERVAL"] = v
+#                     elif k == "U":
+#                         rrule["UNTIL"] = v.replace("/", "")
+#                     elif k == "C":
+#                         rrule["COUNT"] = v
+#                     i += 1
+#                 rrule_str = "RRULE:" + ";".join(f"{k}={v}" for k, v in rrule.items())
+#                 lines.append(rrule_str)
+#                 continue  # already incremented i
+#             elif key == "+":
+#                 # RDATE
+#                 lines.append(f"RDATE;VALUE=DATE:{value.replace('/', '')}")
+#             elif key == "-":
+#                 # EXDATE
+#                 lines.append(f"EXDATE;VALUE=DATE:{value.replace('/', '')}")
+#         i += 1
+#
+#     return "\n".join(lines)
 
 
 type_keys = {
@@ -625,6 +697,8 @@ class Item:
         self.previous_entry = ""
         self.item = {}
         self.previous_tokens = []
+        self.structured_tokens = []
+        self.messages = []
         self.rrule_tokens = []
         self.job_tokens = []
         self.token_store = None
@@ -653,13 +727,38 @@ class Item:
         self.previous_entry = entry
         self.previous_tokens = self.tokens.copy()
 
-        success, rruleset_str = self.finalize_rruleset()
+        # success, rruleset_str = self.finalize_rruleset()
+        print(f"building rruleset {self.structured_tokens}")
+        rruleset = self.build_rruleset()
+        print(f"{rruleset = }")
 
-        for i in ["r", "s"]:
-            if i in self.item:
-                del self.item[i]
-        if self.jobs:
-            success, jobs = self.finalize_jobs()
+    def parse_input(self, entry: str):
+        """
+        Parses the input string to extract tokens, then processes and validates the tokens.
+        """
+        digits = "1234567890" * ceil(len(entry) / 10)
+        self._tokenize(entry)
+        self._parse_tokens(entry)
+        self.parse_ok = True
+        self.previous_entry = entry
+        self.previous_tokens = self.tokens.copy()
+
+        # Only build rruleset if @r group exists
+        if self.collect_grouped_tokens({"r"}):
+            print(f"building rruleset from: {self.structured_tokens}")
+            rruleset = self.build_rruleset()
+            if rruleset:
+                self.item["rruleset"] = rruleset
+                print(f"{rruleset = }")
+
+        # Only build jobs if @j group exists
+        if self.collect_grouped_tokens({"j"}):
+            # print(f"building jobs from: {self.structured_tokens}")
+            jobs = self.build_jobs()
+            # print(f"{jobs = }")
+            success, finalized = self.finalize_jobs(jobs)
+            print(f"{success = }, {finalized = }")
+
         if self.tags:
             self.item["t"] = self.tags
             print(f"tags: {self.tags}")
@@ -667,26 +766,77 @@ class Item:
             self.item["a"] = self.alerts
             print(f"alerts: {self.alerts}")
 
-    def _tokenize(self, entry: str):
-        self.entry = entry
-        pattern = r"(@\w+ [^@]+)|(^\S+)|(\S[^@]*)"
-        matches = re.finditer(pattern, self.entry)
-        tokens_with_positions = []
-        for match in matches:
-            # Get the matched token
-            token = match.group(0)
-            # Get the start and end positions
-            start_pos = match.start()
-            end_pos = match.end()
-            # Append the token and its positions as a tuple
-            tokens_with_positions.append((token, start_pos, end_pos))
-        self.tokens = tokens_with_positions
+    def mark_grouped_tokens(self):
+        """
+        Build both:
+        - skip_token_positions: to avoid redundant dispatch
+        - token_group_anchors: map (start, end) of & tokens to their @ anchor
+        """
+        self.skip_token_positions = set()
+        self.token_group_anchors = {}  # maps (start, end) of &token -> (start, end) of anchor
+
+        anchor_keys = {"r", "j"}  # @-keys with grouped &-tokens
+        grouped = self.collect_grouped_tokens(anchor_keys)
+
+        for group in grouped:
+            anchor = group[0]
+            anchor_pos = (anchor["start"], anchor["end"])
+            for token in group[1:]:
+                self.skip_token_positions.add((token["start"], token["end"]))
+                self.token_group_anchors[(token["start"], token["end"])] = anchor_pos
+
+    def collect_grouped_tokens(self, anchor_keys: set[str]) -> list[list[dict]]:
+        """
+        Collect multiple groups of @-tokens and their trailing &-tokens.
+
+        anchor_keys: e.g. {'r'} or {'j'} — only @r or @j will start a group.
+
+        Returns:
+            List of token groups: each group is a list of structured tokens.
+        """
+        groups = []
+        current_group = []
+        collecting = False
+
+        for token in self.structured_tokens:
+            if token["type"] == "@" and token["key"] in anchor_keys:
+                if current_group:
+                    groups.append(current_group)
+                current_group = [token]
+                collecting = True
+            elif collecting and token["type"] == "&":
+                current_group.append(token)
+            elif collecting:
+                groups.append(current_group)
+                current_group = []
+                collecting = False
+
+        if current_group:
+            groups.append(current_group)
+
+        return groups
+
+    # def _tokenize(self, entry: str):
+    #     self.entry = entry
+    #     pattern = r"(@\w+ [^@]+)|(^\S+)|(\S[^@]*)"
+    #     matches = re.finditer(pattern, self.entry)
+    #     tokens_with_positions = []
+    #     for match in matches:
+    #         # Get the matched token
+    #         token = match.group(0)
+    #         # Get the start and end positions
+    #         start_pos = match.start()
+    #         end_pos = match.end()
+    #         # Append the token and its positions as a tuple
+    #         tokens_with_positions.append((token, start_pos, end_pos))
+    #     self.tokens = tokens_with_positions
 
     def _sub_tokenize(self, entry):
+        print(f"_sub_tokenize {entry = }")
         pattern = r"(@\w+ [^&]+)|(^\S+)|(\S[^&]*)"
         matches = re.finditer(pattern, entry)
-        if matches is None:
-            return []
+        if not matches:
+            return
         tokens_with_positions = []
         for match in matches:
             # print(f"{match = }")
@@ -700,44 +850,191 @@ class Item:
             tokens_with_positions.append(tuple(token.split()))
         return tokens_with_positions
 
+    def _tokenize(self, entry: str):
+        print(f"_tokenize {entry = }")
+        self.entry = entry
+        self.errors = []
+        self.tokens = []
+        self.messages = []
+
+        if not entry:
+            self.messages.append((False, "No input provided.", []))
+            return
+
+        tokens_with_positions = []
+        self.structured_tokens = []
+
+        # First: itemtype
+        itemtype = entry[0]
+        if itemtype not in {"*", "-", "%", "!"}:
+            self.messages.append(
+                (False, f"Invalid itemtype '{itemtype}' (expected *, -, %, or !)", [])
+            )
+            return
+
+        tokens_with_positions.append((itemtype, 0, 1))
+        self.structured_tokens.append(
+            {"token": itemtype, "start": 0, "end": 1, "type": "itemtype"}
+        )
+
+        rest = entry[1:].lstrip()
+        offset = 1 + len(entry[1:]) - len(rest)
+
+        # Find start of first @-key to get subject
+        at_pos = rest.find("@")
+        subject = rest[:at_pos].strip() if at_pos != -1 else rest
+        if subject:
+            start = offset
+            end = offset + len(subject) + 1  # trailing space
+            subject_token = subject + " "
+            tokens_with_positions.append((subject_token, start, end))
+            self.structured_tokens.append(
+                {"token": subject_token, "start": start, "end": end, "type": "subject"}
+            )
+        else:
+            self.errors.append("Missing subject")
+
+        remainder = rest[len(subject) :]
+
+        # Token pattern that keeps @ and & together
+        pattern = r"(@\w+ [^@&]+)|(&\w+ [^@&]+)"
+        for match in re.finditer(pattern, remainder):
+            token = match.group(0)
+            start_pos = match.start() + offset + len(subject)
+            end_pos = match.end() + offset + len(subject)
+            tokens_with_positions.append((token, start_pos, end_pos))
+
+            token_type = "@" if token.startswith("@") else "&"
+            key = token[1:3].strip()
+            self.structured_tokens.append(
+                {
+                    "token": token,
+                    "start": start_pos,
+                    "end": end_pos,
+                    "type": token_type,
+                    "key": key,
+                }
+            )
+
+        self.tokens = tokens_with_positions
+        print(f"{self.tokens = }")
+        print(f"{self.structured_tokens = }")
+
+        # if not self.errors:
+        #     # self.input_hsh = tokens_to_hsh(self.tokens)
+        #     input_str = hsh_to_input(self.input_hsh)
+        #     print(f"{input_str = }")
+        # else:
+        #     self.input_hsh = {}
+
+    # def _parse_tokens(self, entry: str):
+    #     if not self.previous_entry:
+    #         # If there is no previous entry, parse all tokens
+    #         self._parse_all_tokens()
+    #         return
+    #
+    #     # Identify the affected tokens based on the change
+    #     changes = self._find_changes(self.previous_entry, entry)
+    #     affected_tokens = self._identify_affected_tokens(changes)
+    #
+    #     # Parse only the affected tokens
+    #     for token_info in affected_tokens:
+    #         token, start_pos, end_pos = token_info
+    #         # Check if the token has actually changed
+    #         if self._token_has_changed(token_info):
+    #             # print(f"processing changed token: {token_info}")
+    #             if start_pos == 0:
+    #                 self._dispatch_token(token, start_pos, end_pos, "itemtype")
+    #             elif start_pos == 2:
+    #                 self._dispatch_token(token, start_pos, end_pos, "subject")
+    #             else:
+    #                 self._dispatch_token(token, start_pos, end_pos)
+
     def _parse_tokens(self, entry: str):
         if not self.previous_entry:
-            # If there is no previous entry, parse all tokens
             self._parse_all_tokens()
             return
 
-        # Identify the affected tokens based on the change
+        self.mark_grouped_tokens()
+
         changes = self._find_changes(self.previous_entry, entry)
         affected_tokens = self._identify_affected_tokens(changes)
 
-        # Parse only the affected tokens
-        for token_info in affected_tokens:
-            token, start_pos, end_pos = token_info
-            # Check if the token has actually changed
-            if self._token_has_changed(token_info):
-                # print(f"processing changed token: {token_info}")
-                if start_pos == 0:
-                    self._dispatch_token(token, start_pos, end_pos, "itemtype")
-                elif start_pos == 2:
-                    self._dispatch_token(token, start_pos, end_pos, "subject")
-                else:
-                    self._dispatch_token(token, start_pos, end_pos)
+        dispatched_anchors = set()
 
-    def _parse_all_tokens(self):
-        # print(f"{self.tokens = }")
-        # second_pass = []
+        for token, start_pos, end_pos in affected_tokens:
+            if not self._token_has_changed((token, start_pos, end_pos)):
+                continue
 
-        # first pass
-        for i, token_info in enumerate(self.tokens):
-            token, start_pos, end_pos = token_info
-            if i == 0:
+            if (start_pos, end_pos) in self.skip_token_positions:
+                continue  # don't dispatch grouped & tokens alone
+
+            if (start_pos, end_pos) in self.token_group_anchors:
+                anchor_pos = self.token_group_anchors[(start_pos, end_pos)]
+                if anchor_pos in dispatched_anchors:
+                    continue
+                anchor_token_info = next(
+                    t for t in self.tokens if (t[1], t[2]) == anchor_pos
+                )
+                token_str, anchor_start, anchor_end = anchor_token_info
+                token_type = token_str.split()[0][1:]
+                self._dispatch_token(token_str, anchor_start, anchor_end, token_type)
+                dispatched_anchors.add(anchor_pos)
+                continue
+
+            if start_pos == 0:
                 self._dispatch_token(token, start_pos, end_pos, "itemtype")
-            elif i == 1:
+            elif start_pos == 2:
                 self._dispatch_token(token, start_pos, end_pos, "subject")
             else:
-                token_type = token.split()[0][
-                    1:
-                ]  # Extract token type (e.g., 's' from '@s')
+                token_type = token.split()[0][1:]
+                self._dispatch_token(token, start_pos, end_pos, token_type)
+
+    # def _parse_all_tokens(self):
+    #     # print(f"{self.tokens = }")
+    #     # second_pass = []
+    #
+    #     # first pass
+    #     for i, token_info in enumerate(self.tokens):
+    #         token, start_pos, end_pos = token_info
+    #         if i == 0:
+    #             self._dispatch_token(token, start_pos, end_pos, "itemtype")
+    #         elif i == 1:
+    #             self._dispatch_token(token, start_pos, end_pos, "subject")
+    #         else:
+    #             token_type = token.split()[0][
+    #                 1:
+    #             ]  # Extract token type (e.g., 's' from '@s')
+    #             self._dispatch_token(token, start_pos, end_pos, token_type)
+
+    def _parse_all_tokens(self):
+        self.mark_grouped_tokens()
+
+        dispatched_anchors = set()
+
+        for token, start_pos, end_pos in self.tokens:
+            if (start_pos, end_pos) in self.skip_token_positions:
+                continue  # skip component of a group
+
+            if (start_pos, end_pos) in self.token_group_anchors:
+                anchor_pos = self.token_group_anchors[(start_pos, end_pos)]
+                if anchor_pos in dispatched_anchors:
+                    continue
+                anchor_token_info = next(
+                    t for t in self.tokens if (t[1], t[2]) == anchor_pos
+                )
+                token_str, anchor_start, anchor_end = anchor_token_info
+                token_type = token_str.split()[0][1:]
+                self._dispatch_token(token_str, anchor_start, anchor_end, token_type)
+                dispatched_anchors.add(anchor_pos)
+                continue
+
+            if start_pos == 0:
+                self._dispatch_token(token, start_pos, end_pos, "itemtype")
+            elif start_pos == 2:
+                self._dispatch_token(token, start_pos, end_pos, "subject")
+            else:
+                token_type = token.split()[0][1:]
                 self._dispatch_token(token, start_pos, end_pos, token_type)
 
     def _find_changes(self, previous: str, current: str):
@@ -1051,11 +1348,11 @@ class Item:
         - For tasks (-): move to 23:59:59
         """
         if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
-            return dt.date()
-            # if self.itemtype == "-":
-            #     return dt.replace(hour=23, minute=59, second=59)
-            # else:
-            #     return dt.replace(second=1)
+            # return dt.date()
+            if self.itemtype == "-":
+                return dt.replace(hour=23, minute=59, second=59)
+            else:
+                return dt.replace(second=1)
         return dt
 
     def enforce_date(self, dt: datetime) -> datetime:
@@ -1094,25 +1391,31 @@ class Item:
                 self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT%H%M%S')}"
 
             self.dtstart = dt
-            return True, dt, []
+            return True, round(dt.timestamp()), []
 
         except ValueError as e:
             return False, f"Invalid datetime: {token}. Error: {e}", []
 
     def do_rrule(self, token):
         # Process rrule token
-        # print(f"Processing rrule token: {token}")
+        print(f"Processing rrule token: {token}")
         parts = self._sub_tokenize(token)
-        if len(parts) < 1:
-            return False, f"Missing rrule frequency: {token}", []
-        elif parts[0][1] not in self.freq_map:
-            keys = ", ".join([f"{k}: {v}" for k, v in self.freq_map.items()])
-            return (
+        print(f"{parts = }; {parts[0][1] = }")
+        if not parts or len(parts) < 1:
+            msg = (False, f"Missing rrule frequency: {token}", [])
+            self.messages.append(msg)
+            return msg
+        f = parts[0][1]
+        if f not in Item.freq_map:
+            keys = ", ".join([f"{k} ({v})" for k, v in Item.freq_map.items()])
+            msg = (
                 False,
-                f"'{parts[1]}', is not one of the supported frequencies from: \n   {keys}",
+                f"'{f}', is not one of the supported frequencies from: \n   {keys}",
                 [],
             )
-        freq = self.freq_map[parts[0][1]]
+            self.messages.append(msg)
+            return msg
+        freq = self.freq_map[f]
         rrule_params = {"FREQ": freq}
         if self.dtstart:
             rrule_params["DTSTART"] = self.dtstart.strftime("%Y%m%dT%H%M%S%z")
@@ -1346,6 +1649,13 @@ class Item:
         return True, f"BYMINUTE={rep}"
 
     @classmethod
+    def do_two_periods(cls, arg: List[str]) -> str:
+        return True, f"not implemented", []
+
+    @classmethod
+    def do_mask(cls, arg: str) -> str:
+        return True, f"not implemented", []
+
     def integer(cls, arg, min, max, zero, typ=None):
         """
         :param arg: integer
@@ -1584,7 +1894,129 @@ class Item:
             return True, rruleset_str
         return False, "No rrule tokens or rdate to finalize"
 
-    def finalize_jobs(self):
+    def collect_rruleset_tokens(self):
+        """Return the list of structured tokens used for building the rruleset."""
+        rruleset_tokens = []
+        found_rrule = False
+
+        for token in self.structured_tokens:
+            if not found_rrule:
+                if token["type"] == "@" and token["key"] == "r":
+                    found_rrule = True
+                    rruleset_tokens.append(token)  # structured token
+            else:
+                if token["type"] == "&":
+                    rruleset_tokens.append(token)  # structured token
+                else:
+                    break  # stop collecting on first non-& after @r
+
+        return rruleset_tokens
+
+    def build_rruleset(self) -> str:
+        """
+        Build an rruleset string using self.structured_tokens and self.dtstart_str.
+        """
+        rrule_tokens = self.collect_rruleset_tokens()
+
+        if not rrule_tokens or not rrule_tokens[0]["token"].startswith("@r"):
+            return ""
+
+        rrule_components = {}
+        freq_map = {"y": "YEARLY", "m": "MONTHLY", "w": "WEEKLY", "d": "DAILY"}
+        freq_token = rrule_tokens[0]["token"].split(maxsplit=1)
+        freq_abbr = freq_token[1].strip() if len(freq_token) > 1 else ""
+        freq = freq_map.get(freq_abbr.lower())
+        if not freq:
+            return ""
+
+        rrule_components["FREQ"] = freq
+
+        for token in rrule_tokens[1:]:  # &-tokens as structured dicts
+            token_str = token["token"]
+            key, value = token_str[1:].split(maxsplit=1)
+            key = key.upper()
+            value = value.strip()
+
+            if key == "M":
+                rrule_components["BYMONTH"] = value
+            elif key == "W":
+                rrule_components["BYDAY"] = value
+            elif key == "D":
+                rrule_components["BYMONTHDAY"] = value
+            elif key == "I":
+                rrule_components["INTERVAL"] = value
+            elif key == "U":
+                rrule_components["UNTIL"] = value.replace("/", "")
+            elif key == "C":
+                rrule_components["COUNT"] = value
+
+        rrule_str = "RRULE:" + ";".join(f"{k}={v}" for k, v in rrule_components.items())
+
+        return (
+            f"{self.dtstart_str}\n{rrule_str}"
+            if hasattr(self, "dtstart_str")
+            else rrule_str
+        )
+
+    def build_jobs(self):
+        """
+        Build self.jobs from @j + &... token groups in self.structured_tokens.
+        Handles node (indentation after @j), job name, and any &-key metadata.
+        """
+        job_groups = self.collect_grouped_tokens({"j"})
+        job_entries = []
+
+        for group in job_groups:
+            anchor = group[0]
+            token_str = anchor["token"]
+
+            # Extract content after "@j"
+            job_portion = token_str[3:]  # removes '@j'
+            leading_spaces = len(job_portion) - len(job_portion.lstrip())
+
+            # Get job name up to first &-key or end
+            split_index = job_portion.find("&")
+            if split_index != -1:
+                job_name = job_portion[:split_index].strip()
+            else:
+                job_name = job_portion.strip()
+
+            node_level = leading_spaces // 2  # adjust to match your indent standard
+
+            job = {
+                "j": job_name,
+                "node": node_level,
+                "start": anchor["start"],
+                "end": anchor["end"],
+            }
+
+            # Process &-keys
+            for token in group[1:]:
+                try:
+                    k, v = token["token"][1:].split(maxsplit=1)
+                    k = k.strip()
+                    v = v.strip()
+
+                    if k == "f":  # finished datetime
+                        try:
+                            dt = dt_parse(v)
+                            job["f"] = round(dt.timestamp())
+                        except Exception as e:
+                            job["f"] = v  # fallback: preserve original string
+                    else:
+                        job[k] = v
+                except Exception as e:
+                    self.errors.append(
+                        f"Failed to parse job metadata token: {token['token']}. Error: {e}"
+                    )
+
+            job_entries.append(job)
+
+        self.jobs = job_entries
+
+        return job_entries
+
+    def finalize_jobs(self, jobs):
         """
         From the list of jobs, assign ids taking account of jobs shared
         through labels and then from the place of the job in the sequence, its
@@ -1592,7 +2024,6 @@ class Item:
         relevant prequisites, and the lists of available, waiting and finished
         jobs.
         """
-        jobs = self.jobs
         if not jobs:
             return False, "No jobs to process"
         if not self.parse_ok:
@@ -1608,7 +2039,6 @@ class Item:
         idx = 0
         finalized_jobs = []
         last_job = {}
-        last_node = 0
         for _, job in enumerate(jobs):
             bump_idx = False
             job_name = job["j"]
