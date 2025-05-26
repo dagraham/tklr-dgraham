@@ -34,7 +34,7 @@ def get_local_zoneinfo():
         tz_path = os.readlink("/etc/localtime")
         if "zoneinfo" in tz_path:
             return ZoneInfo(tz_path.split("zoneinfo/")[-1])
-    except Exception:
+    except Exception as e:
         return None
 
 
@@ -46,6 +46,51 @@ def as_timezone(dt: datetime, timezone: ZoneInfo) -> datetime:
     if is_date(dt):
         return dt
     return dt.astimezone(timezone)
+
+
+def do_datetime(datetime_str):
+    """
+    Process a datetime string such as "@s 3p fri" or "@s 2025-04-24".
+    Sets both self.dtstart and self.dtstart_str.
+    """
+    try:
+        datetime_str = re.sub(r"^@.\s+", "", datetime_str)
+        # Parse the datetime
+        dt = parse(datetime_str)
+        return True, dt
+
+    except ValueError as e:
+        return False, f"Invalid datetime: {token}. Error: {e}"
+
+
+def promote_date_to_datetime(dt: datetime, itemtype: str) -> datetime | date:
+    """
+    If dt is exactly midnight (00:00:00), adjust:
+    - For events (*): move to 00:00:01
+    - For tasks (-): move to 23:59:59
+    """
+    if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
+        # return dt.date()
+        if itemtype == "-":
+            return dt.replace(hour=23, minute=59, second=59)
+        else:
+            return dt.replace(second=1)
+    return dt
+
+
+def enforce_date(dt: datetime) -> datetime:
+    """
+    Force dt to behave like a date (no meaningful time component).
+    Always promote time to:
+    - 00:00:01 for events (*)
+    - 23:59:59 for tasks (-)
+    """
+    return dt.date()
+    # if self.itemtype == "-":
+    #     return dt.replace(hour=23, minute=59, second=59, microsecond=0)
+    # else:
+    #     return dt.replace(hour=0, minute=0, second=1, microsecond=0)
+    #
 
 
 def localize_rule_instances(
@@ -86,18 +131,14 @@ def localize_rule_instances(
         timezone = get_local_zoneinfo()
 
     for dt in rule:
-        if is_date(dt):
-            # print(f"Yielding date: {dt}")
+        if is_date(dt) or not to_localtime:
             yield dt
         else:
             # dt is a datetime
-            # print(f"Yielding datetime: {dt}")
             if dt.tzinfo is None:
                 if timezone is not None:
-                    # print(f"Attaching timezone: {timezone} to naive datetime {dt}")
                     dt = dt.replace(tzinfo=timezone)
                 else:
-                    # print(f"Attaching timezone: {timezone} to naive datetime {dt}")
                     dt = dt.replace(
                         # tzinfo=tz.UTC
                         tzinfo=tz.tzlocal()
@@ -128,40 +169,40 @@ def localize_datetime_list(
     return localized
 
 
-def preview_rule_instances(
-    rule: rruleset,
-    timezone: Union[ZoneInfo, None] = None,
-    count: int = 10,
-    after: Optional[datetime] = None,
-    to_localtime: bool = False,
-) -> List[datetime]:
-    """
-    Generate a list of upcoming localized instances from a rule.
-
-    Args:
-        rule: Parsed rule from rrulestr().
-        timezone: ZoneInfo timezone to attach to naive datetimes.
-        count: Maximum number of instances to return.
-        after: Optional datetime to start on (default: now).
-        to_localtime: Whether to convert to system local time for display.
-
-    Returns:
-        A list of timezone-aware datetime objects.
-    """
-    instances = []
-    generator = localize_rule_instances(rule, timezone, to_localtime)
-
-    if after is not None:
-        if after.tzinfo is None:
-            after = after.replace(tzinfo=timezone)
-
-    for dt in generator:
-        if after and dt < after:
-            continue
-        instances.append(dt)
-        if len(instances) >= count:
-            break
-    return instances
+# def preview_rule_instances(
+#     rule: rruleset,
+#     timezone: Union[ZoneInfo, None] = None,
+#     count: int = 10,
+#     after: Optional[datetime] = None,
+#     to_localtime: bool = False,
+# ) -> List[datetime]:
+#     """
+#     Generate a list of upcoming localized instances from a rule.
+#
+#     Args:
+#         rule: Parsed rule from rrulestr().
+#         timezone: ZoneInfo timezone to attach to naive datetimes.
+#         count: Maximum number of instances to return.
+#         after: Optional datetime to start on (default: now).
+#         to_localtime: Whether to convert to system local time for display.
+#
+#     Returns:
+#         A list of timezone-aware datetime objects.
+#     """
+#     instances = []
+#     generator = localize_rule_instances(rule, timezone, to_localtime)
+#
+#     if after is not None:
+#         if after.tzinfo is None:
+#             after = after.replace(tzinfo=timezone)
+#
+#     for dt in generator:
+#         if after and dt < after:
+#             continue
+#         instances.append(dt)
+#         if len(instances) >= count:
+#             break
+#     return instances
 
 
 def preview_rule_instances(
@@ -173,37 +214,17 @@ def preview_rule_instances(
 ) -> List[Union[datetime, date]]:
     instances = []
     generator = localize_rule_instances(rule, timezone, to_localtime)
-    # print(f"{list(generator) = }")
 
     if after is None:
-        after = datetime.now().astimezone()
+        after_datetime = datetime.now().astimezone()
+        after_date = date.today()
 
     for dt in list(generator):
         if is_date(dt):
-            # dt is a date
-            # print(f"{dt = }")
-            # if isinstance(after, datetime):
-            #     after_date = after.date()
-            # else:
-            after_date = after
-
             if dt < after_date:
-                # print(f"Skipping {dt} as it is before {after_date}")
                 continue
         else:
-            # dt is a datetime
-            # print(f"{dt = }")
-            # if isinstance(after, date) and not isinstance(after, datetime):
-            #     # Promote date to datetime with same tzinfo
-            #     after_dt = datetime(
-            #         after.year, after.month, after.day, tzinfo=dt.tzinfo
-            #     )
-            # else:
-            after_dt = after
-
-            # print(f"{dt = }, {after_dt = }")
-            if dt < after_dt:
-                # print(f"Skipping {dt} as it is before {after_dt}")
+            if dt.astimezone() < after_datetime:
                 continue
 
         instances.append(dt)
@@ -229,113 +250,8 @@ def pp_set(s):
     return "{}" if not s else str(s)
 
 
-# def extract_labeled_subtrees(jobs):
-#     labels = {}
-#     i = 0
-#     while i < len(jobs):
-#         job = jobs[i]
-#         if "l" in job:
-#             label = job["l"]
-#             if label in labels:
-#                 raise ValueError(f"Duplicate label: {label}")
-#             base_node = job["node"]
-#             subtree = [deepcopy(job)]
-#             i += 1
-#             while i < len(jobs) and jobs[i]["node"] > base_node:
-#                 subtree.append(deepcopy(jobs[i]))
-#                 i += 1
-#             # Remove the 'l' key from the root of the labeled subtree
-#             del subtree[0]["l"]
-#             labels[label] = subtree
-#         else:
-#             i += 1
-#     return labels
-#
-#
-# def inject_subtree(label_name, target_node, labels):
-#     if label_name not in labels:
-#         raise ValueError(f"Unknown label: {label_name}")
-#     subtree = deepcopy(labels[label_name])
-#     base_node = subtree[0]["node"]
-#     for job in subtree:
-#         job["node"] = target_node + (job["node"] - base_node)
-#     return subtree
-#
-
-
 def is_lowercase_letter(char):
     return char in LETTER_SET  # O(1) lookup
-
-
-# def build_rruleset_from_structured_tokens(tokens, dtstart=None) -> str:
-#     """
-#     Build an rruleset string from structured_tokens list.
-#
-#     Arguments:
-#         tokens: list of structured tokens from `_tokenize`
-#         dtstart: optional start date string (e.g. '2025/11/01')
-#
-#     Returns:
-#         Multi-line rruleset string with DTSTART, RRULE, RDATE, EXDATE entries
-#     """
-#
-#     def parse_freq_code(code):
-#         return {"y": "YEARLY", "m": "MONTHLY", "w": "WEEKLY", "d": "DAILY"}.get(
-#             code.lower()
-#         )
-#
-#     lines = []
-#
-#     if dtstart:
-#         try:
-#             dt = datetime.strptime(dtstart.strip(), "%Y/%m/%d")
-#             dt_line = f"DTSTART;VALUE=DATE:{dt.strftime('%Y%m%d')}"
-#             lines.append(dt_line)
-#         except ValueError:
-#             pass  # Ignore invalid DTSTART
-#
-#     i = 0
-#     while i < len(tokens):
-#         token = tokens[i]
-#         if token["type"] == "@":
-#             key = token["key"]
-#             value = token["token"].split(maxsplit=1)[1].strip()
-#
-#             # RRULE block
-#             if key == "r":
-#                 rrule = {"FREQ": parse_freq_code(value)}
-#                 i += 1
-#                 # Collect all subsequent & tokens as part of this rrule
-#                 while i < len(tokens) and tokens[i]["type"] == "&":
-#                     k, v = tokens[i]["token"][1:].split(maxsplit=1)
-#                     k = k.upper()
-#                     v = v.strip()
-#                     # Normalize keys
-#                     if k == "M":
-#                         rrule["BYMONTH"] = v
-#                     elif k == "W":
-#                         rrule["BYDAY"] = v
-#                     elif k == "D":
-#                         rrule["BYMONTHDAY"] = v
-#                     elif k == "I":
-#                         rrule["INTERVAL"] = v
-#                     elif k == "U":
-#                         rrule["UNTIL"] = v.replace("/", "")
-#                     elif k == "C":
-#                         rrule["COUNT"] = v
-#                     i += 1
-#                 rrule_str = "RRULE:" + ";".join(f"{k}={v}" for k, v in rrule.items())
-#                 lines.append(rrule_str)
-#                 continue  # already incremented i
-#             elif key == "+":
-#                 # RDATE
-#                 lines.append(f"RDATE;VALUE=DATE:{value.replace('/', '')}")
-#             elif key == "-":
-#                 # EXDATE
-#                 lines.append(f"EXDATE;VALUE=DATE:{value.replace('/', '')}")
-#         i += 1
-#
-#     return "\n".join(lines)
 
 
 type_keys = {
@@ -445,23 +361,6 @@ def itemhsh_to_details(item: dict[str, str]) -> str:
     return formatted_string
 
 
-# def ruleset_to_rulestr(rrset: rruleset) -> str:
-#     print(f"rrset: {rrset}; {type(rrset) = }; {rrset.__dict__}")
-#     print(f"{list(rrset) = }")
-#     parts = []
-#     # parts.append("rrules:")
-#     for rule in rrset._rrule:
-#         # parts.append(f"{textwrap.fill(str(rule))}")
-#         parts.append(f"{'\\n'.join(str(rule).split('\n'))}")
-#     # parts.append("exdates:")
-#     for exdate in rrset._exdate:
-#         parts.append(f"EXDATE:{exdate}")
-#     # parts.append("rdates:")
-#     for rdate in rrset._rdate:
-#         parts.append(f"RDATE:{rdate}")
-#     return "\n".join(parts)
-
-
 class Paragraph:
     # Placeholder to preserve line breaks
     NON_PRINTING_CHAR = "\u200b"
@@ -560,7 +459,7 @@ class Item:
             "brief item description. Append an '@' to add an option.",
             "do_summary",
         ],
-        "s": ["scheduled", "starting date or datetime", "do_datetime"],
+        "s": ["scheduled", "starting date or datetime", "do_s"],
         "t": ["tag", "tag name", "do_tag"],
         "r": ["recurrence", "recurrence rule", "do_rrule"],
         "j": ["job", "job entry", "do_job"],
@@ -692,7 +591,7 @@ class Item:
 
     def __init__(self):
         self.entry = ""
-        self.tokens = []
+        # self.tokens = []
         self.itemtype = ""
         self.previous_entry = ""
         self.item = {}
@@ -725,31 +624,15 @@ class Item:
         self._parse_tokens(entry)
         self.parse_ok = True
         self.previous_entry = entry
-        self.previous_tokens = self.tokens.copy()
-
-        # success, rruleset_str = self.finalize_rruleset()
-        print(f"building rruleset {self.structured_tokens}")
-        rruleset = self.build_rruleset()
-        print(f"{rruleset = }")
-
-    def parse_input(self, entry: str):
-        """
-        Parses the input string to extract tokens, then processes and validates the tokens.
-        """
-        digits = "1234567890" * ceil(len(entry) / 10)
-        self._tokenize(entry)
-        self._parse_tokens(entry)
-        self.parse_ok = True
-        self.previous_entry = entry
-        self.previous_tokens = self.tokens.copy()
+        self.previous_tokens = self.structured_tokens.copy()
 
         # Only build rruleset if @r group exists
         if self.collect_grouped_tokens({"r"}):
-            print(f"building rruleset from: {self.structured_tokens}")
+            # print(f"building rruleset from: {self.structured_tokens}")
             rruleset = self.build_rruleset()
             if rruleset:
                 self.item["rruleset"] = rruleset
-                print(f"{rruleset = }")
+                # print(f"{rruleset = }")
 
         # Only build jobs if @j group exists
         if self.collect_grouped_tokens({"j"}):
@@ -780,10 +663,10 @@ class Item:
 
         for group in grouped:
             anchor = group[0]
-            anchor_pos = (anchor["start"], anchor["end"])
+            anchor_pos = (anchor["s"], anchor["e"])
             for token in group[1:]:
-                self.skip_token_positions.add((token["start"], token["end"]))
-                self.token_group_anchors[(token["start"], token["end"])] = anchor_pos
+                self.skip_token_positions.add((token["s"], token["e"]))
+                self.token_group_anchors[(token["s"], token["e"])] = anchor_pos
 
     def collect_grouped_tokens(self, anchor_keys: set[str]) -> list[list[dict]]:
         """
@@ -799,12 +682,12 @@ class Item:
         collecting = False
 
         for token in self.structured_tokens:
-            if token["type"] == "@" and token["key"] in anchor_keys:
+            if token["t"] == "@" and token["k"] in anchor_keys:
                 if current_group:
                     groups.append(current_group)
                 current_group = [token]
                 collecting = True
-            elif collecting and token["type"] == "&":
+            elif collecting and token["t"] == "&":
                 current_group.append(token)
             elif collecting:
                 groups.append(current_group)
@@ -816,42 +699,8 @@ class Item:
 
         return groups
 
-    # def _tokenize(self, entry: str):
-    #     self.entry = entry
-    #     pattern = r"(@\w+ [^@]+)|(^\S+)|(\S[^@]*)"
-    #     matches = re.finditer(pattern, self.entry)
-    #     tokens_with_positions = []
-    #     for match in matches:
-    #         # Get the matched token
-    #         token = match.group(0)
-    #         # Get the start and end positions
-    #         start_pos = match.start()
-    #         end_pos = match.end()
-    #         # Append the token and its positions as a tuple
-    #         tokens_with_positions.append((token, start_pos, end_pos))
-    #     self.tokens = tokens_with_positions
-
-    def _sub_tokenize(self, entry):
-        print(f"_sub_tokenize {entry = }")
-        pattern = r"(@\w+ [^&]+)|(^\S+)|(\S[^&]*)"
-        matches = re.finditer(pattern, entry)
-        if not matches:
-            return
-        tokens_with_positions = []
-        for match in matches:
-            # print(f"{match = }")
-            # Get the matched token
-            token = match.group(0)
-            # Get the start and end positions
-            start_pos = match.start()
-            end_pos = match.end()
-            # Append the token and its positions as a tuple
-            # tokens_with_positions.append((token, start_pos, end_pos))
-            tokens_with_positions.append(tuple(token.split()))
-        return tokens_with_positions
-
     def _tokenize(self, entry: str):
-        print(f"_tokenize {entry = }")
+        # print(f"_tokenize {entry = }")
         self.entry = entry
         self.errors = []
         self.tokens = []
@@ -861,7 +710,6 @@ class Item:
             self.messages.append((False, "No input provided.", []))
             return
 
-        tokens_with_positions = []
         self.structured_tokens = []
 
         # First: itemtype
@@ -872,9 +720,8 @@ class Item:
             )
             return
 
-        tokens_with_positions.append((itemtype, 0, 1))
         self.structured_tokens.append(
-            {"token": itemtype, "start": 0, "end": 1, "type": "itemtype"}
+            {"token": itemtype, "s": 0, "e": 1, "t": "itemtype"}
         )
 
         rest = entry[1:].lstrip()
@@ -887,9 +734,8 @@ class Item:
             start = offset
             end = offset + len(subject) + 1  # trailing space
             subject_token = subject + " "
-            tokens_with_positions.append((subject_token, start, end))
             self.structured_tokens.append(
-                {"token": subject_token, "start": start, "end": end, "type": "subject"}
+                {"token": subject_token, "s": start, "e": end, "t": "subject"}
             )
         else:
             self.errors.append("Missing subject")
@@ -902,22 +748,19 @@ class Item:
             token = match.group(0)
             start_pos = match.start() + offset + len(subject)
             end_pos = match.end() + offset + len(subject)
-            tokens_with_positions.append((token, start_pos, end_pos))
 
             token_type = "@" if token.startswith("@") else "&"
             key = token[1:3].strip()
             self.structured_tokens.append(
                 {
                     "token": token,
-                    "start": start_pos,
-                    "end": end_pos,
-                    "type": token_type,
-                    "key": key,
+                    "s": start_pos,
+                    "e": end_pos,
+                    "t": token_type,
+                    "k": key,
                 }
             )
 
-        self.tokens = tokens_with_positions
-        print(f"{self.tokens = }")
         print(f"{self.structured_tokens = }")
 
         # if not self.errors:
@@ -926,29 +769,6 @@ class Item:
         #     print(f"{input_str = }")
         # else:
         #     self.input_hsh = {}
-
-    # def _parse_tokens(self, entry: str):
-    #     if not self.previous_entry:
-    #         # If there is no previous entry, parse all tokens
-    #         self._parse_all_tokens()
-    #         return
-    #
-    #     # Identify the affected tokens based on the change
-    #     changes = self._find_changes(self.previous_entry, entry)
-    #     affected_tokens = self._identify_affected_tokens(changes)
-    #
-    #     # Parse only the affected tokens
-    #     for token_info in affected_tokens:
-    #         token, start_pos, end_pos = token_info
-    #         # Check if the token has actually changed
-    #         if self._token_has_changed(token_info):
-    #             # print(f"processing changed token: {token_info}")
-    #             if start_pos == 0:
-    #                 self._dispatch_token(token, start_pos, end_pos, "itemtype")
-    #             elif start_pos == 2:
-    #                 self._dispatch_token(token, start_pos, end_pos, "subject")
-    #             else:
-    #                 self._dispatch_token(token, start_pos, end_pos)
 
     def _parse_tokens(self, entry: str):
         if not self.previous_entry:
@@ -962,8 +782,9 @@ class Item:
 
         dispatched_anchors = set()
 
-        for token, start_pos, end_pos in affected_tokens:
-            if not self._token_has_changed((token, start_pos, end_pos)):
+        for token in affected_tokens:
+            start_pos, end_pos = token["s"], token["e"]
+            if not self._token_has_changed(token):
                 continue
 
             if (start_pos, end_pos) in self.skip_token_positions:
@@ -977,7 +798,7 @@ class Item:
                     t for t in self.tokens if (t[1], t[2]) == anchor_pos
                 )
                 token_str, anchor_start, anchor_end = anchor_token_info
-                token_type = token_str.split()[0][1:]
+                token_type = token["k"]
                 self._dispatch_token(token_str, anchor_start, anchor_end, token_type)
                 dispatched_anchors.add(anchor_pos)
                 continue
@@ -987,32 +808,16 @@ class Item:
             elif start_pos == 2:
                 self._dispatch_token(token, start_pos, end_pos, "subject")
             else:
-                token_type = token.split()[0][1:]
+                token_type = token["k"]
                 self._dispatch_token(token, start_pos, end_pos, token_type)
-
-    # def _parse_all_tokens(self):
-    #     # print(f"{self.tokens = }")
-    #     # second_pass = []
-    #
-    #     # first pass
-    #     for i, token_info in enumerate(self.tokens):
-    #         token, start_pos, end_pos = token_info
-    #         if i == 0:
-    #             self._dispatch_token(token, start_pos, end_pos, "itemtype")
-    #         elif i == 1:
-    #             self._dispatch_token(token, start_pos, end_pos, "subject")
-    #         else:
-    #             token_type = token.split()[0][
-    #                 1:
-    #             ]  # Extract token type (e.g., 's' from '@s')
-    #             self._dispatch_token(token, start_pos, end_pos, token_type)
 
     def _parse_all_tokens(self):
         self.mark_grouped_tokens()
 
         dispatched_anchors = set()
 
-        for token, start_pos, end_pos in self.tokens:
+        for token in self.structured_tokens:
+            start_pos, end_pos = token["s"], token["e"]
             if (start_pos, end_pos) in self.skip_token_positions:
                 continue  # skip component of a group
 
@@ -1024,7 +829,7 @@ class Item:
                     t for t in self.tokens if (t[1], t[2]) == anchor_pos
                 )
                 token_str, anchor_start, anchor_end = anchor_token_info
-                token_type = token_str.split()[0][1:]
+                token_type = token["k"]
                 self._dispatch_token(token_str, anchor_start, anchor_end, token_type)
                 dispatched_anchors.add(anchor_pos)
                 continue
@@ -1034,7 +839,7 @@ class Item:
             elif start_pos == 2:
                 self._dispatch_token(token, start_pos, end_pos, "subject")
             else:
-                token_type = token.split()[0][1:]
+                token_type = token["k"]
                 self._dispatch_token(token, start_pos, end_pos, token_type)
 
     def _find_changes(self, previous: str, current: str):
@@ -1063,34 +868,21 @@ class Item:
     def _identify_affected_tokens(self, changes):
         start, end = changes
         affected_tokens = []
-        for token_info in self.tokens:
-            token, start_pos, end_pos = token_info
+        for token in self.structured_tokens:
+            start_pos, end_pos = token["s"], token["e"]
             if start <= end_pos and end >= start_pos:
-                affected_tokens.append(token_info)
+                affected_tokens.append(token)
         return affected_tokens
 
-    def _token_has_changed(self, token_info):
-        return token_info not in self.previous_tokens
+    def _token_has_changed(self, token):
+        return token not in self.previous_tokens
 
-    def _dispatch_token(self, token, start_pos, end_pos, token_type=None):
+    def _dispatch_token(self, token, start_pos, end_pos, token_type):
         # print(
         #     f"dispatching token: {token = }, {start_pos = }, {end_pos = }, {token_type = }"
         # )
-        if token_type is None:
-            if token == "@":
-                self.do_at()
-                return
-            elif token.startswith("@"):
-                token_type = token.split()[0][
-                    1:
-                ]  # Extract token type (e.g., 's' from '@s')
-            else:
-                token_type = token
         if token_type in self.token_keys:
-            # print(f"Dispatching token: {token} as {token_type}")
-            # print(f"Dispatching token: {token.rstrip()}")
             method_name = self.token_keys[token_type][2]
-            # print(f"method_name = {method_name}")
             method = getattr(self, method_name)
             is_valid, result, sub_tokens = method(token)
             if is_valid:
@@ -1119,12 +911,10 @@ class Item:
             if part.startswith("&"):
                 token_type = prefix + part[1:2]  # Prepend prefix to token type
                 token_value = part[2:].strip()
-                # print(f"token_type = '{token_type}': token_value = '{token_value}'")
                 if token_type in self.token_keys:
                     method_name = self.token_keys[token_type][2]
                     method = getattr(self, method_name)
                     is_valid, result, *sub_tokens = method(token_value)
-                    # print(f"{token_value} => {is_valid}, {result}")
                     if is_valid:
                         if prefix == "r":
                             self.rrule_tokens[-1][1][token_type] = result
@@ -1157,9 +947,8 @@ class Item:
 
     def do_itemtype(self, token):
         # Process item type token
-        # print(f"Processing item type token: {token}")
         valid_itemtypes = {"*", "-", "%", "~", "+", "!"}
-        itemtype = token[0]
+        itemtype = token["t"]
         if itemtype in valid_itemtypes:
             self.itemtype = itemtype
             return True, itemtype, []
@@ -1169,66 +958,62 @@ class Item:
     @classmethod
     def do_summary(cls, token):
         # Process subject token
-        # print(f"Processing subject token: {token}")
-        if len(token) >= 1:
-            return True, token.strip(), []
+        if "t" in token and token["t"] == "subject":
+            return True, token["token"].strip(), []
         else:
             return False, "subject cannot be empty", []
 
     @classmethod
     def do_duration(cls, arg: str):
         """ """
-        # print(f"processing duration: {arg}")
         if not arg:
             return False, f"time period {arg}"
-        print(f"calling timedelta_str_to_seconds with {arg}")
         ok, res = timedelta_str_to_seconds(arg)
         return ok, res
 
-    def do_alert(self, arg):
+    def do_alert(self, token):
         """
         Process an alert string, validate it and return a corresponding string
         with the timedelta components replaced by integer seconds.
+        {'token': '@a 15m, 5m: d ', 's': 40, 'e': 54, 't': '@', 'k': 'a'},
         """
-        alerts = [x.strip() for x in arg.split(";")]
-        if not alerts:
-            return False, "missing alerts", []
-        res = []
+        print(f"{token = }")
+
+        alert = token["token"][2:].strip()
+
+        parts = [x.strip() for x in alert.split(":")]
+        if len(parts) != 2:
+            return False, f"Invalid alert format: {alert}", []
+        timedeltas, commands = parts
+        secs = []
+        cmds = []
+        probs = []
         issues = []
-        for alert in alerts:
-            parts = [x.strip() for x in alert.split(":")]
-            if len(parts) != 2:
-                issues.append(f"Invalid alert format: {alert}")
-                continue
-            timedeltas, commands = parts
-            secs = []
-            cmds = []
-            probs = [f"For alert: {alert}"]
-            ok = True
-            for cmd in [x.strip() for x in commands.split(",")]:
-                if is_lowercase_letter(cmd):
-                    cmds.append(cmd)
-                else:
-                    ok = False
-                    probs.append(f"  Invalid command: {cmd}")
-            for td in [x.strip() for x in timedeltas.split(",")]:
-                ok, td_seconds = timedelta_str_to_seconds(td)
-                if ok:
-                    secs.append(str(td_seconds))
-                else:
-                    ok = False
-                    probs.append(f"  Invalid timedelta: {td}")
-            if ok:
-                res.append(f"{', '.join(secs)}: {', '.join(cmds)}")
+        res = []
+        ok = True
+        for cmd in [x.strip() for x in commands.split(",")]:
+            if is_lowercase_letter(cmd):
+                cmds.append(cmd)
             else:
-                issues.append("; ".join(probs))
+                ok = False
+                probs.append(f"  Invalid command: {cmd}")
+        for td in [x.strip() for x in timedeltas.split(",")]:
+            ok, td_seconds = timedelta_str_to_seconds(td)
+            if ok:
+                secs.append(str(td_seconds))
+            else:
+                ok = False
+                probs.append(f"  Invalid timedelta: {td}")
+        if ok:
+            res.append(f"{', '.join(secs)}: {', '.join(cmds)}")
+        else:
+            issues.append("; ".join(probs))
         if issues:
             return False, "\n".join(issues), []
         self.alerts.extend(res)
         return True, "; ".join(res), []
 
     def do_description(self, token):
-        # print(f"Processing description: {token}")
         description = re.sub("^@. ", "", token)
         if not description:
             return False, "missing description", []
@@ -1241,7 +1026,7 @@ class Item:
 
     def do_extent(self, token):
         # Process datetime token
-        extent = re.sub("^@. ", "", token.strip())
+        extent = re.sub("^@. ", "", token["token"].strip())
         ok, extent_obj = timedelta_str_to_seconds(extent)
         if ok:
             self.extent = extent_obj
@@ -1276,7 +1061,7 @@ class Item:
                     res = str(p)
                     obj_lst.append(res)
                     rep_lst.append(res)
-                except:
+                except Exception as e:
                     all_ok = False
                     rep_lst.append(f"~{arg}~")
 
@@ -1311,7 +1096,7 @@ class Item:
                     res = str(arg)
                     obj_lst.append(res)
                     rep_lst.append(res)
-                except:
+                except Exception as e:
                     all_ok = False
                     rep_lst.append(f"~{arg}~")
             obj = obj_lst if all_ok else None
@@ -1322,15 +1107,14 @@ class Item:
         try:
             obj = re.sub("^@. ", "", token.strip())
             rep = obj
-        except:
+        except Exception as e:
             obj = None
             rep = f"invalid: {token}"
         return obj, rep, []
 
     def do_timezone(self, token: str):
         """Handle @z timezone declaration in user input."""
-        tz_str = token.strip()[2:].strip()
-        # print(f"{tz_str = }")
+        tz_str = token["token"][2:]
         if tz_str.lower() in {"float", "naive"}:
             self.timezone = None
             return True, None, []
@@ -1341,119 +1125,101 @@ class Item:
             self.timezone = None
             return False, f"Invalid timezone: '{tz_str}'", []
 
-    def promote_date_to_datetime(self, dt: datetime) -> datetime | date:
-        """
-        If dt is exactly midnight (00:00:00), adjust:
-        - For events (*): move to 00:00:01
-        - For tasks (-): move to 23:59:59
-        """
-        if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
-            # return dt.date()
-            if self.itemtype == "-":
-                return dt.replace(hour=23, minute=59, second=59)
-            else:
-                return dt.replace(second=1)
-        return dt
-
-    def enforce_date(self, dt: datetime) -> datetime:
-        """
-        Force dt to behave like a date (no meaningful time component).
-        Always promote time to:
-        - 00:00:01 for events (*)
-        - 23:59:59 for tasks (-)
-        """
-        return dt.date()
-        # if self.itemtype == "-":
-        #     return dt.replace(hour=23, minute=59, second=59, microsecond=0)
-        # else:
-        #     return dt.replace(hour=0, minute=0, second=1, microsecond=0)
-
-    def do_datetime(self, token):
-        """
-        Process a datetime token such as "@s 3p fri" or "@s 2025-04-24".
-        Sets both self.dtstart and self.dtstart_str.
-        """
-        try:
-            datetime_str = token.strip()
-            # Remove prefix like '@s '
-            datetime_str = re.sub(r"^@.\s+", "", datetime_str)
-            # Parse the datetime
-            odt = parse(datetime_str)
-            dt = self.promote_date_to_datetime(odt)
-            is_date = dt != odt
-            self.enforce_dates = dt != odt
-            # self.rdstart will be used if there is no recurrence rule
-            if is_date:
-                self.dtstart_str = f"DTSTART;VALUE=DATE:{dt.strftime('%Y%m%d')}"
-                self.rdstart_str = f"RDATE;VALUE=DATE:{dt.strftime('%Y%m%d')}"
-            else:
-                self.dtstart_str = f"DTSTART:{dt.strftime('%Y%m%dT%H%M%S')}"
-                self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT%H%M%S')}"
-
-            self.dtstart = dt
-            return True, round(dt.timestamp()), []
-
-        except ValueError as e:
-            return False, f"Invalid datetime: {token}. Error: {e}", []
+    def do_s(self, token):
+        datetime_str = token["token"]
+        ok, dt = do_datetime(datetime_str)
+        if not ok:
+            return False, dt, []
+        odt = promote_date_to_datetime(dt, self.itemtype)
+        is_date = dt != odt
+        # self.rdstart will be used if there is no recurrence rule
+        if is_date:
+            self.dtstart = dt.strftime("%Y%m%d")
+            self.dtstart_str = f"DTSTART;VALUE=DATE:{dt.strftime('%Y%m%d')}"
+            self.rdstart_str = f"RDATE;VALUE=DATE:{dt.strftime('%Y%m%d')}"
+        else:
+            self.dtstart = dt.strftime("%Y%m%dT%H%M")
+            self.dtstart_str = f"DTSTART:{dt.strftime('%Y%m%dT%H%M%S')}"
+            self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT%H%M%S')}"
+        # self.dtstart = dt
+        return True, self.dtstart, []
 
     def do_rrule(self, token):
-        # Process rrule token
         print(f"Processing rrule token: {token}")
-        parts = self._sub_tokenize(token)
-        print(f"{parts = }; {parts[0][1] = }")
-        if not parts or len(parts) < 1:
+
+        # Locate the group starting with this @r token
+        group = None
+        for g in self.collect_grouped_tokens({"r"}):
+            if g[0]["token"] == token:
+                group = g
+                break
+
+        if not group:
+            msg = (False, f"No matching @r group found for token: {token}", [])
+            self.messages.append(msg)
+            return msg
+
+        anchor_token = group[0]  # the @r token
+        anchor_parts = anchor_token["token"].split(maxsplit=1)
+        if len(anchor_parts) < 2:
             msg = (False, f"Missing rrule frequency: {token}", [])
             self.messages.append(msg)
             return msg
-        f = parts[0][1]
-        if f not in Item.freq_map:
-            keys = ", ".join([f"{k} ({v})" for k, v in Item.freq_map.items()])
+
+        freq_code = anchor_parts[1].strip()
+        if freq_code not in self.freq_map:
+            keys = ", ".join([f"{k} ({v})" for k, v in self.freq_map.items()])
             msg = (
                 False,
-                f"'{f}', is not one of the supported frequencies from: \n   {keys}",
+                f"'{freq_code}' is not a supported frequency. Choose from:\n   {keys}",
                 [],
             )
             self.messages.append(msg)
             return msg
-        freq = self.freq_map[f]
-        rrule_params = {"FREQ": freq}
-        if self.dtstart:
-            rrule_params["DTSTART"] = self.dtstart.strftime("%Y%m%dT%H%M%S%z")
 
-        # Collect & tokens that follow @r
-        sub_tokens = self._extract_sub_tokens(token, "&")
+        freq = self.freq_map[freq_code]
+        rrule_params = {"FREQ": freq}
+
+        if self.dtstart:
+            rrule_params["DTSTART"] = self.dtstart.strftime("%Y%m%dT%H%M%S")
+
+        # Parse each &-component
+        sub_tokens = []
+        for token in group[1:]:
+            try:
+                k, v = token["token"][1:].split(maxsplit=1)
+                k = k.upper()
+                rrule_params[k] = v.strip()
+                sub_tokens.append((k, v.strip()))
+            except ValueError:
+                msg = (False, f"Invalid rrule sub-token: {token['token']}", [])
+                self.messages.append(msg)
+                return msg
 
         self.rrule_tokens.append((token, rrule_params))
-        # print(f"{self.rrule_tokens = }")
         return True, rrule_params, sub_tokens
 
     def do_job(self, token):
         # Process journal token
-        # print(f"Processing job token: {token}")
-        node, summary, tokens_remaining = self._extract_job_node_and_summary(token)
-        # print(f"{node = }; {summary = }; {tokens_remaining = }")
+        # print(" ### do_job ### ")
+        node, summary, tokens_remaining = self._extract_job_node_and_summary(
+            token["token"]
+        )
         job_params = {"j": summary}
         job_params["node"] = node
         sub_tokens = []
         if tokens_remaining is not None:
             parts = self._sub_tokenize(tokens_remaining)
-            # print(f"{parts = }")
 
             for part in parts:
-                # print(f"processing part: {part}")
                 key, *value = part
-                # print(f"processing key: {key}, value: {value}")
                 k = key[1]
                 v = " ".join(value)
                 job_params[k] = v
-            # if node is not None:
-            #     job_params["node"] = node
 
             # Collect & tokens that follow @j
             sub_tokens = self._extract_sub_tokens(token, "&")
-            # self.job_tokens.append((token, job_params))
             self.job_tokens.append((token, job_params))
-            # print(f"returning {job_params = }; {sub_tokens = }")
         return True, job_params, sub_tokens
 
     def _extract_sub_tokens(self, token, delimiter):
@@ -1473,9 +1239,9 @@ class Item:
         """
         Converts a string representation of weekdays into a list of rrule objects.
         """
+        print(" ### do_weekdays ### ")
         wkd_str = wkd_str.upper()
         wkd_regex = r"(?<![\w-])([+-][1-4])?(MO|TU|WE|TH|FR|SA|SU)(?!\w)"
-        # print(f"in do_weekdays with wkd_str = |{wkd_str}|")
         matches = re.findall(wkd_regex, wkd_str)
         _ = [f"{x[0]}{x[1]}" for x in matches]
         all = [x.strip() for x in wkd_str.split(",")]
@@ -1522,7 +1288,7 @@ class Item:
         """
         try:
             arg = int(arg)
-        except:
+        except Exception as e:
             return False, "interval must be a postive integer"
         else:
             if arg < 1:
@@ -1534,6 +1300,7 @@ class Item:
         """
         Process a comma separated list of integer month numbers from 1, 2, ..., 12
         """
+        print(" ### do_months ### ")
         monthsstr = (
             "months: a comma separated list of integer month numbers from 1, 2, ..., 12"
         )
@@ -1559,6 +1326,7 @@ class Item:
         """
         Process an integer count for rrule
         """
+        print(" ### do_count ### ")
         countstr = "count: an integer count for rrule, 1, 2, ... "
         if arg:
             args = arg.strip()
@@ -1582,6 +1350,7 @@ class Item:
         """
         Process a comma separated list of integer month day numbers from 1, 2, ..., 31
         """
+        print(" ### do_monthdays ### ")
         monthdaysstr = "monthdays: a comma separated list of integer month day numbers from 1, 2, ..., 31"
         if arg:
             args = arg.split(",")
@@ -1605,6 +1374,7 @@ class Item:
         """
         Process a comma separated list of integer hour numbers from 0, 1, ..., 23
         """
+        print(" ### do_hours ### ")
         hoursstr = (
             "hours: a comma separated list of integer hour numbers from 0, 1, ..., 23"
         )
@@ -1630,6 +1400,7 @@ class Item:
         """
         Process a comma separated list of integer minute numbers from 0, 2, ..., 59
         """
+        print(" ### do_minutes ### ")
         minutesstr = "minutes: a comma separated list of integer minute numbers from 0, 2, ..., 59"
         if arg:
             args = arg.split(",")
@@ -1672,7 +1443,7 @@ class Item:
         msg = ""
         try:
             arg = int(arg)
-        except:
+        except Exception as e:
             if typ:
                 return False, "{}: {}".format(typ, arg)
             else:
@@ -1712,7 +1483,7 @@ class Item:
         if type(arg) == str:
             try:
                 args = [int(x) for x in arg.split(",")]
-            except:
+            except Exception as e:
                 if typ:
                     return False, "{}: {}".format(typ, arg)
                 else:
@@ -1720,7 +1491,7 @@ class Item:
         elif type(arg) == list:
             try:
                 args = [int(x) for x in arg]
-            except:
+            except Exception as e:
                 if typ:
                     return False, "{}: {}".format(typ, arg)
                 else:
@@ -1901,11 +1672,11 @@ class Item:
 
         for token in self.structured_tokens:
             if not found_rrule:
-                if token["type"] == "@" and token["key"] == "r":
+                if token["t"] == "@" and token["k"] == "r":
                     found_rrule = True
                     rruleset_tokens.append(token)  # structured token
             else:
-                if token["type"] == "&":
+                if token["t"] == "&":
                     rruleset_tokens.append(token)  # structured token
                 else:
                     break  # stop collecting on first non-& after @r
@@ -1986,8 +1757,8 @@ class Item:
             job = {
                 "j": job_name,
                 "node": node_level,
-                "start": anchor["start"],
-                "end": anchor["end"],
+                "s": anchor["s"],
+                "e": anchor["e"],
             }
 
             # Process &-keys
