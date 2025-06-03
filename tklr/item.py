@@ -26,6 +26,19 @@ JOB_PATTERN = re.compile(r"^@j ( *)([^&]*)(?:(&.*))?")
 LETTER_SET = set("abcdefghijklmnopqrstuvwxyz")  # Define once
 
 
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, timedelta):
+            return str(obj)
+        if isinstance(obj, set):
+            return list(obj)
+        if isinstance(obj, ZoneInfo):
+            return obj.key
+        return super().default(obj)
+
+
 def get_local_zoneinfo():
     try:
         from zoneinfo import ZoneInfo
@@ -169,42 +182,6 @@ def localize_datetime_list(
     return localized
 
 
-# def preview_rule_instances(
-#     rule: rruleset,
-#     timezone: Union[ZoneInfo, None] = None,
-#     count: int = 10,
-#     after: Optional[datetime] = None,
-#     to_localtime: bool = False,
-# ) -> List[datetime]:
-#     """
-#     Generate a list of upcoming localized instances from a rule.
-#
-#     Args:
-#         rule: Parsed rule from rrulestr().
-#         timezone: ZoneInfo timezone to attach to naive datetimes.
-#         count: Maximum number of instances to return.
-#         after: Optional datetime to start on (default: now).
-#         to_localtime: Whether to convert to system local time for display.
-#
-#     Returns:
-#         A list of timezone-aware datetime objects.
-#     """
-#     instances = []
-#     generator = localize_rule_instances(rule, timezone, to_localtime)
-#
-#     if after is not None:
-#         if after.tzinfo is None:
-#             after = after.replace(tzinfo=timezone)
-#
-#     for dt in generator:
-#         if after and dt < after:
-#             continue
-#         instances.append(dt)
-#         if len(instances) >= count:
-#             break
-#     return instances
-
-
 def preview_rule_instances(
     rule: rruleset,
     timezone: Union[ZoneInfo, None] = None,
@@ -259,13 +236,14 @@ type_keys = {
     "-": "task",
     "%": "journal",
     "!": "inbox",
-    "~": "goal",
-    "+": "track",
+    # "~": "goal",
+    # "+": "track",
     # '✓': 'finished',  # more a property of a task than an item type
 }
 common_methods = list("cdgilmnstuxz")
 
 repeating_methods = list("+-o") + [
+    "r",
     "rr",
     "rc",
     "rm",
@@ -283,9 +261,11 @@ repeating_methods = list("+-o") + [
 datetime_methods = list("abe")
 
 job_methods = list("efhp") + [
+    "j",
     "jj",
     "ja",
     "jb",
+    "jc",
     "jd",
     "je",
     "jf",
@@ -300,36 +280,38 @@ job_methods = list("efhp") + [
 multiple_allowed = [
     "a",
     "u",
+    "r",
+    "j",
     "t",
-    "jj",
-    "ji",
-    "js",
-    "jb",
-    "jp",
+    # "jj",
+    # "ji",
+    # "js",
+    # "jb",
+    # "jp",
     "ja",
-    "jd",
-    "je",
-    "jf",
-    "jl",
-    "jm",
-    "ju",
+    # "jd",
+    # "je",
+    # "jf",
+    # "jl",
+    # "jm",
+    # "ju",
 ]
 
 wrap_methods = ["w"]
 
-required = {"*": ["s"], "-": [], "%": [], "~": ["s"], "+": ["s"]}
+required = {"*": ["s"], "-": [], "%": [], "!": []}
+
+all_keys = common_methods + datetime_methods + job_methods + repeating_methods + ["+"]
 
 allowed = {
     "*": common_methods + datetime_methods + repeating_methods + wrap_methods,
     "-": common_methods + datetime_methods + job_methods + repeating_methods,
     "%": common_methods + ["+"],
-    "~": common_methods + ["q", "h"],
-    "+": common_methods + ["h"],
+    "!": all_keys,
+    # "~": common_methods + ["q", "h"],
+    # "+": common_methods + ["h"],
 }
 
-# inbox
-required["!"] = []
-allowed["!"] = common_methods + datetime_methods + job_methods + repeating_methods
 
 requires = {
     "a": ["s"],
@@ -337,6 +319,7 @@ requires = {
     "+": ["s"],
     "q": ["s"],
     "-": ["rr"],
+    "r": ["s"],
     "rr": ["s"],
     "js": ["s"],
     "ja": ["s"],
@@ -456,7 +439,7 @@ class Item:
         ],
         "subject": [
             "subject",
-            "brief item description. Append an '@' to add an option.",
+            "item subject. Append an '@' to add an option.",
             "do_summary",
         ],
         "s": ["scheduled", "starting date or datetime", "do_s"],
@@ -467,9 +450,9 @@ class Item:
         "-": ["exdate", "exception dates", "do_exdate"],
         # Add more `&` token handlers for @j here as needed
         "a": ["alerts", "list of alerts", "do_alert"],
-        "b": ["beginby", "number of days for beginby notices", "do_beginby"],
+        "b": ["beginby", "period for beginby notices", "do_beginby"],
         "c": ["context", "context", "do_string"],
-        "d": ["description", "description", "do_description"],
+        "d": ["description", "item description", "do_description"],
         "e": ["extent", "timeperiod", "do_extent"],
         "w": ["wrap", "list of two timeperiods", "do_two_periods"],
         "f": ["finish", "completion done -> due", "do_completion"],
@@ -546,7 +529,8 @@ class Item:
             "list of timeperiods before job is scheduled followed by a colon and a list of commands",
             "do_alert",
         ],
-        "jb": ["beginby", " integer number of days", "do_beginby"],
+        "jb": ["beginby", " beginby period", "do_beginby"],
+        "jc": ["context", " string", "do_string"],
         "jd": ["description", " string", "do_description"],
         "je": ["extent", " timeperiod", "do_duration"],
         "jf": ["finish", " completion done -> due", "do_completion"],
@@ -619,16 +603,26 @@ class Item:
         """
         Parses the input string to extract tokens, then processes and validates the tokens.
         """
+        print("--- begin entry ---\n", f"{entry}", "\n--- end entry --- ")
         digits = "1234567890" * ceil(len(entry) / 10)
         self._tokenize(entry)
+
+        message = self.validate()
+        if message:
+            print(f"Validate {message = }")
+            return
+
+        # print("calling parse_tokens")
         self._parse_tokens(entry)
+        # print("back from parse_tokens")
+
         self.parse_ok = True
         self.previous_entry = entry
         self.previous_tokens = self.structured_tokens.copy()
 
         # Only build rruleset if @r group exists
         if self.collect_grouped_tokens({"r"}):
-            # print(f"building rruleset from: {self.structured_tokens}")
+            # print("building rruleset")
             rruleset = self.build_rruleset()
             if rruleset:
                 self.item["rruleset"] = rruleset
@@ -636,11 +630,11 @@ class Item:
 
         # Only build jobs if @j group exists
         if self.collect_grouped_tokens({"j"}):
-            # print(f"building jobs from: {self.structured_tokens}")
+            # print("building jobs")
             jobs = self.build_jobs()
             # print(f"{jobs = }")
             success, finalized = self.finalize_jobs(jobs)
-            print(f"{success = }, {finalized = }")
+            # print(f"{success = }, {finalized = }")
 
         if self.tags:
             self.item["t"] = self.tags
@@ -648,6 +642,102 @@ class Item:
         if self.alerts:
             self.item["a"] = self.alerts
             print(f"alerts: {self.alerts}")
+
+        # print(f"{self.structured_tokens = }")
+        print(
+            "###\n",
+            " ".join([f"{t['token']}" for t in self.structured_tokens]),
+            "\n###",
+        )
+
+    def validate(self):
+        if len(self.structured_tokens) < 2:
+            # nothing to validate without itemtype and subject
+            return
+
+        def fmt_error(message: str):
+            return [x.strip() for x in message.split(",")]
+
+        errors = []
+
+        itemtype = self.structured_tokens[0]["token"]
+        subject = self.structured_tokens[1]["token"]
+        allowed_fortype = allowed[itemtype]
+        required_fortype = required[itemtype]
+
+        current_atkey = None
+        used_atkeys = []
+        used_ampkeys = []
+        needed = required_fortype
+        count = 0
+        print(f"{len(self.structured_tokens) = }")
+        for token in self.structured_tokens:
+            count += 1
+            if token.get("incomplete", False) == True:
+                type = token["t"]
+                need = (
+                    f"required: {', '.join(needed)}\n" if needed and type == "@" else ""
+                )
+                options = []
+                options = (
+                    [x for x in allowed_fortype if len(x) == 1]
+                    if type == "@"
+                    else [x[-1] for x in allowed_fortype if len(x) == 2]
+                )
+                optional = f"options: {', '.join(options)}" if options else ""
+                return fmt_error(f"{token['t']} incomplete, {need}{optional}")
+            if token["t"] == "@":
+                # print(f"{token['token']}; {used_atkeys = }")
+                this_atkey = token["k"]
+                if this_atkey not in all_keys:
+                    return fmt_error(f"@{this_atkey}, Unrecognized @-key")
+                if this_atkey not in allowed_fortype:
+                    return fmt_error(
+                        f"@{this_atkey}, The use of this @-key is not supported in type '{itemtype}' reminders"
+                    )
+                if this_atkey in used_atkeys and not (this_atkey in multiple_allowed):
+                    return fmt_error(
+                        f"@{current_atkey}, Multiple instances of this @-key are not allowed"
+                    )
+                current_atkey = this_atkey
+                used_atkeys.append(current_atkey)
+                # if current_atkey not in multiple_allowed:
+                #     allowed_fortype.remove(current_atkey)
+                # print(f"{used_atkeys = }, {count = }")
+                if this_atkey in ["r", "j"]:
+                    # reset for this use
+                    used_ampkeys = []
+                if current_atkey in needed:
+                    needed.remove(current_atkey)
+                if current_atkey in requires:
+                    for _key in requires[current_atkey]:
+                        if _key not in used_atkeys and _key not in needed:
+                            needed.append(_key)
+            elif token["t"] == "&":
+                this_ampkey = f"{current_atkey}{token['k']}"
+                if not current_atkey in ["r", "j"]:
+                    return fmt_error(
+                        f"&{token['k']}, The use of &-keys is not supported for @{current_atkey}"
+                    )
+
+                if this_ampkey not in all_keys:
+                    return fmt_error(
+                        f"&{token['k']}, This &-key is not supported for @{current_atkey}"
+                    )
+                if this_ampkey in used_ampkeys and not (
+                    this_ampkey in multiple_allowed
+                ):
+                    return fmt_error(
+                        f"&{current_ampkey}, Multiple instances of this &-key are not supported"
+                    )
+                used_ampkeys.append(this_ampkey)
+
+        if needed:
+            needed_keys = ", ".join("@" + k for k in needed)
+            needed_msg = f"Required keys not yet provided: {needed_keys}"
+        else:
+            needed_msg = ""
+        return needed_msg
 
     def mark_grouped_tokens(self):
         """
@@ -677,6 +767,7 @@ class Item:
         Returns:
             List of token groups: each group is a list of structured tokens.
         """
+        # print(f"collecting grouped tokens for {anchor_keys = }")
         groups = []
         current_group = []
         collecting = False
@@ -760,6 +851,42 @@ class Item:
                     "k": key,
                 }
             )
+
+        # Detect and append a potential partial token at the end
+        partial_token = None
+        if entry.endswith("@") or re.search(r"@([a-zA-Z])$", entry):
+            match = re.search(r"@([a-zA-Z]?)$", entry)
+            if match:
+                partial_token = {
+                    "token": "@" + match.group(1),
+                    "s": len(entry) - len(match.group(0)),
+                    "e": len(entry),
+                    "t": "@",
+                    "k": match.group(1),
+                    "incomplete": True,
+                }
+
+        elif entry.endswith("&") or re.search(r"&([a-zA-Z]+)$", entry):
+            match = re.search(r"&([a-zA-Z]*)$", entry)
+            if match:
+                # Optionally find parent group (r or j)
+                parent = None
+                for tok in reversed(self.structured_tokens):
+                    if tok["t"] == "@" and tok["k"] in ["r", "j"]:
+                        parent = tok["k"]
+                        break
+                partial_token = {
+                    "token": "&" + match.group(1),
+                    "s": len(entry) - len(match.group(0)),
+                    "e": len(entry),
+                    "t": "&",
+                    "k": match.group(1),
+                    "parent": parent,
+                    "incomplete": True,
+                }
+
+        if partial_token:
+            self.structured_tokens.append(partial_token)
 
         print(f"{self.structured_tokens = }")
 
@@ -1112,14 +1239,16 @@ class Item:
             rep = f"invalid: {token}"
         return obj, rep, []
 
-    def do_timezone(self, token: str):
+    def do_timezone(self, token: dict):
         """Handle @z timezone declaration in user input."""
-        tz_str = token["token"][2:]
+        tz_str = token["token"][2:].strip()
+        # print(f"do_timezone: {tz_str = }")
         if tz_str.lower() in {"float", "naive"}:
             self.timezone = None
             return True, None, []
         try:
             self.timezone = ZoneInfo(tz_str)
+            # print(f"{self.timezone = }")
             return True, self.timezone, []
         except Exception:
             self.timezone = None
@@ -1704,7 +1833,12 @@ class Item:
 
         for token in rrule_tokens[1:]:  # &-tokens as structured dicts
             token_str = token["token"]
-            key, value = token_str[1:].split(maxsplit=1)
+            try:
+                key, value = token_str[1:].split(maxsplit=1)
+            except Exception as e:
+                print(f"Exception: {e} for {token_str = }")
+                continue
+
             key = key.upper()
             value = value.strip()
 
@@ -1757,8 +1891,8 @@ class Item:
             job = {
                 "j": job_name,
                 "node": node_level,
-                "s": anchor["s"],
-                "e": anchor["e"],
+                # "s": anchor["s"],
+                # "e": anchor["e"],
             }
 
             # Process &-keys
@@ -1906,6 +2040,9 @@ class Item:
             jobs.append(job)
 
         self.item["j"] = jobs
+        # json_jobs = json.dumps(jobs, indent=2)
+        json_jobs = json.dumps(jobs, cls=CustomJSONEncoder)
+        print(json_jobs)
 
         print("prereqs")
         for i, reqs in prereqs.items():
@@ -1951,22 +2088,6 @@ class Item:
         # rule = rrulestr(rule_string, ignoretz=True), ignoretz=True
         print(f"list_rrule: {rule_string = }")
         rule = rrulestr(rule_string)
-        # try:
-        #     res = list(rule)
-        #     # Print the occurrences
-        #     print("=>")
-        #     print("Instances[:10]:")
-        #     print("  Try As stored:")
-        #     for dt in res[:count]:
-        #         _ = dt
-        #         print(_.strftime(f"{fmt_str}"))
-        #     print("  Try As localtime:")
-        #     for dt in res[:count]:
-        #         _ = dt.astimezone(tz.tzlocal())
-        #         print(_.strftime(f"{fmt_str}"))
-        # except Exception as e:
-        #     print(f"Error parsing rrulestr: {e}")
-        #     return False
 
         timezone = (
             None if is_date else self.timezone

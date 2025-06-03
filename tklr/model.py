@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import json
 from typing import Optional
 
 # from bisect import bisect_left, bisect_right
@@ -41,6 +42,37 @@ def regexp(pattern, value):
 DEFAULT_LOG_FILE = "log_msg.md"
 
 
+def td(duration_str: str) -> timedelta:
+    """Convert a duration string like '1h30m20s' into a timedelta."""
+    pattern = r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
+    match = re.fullmatch(pattern, duration_str.strip())
+    if not match:
+        raise ValueError(f"Invalid duration format: '{duration_str}'")
+    hours, minutes, seconds = [int(x) if x else 0 for x in match.groups()]
+    return timedelta(hours=hours, minutes=minutes, seconds=seconds)
+
+
+def dt(datetime_str: str) -> datetime:
+    """Convert a datetime string like '20250601T090000' into a datetime object."""
+    try:
+        return datetime.strptime(datetime_str, "%Y%m%dT%H%M%S")
+    except ValueError:
+        return datetime.strptime(datetime_str, "%Y%m%d")  # Allow date-only
+
+
+def to_dtstr(dt_obj: datetime) -> str:
+    """Convert a datetime object to 'YYYYMMDDTHHMMSS' format."""
+    return dt_obj.strftime("%Y%m%dT%H%M%S")
+
+
+def to_tdstr(td_obj: timedelta) -> str:
+    """Convert a timedelta object to a string like '1h30m20s'."""
+    seconds = int(td_obj.total_seconds())
+    h, remainder = divmod(seconds, 3600)
+    m, s = divmod(remainder, 60)
+    return f"{h}h{m}m{s}s"
+
+
 class DatabaseManager:
     def __init__(self, db_path, reset=False):
         """
@@ -67,17 +99,49 @@ class DatabaseManager:
         Set up the SQLite database schema.
         """
         self.cursor.execute("""
-        CREATE TABLE IF NOT EXISTS Records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            type TEXT CHECK(type IN ('*', '-', '~', '^')) NOT NULL,
-            name TEXT NOT NULL,
-            details TEXT,
-            rrulestr TEXT,
-            extent INTEGER,
-            alerts TEXT,
-            location TEXT,
-            processed INTEGER DEFAULT 0
-        )
+            CREATE TABLE IF NOT EXISTS Records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                type TEXT CHECK(type IN ('*', '-', '~', '^')) NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT,
+                rrulestr TEXT,
+                extent TEXT,
+                alerts TEXT,
+                location TEXT,
+                processed INTEGER DEFAULT 0,
+                structured_tokens TEXT DEFAULT '[]',
+                jobs TEXT DEFAULT '[]'
+            );
+        """)
+
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE
+            );
+        """)
+
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS RecordTags (
+                record_id INTEGER NOT NULL,
+                tag_id INTEGER NOT NULL,
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES Tags(id) ON DELETE CASCADE,
+                PRIMARY KEY (record_id, tag_id)
+            );
+        """)
+
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id INTEGER NOT NULL,
+                job_name TEXT NOT NULL,
+                node INTEGER,
+                context TEXT,
+                index_within_record INTEGER,
+                prereqs TEXT,
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+            );
         """)
 
         self.cursor.execute("""
@@ -112,16 +176,18 @@ class DatabaseManager:
         """)
         self.conn.commit()
 
-    def add_record(self, record_type, name, details, rrstr, extent, alerts, location):
+    def add_record(
+        self, record_type, name, description, rrstr, extent, alerts, location
+    ):
         """
         Add a new record to the database.
         """
         # log_msg(
-        #     f"Adding record: {record_type = } {name = } {details = } {rrstr = } {extent = } {alerts = } {location = }"
+        #     f"Adding record: {record_type = } {name = } {description = } {rrstr = } {extent = } {alerts = } {location = }"
         # )
         self.cursor.execute(
-            "INSERT INTO Records (type, name, details, rrulestr, extent, alerts, location) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (record_type, name, details, rrstr, extent, alerts, location),
+            "INSERT INTO Records (type, name, description, rrulestr, extent, alerts, location) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (record_type, name, description, rrstr, extent, alerts, location),
         )
         new_record_id = self.cursor.lastrowid  # Retrieve the new record ID
         self.conn.commit()
@@ -240,7 +306,7 @@ class DatabaseManager:
         start_datetime,
         record_id,
         record_name,
-        record_details,
+        record_description,
         record_location,
     ):
         alert_command = ALERT_COMMANDS.get(command_name, "")
@@ -251,7 +317,7 @@ class DatabaseManager:
         # today = date.today()
         # today_fmt = today.strftime("%Y-%m-%d")
         name = record_name
-        details = record_details
+        description = record_description
         location = record_location
 
         if timedelta > 0:
@@ -269,7 +335,7 @@ class DatabaseManager:
             name=name,
             when=when,
             time=time_fmt,
-            details=details,
+            description=description,
             location=location,
             start=start,
         )
@@ -288,7 +354,7 @@ class DatabaseManager:
         # ✅ Step 2: Find all records with non-empty alerts
         self.cursor.execute(
             """
-            SELECT R.id, R.name, R.details, R.location, R.alerts, D.start_datetime 
+            SELECT R.id, R.name, R.description, R.location, R.alerts, D.start_datetime 
             FROM Records R
             JOIN DateTimes D ON R.id = D.record_id
             WHERE R.alerts IS NOT NULL AND R.alerts != ''
@@ -309,7 +375,7 @@ class DatabaseManager:
         for (
             record_id,
             record_name,
-            record_details,
+            record_description,
             record_location,
             alerts_str,
             start_datetime,
@@ -341,7 +407,7 @@ class DatabaseManager:
                                 start_datetime,
                                 record_id,
                                 record_name,
-                                record_details,
+                                record_description,
                                 record_location,
                             )
 
@@ -630,12 +696,12 @@ class DatabaseManager:
 
         Returns:
             List[Tuple[int, str, str, str, datetime]]: List of tuples containing
-                record ID, name, details, type, and the last datetime.
+                record ID, name, description, type, and the last datetime.
         """
         today = int(datetime.now().timestamp())
         self.cursor.execute(
             """
-            SELECT r.id, r.name, r.details, r.type, MAX(d.start_datetime) AS last_datetime
+            SELECT r.id, r.name, r.description, r.type, MAX(d.start_datetime) AS last_datetime
             FROM Records r
             JOIN DateTimes d ON r.id = d.record_id
             WHERE d.start_datetime < ?
@@ -652,12 +718,12 @@ class DatabaseManager:
 
         Returns:
             List[Tuple[int, str, str, str, datetime]]: List of tuples containing
-                record ID, name, details, type, and the next datetime.
+                record ID, name, description, type, and the next datetime.
         """
         today = int(datetime.now().timestamp())
         self.cursor.execute(
             """
-            SELECT r.id, r.name, r.details, r.type, MIN(d.start_datetime) AS next_datetime
+            SELECT r.id, r.name, r.description, r.type, MIN(d.start_datetime) AS next_datetime
             FROM Records r
             JOIN DateTimes d ON r.id = d.record_id
             WHERE d.start_datetime >= ?
@@ -672,7 +738,7 @@ class DatabaseManager:
         self, regex: str
     ) -> List[Tuple[int, str, str, str, Optional[int], Optional[int]]]:
         """
-        Find records whose name or details fields contain a match for the given regex,
+        Find records whose name or description fields contain a match for the given regex,
         including their last and next instances if they exist.
 
         Args:
@@ -683,7 +749,7 @@ class DatabaseManager:
                 List of tuples containing:
                     - record ID
                     - name
-                    - details
+                    - description
                     - type
                     - last instance datetime (or None)
                     - next instance datetime (or None)
@@ -707,15 +773,120 @@ class DatabaseManager:
             SELECT
                 r.id,
                 r.name,
-                r.details,
+                r.description,
                 r.type,
                 li.last_datetime,
                 ni.next_datetime
             FROM Records r
             LEFT JOIN LastInstances li ON r.id = li.record_id
             LEFT JOIN NextInstances ni ON r.id = ni.record_id
-            WHERE r.name REGEXP ? OR r.details REGEXP ?
+            WHERE r.name REGEXP ? OR r.description REGEXP ?
             """,
             (today, today, regex, regex),
         )
         return self.cursor.fetchall()
+
+    def update_record_with_tags(self, record_data):
+        cur = self.conn.cursor()
+        tags = record_data.pop("tags", [])
+        record_data["structured_tokens"] = json.dumps(
+            record_data.get("structured_tokens", [])
+        )
+        record_data["jobs"] = json.dumps(record_data.get("jobs", []))
+        if "id" in record_data:
+            record_id = record_data["id"]
+            columns = [k for k in record_data if k != "id"]
+            assignments = ", ".join([f"{col} = ?" for col in columns])
+            values = [record_data[col] for col in columns]
+            values.append(record_id)
+            cur.execute(f"UPDATE Records SET {assignments} WHERE id = ?", values)
+            cur.execute("DELETE FROM RecordTags WHERE record_id = ?", (record_id,))
+        else:
+            columns = list(record_data.keys())
+            values = [record_data[col] for col in columns]
+            placeholders = ", ".join(["?"] * len(columns))
+            cur.execute(
+                f"INSERT INTO Records ({', '.join(columns)}) VALUES ({placeholders})",
+                values,
+            )
+            record_id = cur.lastrowid
+        for tag in tags:
+            cur.execute("INSERT OR IGNORE INTO Tags (name) VALUES (?)", (tag,))
+            cur.execute("SELECT id FROM Tags WHERE name = ?", (tag,))
+            tag_id = cur.fetchone()[0]
+            cur.execute(
+                "INSERT INTO RecordTags (record_id, tag_id) VALUES (?, ?)",
+                (record_id, tag_id),
+            )
+        self.conn.commit()
+        return record_id
+
+    def get_tags_for_record(self, record_id):
+        cur = self.conn.cursor()
+        cur.execute(
+            """
+            SELECT Tags.name FROM Tags
+            JOIN RecordTags ON Tags.id = RecordTags.tag_id
+            WHERE RecordTags.record_id = ?
+        """,
+            (record_id,),
+        )
+        return [row[0] for row in cur.fetchall()]
+
+    def sync_jobs_from_record(self, record_id, jobs_list):
+        cur = self.conn.cursor()
+        cur.execute("DELETE FROM Jobs WHERE record_id = ?", (record_id,))
+        for job in jobs_list:
+            cur.execute(
+                """
+                INSERT INTO Jobs (record_id, job_name, node, context, index_within_record, prereqs)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    record_id,
+                    job.get("j"),
+                    job.get("node"),
+                    job.get("c"),
+                    job.get("i"),
+                    json.dumps(job.get("prereqs", [])),
+                ),
+            )
+        self.conn.commit()
+
+    def get_all(self):
+        cur = self.conn.cursor()
+        cur.execute("SELECT * FROM Records")
+        return cur.fetchall()
+
+    def get_record(self, record_id):
+        cur = self.conn.cursor()
+        cur.execute("SELECT * FROM Records WHERE id = ?", (record_id,))
+        return cur.fetchone()
+
+    def get_jobs_for_record(self, record_id):
+        cur = self.conn.cursor()
+        cur.execute("SELECT * FROM Jobs WHERE record_id = ?", (record_id,))
+        return cur.fetchall()
+
+    def get_tagged(self, tag):
+        cur = self.conn.cursor()
+        cur.execute(
+            """
+            SELECT Records.* FROM Records
+            JOIN RecordTags ON Records.id = RecordTags.record_id
+            JOIN Tags ON Tags.id = RecordTags.tag_id
+            WHERE Tags.name = ?
+        """,
+            (tag,),
+        )
+        return cur.fetchall()
+
+    def delete_record(self, record_id):
+        cur = self.conn.cursor()
+        cur.execute("DELETE FROM Records WHERE id = ?", (record_id,))
+        self.conn.commit()
+
+    def count_records(self):
+        cur = self.conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM Records")
+        return cur.fetchone()[0]

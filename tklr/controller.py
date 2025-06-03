@@ -30,6 +30,7 @@ from typing import Literal
 
 from .model import DatabaseManager
 
+
 from .common import truncate_string, format_extent
 from .shared import (
     log_msg,
@@ -164,28 +165,6 @@ def calculate_4_week_start():
     start_of_week = today - timedelta(days=iso_weekday - 1)
     weeks_into_cycle = (iso_week - 1) % 4
     return start_of_week - timedelta(weeks=weeks_into_cycle)
-
-
-# def base26_to_decimal(base26_num):
-#     """
-#     Convert an arbitrary-length base-26 number to its decimal equivalent.
-#
-#     Args:
-#         base26_num (str): A base-26 string using 'a' as 0 and 'z' as 25.
-#
-#     Returns:
-#         int: The decimal equivalent of the base-26 number.
-#     """
-#     decimal_value = 0
-#     length = len(base26_num)
-#
-#     # Process each character in the base-26 string
-#     for i, char in enumerate(base26_num):
-#         digit = ord(char) - ord("a")  # Map 'a' to 0, ..., 'z' to 25
-#         power = length - i - 1  # Compute the power of 26
-#         decimal_value += digit * (26**power)
-#
-#     return decimal_value
 
 
 def decimal_to_base26(decimal_num):
@@ -343,13 +322,10 @@ class Controller:
         # Initialize the database manager
         self.db_manager = DatabaseManager(database_path)
         self.tag_to_id = {}  # Maps tag numbers to event IDs
-        self.yrwk_to_details = {}  # Maps (iso_year, iso_week), to the details for that week
-        self.rownum_to_yrwk = {}  # Maps row numbers to (iso_year, iso_week) for the current period
+        self.yrwk_to_details = {}  # Maps (iso_year, iso_week) to week details
+        self.rownum_to_yrwk = {}  # Maps row numbers to (iso_year, iso_week)
         self.start_date = calculate_4_week_start()
-        self.selected_week = tuple(
-            datetime.now().isocalendar()[:2]
-        )  # Currently selected week
-        self.tag_to_id = {}  # Maps tag numbers to event IDs
+        self.selected_week = tuple(datetime.now().isocalendar()[:2])
         self.list_tag_to_id = {}  # Maps tag numbers to event IDs
 
     def get_record_details_as_string(self, record_id):
@@ -384,6 +360,33 @@ class Controller:
         )
         # log_msg(f"Content: {content}")
         return content
+
+    def get_record(self, record_id):
+        return self.db_manager.get_record(record_id)
+
+    def get_all_records(self):
+        return self.db_manager.get_all()
+
+    def delete_record(self, record_id):
+        self.db_manager.delete_record(record_id)
+
+    def update_tags(self, record_data):
+        return self.db_manager.update_record_with_tags(record_data)
+
+    def get_tags(self, record_id):
+        return self.db_manager.get_tags_for_record(record_id)
+
+    def get_tagged_records(self, tag):
+        return self.db_manager.get_tagged(tag)
+
+    def sync_jobs(self, record_id, jobs_list):
+        self.db_manager.sync_jobs_from_record(record_id, jobs_list)
+
+    def get_jobs(self, record_id):
+        return self.db_manager.get_jobs_for_record(record_id)
+
+    def record_count(self):
+        return self.db_manager.count_records()
 
     def populate_alerts(self):
         self.db_manager.populate_alerts()
@@ -647,15 +650,6 @@ class Controller:
                     row.append(f"{mday}\n")
 
                 if SELECTED:
-                    # row = [
-                    #     f"[{SELECTED_COLOR}]{cell}[/{SELECTED_COLOR}]" for cell in row
-                    # ]
-                    # row = [
-                    #     f"[{DIM_COLOR}]{row[0]}[{DIM_COLOR}]",
-                    # ] + [
-                    #     f"[{SELECTED_COLOR}]{cell}[/{SELECTED_COLOR}]"
-                    #     for cell in row[1:]
-                    # ]
                     row = [
                         f"[{SELECTED_COLOR}]{cell}[/{SELECTED_COLOR}]" for cell in row
                     ]
@@ -682,10 +676,6 @@ class Controller:
             - return table
             - return details for selected_week
         """
-        # today_year, today_week, today_weekday = datetime.now().isocalendar()
-        # tomorrow_year, tomorrow_week, tomorrow_day = (
-        #     datetime.now() + ONEDAY
-        # ).isocalendar()
         log_msg(f"Getting table for {start_date = }, {selected_week = }")
         self.selected_week = selected_week
         current_start_year, current_start_week, _ = start_date.isocalendar()
@@ -725,9 +715,7 @@ class Controller:
         this_week = format_date_range(start_datetime, end_datetime - ONEDAY)
         terminal_width = shutil.get_terminal_size().columns
 
-        # header = f"Items for {this_week} #{yr_wk[1]} ({len(events)})"
         header = f"{this_week} #{yr_wk[1]} ({len(events)})"
-        # details = [f"[not bold][{HEADER_COLOR}]{header}[/{HEADER_COLOR}][/not bold]"]
         details = [header]
 
         if not events:
@@ -824,7 +812,7 @@ class Controller:
         details = [header]
 
         if not events:
-            details.append(f" [{header_color}]nothing found[/{header_color}]")
+            details.append(f" [{HEADER_COLOR}]nothing found[/{HEADER_COLOR}]")
             # return "\n".join(details)
             return details
 
@@ -890,7 +878,6 @@ class Controller:
         self.list_tag_to_id.setdefault("last", {})
         yr_mnth_to_events = {}
 
-        # for start_ts, end_ts, type, name, id in events:
         for id, name, description, type, start_ts in events:
             start_dt = datetime.fromtimestamp(start_ts)
             # log_msg(f"Week details {name = }, {start_dt = }, {end_dt = }")
@@ -932,7 +919,6 @@ class Controller:
         """
         events = self.db_manager.find_records(search_str)
         header = f"Items containg a match for [{SELECTED_COLOR}]{search_str}[/{SELECTED_COLOR}] ({len(events)})"
-        # details = [f"[not bold][{HEADER_COLOR}]{header}[/{HEADER_COLOR}][/not bold]"]
         details = [header]
 
         if not events:
@@ -948,7 +934,6 @@ class Controller:
         indx = 0
 
         tag = indx_to_tag(indx, self.afill)
-        # for start_ts, end_ts, type, name, id in events:
         for id, name, _, type, last_ts, next_ts in events:
             name = f"{truncate_string(name, 30):<30}"
             last_dt = (
