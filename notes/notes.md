@@ -1,15 +1,27 @@
 # Notes - A staging ground for README
 
+## @-key changes
+
+- @d details (paired with subject)
+- @s scheduled datetime
+- @b begin timedelta
+  - events: begin notices at scheduled - begin (no begin notice if begin is not specified)
+  - tasks: hidden until scheduled - begin (task always visible if begin is not specified)
+- @e extent timedelta (entry as timedelta or datetime - if datetime, implied timedelta computed)
+  - events: occupies period from scheduled to scheduled + extent (duration of event). If datetime then extent = datetime - scheduled
+  - tasks: occupies period from scheduled - extent to scheduled (time estimated to complete task). If datetime, then extent = scheduled - datetime
+- @n invities: DROP
+
 ## item types and status
 
-Three types of reminders are supported, 1) *task*, 2) *event* and 3) *note*.
+Three types of reminders are supported, 1) _task_, 2) _event_ and 3) _note_.
 The type of reminder is indicated by the first character of the subject line, which is one of the following:
 
 - task: `-`
 - event: `*`
 - note: `%`
 
-*tasks* and their component *jobs* are further characterized by their *status* so that while the recorded item type is `-`, the type that will be displayed in any list of tasks will be the first status code that applies from the following list:
+_tasks_ and their component _jobs_ are further characterized by their _status_ so that while the recorded item type is `-`, the type that will be displayed in any list of tasks will be the first status code that applies from the following list:
 
 - deleted: "x" - the task or job has been deleted, i.e., has either an `@x` (task) or an `&x` (job) datetime entry.
 - finished: "✓" - the task or job has been finished, i.e., has either an `@f` (task) or an `&f` (job) entry.
@@ -19,7 +31,7 @@ The type of reminder is indicated by the first character of the subject line, wh
 - active: "!" - this is a task or job that is currently in progress, i.e., has an `@s` (task) or `&s` (job) entry with `datetime < now`.
 - available: "-" - a task or job not meeting any of the above criteria.
 
-Note that "⏹" and "-" correspond to tasks and jobs that are **available for completion** - these are the tasks and jobs listed by *urgency* in the default "agenda" view.
+Note that "⏹" and "-" correspond to tasks and jobs that are **available for completion** - these are the tasks and jobs listed by _urgency_ in the default "agenda" view.
 
 When a task or event is repeating, "↻" is appended to the subject.
 
@@ -27,17 +39,17 @@ When a task or event is repeating, "↻" is appended to the subject.
 
 ### Agenda
 
-This is the "action" view for *tklr*. It lists *relevant* events for the current date and time and tasks and jobs that are available for completion. A *relevant* event is one that occupies part of the reminder of the current date. More formally, an event for which 1) in the `@s scheduled` entry, *scheduled* specifies a datetime object and not a date, 2) `scheduled.date() <= date.today()`, 3) an `@e extent` entry is specified with *extent* a timedelta object and with `extent.total_seconds() > 0` and 4) `scheduled + extent > now`.
+This is the "action" view for _tklr_. It lists _relevant_ events for the current date and time and tasks and jobs that are available for completion. A _relevant_ event is one that occupies part of the reminder of the current date. More formally, an event for which 1) in the `@s scheduled` entry, _scheduled_ specifies a datetime object and not a date, 2) `scheduled.date() <= date.today()`, 3) an `@e extent` entry is specified with _extent_ a timedelta object and with `extent.total_seconds() > 0` and 4) `scheduled + extent > now`.
 
 Events and tasks are sorted as follows:
 
-1) the event, if any, for which `datetime < now`. I.e., the busy period for the event is currently in progress.
+1. the event, if any, for which `datetime < now`. I.e., the busy period for the event is currently in progress.
 
-2) tasks and jobs that are available for completion sorted by *urgency* (descending).
+2. tasks and jobs that are available for completion sorted by _urgency_ (descending).
 
-3) events, if any, for which `datetime > now` sorted by *datetime* (ascending).
+3. events, if any, for which `datetime > now` sorted by _datetime_ (ascending).
 
-Note that a period could be blocked off for a *sprint* using an *event* with a subject entry corresponding to the task(s) to be completed during the sprint and with `@s` and `@e` entries to block off the relevant period.
+Note that a period could be blocked off for a _sprint_ using an _event_ with a subject entry corresponding to the task(s) to be completed during the sprint and with `@s` and `@e` entries to block off the relevant period.
 
 ### Status History
 
@@ -58,38 +70,38 @@ Among the keybindings would be "A":
 
 Scheduled datetimes from `@s` entries become part of the record's rrulestr expression in one of two ways:
 
-  1. for records that *have*  an accompanying @r entry, the datetime is stored as the *DTSTART* component, followed by the remaining rrulestr components. E.g.,
+1. for records that _have_ an accompanying @r entry, the datetime is stored as the _DTSTART_ component, followed by the remaining rrulestr components. E.g.,
 
-      ```python
-      * datetime repeating @s 2024-08-07 14:00 @r d &i 2
-      ```
+   ```python
+   * datetime repeating @s 2024-08-07 14:00 @r d &i 2
+   ```
 
-      becomes
+   becomes
 
-      ```python
-        {
-            "itemtype": "*",
-            "subject": "datetime repeating",
-            "rruleset": "DTSTART:20240807T140000\nRRULE:FREQ=DAILY;INTERVAL=2",
-        }
-      ```
+   ```python
+     {
+         "itemtype": "*",
+         "subject": "datetime repeating",
+         "rruleset": "DTSTART:20240807T140000\nRRULE:FREQ=DAILY;INTERVAL=2",
+     }
+   ```
 
-  1. for records that *do not have* an accompanying @r entry, the datetime is  stored as as the *RDATE* component, E.g.,
+1. for records that _do not have_ an accompanying @r entry, the datetime is stored as as the _RDATE_ component, E.g.,
 
-      ```python
-      * datetime only @s 2024-08-07 14:00 @e 1h30m
-      ```
+   ```python
+   * datetime only @s 2024-08-07 14:00 @e 1h30m
+   ```
 
-      becomes
+   becomes
 
-      ```python
-      {
-        "itemtype": "*",
-        "subject": "datetime only",
-        "e": 5400,
-        "rruleset": "RDATE:20240807T140000"
-      }
-      ```
+   ```python
+   {
+     "itemtype": "*",
+     "subject": "datetime only",
+     "e": 5400,
+     "rruleset": "RDATE:20240807T140000"
+   }
+   ```
 
 ### Tables
 
@@ -201,11 +213,12 @@ The column "input" would contain the string entered by the user and "output" wou
 Here are two examples of input and the corresponding output:
 
 - Thanksgiving:
-  - input: "* Thanksgiving @s 2010/11/26 @r y &m 11 &w +4TH"
+
+  - input: "\* Thanksgiving @s 2010/11/26 @r y &m 11 &w +4TH"
   - output:
 
     ```json
-      
+
         "itemtype": "*",
         "subject": "Thanksgiving",
         "s": "2010-11-26T00:00:00",
@@ -215,6 +228,7 @@ Here are two examples of input and the corresponding output:
     ```
 
 - Dog house:
+
   - input:
 
     ```python
@@ -258,9 +272,9 @@ Here are two examples of input and the corresponding output:
 
 It seems to me that treating dates as datetimes, which was intended to simplify things, is turning out to be quite a complication. Thinking backwards from the main, "agenda" view intended for the application, I realized that sorting by datetime is not that important. Here's the ordering that is intended:
 
-1) all day events are listed separately from the main view.
-2) events with datetimes that fall on the current date are listed if the @s DATETIME and @e TIMEDELTA entries for the event are such that @s + @e > now. If additionally, @s < now, then the event is currently in progress and is listed first. Otherwise, if @s > now it is listed last with other similar events ordered by their @s DATETIME entries. Events for which @s + @e < now are not listed.
-3) relevant tasks are listed after the current event, if any, and before any events scheduled for later in the day. They are sorted by their urgency which depends on many things including the @s DATE | DATETIME entry for the task, if there is one.
+1. all day events are listed separately from the main view.
+2. events with datetimes that fall on the current date are listed if the @s DATETIME and @e TIMEDELTA entries for the event are such that @s + @e > now. If additionally, @s < now, then the event is currently in progress and is listed first. Otherwise, if @s > now it is listed last with other similar events ordered by their @s DATETIME entries. Events for which @s + @e < now are not listed.
+3. relevant tasks are listed after the current event, if any, and before any events scheduled for later in the day. They are sorted by their urgency which depends on many things including the @s DATE | DATETIME entry for the task, if there is one.
 
 This leads me to think that if parse returns a datetime object for @s for which dt.hour == dt.minute == dt.second == 0, then the @s entry should be recorded as dt.date() rather than as a datetime. This would allow an isinstance test for date and not datetime to separate all day events and tasks and, being naive, remove all the timezone complications.
 

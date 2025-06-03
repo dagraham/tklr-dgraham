@@ -36,7 +36,6 @@ from typing import Literal
 # logger = logging.getLogger('etm')
 # settings = None
 
-import etm.__version__ as version
 from ruamel.yaml import __version__ as ruamel_version
 from dateutil import __version__ as dateutil_version
 from tinydb import __version__ as tinydb_version
@@ -168,6 +167,80 @@ def drop_zero_minutes(dt, mode: Literal["24", "12"], end=False):
                 return dt.strftime("%-H:%M")
 
 
+period_regex = re.compile(r"((\d+)([wdhms]))+?")
+expanded_period_regex = re.compile(r"((\d+)\s(week|day|hour|minute|second)s?)+?")
+
+
+def parse_period(s: str) -> timedelta:
+    """\
+    Take a period string and return a corresponding timedelta.
+    Examples:
+        parse_period('-2w3d4h5m')= -timedelta(weeks=2,days=3,hours=4,minutes=5)
+        parse_period('1h30m') = timedelta(hours=1, minutes=30)
+        parse_period('-10m') = -timedelta(minutes=10)
+    where:
+        y: years
+        w: weeks
+        d: days
+        h: hours
+        m: minutes
+        s: seconds
+    """
+
+    knms = {
+        "w": "weeks",
+        "week": "weeks",
+        "weeks": "weeks",
+        "d": "days",
+        "day": "days",
+        "days": "days",
+        "h": "hours",
+        "hour": "hours",
+        "hours": "hours",
+        "m": "minutes",
+        "minute": "minutes",
+        "minutes": "minutes",
+        "s": "seconds",
+        "second": "second",
+        "seconds": "seconds",
+    }
+
+    kwds = {
+        "weeks": 0,
+        "days": 0,
+        "hours": 0,
+        "minutes": 0,
+        "seconds": 0,
+    }
+
+    s = str(s).strip()
+    sign = None
+    if s[0] in ["+", "-"]:
+        # record the sign and keep the rest of the string
+        sign = s[0]
+        s = s[1:]
+
+    m = period_regex.findall(str(s))
+    if not m:
+        m = expanded_period_regex.findall(str(s))
+        if not m:
+            return False, f"Invalid period string '{s}'"
+    for g in m:
+        if g[2] not in knms:
+            return False, f"invalid period argument: {g[2]}"
+
+        # num = -int(g[2]) if g[1] == "-" else int(g[2])
+        num = int(g[1])
+        if num:
+            kwds[knms[g[2]]] = num
+    td = timedelta(**kwds)
+
+    if sign and sign == "-":
+        td = -td
+
+    return True, td
+
+
 def format_extent(
     beg_dt: datetime, end_dt: datetime, mode: str = Literal["24", "12"]
 ) -> str:
@@ -249,7 +322,7 @@ def timedelta_str_to_seconds(time_str: str) -> int:
     return True, total_seconds
 
 
-def fmt_td(seconds: int, short=True):
+def fmt_period(seconds: int, short=True):
     """
     Format seconds as a human readable string
     if short report only biggest 2, else all
@@ -274,14 +347,20 @@ def fmt_td(seconds: int, short=True):
             if hours >= 24:
                 days = hours // 24
                 hours = hours % 24
+            if days >= 7:
+                weeks = days // 7
+                days = days % 7
+
+        if weeks:
+            until.append(f"{weeks}w")
         if days:
             until.append(f"{days}d")
         if hours:
             until.append(f"{hours}h")
         if minutes:
             until.append(f"{minutes}m")
-        # if seconds:
-        #     until.append(f"{seconds}s")
+        if seconds:
+            until.append(f"{seconds}s")
         if not until:
             until.append("0m")
         ret = "".join(until[:2]) if short else "".join(until)
@@ -386,7 +465,8 @@ class TimeIt(object):
 
 python_version = platform.python_version()
 system_platform = platform.platform(terse=True)
-etm_version = version.version
+# etm_version = version.version
+etm_version = "not defined"
 sys_platform = platform.system()
 mac = sys.platform == "darwin"
 windoz = sys_platform in ("Windows", "Microsoft")

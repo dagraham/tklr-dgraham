@@ -1,0 +1,14 @@
+Jinja2==3.1.6
+markdown-it-py==3.0.0
+MarkupSafe==3.0.2
+mdurl==0.1.2
+prompt_toolkit==3.0.51
+Pygments==2.19.1
+python-dateutil==2.9.0.post0
+pytz==2025.2
+rich==14.0.0
+ruamel.yaml==0.18.10
+six==1.17.0
+time-machine==2.16.0
+tinydb==4.8.2
+wcwidth==0.2.13

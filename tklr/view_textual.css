@@ -1,0 +1,14 @@
+Screen {
+    background: #2e2e2e; /* Dark grey  near perfect */
+}
+#table_title, #week_title, #scroll_title, #details_title, #list_title {
+    color: #fff8dc;
+    text-style: bold; /* Make the text bold */
+    text-align: center; /* Center align the text */
+}
+ScrollView {
+    border: none; /* Remove any border or frame */
+    padding: 0; /* Remove padding */
+    margin: 0; /* Remove margin */
+}
+
