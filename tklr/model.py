@@ -18,8 +18,11 @@ from .shared import (
     duration_in_words,
     datetime_in_words,
 )
+# from .item import Item
 
 import re
+
+from tklr.item import Item
 
 
 def regexp(pattern, value):
@@ -66,11 +69,23 @@ def to_dtstr(dt_obj: datetime) -> str:
 
 
 def to_tdstr(td_obj: timedelta) -> str:
-    """Convert a timedelta object to a string like '1h30m20s'."""
-    seconds = int(td_obj.total_seconds())
-    h, remainder = divmod(seconds, 3600)
+    """Convert a timedelta object to a compact string like '1h30m20s'."""
+    total = int(td_obj.total_seconds())
+    if total == 0:
+        return "0s"
+
+    h, remainder = divmod(total, 3600)
     m, s = divmod(remainder, 60)
-    return f"{h}h{m}m{s}s"
+
+    parts = []
+    if h:
+        parts.append(f"{h}h")
+    if m:
+        parts.append(f"{m}m")
+    if s:
+        parts.append(f"{s}s")
+
+    return "".join(parts)
 
 
 class DatabaseManager:
@@ -97,20 +112,23 @@ class DatabaseManager:
     def setup_database(self):
         """
         Set up the SQLite database schema.
+        # CHECK(itemtype IN ('*', '-', '%', '!')) NOT NULL,
         """
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                type TEXT CHECK(type IN ('*', '-', '~', '^')) NOT NULL,
-                name TEXT NOT NULL,
+                itemtype TEXT, 
+                subject TEXT NOT NULL,
                 description TEXT,
-                rrulestr TEXT,
+                rruleset TEXT,
+                timezone TEXT,
                 extent TEXT,
                 alerts TEXT,
-                location TEXT,
-                processed INTEGER DEFAULT 0,
+                context TEXT,
+                jobs TEXT DEFAULT '[]',
+                tags TEXT,
                 structured_tokens TEXT DEFAULT '[]',
-                jobs TEXT DEFAULT '[]'
+                processed INTEGER DEFAULT 0
             );
         """)
 
@@ -176,34 +194,32 @@ class DatabaseManager:
         """)
         self.conn.commit()
 
-    def add_record(
-        self, record_type, name, description, rrstr, extent, alerts, location
-    ):
-        """
-        Add a new record to the database.
-        """
-        # log_msg(
-        #     f"Adding record: {record_type = } {name = } {description = } {rrstr = } {extent = } {alerts = } {location = }"
-        # )
+    def add_item(self, item: Item):
+        print(f"{item.rruleset = }")
         self.cursor.execute(
-            "INSERT INTO Records (type, name, description, rrulestr, extent, alerts, location) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (record_type, name, description, rrstr, extent, alerts, location),
+            """
+            INSERT INTO Records (
+                itemtype, subject, description, rruleset, timezone,
+                extent, alerts, context, jobs, tags,
+                structured_tokens, processed
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                item.itemtype,
+                item.subject,
+                item.description,
+                item.rruleset,
+                item.timezone,  # if item.timezone else None,
+                item.extent,  # assuming this is a string, e.g. "1h30m"
+                json.dumps(item.alerts),
+                item.context,  # if present; else set to None or derive from tags
+                json.dumps(item.jobs),
+                json.dumps(item.tags),
+                json.dumps(item.structured_tokens),
+                0,  # unprocessed by default
+            ),
         )
-        new_record_id = self.cursor.lastrowid  # Retrieve the new record ID
         self.conn.commit()
-        log_msg(f"Added record {name} with ID {new_record_id}.")
-        return new_record_id  # Return the ID to the caller
-
-        # For future reference, this is how you can add a new column to an existing table:
-        # # ✅ Check if 'alerts' column exists, and add it if missing
-        # self.cursor.execute("PRAGMA table_info(Records);")
-        # existing_columns = {row[1] for row in self.cursor.fetchall()}  # Column names
-        #
-        # if "alerts" not in existing_columns:
-        #     self.cursor.execute(
-        #         "ALTER TABLE Records ADD COLUMN alerts TEXT DEFAULT '';"
-        #     )
-        #     self.conn.commit()
 
     def get_due_alerts(self):
         """Retrieve alerts that need execution within the next 6 seconds."""
@@ -354,7 +370,7 @@ class DatabaseManager:
         # ✅ Step 2: Find all records with non-empty alerts
         self.cursor.execute(
             """
-            SELECT R.id, R.name, R.description, R.location, R.alerts, D.start_datetime 
+            SELECT R.id, R.subject, R.description, R.context, R.alerts, D.start_datetime 
             FROM Records R
             JOIN DateTimes D ON R.id = D.record_id
             WHERE R.alerts IS NOT NULL AND R.alerts != ''
@@ -500,11 +516,11 @@ class DatabaseManager:
             end_date (datetime): The end of the period.
         """
         # Fetch all records with their rrule strings, extents, and processed state
-        self.cursor.execute("SELECT id, rrulestr, extent, processed FROM Records")
+        self.cursor.execute("SELECT id, rruleset, extent, processed FROM Records")
         records = self.cursor.fetchall()
 
         for record_id, rule_str, extent, processed in records:
-            # Replace any escaped newline characters in rrulestr
+            # Replace any escaped newline characters in rruleset
             rule_str = rule_str.replace("\\N", "\n").replace("\\n", "\n")
 
             # Determine if the recurrence is finite
@@ -562,14 +578,14 @@ class DatabaseManager:
 
             except Exception as e:
                 log_msg(
-                    f"Error processing rrulestr for record_id {record_id}: {rule_str}\n{e}"
+                    f"Error processing rruleset {rule_str} for record_id {record_id}: {rule_str}\n{e}"
                 )
 
         self.conn.commit()
 
     def generate_datetimes(self, rule_str, extent, start_date, end_date):
         """
-        Generate occurrences for a given rrulestr within the specified date range.
+        Generate occurrences for a given rruleset within the specified date range.
 
         Args:
             rule_str (str): The rrule string defining the recurrence rule.
@@ -580,10 +596,12 @@ class DatabaseManager:
         Returns:
             List[Tuple[datetime, datetime]]: A list of (start_dt, end_dt) tuples.
         """
-        from dateutil.rrule import rrulestr
 
         rule = rrulestr(rule_str, dtstart=start_date)
         occurrences = list(rule.between(start_date, end_date, inc=True))
+        log_msg(
+            f"Generating for {len(occurrences) = } between {start_date} and {end_date}."
+        )
 
         # Create (start, end) pairs
         results = []
@@ -602,7 +620,7 @@ class DatabaseManager:
     def get_events_for_period(self, start_date, end_date):
         """
         Retrieve all events that occur or overlap within a specified period,
-        including the type, name, and ID of each event, ordered by start time.
+        including the itemtype, subject, and ID of each event, ordered by start time.
 
         Args:
             start_date (datetime): The start of the period.
@@ -614,7 +632,7 @@ class DatabaseManager:
         """
         self.cursor.execute(
             """
-        SELECT dt.start_datetime, dt.end_datetime, r.type, r.name, r.id 
+        SELECT dt.start_datetime, dt.end_datetime, r.itemtype, r.subject, r.id 
         FROM DateTimes dt
         JOIN Records r ON dt.record_id = r.id
         WHERE dt.start_datetime < ? AND dt.end_datetime >= ?
@@ -644,7 +662,7 @@ class DatabaseManager:
         # Group events by ISO year, week, and weekday
         grouped_events = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
-        for start_ts, end_ts, event_type, name, id in events:
+        for start_ts, end_ts, itemtype, subject, id in events:
             # Convert timestamps to localized datetime objects
             # if start_ts == end_ts:
             #     log_msg(f"Event {name} has zero duration")
@@ -701,7 +719,7 @@ class DatabaseManager:
         today = int(datetime.now().timestamp())
         self.cursor.execute(
             """
-            SELECT r.id, r.name, r.description, r.type, MAX(d.start_datetime) AS last_datetime
+            SELECT r.id, r.subject, r.description, r.itemtype, MAX(d.start_datetime) AS last_datetime
             FROM Records r
             JOIN DateTimes d ON r.id = d.record_id
             WHERE d.start_datetime < ?
@@ -723,7 +741,7 @@ class DatabaseManager:
         today = int(datetime.now().timestamp())
         self.cursor.execute(
             """
-            SELECT r.id, r.name, r.description, r.type, MIN(d.start_datetime) AS next_datetime
+            SELECT r.id, r.subject, r.description, r.itemtype, MIN(d.start_datetime) AS next_datetime
             FROM Records r
             JOIN DateTimes d ON r.id = d.record_id
             WHERE d.start_datetime >= ?
@@ -748,9 +766,9 @@ class DatabaseManager:
             List[Tuple[int, str, str, str, Optional[int], Optional[int]]]:
                 List of tuples containing:
                     - record ID
-                    - name
+                    - subject
                     - description
-                    - type
+                    - itemtype
                     - last instance datetime (or None)
                     - next instance datetime (or None)
         """
@@ -772,15 +790,15 @@ class DatabaseManager:
             )
             SELECT
                 r.id,
-                r.name,
+                r.subject,
                 r.description,
-                r.type,
+                r.itemtype,
                 li.last_datetime,
                 ni.next_datetime
             FROM Records r
             LEFT JOIN LastInstances li ON r.id = li.record_id
             LEFT JOIN NextInstances ni ON r.id = ni.record_id
-            WHERE r.name REGEXP ? OR r.description REGEXP ?
+            WHERE r.subject REGEXP ? OR r.description REGEXP ?
             """,
             (today, today, regex, regex),
         )

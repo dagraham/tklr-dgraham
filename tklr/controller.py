@@ -31,7 +31,7 @@ from typing import Literal
 from .model import DatabaseManager
 
 
-from .common import truncate_string, format_extent
+# from .common import truncate_string, format_extent
 from .shared import (
     log_msg,
     HRS_MINS,
