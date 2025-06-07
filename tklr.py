@@ -1,31 +1,55 @@
 #!/usr/bin/env python3
+from pathlib import Path
+import os
+from typing import Optional
 from tklr.controller import Controller
 from tklr.view import DynamicViewApp
 from tklr.common import log_msg, display_messages
+from tklr.tklr_env import TklrEnvironment
 
 
-# def test():
-#     controller = Controller("example.db")
-#     db_manager = controller.db_manager
-#     last_instances = db_manager.get_last_instances()
-#     print("Last Instances:", last_instances[:5])
-#     next_instances = db_manager.get_next_instances()
-#     print("\nNext Instances:", next_instances[:5])
-#     next = controller.get_next()
-#     print("\nNext:")
-#     for item in next:
-#         print(item)
-#     last = controller.get_last()
-#     print("\nLast:")
-#     for item in last:
-#         print(item)
-#     search_results = controller.find_records(r"\ball day\b")
-#     for item in search_results:
-#         print(item)
+def initialize_database(path):
+    import sqlite3
+
+    conn = sqlite3.connect(path)
+    c = conn.cursor()
+    c.execute(
+        "CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, title TEXT, done INTEGER)"
+    )
+    conn.commit()
+    conn.close()
+
+
+env = TklrEnvironment()
+env.ensure(init_config=True, init_db_fn=initialize_database)
+
+print("Using config:", env.config_path)
+print("Using database:", env.db_path)
+
+
+def get_tklr_home() -> Path:
+    # 1. Current working directory override (if config + db found)
+    cwd = Path.cwd()
+    if (cwd / "config.toml").exists() and (cwd / "tklr.db").exists():
+        return cwd
+
+    # 2. TKLR_HOME environment variable
+    env_home = os.getenv("TKLR_HOME")
+    if env_home:
+        return Path(env_home).expanduser()
+
+    # 3. XDG_CONFIG_HOME or fallback to ~/.config/tklr
+    xdg_home = os.getenv("XDG_CONFIG_HOME")
+    if xdg_home:
+        return Path(xdg_home).expanduser() / "tklr"
+    else:
+        return Path.home() / ".config" / "tklr"
 
 
 def main():
-    controller = Controller("example.db")
+    tklr_home = get_tklr_home()
+    tklr_db = os.path.join(tklr_home, "tklr.db")
+    controller = Controller(tklr_db)
     view = DynamicViewApp(controller)
     view.run()
 

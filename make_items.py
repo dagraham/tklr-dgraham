@@ -1,6 +1,7 @@
 import random
 from datetime import datetime, timedelta
 from rich import print
+from tklr.item import Item
 from tklr.model import DatabaseManager
 from tklr.shared import log_msg
 import lorem
@@ -86,10 +87,10 @@ def week(dt: datetime) -> Union[datetime, datetime]:
 dbm = DatabaseManager("tklr.db", reset=True)
 # Insert the UTC records into the database
 
-num_items = 400
+num_items = 20
 types = ["-", "*"]
 
-locations = ["errands", "home", "office", "shop"]
+contexts = ["errands", "home", "office", "shop"]
 tags = ["red", "green", "blue"]
 dates = [0, 0, 0, 1, 0, 0, 0]  # dates 1/7 of the time
 repeat = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0]  # repeat 1/10 of the time
@@ -104,6 +105,17 @@ months = num_items // 200
 start = wkbeg - 12 * 7 * ONEDAY
 until = wkend + (40 * 7) * ONEDAY
 print(f"Generating {num_items} records from {start} to {until}...")
+
+
+def handle_new_entry(self, entry_str: str):
+    try:
+        item = Item()
+        item.parse(entry_str)
+    except ValueError as e:
+        self.show_error(f"Invalid entry: {e}")
+        return
+
+    self.model.add_item(item)
 
 
 datetimes = list(
@@ -157,65 +169,31 @@ yesterday_date = (now - ONEDAY).strftime("%Y%m%d")
 today_date = now.strftime("%Y%m%d")
 tomorrow_date = (now + ONEDAY).strftime("%Y%m%d")
 # type, name, details, rrulestr, extent, alerts, location
-records = [
-    ("*", "first of the month", "all day event", f"RDATE:{first_of_month}", "0s", ""),
-    ("*", "all day yesterday", "all day event", f"RDATE:{yesterday_date}", "0s", ""),
-    ("*", "all day today", "all day event", f"RDATE:{today_date}", "0s", ""),
-    ("*", "all day tomorrow", "all day event", f"RDATE:{tomorrow_date}", "0s", ""),
-    (
-        "-",
-        "day end yesterday",
-        "all day task",
-        f"RDATE:{yesterday_date}T235959",
-        "0s",
-        "",
-    ),
-    ("-", "day end today", "all day task", f"RDATE:{today_date}T235959", "0s", ""),
-    (
-        "-",
-        "day end tomorrow",
-        "all day task",
-        f"RDATE:{tomorrow_date}T235959",
-        "0s",
-        "",
-    ),
-    (
-        "*",
-        "zero extent",
-        "zero extent event",
-        f"RDATE:{tomorrow_date}T100000",
-        "0s",
-        "",
-    ),
-    (
-        "*",
-        "ten minutes",
-        "test alert event",
-        f"RDATE:{in_ten_minutes()}",
-        random.choice(duration),
-        "10m, 5m, 2m, 1m, 0, -1m: d",
-    ),
-    (
-        "*",
-        "today",
-        "test alert event",
-        f"RDATE:{in_one_hour()}",
-        random.choice(duration),
-        "1h, 30m, 10m, 5m, 0, -5m: d",
-    ),
-    (
-        "*",
-        "tomorrow",
-        "test alert event",
-        f"RDATE:{in_one_day()}",
-        random.choice(duration),
-        "1h, 30m, 10m, 5m, 0, -5m: d",
-    ),
+
+items = [
+    f"* first of the month @d all day event @s {first_of_month}",
+    f"* yesterday @d all day event @s {yesterday_date}",
+    f"* today @d all day event @s {today_date}",
+    f"* tomorrow @d all day event @s {tomorrow_date}",
+    f"- end of yesterday @d all day event @s {yesterday_date}T235959",
+    f"- end of today @d all day event @s {today_date}T235959",
+    f"- end of tomorrow @d all day event @s {tomorrow_date}T235959",
+    f"* zero extent float @s {tomorrow_date}T100000 @z none",
+    f"* daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",
+    f"* daily date @s {today_date} @d whatever @c wherever @r d &c 10 @z US/Pacific",
+    f"* single date @s {today_date}",
+    f"* single datetime @s {in_one_hour()}",
+    "- with tags @d This item has a description @t red @t white @t blue",
+    f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",
+    f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",
 ]
-while len(records) < num_items:
+
+records = []
+num_items = 0
+while len(items) < num_items:
     t = random.choice(types)
     name = phrase()
-    details = lorem.paragraph() + " #lorem"
+    description = lorem.paragraph() + " #lorem"
     start = random.choice(datetimes)
     date = random.choice(dates)
     if date:
@@ -228,22 +206,21 @@ while len(records) < num_items:
     else:
         dts = start.strftime("%Y%m%dT%H%M00")
     dtstart = local_dtstr_to_utc_str(dts)
+    extent = random.choice(duration)
     if random.choice(repeat):
-        rrulestr = (
-            f"DTSTART:{dtstart}\\nRRULE:{random.choice(freq)};{random.choice(count)}"
+        items.append(
+            f"{t} {name} @d {description} @s {dtstart} @e {extent} @r {random.choice(freq)} &i {random.choice(count)}"
         )
     else:
-        rrulestr = f"RDATE:{dtstart}"
-    extent = random.choice(duration)
-    # if date:
-    #     name = f"{name} {start.strftime('%Y-%m-%d')}"
-    #     # extent = 0
-    records.append((t, name, details, rrulestr, extent, ""))
+        items.append(f"{t} {name} @d {description} @s {dtstart} @e {extent}")
+
 
 id = 0
-for record in records:
+for entry in items:
     id += 1
-    dbm.add_record(
-        record[0], record[1], record[2], record[3], record[4], record[5], "test"
-    )
+    print(f"{entry = }")
+    item = Item(entry)  # .to_dict()
+    print(f"{item = }")
+
+    dbm.add_item(item)
 print(f"Inserted {num_items} records into the database, last_id {id}.")

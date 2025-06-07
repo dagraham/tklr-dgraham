@@ -19,8 +19,14 @@ from typing import Iterable, List
 
 from typing import Union, Tuple, Optional
 from typing import List, Dict, Any, Callable, Mapping
-from common import timedelta_str_to_seconds, log_msg, fmt_dt
 from zoneinfo import ZoneInfo, available_timezones
+
+from .shared import log_msg
+from .common import timedelta_str_to_seconds
+from tzlocal import get_localzone_name
+
+local_timezone = get_localzone_name()  # e.g., "America/New_York"
+print(f"using {local_timezone = }")
 
 JOB_PATTERN = re.compile(r"^@j ( *)([^&]*)(?:(&.*))?")
 LETTER_SET = set("abcdefghijklmnopqrstuvwxyz")  # Define once
@@ -482,7 +488,7 @@ class Item:
         ],
         "z": [
             "timezone",
-            "a timezone entry such as 'US/Eastern' or 'Europe/Paris' or 'float' to specify a naive/floating datetime",
+            "a timezone entry such as 'US/Eastern' or 'Europe/Paris' or 'none' to specify a naive datetime, i.e., one without timezone information",
             "do_timezone",
         ],
         "@": ["@-key", "", "do_at"],
@@ -573,14 +579,19 @@ class Item:
     )
     param_to_key = {v: k for k, v in key_to_param.items()}
 
-    def __init__(self):
+    def __init__(self, raw: Optional[str] = None):
         self.entry = ""
+        self.previous_entry = ""
         # self.tokens = []
         self.itemtype = ""
-        self.previous_entry = ""
+        self.subject = ""
+        self.description = ""
         self.item = {}
         self.previous_tokens = []
         self.structured_tokens = []
+        self.rruleset = ""
+        self.extent = ""
+        self.context = ""
         self.messages = []
         self.rrule_tokens = []
         self.job_tokens = []
@@ -588,7 +599,9 @@ class Item:
         self.rrules = []
         self.jobs = []
         self.tags = []
+        # self.tag_str = ""
         self.alerts = []
+        # self.alert_str = ""
         self.rdates = []
         self.exdates = []
         self.dtstart = None
@@ -597,7 +610,11 @@ class Item:
         self.rdstart_str = None
         self.exdate_str = None
         self.timezone = gettz("local")
+        self.tz_str = local_timezone
         self.enforce_dates = False
+        if raw:
+            self.entry = raw
+            self.parse_input(raw)
 
     def parse_input(self, entry: str):
         """
@@ -620,13 +637,17 @@ class Item:
         self.previous_entry = entry
         self.previous_tokens = self.structured_tokens.copy()
 
-        # Only build rruleset if @r group exists
+        # Build rruleset if @r group exists
         if self.collect_grouped_tokens({"r"}):
+            log_msg(f"building rruleset {self.item = }")
             # print("building rruleset")
             rruleset = self.build_rruleset()
             if rruleset:
                 self.item["rruleset"] = rruleset
                 # print(f"{rruleset = }")
+        elif self.rdstart_str is not None:
+            # @s but not @r
+            self.item["rruleset"] = f"{self.rdstart_str}"
 
         # Only build jobs if @j group exists
         if self.collect_grouped_tokens({"j"}):
@@ -636,14 +657,26 @@ class Item:
             success, finalized = self.finalize_jobs(jobs)
             # print(f"{success = }, {finalized = }")
 
-        if self.tags:
-            self.item["t"] = self.tags
-            print(f"tags: {self.tags}")
-        if self.alerts:
-            self.item["a"] = self.alerts
-            print(f"alerts: {self.alerts}")
+        if "s" in self.item and "z" not in self.item:
+            self.timezone = local_timezone
+            print(f"{self.timezone = }")
 
-        # print(f"{self.structured_tokens = }")
+        self.itemtype = self.item.get("itemtype", "")
+        self.subject = self.item.get("subject", "")
+        # self.extent = self.item.get("extent", "")
+        self.rruleset = self.item.get("rruleset", "")
+        print(f"{self.rruleset = }")
+
+        if self.tags:
+            # self.tag_str = "; ".join(self.tags)
+            self.item["t"] = self.tags
+            print(f"{self.tags = }")
+        if self.alerts:
+            # self.alert_str = "; ".join(self.alerts)
+            self.item["a"] = self.alerts
+            print(f"{self.alerts = }")
+
+        # print(f"{self.item = }")
         print(
             "###\n",
             " ".join([f"{t['token']}" for t in self.structured_tokens]),
@@ -1072,15 +1105,34 @@ class Item:
             return number, summary, content
         return None, text  # If no match, return None for number and the entire string
 
-    def do_itemtype(self, token):
-        # Process item type token
-        valid_itemtypes = {"*", "-", "%", "~", "+", "!"}
-        itemtype = token["t"]
-        if itemtype in valid_itemtypes:
-            self.itemtype = itemtype
-            return True, itemtype, []
+    def to_dict(self) -> dict:
+        return {
+            "itemtype": self.itemtype,
+            "subject": self.subject,
+            "description": self.description,
+            "rruleset": self.rruleset,
+            "timezone": self.tz_str,
+            "extent": self.extent,
+            "tags": self.tag_str,
+            "alerts": self.alert_str,
+            "context": self.context,
+            "jobs": self.jobs,
+            # "structured_tokens": self.structured_tokens,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        # Reconstruct the entry string from tokens
+        entry_str = " ".join(t["token"] for t in json.loads(data["structured_tokens"]))
+        return cls(entry_str)
+
+    @classmethod
+    def do_itemtype(cls, token):
+        # Process subject token
+        if "t" in token and token["t"] == "itemtype":
+            return True, token["token"].strip(), []
         else:
-            return False, f"Invalid item type: {itemtype}", []
+            return False, "itemtype cannot be empty", []
 
     @classmethod
     def do_summary(cls, token):
@@ -1101,8 +1153,6 @@ class Item:
     def do_alert(self, token):
         """
         Process an alert string, validate it and return a corresponding string
-        with the timedelta components replaced by integer seconds.
-        {'token': '@a 15m, 5m: d ', 's': 40, 'e': 54, 't': '@', 'k': 'a'},
         """
         print(f"{token = }")
 
@@ -1113,10 +1163,11 @@ class Item:
             return False, f"Invalid alert format: {alert}", []
         timedeltas, commands = parts
         secs = []
+        tds = []
         cmds = []
         probs = []
         issues = []
-        res = []
+        res = ""
         ok = True
         for cmd in [x.strip() for x in commands.split(",")]:
             if is_lowercase_letter(cmd):
@@ -1128,48 +1179,53 @@ class Item:
             ok, td_seconds = timedelta_str_to_seconds(td)
             if ok:
                 secs.append(str(td_seconds))
+                tds.append(td)
             else:
                 ok = False
                 probs.append(f"  Invalid timedelta: {td}")
         if ok:
-            res.append(f"{', '.join(secs)}: {', '.join(cmds)}")
+            # res.append(f"{', '.join(secs)}: {', '.join(cmds)}")
+            res = f"{', '.join(tds)}: {', '.join(cmds)}"
+            self.alerts.append(res)
         else:
             issues.append("; ".join(probs))
         if issues:
             return False, "\n".join(issues), []
-        self.alerts.extend(res)
-        return True, "; ".join(res), []
+        return True, res, []
 
     def do_description(self, token):
-        description = re.sub("^@. ", "", token)
+        description = re.sub("^@. ", "", token["token"])
+        print(f"description {token = }, {description = }")
         if not description:
             return False, "missing description", []
-        ok, rep = Item.do_paragraph(description)
-        if ok:
-            self.description = rep
-            return True, rep, []
+        # ok, rep = Item.do_paragraph(description)
+        if description:
+            self.description = description
+            print(f"{self.description = }")
+            return True, description, []
         else:
-            return False, rep, []
+            return False, description, []
 
     def do_extent(self, token):
         # Process datetime token
         extent = re.sub("^@. ", "", token["token"].strip())
         ok, extent_obj = timedelta_str_to_seconds(extent)
         if ok:
-            self.extent = extent_obj
+            self.extent = extent
             return True, extent_obj, []
         else:
             return False, extent_obj, []
 
     def do_tag(self, token):
         # Process datetime token
+        tag = re.sub("^@. ", "", token["token"].strip())
 
-        obj, rep, parts = self.do_string(token)
-        if obj:
-            self.tags.append(obj)
-            return True, obj, []
+        if tag:
+            self.tags.append(tag)
+            print(f"{self.tags = }")
+            return True, tag, []
         else:
-            return False, rep, []
+            return False, tag, []
 
     @classmethod
     def do_paragraph(cls, arg):
@@ -1243,15 +1299,18 @@ class Item:
         """Handle @z timezone declaration in user input."""
         tz_str = token["token"][2:].strip()
         # print(f"do_timezone: {tz_str = }")
-        if tz_str.lower() in {"float", "naive"}:
+        if tz_str.lower() in {"none", "naive"}:
             self.timezone = None
+            self.tz_str = "none"
             return True, None, []
         try:
             self.timezone = ZoneInfo(tz_str)
-            # print(f"{self.timezone = }")
+            self.tz_str = self.timezone.key
+            print(f"{self.timezone = } {tz_str = }, {self.timezone.key = }")
             return True, self.timezone, []
         except Exception:
             self.timezone = None
+            self.tz_str = ""
             return False, f"Invalid timezone: '{tz_str}'", []
 
     def do_s(self, token):
@@ -1265,12 +1324,14 @@ class Item:
         if is_date:
             self.dtstart = dt.strftime("%Y%m%d")
             self.dtstart_str = f"DTSTART;VALUE=DATE:{dt.strftime('%Y%m%d')}"
-            self.rdstart_str = f"RDATE;VALUE=DATE:{dt.strftime('%Y%m%d')}"
+            # self.rdstart_str = f"RDATE;VALUE=DATE:{dt.strftime('%Y%m%d')}"
+            self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%d')}"
         else:
             self.dtstart = dt.strftime("%Y%m%dT%H%M")
             self.dtstart_str = f"DTSTART:{dt.strftime('%Y%m%dT%H%M%S')}"
             self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT%H%M%S')}"
         # self.dtstart = dt
+        log_msg(f"{self.dtstart_str = }, {self.rdstart_str = }")
         return True, self.dtstart, []
 
     def do_rrule(self, token):

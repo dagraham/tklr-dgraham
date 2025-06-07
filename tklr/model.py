@@ -18,8 +18,11 @@ from .shared import (
     duration_in_words,
     datetime_in_words,
 )
+# from .item import Item
 
 import re
+
+from tklr.item import Item
 
 
 def regexp(pattern, value):
@@ -42,35 +45,78 @@ def regexp(pattern, value):
 DEFAULT_LOG_FILE = "log_msg.md"
 
 
-def td(duration_str: str) -> timedelta:
+def td_str_to_td(duration_str: str) -> timedelta:
     """Convert a duration string like '1h30m20s' into a timedelta."""
+    duration_str = duration_str.strip()
+    sign = "+"
+    if duration_str[0] in ["+", "-"]:
+        sign = duration_str[0]
+        duration_str = duration_str[1:]
+
     pattern = r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
     match = re.fullmatch(pattern, duration_str.strip())
     if not match:
         raise ValueError(f"Invalid duration format: '{duration_str}'")
     hours, minutes, seconds = [int(x) if x else 0 for x in match.groups()]
-    return timedelta(hours=hours, minutes=minutes, seconds=seconds)
+    if sign == "-":
+        return -timedelta(hours=hours, minutes=minutes, seconds=seconds)
+    else:
+        return timedelta(hours=hours, minutes=minutes, seconds=seconds)
 
 
-def dt(datetime_str: str) -> datetime:
+def td_str_to_seconds(duration_str: str) -> int:
+    """Convert a duration string like '1h30m20s' into a timedelta."""
+    duration_str = duration_str.strip()
+    sign = "+"
+    if duration_str[0] in ["+", "-"]:
+        sign = duration_str[0]
+        duration_str = duration_str[1:]
+
+    pattern = r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
+    match = re.fullmatch(pattern, duration_str.strip())
+    if not match:
+        raise ValueError(f"Invalid duration format: '{duration_str}'")
+    hours, minutes, seconds = [int(x) if x else 0 for x in match.groups()]
+
+    if sign == "-":
+        return -(hours * 3600 + minutes * 60 + seconds)
+    else:
+        return hours * 3600 + minutes * 60 + seconds
+
+
+def dt_str_to_seconds(datetime_str: str) -> int:
     """Convert a datetime string like '20250601T090000' into a datetime object."""
     try:
-        return datetime.strptime(datetime_str, "%Y%m%dT%H%M%S")
+        return round(datetime.strptime(datetime_str, "%Y%m%dT%H%M%S").timestamp())
     except ValueError:
-        return datetime.strptime(datetime_str, "%Y%m%d")  # Allow date-only
+        return round(
+            datetime.strptime(datetime_str, "%Y%m%dT000000").timestamp()
+        )  # Allow date-only
 
 
-def to_dtstr(dt_obj: datetime) -> str:
+def dt_to_dtstr(dt_obj: datetime) -> str:
     """Convert a datetime object to 'YYYYMMDDTHHMMSS' format."""
     return dt_obj.strftime("%Y%m%dT%H%M%S")
 
 
-def to_tdstr(td_obj: timedelta) -> str:
-    """Convert a timedelta object to a string like '1h30m20s'."""
-    seconds = int(td_obj.total_seconds())
-    h, remainder = divmod(seconds, 3600)
+def td_to_tdstr(td_obj: timedelta) -> str:
+    """Convert a timedelta object to a compact string like '1h30m20s'."""
+    total = int(td_obj.total_seconds())
+    if total == 0:
+        return "0s"
+
+    h, remainder = divmod(total, 3600)
     m, s = divmod(remainder, 60)
-    return f"{h}h{m}m{s}s"
+
+    parts = []
+    if h:
+        parts.append(f"{h}h")
+    if m:
+        parts.append(f"{m}m")
+    if s:
+        parts.append(f"{s}s")
+
+    return "".join(parts)
 
 
 class DatabaseManager:
@@ -80,7 +126,7 @@ class DatabaseManager:
 
         Args:
             db_path (str): Path to the SQLite database file.
-            replace (bool): Whether to replace the existing database.
+            reset (bool): Whether to replace the existing database.
         """
         self.db_path = db_path
         if reset and os.path.exists(db_path):
@@ -89,28 +135,34 @@ class DatabaseManager:
         self.cursor = self.conn.cursor()
         self.conn.create_function("REGEXP", 2, regexp)
         self.setup_database()
+
         yr, wk = datetime.now().isocalendar()[:2]
         log_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
         self.extend_datetimes_for_weeks(yr, wk, 12)
-        self.populate_alerts()
+
+        self.populate_tags()  # NEW: Populate Tags + RecordTags
+        self.populate_alerts()  # Populate today's alerts
 
     def setup_database(self):
         """
         Set up the SQLite database schema.
+        # CHECK(itemtype IN ('*', '-', '%', '!')) NOT NULL,
         """
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                type TEXT CHECK(type IN ('*', '-', '~', '^')) NOT NULL,
-                name TEXT NOT NULL,
+                itemtype TEXT, 
+                subject TEXT NOT NULL,
                 description TEXT,
-                rrulestr TEXT,
+                rruleset TEXT,
+                timezone TEXT,
                 extent TEXT,
                 alerts TEXT,
-                location TEXT,
-                processed INTEGER DEFAULT 0,
+                context TEXT,
+                jobs TEXT DEFAULT '[]',
+                tags TEXT DEFAULT '[]',
                 structured_tokens TEXT DEFAULT '[]',
-                jobs TEXT DEFAULT '[]'
+                processed INTEGER DEFAULT 0
             );
         """)
 
@@ -176,34 +228,35 @@ class DatabaseManager:
         """)
         self.conn.commit()
 
-    def add_record(
-        self, record_type, name, description, rrstr, extent, alerts, location
-    ):
-        """
-        Add a new record to the database.
-        """
-        # log_msg(
-        #     f"Adding record: {record_type = } {name = } {description = } {rrstr = } {extent = } {alerts = } {location = }"
-        # )
-        self.cursor.execute(
-            "INSERT INTO Records (type, name, description, rrulestr, extent, alerts, location) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (record_type, name, description, rrstr, extent, alerts, location),
-        )
-        new_record_id = self.cursor.lastrowid  # Retrieve the new record ID
-        self.conn.commit()
-        log_msg(f"Added record {name} with ID {new_record_id}.")
-        return new_record_id  # Return the ID to the caller
-
-        # For future reference, this is how you can add a new column to an existing table:
-        # # ✅ Check if 'alerts' column exists, and add it if missing
-        # self.cursor.execute("PRAGMA table_info(Records);")
-        # existing_columns = {row[1] for row in self.cursor.fetchall()}  # Column names
-        #
-        # if "alerts" not in existing_columns:
-        #     self.cursor.execute(
-        #         "ALTER TABLE Records ADD COLUMN alerts TEXT DEFAULT '';"
-        #     )
-        #     self.conn.commit()
+    def add_item(self, item: Item):
+        print(f"{item = }")
+        try:
+            self.cursor.execute(
+                """
+                INSERT INTO Records (
+                    itemtype, subject, description, rruleset, timezone,
+                    extent, alerts, context, jobs, tags,
+                    structured_tokens, processed
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    item.itemtype,
+                    item.subject,
+                    item.description,
+                    item.rruleset,
+                    item.tz_str,  # if item.timezone else None,
+                    item.extent,  # assuming this is a string, e.g. "1h30m"
+                    json.dumps(item.alerts),
+                    item.context,  # if present; else set to None or derive from tags
+                    json.dumps(item.jobs),
+                    json.dumps(item.tags),
+                    json.dumps(item.structured_tokens),
+                    0,  # unprocessed by default
+                ),
+            )
+            self.conn.commit()
+        except Exception as e:
+            print(f"Error adding {item}: {e}")
 
     def get_due_alerts(self):
         """Retrieve alerts that need execution within the next 6 seconds."""
@@ -342,6 +395,44 @@ class DatabaseManager:
         log_msg(f"formatted alert {alert_command = }")
         return alert_command
 
+    def populate_tags(self):
+        """
+        Populate Tags and RecordTags tables from the JSON 'tags' field in Records.
+        This rebuilds the tag index from scratch.
+        """
+        self.cursor.execute("DELETE FROM RecordTags;")
+        self.cursor.execute("DELETE FROM Tags;")
+        self.conn.commit()
+
+        self.cursor.execute(
+            "SELECT id, tags FROM Records WHERE tags IS NOT NULL AND tags != ''"
+        )
+        records = self.cursor.fetchall()
+
+        for record_id, tags_json in records:
+            try:
+                tags = json.loads(tags_json)
+            except Exception as e:
+                log_msg(f"⚠️ Failed to parse tags for record {record_id}: {e}")
+                continue
+
+            for tag in tags:
+                # Insert into Tags table, avoid duplicates
+                self.cursor.execute(
+                    "INSERT OR IGNORE INTO Tags (name) VALUES (?)", (tag,)
+                )
+                self.cursor.execute("SELECT id FROM Tags WHERE name = ?", (tag,))
+                tag_id = self.cursor.fetchone()[0]
+
+                # Insert into RecordTags mapping table
+                self.cursor.execute(
+                    "INSERT INTO RecordTags (record_id, tag_id) VALUES (?, ?)",
+                    (record_id, tag_id),
+                )
+
+        self.conn.commit()
+        log_msg("✅ Tags and RecordTags tables populated.")
+
     def populate_alerts(self):
         """
         Populate the Alerts table for all records that have alerts defined.
@@ -354,7 +445,7 @@ class DatabaseManager:
         # ✅ Step 2: Find all records with non-empty alerts
         self.cursor.execute(
             """
-            SELECT R.id, R.name, R.description, R.location, R.alerts, D.start_datetime 
+            SELECT R.id, R.subject, R.description, R.context, R.alerts, D.start_datetime 
             FROM Records R
             JOIN DateTimes D ON R.id = D.record_id
             WHERE R.alerts IS NOT NULL AND R.alerts != ''
@@ -365,7 +456,6 @@ class DatabaseManager:
         if not records:
             print("🔔 No records with alerts found.")
             return
-
         now = round(datetime.now().timestamp())  # Current timestamp
         midnight = round(
             (datetime.now().replace(hour=23, minute=59, second=59)).timestamp()
@@ -377,20 +467,27 @@ class DatabaseManager:
             record_name,
             record_description,
             record_location,
-            alerts_str,
+            alerts,
             start_datetime,
         ) in records:
+            log_msg(f"processing {alerts = }")
             start_dt = datetime.fromtimestamp(
                 start_datetime
             )  # Convert timestamp to datetime
             today = date.today()
 
-            for alert in alerts_str.split(";"):
+            # Convert alerts from JSON string to list
+            alert_list = json.loads(alerts)
+
+            for alert in alert_list:
                 if ":" not in alert:
                     continue  # Ignore malformed alerts
 
                 time_part, command_part = alert.split(":")
-                timedelta_values = [int(t.strip()) for t in time_part.split(",")]
+                timedelta_values = [
+                    td_str_to_seconds(t.strip()) for t in time_part.split(",")
+                ]
+                log_msg(f"{timedelta_values = }")
                 commands = [cmd.strip() for cmd in command_part.split(",")]
 
                 for td in timedelta_values:
@@ -423,7 +520,6 @@ class DatabaseManager:
                                         alert_command,
                                     ),
                                 )
-
         self.conn.commit()
         log_msg("✅ Alerts table updated with today's relevant alerts.")
 
@@ -476,6 +572,7 @@ class DatabaseManager:
         ) + timedelta(days=6)
 
         # Generate new datetimes for the extended range
+        log_msg(f"generating datetimes for {first_day = } {last_day = }")
         self.generate_datetimes_for_period(first_day, last_day)
 
         # Update the GeneratedWeeks table
@@ -500,12 +597,13 @@ class DatabaseManager:
             end_date (datetime): The end of the period.
         """
         # Fetch all records with their rrule strings, extents, and processed state
-        self.cursor.execute("SELECT id, rrulestr, extent, processed FROM Records")
+        log_msg(f"generating datetimes for {start_date = } through {end_date = }")
+        self.cursor.execute("SELECT id, rruleset, extent, processed FROM Records")
         records = self.cursor.fetchall()
 
-        for record_id, rule_str, extent, processed in records:
-            # Replace any escaped newline characters in rrulestr
-            rule_str = rule_str.replace("\\N", "\n").replace("\\n", "\n")
+        for record_id, rruleset, extent, processed in records:
+            # Replace any escaped newline characters in rruleset
+            rule_str = rruleset.replace("\\N", "\n").replace("\\n", "\n")
 
             # Determine if the recurrence is finite
             is_finite = (
@@ -562,14 +660,14 @@ class DatabaseManager:
 
             except Exception as e:
                 log_msg(
-                    f"Error processing rrulestr for record_id {record_id}: {rule_str}\n{e}"
+                    f"Error processing rruleset {rule_str} for record_id {record_id}: {rule_str}\n{e}"
                 )
 
         self.conn.commit()
 
     def generate_datetimes(self, rule_str, extent, start_date, end_date):
         """
-        Generate occurrences for a given rrulestr within the specified date range.
+        Generate occurrences for a given rruleset within the specified date range.
 
         Args:
             rule_str (str): The rrule string defining the recurrence rule.
@@ -580,15 +678,18 @@ class DatabaseManager:
         Returns:
             List[Tuple[datetime, datetime]]: A list of (start_dt, end_dt) tuples.
         """
-        from dateutil.rrule import rrulestr
 
         rule = rrulestr(rule_str, dtstart=start_date)
         occurrences = list(rule.between(start_date, end_date, inc=True))
+        extent = td_str_to_td(extent) if isinstance(extent, str) else extent
+        log_msg(
+            f"Generating for {len(occurrences) = } between {start_date = } and {end_date = } with {extent = }."
+        )
 
         # Create (start, end) pairs
         results = []
         for start_dt in occurrences:
-            end_dt = start_dt + timedelta(minutes=extent) if extent else start_dt
+            end_dt = start_dt + extent if extent else start_dt
             while start_dt.date() != end_dt.date():
                 day_end = datetime.combine(start_dt.date(), datetime.max.time())
                 results.append((start_dt, day_end))
@@ -602,7 +703,7 @@ class DatabaseManager:
     def get_events_for_period(self, start_date, end_date):
         """
         Retrieve all events that occur or overlap within a specified period,
-        including the type, name, and ID of each event, ordered by start time.
+        including the itemtype, subject, and ID of each event, ordered by start time.
 
         Args:
             start_date (datetime): The start of the period.
@@ -614,7 +715,7 @@ class DatabaseManager:
         """
         self.cursor.execute(
             """
-        SELECT dt.start_datetime, dt.end_datetime, r.type, r.name, r.id 
+        SELECT dt.start_datetime, dt.end_datetime, r.itemtype, r.subject, r.id 
         FROM DateTimes dt
         JOIN Records r ON dt.record_id = r.id
         WHERE dt.start_datetime < ? AND dt.end_datetime >= ?
@@ -644,7 +745,7 @@ class DatabaseManager:
         # Group events by ISO year, week, and weekday
         grouped_events = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
-        for start_ts, end_ts, event_type, name, id in events:
+        for start_ts, end_ts, itemtype, subject, id in events:
             # Convert timestamps to localized datetime objects
             # if start_ts == end_ts:
             #     log_msg(f"Event {name} has zero duration")
@@ -701,7 +802,7 @@ class DatabaseManager:
         today = int(datetime.now().timestamp())
         self.cursor.execute(
             """
-            SELECT r.id, r.name, r.description, r.type, MAX(d.start_datetime) AS last_datetime
+            SELECT r.id, r.subject, r.description, r.itemtype, MAX(d.start_datetime) AS last_datetime
             FROM Records r
             JOIN DateTimes d ON r.id = d.record_id
             WHERE d.start_datetime < ?
@@ -723,7 +824,7 @@ class DatabaseManager:
         today = int(datetime.now().timestamp())
         self.cursor.execute(
             """
-            SELECT r.id, r.name, r.description, r.type, MIN(d.start_datetime) AS next_datetime
+            SELECT r.id, r.subject, r.description, r.itemtype, MIN(d.start_datetime) AS next_datetime
             FROM Records r
             JOIN DateTimes d ON r.id = d.record_id
             WHERE d.start_datetime >= ?
@@ -748,9 +849,9 @@ class DatabaseManager:
             List[Tuple[int, str, str, str, Optional[int], Optional[int]]]:
                 List of tuples containing:
                     - record ID
-                    - name
+                    - subject
                     - description
-                    - type
+                    - itemtype
                     - last instance datetime (or None)
                     - next instance datetime (or None)
         """
@@ -772,15 +873,15 @@ class DatabaseManager:
             )
             SELECT
                 r.id,
-                r.name,
+                r.subject,
                 r.description,
-                r.type,
+                r.itemtype,
                 li.last_datetime,
                 ni.next_datetime
             FROM Records r
             LEFT JOIN LastInstances li ON r.id = li.record_id
             LEFT JOIN NextInstances ni ON r.id = ni.record_id
-            WHERE r.name REGEXP ? OR r.description REGEXP ?
+            WHERE r.subject REGEXP ? OR r.description REGEXP ?
             """,
             (today, today, regex, regex),
         )
