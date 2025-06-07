@@ -116,7 +116,7 @@ def format_hours_mins(dt: datetime, mode: Literal["24", "12"]) -> str:
 
 def format_date_range(start_dt: datetime, end_dt: datetime):
     """
-    Format a datetime object as a week string, taking not to repeat the month name unless the week spans two months.
+    Format a datetime object as a week string, taking not to repeat the month subject unless the week spans two months.
     """
     same_year = start_dt.year == end_dt.year
     same_month = start_dt.month == end_dt.month
@@ -322,7 +322,7 @@ class Controller:
         # Initialize the database manager
         self.db_manager = DatabaseManager(database_path)
         self.tag_to_id = {}  # Maps tag numbers to event IDs
-        self.yrwk_to_details = {}  # Maps (iso_year, iso_week) to week details
+        self.yrwk_to_details = {}  # Maps (iso_year, iso_week) to week description
         self.rownum_to_yrwk = {}  # Maps row numbers to (iso_year, iso_week)
         self.start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
@@ -330,18 +330,18 @@ class Controller:
 
     def get_record_details_as_string(self, record_id):
         """
-        Retrieve and format the details of a record as a string.
+        Retrieve and format the description of a record as a string.
 
         Args:
             record_id (int): The ID of the record to retrieve.
 
         Returns:
-            str: A formatted string with the record's details.
+            str: A formatted string with the record's description.
         """
-        # log_msg(f"Fetching details for record ID {record_id}")
+        # log_msg(f"Fetching description for record ID {record_id}")
         self.db_manager.cursor.execute(
             """
-            SELECT id, type, name, details, rrulestr, extent
+            SELECT id, itemtype, subject, description, rruleset, extent
             FROM Records
             WHERE id = ?
             """,
@@ -353,7 +353,7 @@ class Controller:
         if not record:
             return f"[red]No record found for ID {record_id}[/red]"
 
-        fields = ["Id", "Type", "Name e", "Details", "RRule", "Extent"]
+        fields = ["Id", "itemtype", "subject e", "description", "RRule", "Extent"]
         content = "\n".join(
             f" [cyan]{field}:[/cyan] [white]{value if value is not None else '[dim]NULL[/dim]'}[/white]"
             for field, value in zip(fields, record)
@@ -390,6 +390,12 @@ class Controller:
 
     def populate_alerts(self):
         self.db_manager.populate_alerts()
+
+    def refresh_alerts(self):
+        self.db_manager.populate_alerts()
+
+    def refresh_tags(self):
+        self.db_manager.populate_tags()
 
     def execute_alert(self, command: str):
         """
@@ -443,13 +449,13 @@ class Controller:
         table.add_column("row", justify="center", width=3, style="dim")
         table.add_column("cmd", justify="center", width=3)
         table.add_column("time", justify="left", width=24)
-        table.add_column("name", width=25, overflow="ellipsis", no_wrap=True)
+        table.add_column("subject", width=25, overflow="ellipsis", no_wrap=True)
 
-        # 4*2 + 2*3 + 7 + 14 = 35 => name width = width - 35
+        # 4*2 + 2*3 + 7 + 14 = 35 => subject width = width - 35
         name_width = width - 35
         results.append(
-            # f"{'row':^3}  {'cmd':^3}  {'time':^24}  {'name':^{name_width}}",
-            f"[bold]{'row':^3}  {'cmd':^3}  {'alert':^7}  {'event time':^14}  {'name':^{name_width}}[/bold]",
+            # f"{'row':^3}  {'cmd':^3}  {'time':^24}  {'subject':^{name_width}}",
+            f"[bold]{'row':^3}  {'cmd':^3}  {'alert':^7}  {'event time':^14}  {'subject':^{name_width}}[/bold]",
         )
 
         self.list_tag_to_id.setdefault("alerts", {})
@@ -475,14 +481,14 @@ class Controller:
             tdtime = format_timedelta(start_datetime - trigger_datetime)
             sttime = format_datetime(start_datetime)
             # starting = f"{format_datetime(trigger_datetime):<7} {format_timedelta(start_datetime - trigger_datetime):>4} → {format_datetime(start_datetime)}"
-            name = truncate_string(record_name, name_width)
+            subject = truncate_string(record_name, name_width)
             row = "  ".join(
                 [
                     f"[dim]{tag:^3}[/dim]",
                     f"[bold yellow]{alert_name:^3}[/bold yellow]",
                     f"[bold yellow]{trtime:<7}[/bold yellow]",
                     f"[{EVENT_COLOR}]{tdtime:>4} → {sttime:<7}[/{EVENT_COLOR}]",
-                    f"[{AVAILABLE_COLOR}]{name:<{name_width}}[/{AVAILABLE_COLOR}]",
+                    f"[{AVAILABLE_COLOR}]{subject:<{name_width}}[/{AVAILABLE_COLOR}]",
                 ]
             )
             results.append(row)
@@ -490,18 +496,18 @@ class Controller:
 
     def get_record_details(self, record_id):
         """
-        Retrieve and format the details of a record as a list.
+        Retrieve and format the description of a record as a list.
 
         Args:
             record_id (int): The ID of the record to retrieve.
 
         Returns:
-            str: A formatted string with the record's details.
+            str: A formatted string with the record's description.
         """
-        # log_msg(f"Fetching details for record ID {record_id}")
+        # log_msg(f"Fetching description for record ID {record_id}")
         self.db_manager.cursor.execute(
             """
-            SELECT id, type, name, details, rrulestr, extent
+            SELECT id, itemtype, subject, description, rruleset, extent
             FROM Records
             WHERE id = ?
             """,
@@ -515,7 +521,7 @@ class Controller:
                 f"[red]No record found for ID {record_id}[/red]",
             ]
 
-        fields = ["Id", "Type", "Name", "Details", "RRule", "Extent"]
+        fields = ["Id", "itemtype", "subject", "description", "RRule", "Extent"]
         width = max(len(field) for field in fields) + 1
         content = [
             f"[{FIELD_COLOR}]{field:<{width}}[/{FIELD_COLOR}] [white]{value if value is not None else '[dim]NULL[/dim]'}[/white]"
@@ -543,14 +549,16 @@ class Controller:
                 "Invalid view.",
             ]
 
-        # details = [f"Tag [{SELECTED_COLOR}]{tag}[/{SELECTED_COLOR}] details"]
+        # description = [f"Tag [{SELECTED_COLOR}]{tag}[/{SELECTED_COLOR}] description"]
         if tag in tag_to_id:
             record_id = tag_to_id[tag]
-            details = [f"Details for [{SELECTED_COLOR}]{record_id}[/{SELECTED_COLOR}]"]
+            description = [
+                f"description for [{SELECTED_COLOR}]{record_id}[/{SELECTED_COLOR}]"
+            ]
             # log_msg(f"Tag '{tag}' corresponds to record ID {record_id}")
-            # details = self.get_record_details_as_string(record_id)
+            # description = self.get_record_details_as_string(record_id)
             fields = self.get_record_details(record_id)
-            return details + fields
+            return description + fields
 
         return [f"There is no item corresponding to tag '{tag}'."]
 
@@ -670,11 +678,11 @@ class Controller:
         - rich_display(start_datetime, selected_week)
             - sets:
                 self.tag_to_id = {}  # Maps tag numbers to event IDs
-                self.yrwk_to_details = {}  # Maps (iso_year, iso_week), to the details for that week
+                self.yrwk_to_details = {}  # Maps (iso_year, iso_week), to the description for that week
                 self.rownum_to_yrwk = {}  # Maps row numbers to (iso_year, iso_week) for the current period
             - return title
             - return table
-            - return details for selected_week
+            - return description for selected_week
         """
         log_msg(f"Getting table for {start_date = }, {selected_week = }")
         self.selected_week = selected_week
@@ -692,16 +700,16 @@ class Controller:
         log_msg(f"Generated table for {title}, {selected_week = }")
 
         if selected_week in self.yrwk_to_details:
-            details = self.yrwk_to_details[selected_week]
+            description = self.yrwk_to_details[selected_week]
         else:
-            details = "No week selected."
-        return title, table, details
+            description = "No week selected."
+        return title, table, description
 
     def get_week_details(self, yr_wk):
         """
-        Fetch and format details for a specific week.
+        Fetch and format description for a specific week.
         """
-        log_msg(f"Getting details for week {yr_wk}")
+        log_msg(f"Getting description for week {yr_wk}")
         today_year, today_week, today_weekday = datetime.now().isocalendar()
         tomorrow_year, tomorrow_week, tomorrow_day = (
             datetime.now() + ONEDAY
@@ -716,14 +724,14 @@ class Controller:
         terminal_width = shutil.get_terminal_size().columns
 
         header = f"{this_week} #{yr_wk[1]} ({len(events)})"
-        details = [header]
+        description = [header]
 
         if not events:
-            details.append(
+            description.append(
                 f" [{HEADER_COLOR}]Nothing scheduled for this week[/{HEADER_COLOR}]"
             )
-            # return "\n".join(details)
-            return details
+            # return "\n".join(description)
+            return description
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
         self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
@@ -734,10 +742,10 @@ class Controller:
             this_day = (start_datetime + timedelta(days=i)).date()
             weekday_to_events[this_day] = []
 
-        for start_ts, end_ts, type, name, id in events:
+        for start_ts, end_ts, itemtype, subject, id in events:
             start_dt = datetime.fromtimestamp(start_ts)
             end_dt = datetime.fromtimestamp(end_ts)
-            # log_msg(f"Week details {name = }, {start_dt = }, {end_dt = }")
+            # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
 
             if start_dt == end_dt:
                 if start_dt.hour == 0 and start_dt.minute == 0 and start_dt.second == 0:
@@ -755,14 +763,14 @@ class Controller:
             else:
                 start_end = f"{format_time_range(start_dt, end_dt, HRS_MINS)}"
 
-            type_color = TYPE_TO_COLOR[type]
+            type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = (
                 f"[not bold]{start_end} [/not bold]" if start_end else ""
             )
 
             row = [
                 id,
-                f"[{type_color}]{type} {escaped_start_end}{name}[/{type_color}]",
+                f"[{type_color}]{itemtype} {escaped_start_end}{subject}[/{type_color}]",
             ]
             weekday_to_events.setdefault(start_dt.date(), []).append(row)
 
@@ -785,7 +793,7 @@ class Controller:
             )
             flag = " (today)" if today else " (tomorrow)" if tomorrow else ""
             if events:
-                details.append(
+                description.append(
                     # f" [bold][yellow]{day.strftime('%A, %B %-d')}[/yellow][/bold]"
                     # f"[not bold][{HEADER_COLOR}]{day.strftime('%a, %b %-d')}{flag}[/{HEADER_COLOR}][/not bold]"
                     f"[bold][{HEADER_COLOR}]{day.strftime('%a, %b %-d')}{flag}[/{HEADER_COLOR}][/bold]"
@@ -795,26 +803,26 @@ class Controller:
                     # log_msg(f"{event_str = }")
                     tag = indx_to_tag(indx, self.afill)
                     self.tag_to_id[yr_wk][tag] = event_id
-                    details.append(f" [dim]{tag}[/dim]   {event_str}")
+                    description.append(f" [dim]{tag}[/dim]   {event_str}")
                     indx += 1
         # NOTE: maybe return list for scrollable view?
-        # details_str = "\n".join(details)
-        self.yrwk_to_details[yr_wk] = details
-        return details
+        # details_str = "\n".join(description)
+        self.yrwk_to_details[yr_wk] = description
+        return description
 
     def get_next(self):
         """
-        Fetch and format details for the next instances.
+        Fetch and format description for the next instances.
         """
         events = self.db_manager.get_next_instances()
         header = f"next instances ({len(events)})"
-        # details = [f"[not bold][{header_color}]{header}[/{header_color}][/not bold]"]
-        details = [header]
+        # description = [f"[not bold][{header_color}]{header}[/{header_color}][/not bold]"]
+        description = [header]
 
         if not events:
-            details.append(f" [{HEADER_COLOR}]nothing found[/{HEADER_COLOR}]")
-            # return "\n".join(details)
-            return details
+            description.append(f" [{HEADER_COLOR}]nothing found[/{HEADER_COLOR}]")
+            # return "\n".join(description)
+            return description
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
         self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
@@ -822,18 +830,18 @@ class Controller:
         self.list_tag_to_id.setdefault("next", {})
         yr_mnth_to_events = {}
 
-        # for start_ts, end_ts, type, name, id in events:
-        for id, name, description, type, start_ts in events:
+        # for start_ts, end_ts, itemtype, subject, id in events:
+        for id, subject, description, itemtype, start_ts in events:
             start_dt = datetime.fromtimestamp(start_ts)
-            # log_msg(f"Week details {name = }, {start_dt = }, {end_dt = }")
+            # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
             monthday = start_dt.strftime("%d")
             # start_end = f"{start_dt.strftime('%-d %H:%M'):>8}"
             start_end = f"{format_hours_mins(start_dt, HRS_MINS):>8}"
-            type_color = TYPE_TO_COLOR[type]
+            type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = f"[not bold]{start_end}[/not bold]"
             row = [
                 id,
-                f"[{type_color}]{type} {escaped_start_end:<12}  {name}[/{type_color}]",
+                f"[{type_color}]{itemtype} {escaped_start_end:<12}  {subject}[/{type_color}]",
             ]
             yr_mnth_to_events.setdefault(start_dt.strftime("%y-%m"), []).append(row)
 
@@ -843,7 +851,7 @@ class Controller:
 
         for ym, events in yr_mnth_to_events.items():
             if events:
-                details.append(
+                description.append(
                     # f" [bold][yellow]{day.strftime('%A, %B %-d')}[/yellow][/bold]"
                     f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]"
                 )
@@ -852,25 +860,25 @@ class Controller:
                     # log_msg(f"{event_str = }")
                     tag = indx_to_tag(indx, self.afill)
                     self.list_tag_to_id["next"][tag] = event_id
-                    details.append(f"  [dim]{tag}[/dim]  {event_str}")
+                    description.append(f"  [dim]{tag}[/dim]  {event_str}")
                     indx += 1
         # NOTE: maybe return list for scrollable view?
-        # details_str = "\n".join(details)
-        return details
+        # details_str = "\n".join(description)
+        return description
 
     def get_last(self):
         """
-        Fetch and format details for the next instances.
+        Fetch and format description for the next instances.
         """
         events = self.db_manager.get_last_instances()
         header = f"Last instances ({len(events)})"
-        # details = [f"[not bold][{HEADER_COLOR}]{header}[/{HEADER_COLOR}][/not bold]"]
-        details = [header]
+        # description = [f"[not bold][{HEADER_COLOR}]{header}[/{HEADER_COLOR}][/not bold]"]
+        description = [header]
 
         if not events:
-            details.append(f" [{HEADER_COLOR}]Nothing found[/{HEADER_COLOR}]")
-            # return "\n".join(details)
-            return details
+            description.append(f" [{HEADER_COLOR}]Nothing found[/{HEADER_COLOR}]")
+            # return "\n".join(description)
+            return description
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
         self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
@@ -878,17 +886,17 @@ class Controller:
         self.list_tag_to_id.setdefault("last", {})
         yr_mnth_to_events = {}
 
-        for id, name, description, type, start_ts in events:
+        for id, subject, description, itemtype, start_ts in events:
             start_dt = datetime.fromtimestamp(start_ts)
-            # log_msg(f"Week details {name = }, {start_dt = }, {end_dt = }")
+            # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
             monthday = start_dt.strftime("%d")
             # start_end = f"{start_dt.strftime('%-d %H:%M'):>8}"
             start_end = f"{format_hours_mins(start_dt, HRS_MINS):>8}"
-            type_color = TYPE_TO_COLOR[type]
+            type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = f"[not bold]{start_end}[/not bold]"
             row = [
                 id,
-                f"[{type_color}]{type} {escaped_start_end:<12}  {name}[/{type_color}]",
+                f"[{type_color}]{itemtype} {escaped_start_end:<12}  {subject}[/{type_color}]",
             ]
             yr_mnth_to_events.setdefault(start_dt.strftime("%y-%m"), []).append(row)
 
@@ -898,7 +906,7 @@ class Controller:
 
         for ym, events in yr_mnth_to_events.items():
             if events:
-                details.append(
+                description.append(
                     # f" [bold][yellow]{day.strftime('%A, %B %-d')}[/yellow][/bold]"
                     f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]"
                 )
@@ -907,24 +915,24 @@ class Controller:
                     # log_msg(f"{event_str = }")
                     tag = indx_to_tag(indx, self.afill)
                     self.list_tag_to_id["last"][tag] = event_id
-                    details.append(f"  [dim]{tag}[/dim]  {event_str}")
+                    description.append(f"  [dim]{tag}[/dim]  {event_str}")
                     indx += 1
         # NOTE: maybe return list for scrollable view?
-        # details_str = "\n".join(details)
-        return details
+        # details_str = "\n".join(description)
+        return description
 
     def find_records(self, search_str: str):
         """
-        Fetch and format details for the next instances.
+        Fetch and format description for the next instances.
         """
         events = self.db_manager.find_records(search_str)
         header = f"Items containg a match for [{SELECTED_COLOR}]{search_str}[/{SELECTED_COLOR}] ({len(events)})"
-        details = [header]
+        description = [header]
 
         if not events:
-            details.append(f" [{HEADER_COLOR}]Nothing found[/{HEADER_COLOR}]")
-            # return "\n".join(details)
-            return details
+            description.append(f" [{HEADER_COLOR}]Nothing found[/{HEADER_COLOR}]")
+            # return "\n".join(description)
+            return description
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
         self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
@@ -934,8 +942,8 @@ class Controller:
         indx = 0
 
         tag = indx_to_tag(indx, self.afill)
-        for id, name, _, type, last_ts, next_ts in events:
-            name = f"{truncate_string(name, 30):<30}"
+        for id, subject, _, itemtype, last_ts, next_ts in events:
+            subject = f"{truncate_string(subject, 30):<30}"
             last_dt = (
                 datetime.fromtimestamp(last_ts).strftime("%y-%m-%d %H:%M")
                 if last_ts
@@ -949,15 +957,15 @@ class Controller:
             )
             next_fmt = f"{next_dt:^14}"
             # yy-mm-dd hh:mm
-            # log_msg(f"Week details {name = }, {start_dt = }, {end_dt = }")
-            type_color = TYPE_TO_COLOR[type]
+            # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
+            type_color = TYPE_TO_COLOR[itemtype]
             escaped_last = f"[not bold]{last_fmt}[/not bold]"
             escaped_next = f"[not bold]{next_fmt}[/not bold]"
-            row = f"[{type_color}]{type} {name} {escaped_last} {escaped_next}[/{type_color}]"
+            row = f"[{type_color}]{itemtype} {subject} {escaped_last} {escaped_next}[/{type_color}]"
             tag = indx_to_tag(indx, self.afill)
             self.list_tag_to_id["find"][tag] = id
-            details.append(f"  [dim]{tag}[/dim]  {row}")
+            description.append(f"  [dim]{tag}[/dim]  {row}")
             indx += 1
         # NOTE: maybe return list for scrollable view?
-        # details_str = "\n".join(details)
-        return details
+        # details_str = "\n".join(description)
+        return description

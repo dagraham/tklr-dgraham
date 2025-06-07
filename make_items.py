@@ -178,13 +178,14 @@ items = [
     f"- end of yesterday @d all day event @s {yesterday_date}T235959",
     f"- end of today @d all day event @s {today_date}T235959",
     f"- end of tomorrow @d all day event @s {tomorrow_date}T235959",
-    f"* zero extent @s {tomorrow_date}T100000",
-    f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",
-    f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",
+    f"* zero extent float @s {tomorrow_date}T100000 @z none",
     f"* daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",
-    f"* daily date @s {today_date} @d whatever @c wherever @r d &c 10",
+    f"* daily date @s {today_date} @d whatever @c wherever @r d &c 10 @z US/Pacific",
     f"* single date @s {today_date}",
     f"* single datetime @s {in_one_hour()}",
+    "- with tags @d This item has a description @t red @t white @t blue",
+    f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",
+    f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",
 ]
 
 records = []
@@ -218,8 +219,8 @@ id = 0
 for entry in items:
     id += 1
     print(f"{entry = }")
-    item = Item(entry)
-    # print(f"{item.__dict__ = }")
+    item = Item(entry)  # .to_dict()
+    print(f"{item = }")
 
     dbm.add_item(item)
 print(f"Inserted {num_items} records into the database, last_id {id}.")

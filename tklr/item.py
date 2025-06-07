@@ -488,7 +488,7 @@ class Item:
         ],
         "z": [
             "timezone",
-            "a timezone entry such as 'US/Eastern' or 'Europe/Paris' or 'float' to specify a naive/floating datetime",
+            "a timezone entry such as 'US/Eastern' or 'Europe/Paris' or 'none' to specify a naive datetime, i.e., one without timezone information",
             "do_timezone",
         ],
         "@": ["@-key", "", "do_at"],
@@ -599,7 +599,9 @@ class Item:
         self.rrules = []
         self.jobs = []
         self.tags = []
+        # self.tag_str = ""
         self.alerts = []
+        # self.alert_str = ""
         self.rdates = []
         self.exdates = []
         self.dtstart = None
@@ -608,6 +610,7 @@ class Item:
         self.rdstart_str = None
         self.exdate_str = None
         self.timezone = gettz("local")
+        self.tz_str = local_timezone
         self.enforce_dates = False
         if raw:
             self.entry = raw
@@ -660,17 +663,18 @@ class Item:
 
         self.itemtype = self.item.get("itemtype", "")
         self.subject = self.item.get("subject", "")
-        self.description = self.item.get("description", "")
-        self.extent = self.item.get("extent", "")
+        # self.extent = self.item.get("extent", "")
         self.rruleset = self.item.get("rruleset", "")
         print(f"{self.rruleset = }")
 
         if self.tags:
+            # self.tag_str = "; ".join(self.tags)
             self.item["t"] = self.tags
-            print(f"tags: {self.tags}")
+            print(f"{self.tags = }")
         if self.alerts:
+            # self.alert_str = "; ".join(self.alerts)
             self.item["a"] = self.alerts
-            print(f"alerts: {self.alerts}")
+            print(f"{self.alerts = }")
 
         # print(f"{self.item = }")
         print(
@@ -1103,17 +1107,17 @@ class Item:
 
     def to_dict(self) -> dict:
         return {
-            "type": self.itemtype,
+            "itemtype": self.itemtype,
             "subject": self.subject,
             "description": self.description,
             "rruleset": self.rruleset,
-            "timezone": self.timezone.key,
+            "timezone": self.tz_str,
             "extent": self.extent,
-            "tags": self.tags,
-            "alerts": self.alerts,
+            "tags": self.tag_str,
+            "alerts": self.alert_str,
             "context": self.context,
             "jobs": self.jobs,
-            "structured_tokens": self.structured_tokens,
+            # "structured_tokens": self.structured_tokens,
         }
 
     @classmethod
@@ -1149,8 +1153,6 @@ class Item:
     def do_alert(self, token):
         """
         Process an alert string, validate it and return a corresponding string
-        with the timedelta components replaced by integer seconds.
-        {'token': '@a 15m, 5m: d ', 's': 40, 'e': 54, 't': '@', 'k': 'a'},
         """
         print(f"{token = }")
 
@@ -1161,10 +1163,11 @@ class Item:
             return False, f"Invalid alert format: {alert}", []
         timedeltas, commands = parts
         secs = []
+        tds = []
         cmds = []
         probs = []
         issues = []
-        res = []
+        res = ""
         ok = True
         for cmd in [x.strip() for x in commands.split(",")]:
             if is_lowercase_letter(cmd):
@@ -1176,49 +1179,53 @@ class Item:
             ok, td_seconds = timedelta_str_to_seconds(td)
             if ok:
                 secs.append(str(td_seconds))
+                tds.append(td)
             else:
                 ok = False
                 probs.append(f"  Invalid timedelta: {td}")
         if ok:
-            res.append(f"{', '.join(secs)}: {', '.join(cmds)}")
+            # res.append(f"{', '.join(secs)}: {', '.join(cmds)}")
+            res = f"{', '.join(tds)}: {', '.join(cmds)}"
+            self.alerts.append(res)
         else:
             issues.append("; ".join(probs))
         if issues:
             return False, "\n".join(issues), []
-        self.alerts.extend(res)
-        return True, "; ".join(res), []
+        return True, res, []
 
     def do_description(self, token):
-        print(f"{token = }")
         description = re.sub("^@. ", "", token["token"])
+        print(f"description {token = }, {description = }")
         if not description:
             return False, "missing description", []
-        ok, rep = Item.do_paragraph(description)
-        if ok:
-            self.description = rep
-            return True, rep, []
+        # ok, rep = Item.do_paragraph(description)
+        if description:
+            self.description = description
+            print(f"{self.description = }")
+            return True, description, []
         else:
-            return False, rep, []
+            return False, description, []
 
     def do_extent(self, token):
         # Process datetime token
         extent = re.sub("^@. ", "", token["token"].strip())
         ok, extent_obj = timedelta_str_to_seconds(extent)
         if ok:
-            self.extent = extent_obj
+            self.extent = extent
             return True, extent_obj, []
         else:
             return False, extent_obj, []
 
     def do_tag(self, token):
         # Process datetime token
+        tag = re.sub("^@. ", "", token["token"].strip())
 
-        obj, rep, parts = self.do_string(token)
-        if obj:
-            self.tags.append(obj)
-            return True, obj, []
+        if tag:
+            self.tags.append(tag)
+            print(f"{self.tags = }")
+            return True, tag, []
         else:
-            return False, rep, []
+            return False, tag, []
 
     @classmethod
     def do_paragraph(cls, arg):
@@ -1292,16 +1299,18 @@ class Item:
         """Handle @z timezone declaration in user input."""
         tz_str = token["token"][2:].strip()
         # print(f"do_timezone: {tz_str = }")
-        if tz_str.lower() in {"float", "naive"}:
+        if tz_str.lower() in {"none", "naive"}:
             self.timezone = None
+            self.tz_str = "none"
             return True, None, []
         try:
             self.timezone = ZoneInfo(tz_str)
-            self.item["z"] = tz_str
+            self.tz_str = self.timezone.key
             print(f"{self.timezone = } {tz_str = }, {self.timezone.key = }")
             return True, self.timezone, []
         except Exception:
             self.timezone = None
+            self.tz_str = ""
             return False, f"Invalid timezone: '{tz_str}'", []
 
     def do_s(self, token):
