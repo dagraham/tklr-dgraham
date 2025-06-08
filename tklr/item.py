@@ -11,15 +11,14 @@ import textwrap
 from dateutil import tz
 from dateutil.tz import gettz
 
-from collections import defaultdict
+# from collections import defaultdict
 from math import ceil
 from copy import deepcopy
 
 from typing import Iterable, List
 
-from typing import Union, Tuple, Optional
-from typing import List, Dict, Any, Callable, Mapping
-from zoneinfo import ZoneInfo, available_timezones
+from typing import Union, Optional
+from zoneinfo import ZoneInfo
 
 from .shared import log_msg
 from .common import timedelta_str_to_seconds
@@ -1193,6 +1192,17 @@ class Item:
             return False, "\n".join(issues), []
         return True, res, []
 
+    def do_beginby(self, token):
+        # Process datetime token
+        beginby = re.sub("^@. ", "", token["token"].strip()).lower()
+
+        ok, beginby_obj = timedelta_str_to_seconds(beginby)
+        if ok:
+            self.beginby = beginby
+            return True, beginby_obj, []
+        else:
+            return False, beginby_obj, []
+
     def do_description(self, token):
         description = re.sub("^@. ", "", token["token"])
         print(f"description {token = }, {description = }")
@@ -1208,7 +1218,7 @@ class Item:
 
     def do_extent(self, token):
         # Process datetime token
-        extent = re.sub("^@. ", "", token["token"].strip())
+        extent = re.sub("^@. ", "", token["token"].strip()).lower()
         ok, extent_obj = timedelta_str_to_seconds(extent)
         if ok:
             self.extent = extent

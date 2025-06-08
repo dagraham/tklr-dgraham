@@ -158,6 +158,7 @@ class DatabaseManager:
                 timezone TEXT,
                 extent TEXT,
                 alerts TEXT,
+                beginby TEXT,
                 context TEXT,
                 jobs TEXT DEFAULT '[]',
                 tags TEXT DEFAULT '[]',
