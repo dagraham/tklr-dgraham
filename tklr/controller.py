@@ -553,7 +553,7 @@ class Controller:
         if tag in tag_to_id:
             record_id = tag_to_id[tag]
             description = [
-                f"description for [{SELECTED_COLOR}]{record_id}[/{SELECTED_COLOR}]"
+                f"details for [{SELECTED_COLOR}]{record_id}[/{SELECTED_COLOR}]"
             ]
             # log_msg(f"Tag '{tag}' corresponds to record ID {record_id}")
             # description = self.get_record_details_as_string(record_id)
@@ -817,12 +817,12 @@ class Controller:
         events = self.db_manager.get_next_instances()
         header = f"next instances ({len(events)})"
         # description = [f"[not bold][{header_color}]{header}[/{header_color}][/not bold]"]
-        description = [header]
+        display = [header]
 
         if not events:
-            description.append(f" [{HEADER_COLOR}]nothing found[/{HEADER_COLOR}]")
+            display.append(f" [{HEADER_COLOR}]nothing found[/{HEADER_COLOR}]")
             # return "\n".join(description)
-            return description
+            return display
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
         self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
@@ -851,7 +851,7 @@ class Controller:
 
         for ym, events in yr_mnth_to_events.items():
             if events:
-                description.append(
+                display.append(
                     # f" [bold][yellow]{day.strftime('%A, %B %-d')}[/yellow][/bold]"
                     f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]"
                 )
@@ -860,11 +860,9 @@ class Controller:
                     # log_msg(f"{event_str = }")
                     tag = indx_to_tag(indx, self.afill)
                     self.list_tag_to_id["next"][tag] = event_id
-                    description.append(f"  [dim]{tag}[/dim]  {event_str}")
+                    display.append(f"  [dim]{tag}[/dim]  {event_str}")
                     indx += 1
-        # NOTE: maybe return list for scrollable view?
-        # details_str = "\n".join(description)
-        return description
+        return display
 
     def get_last(self):
         """
@@ -873,12 +871,12 @@ class Controller:
         events = self.db_manager.get_last_instances()
         header = f"Last instances ({len(events)})"
         # description = [f"[not bold][{HEADER_COLOR}]{header}[/{HEADER_COLOR}][/not bold]"]
-        description = [header]
+        display = [header]
 
         if not events:
-            description.append(f" [{HEADER_COLOR}]Nothing found[/{HEADER_COLOR}]")
-            # return "\n".join(description)
-            return description
+            display.append(f" [{HEADER_COLOR}]Nothing found[/{HEADER_COLOR}]")
+            # return "\n".join(display)
+            return display
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
         self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
@@ -906,7 +904,7 @@ class Controller:
 
         for ym, events in yr_mnth_to_events.items():
             if events:
-                description.append(
+                display.append(
                     # f" [bold][yellow]{day.strftime('%A, %B %-d')}[/yellow][/bold]"
                     f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]"
                 )
@@ -915,11 +913,9 @@ class Controller:
                     # log_msg(f"{event_str = }")
                     tag = indx_to_tag(indx, self.afill)
                     self.list_tag_to_id["last"][tag] = event_id
-                    description.append(f"  [dim]{tag}[/dim]  {event_str}")
+                    display.append(f"  [dim]{tag}[/dim]  {event_str}")
                     indx += 1
-        # NOTE: maybe return list for scrollable view?
-        # details_str = "\n".join(description)
-        return description
+        return display
 
     def find_records(self, search_str: str):
         """

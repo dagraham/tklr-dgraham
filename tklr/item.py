@@ -1,6 +1,6 @@
 import re, shutil
 import json
-from dateutil.parser import parse
+from dateutil.parser import parse as duparse
 from dateutil import rrule
 from dateutil.rrule import rruleset, rrulestr
 from datetime import time, date, datetime, timedelta
@@ -11,15 +11,16 @@ import textwrap
 from dateutil import tz
 from dateutil.tz import gettz
 
-from collections import defaultdict
+# from collections import defaultdict
 from math import ceil
 from copy import deepcopy
 
 from typing import Iterable, List
 
-from typing import Union, Tuple, Optional
-from typing import List, Dict, Any, Callable, Mapping
-from zoneinfo import ZoneInfo, available_timezones
+from typing import Union, Optional
+from zoneinfo import ZoneInfo
+
+# from tklr.model import dt_to_dtstr
 
 from .shared import log_msg
 from .common import timedelta_str_to_seconds
@@ -30,6 +31,36 @@ print(f"using {local_timezone = }")
 
 JOB_PATTERN = re.compile(r"^@j ( *)([^&]*)(?:(&.*))?")
 LETTER_SET = set("abcdefghijklmnopqrstuvwxyz")  # Define once
+
+
+def is_date(obj):
+    if isinstance(obj, date) and not isinstance(obj, datetime):
+        return True
+    if (
+        isinstance(obj, datetime)
+        and obj.hour == 0
+        and obj.minute == 0
+        and obj.second == 0
+    ):
+        return True
+    return False
+
+
+def parse(dt_str: str) -> Union[date, datetime, str]:
+    obj = duparse(dt_str)
+    if isinstance(obj, date) and not isinstance(obj, datetime):
+        return obj
+    if (
+        isinstance(obj, datetime)
+        and obj.hour == 0
+        and obj.minute == 0
+        and obj.second == 0
+    ):
+        return obj.date()
+    if isinstance(obj, datetime):
+        return obj
+    print(f"Error parsing {dt_str}")
+    return f"Error: could not parse '{dt_str}'"
 
 
 class CustomJSONEncoder(json.JSONEncoder):
@@ -57,8 +88,11 @@ def get_local_zoneinfo():
         return None
 
 
-def is_date(obj):
-    return isinstance(obj, date) and not isinstance(obj, datetime)
+def dt_to_dtstr(dt_obj: Union[datetime, date]) -> str:
+    """Convert a datetime object to 'YYYYMMDDTHHMMSS' format."""
+    if isinstance(dt_obj, date) and not isinstance(dt_obj, datetime):
+        return dt_obj.strftime("%Y%m%d")
+    return dt_obj.strftime("%Y%m%dT%H%M%S")
 
 
 def as_timezone(dt: datetime, timezone: ZoneInfo) -> datetime:
@@ -70,16 +104,17 @@ def as_timezone(dt: datetime, timezone: ZoneInfo) -> datetime:
 def do_datetime(datetime_str):
     """
     Process a datetime string such as "@s 3p fri" or "@s 2025-04-24".
-    Sets both self.dtstart and self.dtstart_str.
     """
     try:
         datetime_str = re.sub(r"^@.\s+", "", datetime_str)
         # Parse the datetime
         dt = parse(datetime_str)
-        return True, dt
+        if isinstance(dt, datetime):
+            return True, dt
+        return False, dt
 
     except ValueError as e:
-        return False, f"Invalid datetime: {token}. Error: {e}"
+        return False, f"Invalid datetime: {datetime_str}. Error: {e}"
 
 
 def promote_date_to_datetime(dt: datetime, itemtype: str) -> datetime | date:
@@ -248,7 +283,7 @@ type_keys = {
 }
 common_methods = list("cdgilmnstuxz")
 
-repeating_methods = list("+-o") + [
+repeating_methods = list("o") + [
     "r",
     "rr",
     "rc",
@@ -264,7 +299,7 @@ repeating_methods = list("+-o") + [
     "rw",
 ]
 
-datetime_methods = list("abe")
+datetime_methods = list("abe+-")
 
 job_methods = list("efhp") + [
     "j",
@@ -307,15 +342,13 @@ wrap_methods = ["w"]
 
 required = {"*": ["s"], "-": [], "%": [], "!": []}
 
-all_keys = common_methods + datetime_methods + job_methods + repeating_methods + ["+"]
+all_keys = common_methods + datetime_methods + job_methods + repeating_methods
 
 allowed = {
     "*": common_methods + datetime_methods + repeating_methods + wrap_methods,
     "-": common_methods + datetime_methods + job_methods + repeating_methods,
-    "%": common_methods + ["+"],
+    "%": common_methods,
     "!": all_keys,
-    # "~": common_methods + ["q", "h"],
-    # "+": common_methods + ["h"],
 }
 
 
@@ -590,7 +623,7 @@ class Item:
         self.previous_tokens = []
         self.structured_tokens = []
         self.rruleset = ""
-        self.extent = ""
+        self.extent = "0m"
         self.context = ""
         self.messages = []
         self.rrule_tokens = []
@@ -601,14 +634,15 @@ class Item:
         self.tags = []
         # self.tag_str = ""
         self.alerts = []
+        self.beginby = ""
         # self.alert_str = ""
         self.rdates = []
         self.exdates = []
         self.dtstart = None
         self.dtstart_str = None
-        self.rdate_str = None
-        self.rdstart_str = None
-        self.exdate_str = None
+        self.rdstart_str = ""
+        self.rdate_str = ""
+        self.exdate_str = ""
         self.timezone = gettz("local")
         self.tz_str = local_timezone
         self.enforce_dates = False
@@ -867,7 +901,8 @@ class Item:
         remainder = rest[len(subject) :]
 
         # Token pattern that keeps @ and & together
-        pattern = r"(@\w+ [^@&]+)|(&\w+ [^@&]+)"
+        # pattern = r"(@\w+ [^@&]+)|(&\w+ [^@&]+)"
+        pattern = r"(@[\w\+\-]+ [^@&]+)|(&\w+ [^@&]+)"
         for match in re.finditer(pattern, remainder):
             token = match.group(0)
             start_pos = match.start() + offset + len(subject)
@@ -978,6 +1013,8 @@ class Item:
 
         for token in self.structured_tokens:
             start_pos, end_pos = token["s"], token["e"]
+            if token.get("k", "") == "+":
+                print(f"identified @+ {token = }")
             if (start_pos, end_pos) in self.skip_token_positions:
                 continue  # skip component of a group
 
@@ -1054,10 +1091,10 @@ class Item:
                     # print(f"appending {result} to self.jobs")
                     self.jobs.append(result)
                     self._dispatch_sub_tokens(sub_tokens, "j")
-                elif token_type == "+":
-                    self.rdates.extend(result)
-                elif token_type == "-":
-                    self.exdates.extend(result)
+                # elif token_type == "+":
+                #     self.rdates.extend(result)
+                # elif token_type == "-":
+                #     self.exdates.extend(result)
                 else:
                     self.item[token_type] = result
             else:
@@ -1193,6 +1230,17 @@ class Item:
             return False, "\n".join(issues), []
         return True, res, []
 
+    def do_beginby(self, token):
+        # Process datetime token
+        beginby = re.sub("^@. ", "", token["token"].strip()).lower()
+
+        ok, beginby_obj = timedelta_str_to_seconds(beginby)
+        if ok:
+            self.beginby = beginby
+            return True, beginby_obj, []
+        else:
+            return False, beginby_obj, []
+
     def do_description(self, token):
         description = re.sub("^@. ", "", token["token"])
         print(f"description {token = }, {description = }")
@@ -1208,7 +1256,7 @@ class Item:
 
     def do_extent(self, token):
         # Process datetime token
-        extent = re.sub("^@. ", "", token["token"].strip())
+        extent = re.sub("^@. ", "", token["token"].strip()).lower()
         ok, extent_obj = timedelta_str_to_seconds(extent)
         if ok:
             self.extent = extent
@@ -1314,24 +1362,33 @@ class Item:
             return False, f"Invalid timezone: '{tz_str}'", []
 
     def do_s(self, token):
-        datetime_str = token["token"]
-        ok, dt = do_datetime(datetime_str)
-        if not ok:
-            return False, dt, []
-        odt = promote_date_to_datetime(dt, self.itemtype)
-        is_date = dt != odt
+        datetime_str = token["token"][2:].strip()
+        # ok, dt = do_datetime(datetime_str)
+        dt = parse(datetime_str)
+        # odt = promote_date_to_datetime(dt, self.itemtype)
+        # is_date = dt != odt
         # self.rdstart will be used if there is no recurrence rule
-        if is_date:
+        # if isinstance(dt, datetime) and dt.hour == 0 and dt.minute == 0:
+        #     dt = dt.date()
+        #     is_date = True
+        # elif isinstance(dt, date) and not isinstance(dt, datetime):
+        #     is_date = True
+        if is_date(dt):
+            self.enforce_dates = True
             self.dtstart = dt.strftime("%Y%m%d")
             self.dtstart_str = f"DTSTART;VALUE=DATE:{dt.strftime('%Y%m%d')}"
             # self.rdstart_str = f"RDATE;VALUE=DATE:{dt.strftime('%Y%m%d')}"
             self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%d')}"
+            # self.rdstart_str = f"{self.dtstart_str}\nRDATE:{dt.strftime('%Y%m%d')}"
         else:
             self.dtstart = dt.strftime("%Y%m%dT%H%M")
             self.dtstart_str = f"DTSTART:{dt.strftime('%Y%m%dT%H%M%S')}"
             self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT%H%M%S')}"
+            # self.rdstart_str = (
+            #     f"{self.dtstart_str}\nRDATE:{dt.strftime('%Y%m%dT%H%M%S')}"
+            # )
         # self.dtstart = dt
-        log_msg(f"{self.dtstart_str = }, {self.rdstart_str = }")
+        log_msg(f"scheduled date/datetime {self.dtstart_str = }, {self.rdstart_str = }")
         return True, self.dtstart, []
 
     def do_rrule(self, token):
@@ -1716,45 +1773,65 @@ class Item:
             return integer_part, string_part
         return None, None  # Default case if no match is found
 
+    # def do_plus(self, token: str):
+    #     log_msg(f"processing {token = }")
+    #
+    # def do_minus(self, token: str):
+    #     log_msg(f"processing {token = }")
+
     def do_rdate(self, token: str):
         """
         Process an RDATE token, e.g., "@+ 2024-07-03 14:00, 2024-08-05 09:00".
         Uses the global timezone (set via @z) for all entries, and serializes
         them using TZID (even for UTC).
         """
+        # log_msg(f"processing rdate {token = }")
+        # print(f"starting {self.rdstart_str = }")
         try:
             # Remove the "@+" prefix and extra whitespace
-            token_body = token.strip()[2:].strip()
+            # token_body = token.strip()[2:].strip()
+            token_body = token["token"][2:].strip()
+
             # Split on commas to get individual date strings
-            print(f"{token_body = }")
+            # print(f"{token_body = }")
             dt_strs = [s.strip() for s in token_body.split(",") if s.strip()]
-            print(f"{dt_strs = }")
+            # print(f"{dt_strs = }")
 
             # Process each entry
             rdates = []
             for dt_str in dt_strs:
-                dt = parse(dt_str.strip())
-                if self.enforce_dates:
-                    dt = self.enforce_date(dt)
-                print(f"{dt = }")
+                # print(f"parsing {dt_str = }")
+                dt = parse(dt_str)
+                # print(f"got {dt = }")
+                # if isinstance(dt, datetime) and dt.hour == 0 and dt.minute == 0:
+                #     dt = dt.date()
+                # print(f"formtting {dt = }")
+                dt_fmt = dt_to_dtstr(dt)
+                # print(f"dt formatted {dt_fmt = }")
+                # if self.enforce_dates:
+                #     dt = self.enforce_date(dt)
+                # print(f"{dt = }")
                 # If dt is naive and a global timezone is available, use it
-                if dt.tzinfo is None and self.timezone and not self.enforce_dates:
-                    print(f"replacing tzinfo with {self.timezone} in {dt = }")
-                    dt.replace(tzinfo=self.timezone)
-                    print(f"replaced {dt = }")
+                # if dt.tzinfo is None and self.timezone and not self.enforce_dates:
+                #     print(f"replacing tzinfo with {self.timezone} in {dt = }")
+                #     dt.replace(tzinfo=self.timezone)
+                #     print(f"replaced {dt = }")
                 # Promote a date to a datetime if necessary (using your helper)
                 # dt = self.promote_date_to_datetime(dt)
-                print(f"adding {dt = } to rdates")
-                if dt not in self.rdates:
-                    print(f"added {dt = } to rdates")
-                    rdates.append(dt)
-            print(f"{rdates = }")
+                # print(f"for {dt = }, adding {dt_fmt = } to rdates")
+                if dt_fmt not in self.rdates:
+                    # print(f"added {dt_fmt = } to rdates")
+                    rdates.append(dt_fmt)
+            # print(f"{rdates = }")
+            self.rdstart_str = f"{self.rdstart_str},{','.join(rdates)}"
+            # print(f"ending {self.rdstart_str = }")
             self.rdates = rdates
             # Prepend RDATE in finalize_rruleset after possible insertion of DTSTART
-            fmt_str = ";VALUE=DATE:%Y%m%d" if self.enforce_dates else "%Y%m%dT%H%M%S"
-            self.rdate_str = ",".join([dt.strftime(f"{fmt_str}") for dt in rdates])
-            return True, self.rdate_str, []
+            # fmt_str = ";VALUE=DATE:%Y%m%d" if self.enforce_dates else "%Y%m%dT%H%M%S"
+            # self.rdate_str = ",".join([dt.strftime(f"{fmt_str}") for dt in rdates])
+            return True, rdates, []
         except Exception as e:
+            # print(f"error processing {token = }: {e}")
             return False, f"Invalid @+ value: {e}", []
 
     def do_exdate(self, token):
@@ -1763,28 +1840,29 @@ class Item:
         Always uses TZID, including for UTC.
         """
         try:
-            # Remove the "@+" prefix and extra whitespace
+            # Remove the "@-" prefix and extra whitespace
             token_body = token.strip()[2:].strip()
             # Split on commas to get individual date strings
             print(f"{token_body = }")
             dt_strs = [s.strip() for s in token_body.split(",") if s.strip()]
             exdates = []
             for dt_str in dt_strs:
-                dt = parse(dt_str.strip())
+                dt = parse(dt_str)
+                dt_fmt = dt_to_dtstr(dt)
                 if self.enforce_dates:
-                    dt = self.enforce_date(dt)
-                # remove dt from rdates if possible, if not, add to exdates
+                    dt = dt.date()
+                # # remove dt from rdates if possible, if not, add to exdates
                 removed_it = False
-                self.rdates = [rd for rd in self.rdates if rd != dt]
-                while dt in self.rdates:
-                    self.rdates.remove(dt)
+                self.rdates = [rd for rd in self.rdates if rd != dt_fmt]
+                while dt_fmt in self.rdates:
+                    self.rdates.remove(dt_fmt)
                     removed_it = True
-                if not removed_it and dt not in self.exdates:
-                    exdates.append(dt)
+                if not removed_it and dt_fmt not in self.exdates:
+                    exdates.append(dt_fmt)
             self.exdates = exdates
-            fmt_str = ";VALUE=DATE:%Y%m%d" if self.enforce_dates else "%Y%m%dT%H%M%S"
-            self.exdate_str = ",".join([dt.strftime(f"{fmt_str}") for dt in exdates])
-            return True, self.exdate_str, []
+            self.exdate_str = "EXDATE;VALUE=DATE:" if self.enforce_dates else "EXDATE:"
+            self.exdate_str = f"{self.exdate_str}{','.join([dt for dt in exdates])}"
+            return True, exdates, []
 
         except Exception as e:
             return False, f"Invalid @- token: {token}. Error: {e}", []

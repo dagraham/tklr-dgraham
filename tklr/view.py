@@ -28,6 +28,7 @@ import string
 import shutil
 import asyncio
 
+# from textual.errors import NoMatches
 
 VERSION = parse_version(tklr_version)
 DAY_COLOR = NAMED_COLORS["LemonChiffon"]
@@ -150,20 +151,20 @@ def calculate_4_week_start():
 
 
 HelpText = f"""\
-[bold][{TITLE_COLOR}]ETM {VERSION}[/{TITLE_COLOR}][/bold]
+[bold][{TITLE_COLOR}]TKLR {VERSION}[/{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Application Keys[/{HEADER_COLOR}][/bold]
   [bold]Q[/bold]:         Quit etm
 [bold][{HEADER_COLOR}]View[/{HEADER_COLOR}][/bold]
-  [bold]W[/bold]:           Weeks view          [bold]N[/bold]:         Next occurrences 
-  [bold]F[/bold]:           Find in items       [bold]L[/bold]:         Last occurrences 
+  [bold]W[/bold]:           Weeks view        [bold]N[/bold]:       Next occurrences 
+  [bold]F[/bold]:           Find in items     [bold]L[/bold]:       Last occurrences 
 [bold][{HEADER_COLOR}]Search Keys[/{HEADER_COLOR}][/bold]
-  [bold]/[/bold]:           Set search          [bold]>[/bold]:         Next match 
-  [bold]escape[/bold]:      Clear search        [bold]<[/bold]:         Previous match           
+  [bold]/[/bold]:           Set search        Use an empty search to clear
+  [bold]>[/bold]:           Next match        [bold]<[/bold]:       Previous match           
 [bold][{HEADER_COLOR}]Navigation Keys[/{HEADER_COLOR}][/bold]
-  [bold]left[/bold]:        previous week       [bold]up[/bold]:        up in the list
-  [bold]right[/bold]:       next week           [bold]down[/bold]:      down in the list
-  [bold]shift+left[/bold]:  previous 4-weeks    [bold]period[/bold]:    center week
-  [bold]shift+right[/bold]: next 4-weeks        [bold]space[/bold]:     current 4-weeks 
+  [bold]left[/bold]:        previous week     [bold]up[/bold]:      up in the list
+  [bold]right[/bold]:       next week         [bold]down[/bold]:    down in the list
+  [bold]shift+left[/bold]:  previous 4-weeks  [bold]period[/bold]:  center week
+  [bold]shift+right[/bold]: next 4-weeks      [bold]space[/bold]:   current 4-weeks 
 
 [bold][{HEADER_COLOR}]Tags[/{HEADER_COLOR}][/bold] Each of the main views displays a list of items, with each item beginning with an alphabetic tag that can be used to display the details of the item. E.g., to see the details of the item tagged 'a', simply press 'a' on the keyboard. These tags are sequentially generated from 'a', 'b', ..., 'z', 'ba', 'bb', and so forth. Just press the corresponding key for each character in the tag. 
 """.splitlines()
@@ -193,50 +194,53 @@ class DetailsScreen(Screen):
             self.app.pop_screen()
 
 
-class SearchScreen(Screen):
-    """A screen to handle search input and display results."""
+class SearchableScreen(Screen):
+    """Base class for screens that support search."""
 
-    def __init__(self, controller):
-        super().__init__()
-        self.controller = controller
-        self.search_term = None  # Store the search term
-        self.results = []  # Store search results
+    def perform_search(self, term: str):
+        """Perform search within the screen if it has a ScrollableList with id 'list'."""
+        try:
+            scrollable_list = self.query_one("#list", ScrollableList)
+            scrollable_list.set_search_term(term)
+            scrollable_list.refresh()
+        except NoMatches:
+            log_msg(
+                f"[SearchableScreen] No #list found in {self.id or self.__class__.__name__}"
+            )
+        except Exception as e:
+            log_msg(f"[SearchableScreen] Error during search: {e}")
 
-    def compose(self) -> ComposeResult:
-        # Display search input at the top
-        yield Input(placeholder="Enter search term...", id="search_input")
-        # Display the scrollable list for search results
-        yield ScrollableList([], id="search_results")
-        # Display a footer
-        yield Static(
-            "[bold yellow]?[/bold yellow] Help [bold yellow]ESC[/bold yellow] Back",
-            id="custom_footer",
+    def clear_search(self):
+        """Clear search highlights from the ScrollableList if it exists."""
+        try:
+            scrollable_list = self.query_one("#list", ScrollableList)
+            scrollable_list.clear_search()
+            scrollable_list.refresh()
+        except NoMatches:
+            log_msg(f"[SearchableScreen] No #list found to clear.")
+        except Exception as e:
+            log_msg(f"[SearchableScreen] Error clearing search: {e}")
+
+    def scroll_to_next_match(self):
+        scrollable_list = self.query_one("#list", ScrollableList)
+        current_y = scrollable_list.scroll_offset.y
+        next_match = next((i for i in scrollable_list.matches if i > current_y), None)
+        if next_match is not None:
+            scrollable_list.scroll_to(0, next_match)
+            scrollable_list.refresh()
+
+    def scroll_to_previous_match(self):
+        scrollable_list = self.query_one("#list", ScrollableList)
+        current_y = scrollable_list.scroll_offset.y
+        prev_match = next(
+            (i for i in reversed(scrollable_list.matches) if i < current_y), None
         )
+        if prev_match is not None:
+            scrollable_list.scroll_to(0, prev_match)
+            scrollable_list.refresh()
 
-    def on_input_submitted(self, event: Input.Submitted):
-        """Handle the submission of the search input."""
-        if event.input.id == "search_input":
-            self.search_term = event.value  # Capture the search term
-            self.query_one("#search_input", Input).remove()  # Remove the input
-            self.perform_search(self.search_term)  # Perform the search
 
-    def perform_search(self, search_term: str):
-        """Perform the search and update the results."""
-        self.results = self.controller.find_records(search_term)  # Query controller
-        scrollable_list = self.query_one("#search_results", ScrollableList)
-        if self.results:
-            # Populate the scrollable list with results
-            scrollable_list.lines = [Text.from_markup(line) for line in self.results]
-        else:
-            # Display a message if no results are found
-            scrollable_list.lines = [Text("No matches found.")]
-        scrollable_list.refresh()
-
-    def on_key(self, event):
-        """Handle key presses."""
-        if event.key == "escape":
-            # Return to the previous screen
-            self.app.pop_screen()
+MATCH_COLOR = "yellow"
 
 
 class ScrollableList(ScrollView):
@@ -244,22 +248,15 @@ class ScrollableList(ScrollView):
 
     def __init__(self, lines: list[str], **kwargs) -> None:
         super().__init__(**kwargs)
-
-        # Extract the title and remaining lines
-        # self.title = Text.from_markup(title) if title else Text("Untitled")
         width = shutil.get_terminal_size().columns - 3
-        self.lines = [Text.from_markup(line) for line in lines]  # Exclude the title
-        self.virtual_size = Size(
-            width, len(self.lines)
-        )  # Adjust virtual size for lines
+        self.lines = [Text.from_markup(line) for line in lines]
+        self.virtual_size = Size(width, len(self.lines))
         self.console = Console()
         self.search_term = None
         self.matches = []
 
     def set_search_term(self, search_term: str):
-        """Set the search term, clear previous matches, and find new matches."""
-        log_msg(f"Setting search term: {search_term}")
-        self.clear_search()  # Clear previous search results
+        self.clear_search()
         self.search_term = search_term.lower() if search_term else None
         self.matches = [
             i
@@ -267,47 +264,37 @@ class ScrollableList(ScrollView):
             if self.search_term and self.search_term in line.plain.lower()
         ]
         if self.matches:
-            self.scroll_to(0, self.matches[0])  # Scroll to the first match
+            self.scroll_to(0, self.matches[0])
             self.refresh()
 
     def clear_search(self):
-        """Clear the current search and remove all highlights."""
         self.search_term = None
-        self.matches = []  # Clear the list of matches
-        self.refresh()  # Refresh the view to remove highlights
+        self.matches = []
+        self.refresh()
 
     def render_line(self, y: int) -> Strip:
-        """Render a single line of the list."""
-        scroll_x, scroll_y = self.scroll_offset  # Current scroll position
-        y += scroll_y  # Adjust for the current vertical scroll offset
-
-        # If the line index is out of bounds, return an empty line
+        scroll_x, scroll_y = self.scroll_offset
+        y += scroll_y
         if y < 0 or y >= len(self.lines):
             return Strip.blank(self.size.width)
-
-        # Get the Rich Text object for the current line
-        line_text = self.lines[y].copy()  # Create a copy to apply styles dynamically
-
-        # Highlight the line if it matches the search term
+        line_text = self.lines[y].copy()
         if self.search_term and y in self.matches:
-            line_text.stylize(f"bold {MATCH_COLOR}")  # Apply highlighting
-
-        # Render the Rich Text into segments
+            line_text.stylize(f"bold {MATCH_COLOR}")
         segments = list(line_text.render(self.console))
-
-        # Adjust segments for horizontal scrolling
         cropped_segments = Segment.adjust_line_length(
             segments, self.size.width, style=None
         )
-        return Strip(
-            cropped_segments,
-            self.size.width,
+        return Strip(cropped_segments, self.size.width)
+
+    def update_list(self, new_lines: list[str]) -> None:
+        self.lines = [Text.from_markup(line) for line in new_lines]
+        self.virtual_size = Size(
+            shutil.get_terminal_size().columns - 3, len(self.lines)
         )
+        self.refresh()
 
 
-class WeeksScreen(Screen):
-    """Weeks view screen."""
-
+class WeeksScreen(SearchableScreen):  # instead of Screen
     def __init__(
         self,
         title: str,
@@ -323,19 +310,29 @@ class WeeksScreen(Screen):
         self.details = details
         self.footer_content = footer_content
 
-    def compose(self) -> ComposeResult:
-        # Display the table
-        if self.table_title and self.table:
-            yield Static(self.table_title, id="table_title", classes="title-class")
-            yield Static(self.table, id="table", classes="weeks-table")
+    async def on_mount(self) -> None:
+        self.update_table_and_list()
 
-        # Display the title and scrollable list
+    def compose(self) -> ComposeResult:
+        yield Static(
+            self.table_title or "Untitled", id="table_title", classes="title-class"
+        )
+        yield Static(self.table or "[i]No data[/i]", id="table", classes="weeks-table")
         yield Static(self.list_title, id="list_title", classes="title-class")
         yield ScrollableList(self.details, id="list")
         yield Static(self.footer_content, id="custom_footer")
 
+    def update_table_and_list(self):
+        title, table, details = self.app.controller.get_table_and_list(
+            self.app.current_start_date, self.app.selected_week
+        )
+        self.query_one("#table_title", expect_type=Static).update(title)
+        self.query_one("#table", expect_type=Static).update(table)
+        self.query_one("#list_title", expect_type=Static).update(details[0])
+        self.query_one("#list", expect_type=ScrollableList).update_list(details[1:])
 
-class FullScreenList(Screen):
+
+class FullScreenList(SearchableScreen):
     """Reusable full-screen list for Last, Next, and Find views."""
 
     def __init__(
@@ -376,8 +373,9 @@ class DynamicViewApp(App):
 
     CSS_PATH = "view_textual.css"
 
-    digit_buffer = reactive([])  # To store pressed characters
-    afill = 1  # Number of characters needed to trigger a tag action
+    digit_buffer = reactive([])
+    afill = 1
+    search_term = reactive("")
 
     BINDINGS = [
         (".", "center_week", ""),
@@ -386,46 +384,40 @@ class DynamicViewApp(App):
         ("shift+right", "next_period", ""),
         ("left", "previous_week", ""),
         ("right", "next_week", ""),
-        ("S", "take_screenshot", "Take Screenshot"),  # Add a key binding for 's'
-        ("A", "show_alerts", "Show Alerts"),  # Bind 'A' for Agenda
-        ("L", "show_last", "Show Last"),  # Bind 'L' for Last Instances
-        ("N", "show_next", "Show Next"),  # Bind 'N' for Next Instances
-        ("F", "show_find", "Find"),  # Bind 'F' for Find
-        ("W", "show_weeks", "Show Weeks"),  # Bind 'W' for Weeks view
+        ("S", "take_screenshot", "Take Screenshot"),
+        ("A", "show_alerts", "Show Alerts"),
+        ("L", "show_last", "Show Last"),
+        ("N", "show_next", "Show Next"),
+        ("F", "show_find", "Find"),
+        ("W", "show_weeks", "Show Weeks"),
         ("?", "show_help", "Help"),
         ("Q", "quit", "Quit"),
         ("/", "start_search", "Search"),
         (">", "next_match", "Next Match"),
         ("<", "previous_match", "Previous Match"),
     ]
-    search_term = reactive("")  # Store the current search term
 
     def __init__(self, controller) -> None:
         super().__init__()
         self.controller = controller
         self.current_start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
-        # self.title = "etm - event and task manager"
         self.title = ""
-        self.view_mode = "list"  # Initial view is the ScrollableList
+        self.view_mode = "list"
         self.view = "week"
         self.saved_lines = []
 
-    def action_take_screenshot(self):
-        """Save a screenshot of the current app state."""
-        screenshot_path = f"{self.view}_screenshot.svg"
-        self.save_screenshot(screenshot_path)
-        log_msg(f"Screenshot saved to: {screenshot_path}")
+    async def on_mount(self):
+        self.action_show_weeks()
+
+        now = datetime.now()
+        seconds_to_next = (6 - (now.second % 6)) % 6
+        await asyncio.sleep(seconds_to_next)
+        self.set_interval(6, self.check_alerts)
 
     def on_key(self, event):
         """Handle key events."""
-        if event.key == "escape":
-            if self.view_mode == "info":
-                # self.action_clear_info()  # Use the new action for clearing the search
-                self.restore_list()
-            else:
-                self.action_clear_search()  # Use the new action for clearing the search
-        elif event.key in "abcdefghijklmnopqrstuvwxyz":
+        if event.key in "abcdefghijklmnopqrstuvwxyz":
             # Handle lowercase letters
             self.digit_buffer.append(event.key)
             if len(self.digit_buffer) == self.afill:
@@ -433,93 +425,32 @@ class DynamicViewApp(App):
                 self.digit_buffer.clear()
                 self.action_show_details(base26_tag)
 
-    async def on_mount(self):
-        """Start periodic alert checking aligned to 6-second intervals."""
-        self.action_show_weeks()
-
-        # Get the current time
-        now = datetime.now()
-        seconds_to_next_multiple_of_6 = (
-            6 - (now.second % 6)
-        ) % 6  # Time until next multiple of 6
-
-        # ✅ Delay first execution to align with a multiple of 6 seconds
-        await asyncio.sleep(seconds_to_next_multiple_of_6)
-
-        # ✅ Now, start checking every 6 seconds from an aligned time
-        self.set_interval(6, self.check_alerts)
+    def action_take_screenshot(self):
+        """Save a screenshot of the current app state."""
+        screenshot_path = f"{self.view}_screenshot.svg"
+        self.save_screenshot(screenshot_path)
+        log_msg(f"Screenshot saved to: {screenshot_path}")
 
     async def check_alerts(self):
-        """Check for due alerts and execute commands."""
         now = datetime.now()
-        # Ensure populate_alerts() runs exactly once at midnight
         if now.hour == 0 and now.minute == 0 and 0 <= now.second < 6:
             self.controller.populate_alerts()
-
-        # just for testing
         if now.minute % 10 == 0 and now.second == 0:
             self.notify("Checking for due alerts...", severity="info")
-
         self.controller.execute_due_alerts()
 
-        # alerts = self.controller.db_manager.get_due_alerts()
-        #
-        # for alert_id, record_id, timedelta, command, start_datetime, record_name in alerts:
-        #     execution_time = datetime.fromtimestamp(start_datetime - timedelta)
-        #     self.notify(f"Executing alert {alert_id} for {record_name} at {execution_time}", severity="info")
-        #
-        #     # Execute the command (ensure security)
-        #     try:
-        #         subprocess.run(command, shell=True, check=True)
-        #     except subprocess.CalledProcessError as e:
-        #         self.notify(f"Alert {alert_id} failed: {e}", severity="error")
-
-    def mount_full_screen_list(self, details: list[str], footer_content: str):
-        """Mount a full-screen list with the given details and footer content."""
-        if details:
-            title = details[0]
-            lines = details[1:]
-        else:
-            title = "Untitled"
-            lines = []
-
-        # Create and mount the full-screen list
-        full_screen_list = FullScreenList(details, footer_content)
-        self.mount(full_screen_list)  # Mount the full-screen list directly
-
-    # def update_scrollable_list(self, lines: list[str], title: str):
-    #     """Update the ScrollableList with new content."""
-    #     try:
-    #         # Update the title widget
-    #         title_widget = self.query_one("#list_title", Static)
-    #         title_widget.update(title)
-    #     except LookupError:
-    #         # Handle case where title widget doesn't exist (unlikely)
-    #         pass
-    #
-    #     # Update or refresh the ScrollableList
-    #     try:
-    #         scrollable_list = self.query_one("#list", ScrollableList)
-    #         scrollable_list.lines = [Text.from_markup(line) for line in lines]
-    #         scrollable_list.refresh()
-    #     except LookupError:
-    #         # If no ScrollableList exists, log or handle as needed
-    #         pass
-
     def action_show_weeks(self):
-        """Switch back to the Weeks view."""
         self.view = "week"
         title, table, details = self.controller.get_table_and_list(
             self.current_start_date, self.selected_week
         )
-        list_title = details[0]
-        details = details[1:]
+        list_title = details[0] if details else "Untitled"
+        details = details[1:] if details else []
         self.afill = 1 if len(details) <= 26 else 2 if len(details) <= 676 else 3
         footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
         self.push_screen(WeeksScreen(title, table, list_title, details, footer))
 
     def action_show_last(self):
-        """Show the 'Last' view."""
         self.view = "last"
         details = self.controller.get_last()
         self.afill = 1 if len(details) <= 26 else 2 if len(details) <= 676 else 3
@@ -529,7 +460,6 @@ class DynamicViewApp(App):
         self.push_screen(FullScreenList(details, footer))
 
     def action_show_next(self):
-        """Show the 'Next' view."""
         self.view = "next"
         details = self.controller.get_next()
         self.afill = 1 if len(details) <= 26 else 2 if len(details) <= 676 else 3
@@ -539,18 +469,12 @@ class DynamicViewApp(App):
         self.push_screen(FullScreenList(details, footer))
 
     def action_show_find(self):
-        """Show the 'Find' view."""
         self.view = "find"
-        search_input = Input(
-            placeholder="Enter search term for item name or details ...",
-            id="find_input",
-        )
-        self.mount(search_input)  # Mount the search input widget
-        self.set_focus(search_input)  # Focus on the search input
+        search_input = Input(placeholder="Enter search term...", id="find_input")
+        self.mount(search_input)
+        self.set_focus(search_input)
 
     def action_show_alerts(self):
-        """Show the 'Alerts' view."""
-        width = self.app.size.width
         self.view = "alerts"
         details = self.controller.get_active_alerts()
         self.afill = 1 if len(details) <= 26 else 2 if len(details) <= 676 else 3
@@ -560,165 +484,61 @@ class DynamicViewApp(App):
         self.push_screen(FullScreenList(details, footer))
 
     def on_input_submitted(self, event: Input.Submitted):
-        """Handle submission from search or find input."""
-        search_term = event.value  # Get the submitted search term
-        event.input.remove()  # Remove the input widget after submission
+        search_term = event.value
+        event.input.remove()
 
         if event.input.id == "find_input":
             self.view = "find"
-            # Handle the 'Find' view
-            results = self.controller.find_records(search_term)  # Fetch results
-            footer = (
-                "[bold yellow]?[/bold yellow] Help "
-                "[bold yellow]ESC[/bold yellow] Back "
-                '[bold yellow]"/"[/bold yellow] Search'
-            )
-            # Mount a FullScreenList to display the results
+            results = self.controller.find_records(search_term)
             self.afill = 1 if len(results) <= 26 else 2 if len(results) <= 676 else 3
-            self.push_screen(FullScreenList(results))
-            # self.mount_full_screen_list(results, footer)
+            footer = "[bold yellow]?[/bold yellow] Help ESC Back / Search"
+            self.push_screen(FullScreenList(results, footer))
 
         elif event.input.id == "search":
-            # Handle inline search in the current list
-            self.perform_search(search_term)  # Perform the search in the active list
-
-    def update_footer(self, search_active: bool = False, search_string: str = ""):
-        """Update the footer based on the current state."""
-        if search_active:
-            max_length = 20
-            truncated_string = (
-                f"{search_string[:max_length]}..."
-                if len(search_string) > max_length
-                else search_string
-            )
-            footer_content = f"[bold yellow]?[/bold yellow] Help, [bold yellow]/[/bold yellow] [bold {MATCH_COLOR}]{truncated_string}[/bold {MATCH_COLOR}], [bold yellow]>[/bold yellow] next, [bold yellow]<[/bold yellow] prev, [bold yellow]esc[/bold yellow] clear"
-        else:
-            footer_content = (
-                "[bold yellow]?[/bold yellow] Help, [bold yellow]/[/bold yellow] Search"
-            )
-
-        self.query_one("#custom_footer", Static).update_content(footer_content)
+            self.perform_search(search_term)
 
     def action_start_search(self):
-        """Show the search input widget for inline search."""
         search_input = Input(placeholder="Search...", id="search")
         self.mount(search_input)
         self.set_focus(search_input)
 
-    def action_clear_info(self):
-        try:
-            footer = self.query_one("#custom_footer", Static)
-            footer.update(
-                "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
-            )
-        except LookupError:
-            log_msg("Footer not found to update.")
-
     def action_clear_search(self):
-        """Clear the current search and reset the footer."""
-        self.search_term = ""  # Clear the global search term
-        try:
-            # Find the active ScrollableList and clear the search
-            scrollable_list = self.query_one("#list", ScrollableList)
-            scrollable_list.clear_search()
-            scrollable_list.refresh()
-        except LookupError:
-            log_msg("No active ScrollableList found to clear search.")
-
-        # Update the footer to reflect the cleared search state
-        try:
-            footer = self.query_one("#custom_footer", Static)
-            footer.update(
-                "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
-            )
-        except LookupError:
-            log_msg("Footer not found to update.")
+        self.search_term = ""
+        screen = self.screen
+        if isinstance(screen, SearchableScreen):
+            screen.clear_search()
+        self.update_footer(search_active=False)
 
     def action_next_match(self):
-        """Scroll to the next match."""
-        try:
-            scrollable_list = self.query_one("#list", ScrollableList)
-            current_y = scrollable_list.scroll_offset.y
-            next_match = next(
-                (i for i in scrollable_list.matches if i > current_y), None
-            )
-            if next_match is not None:
-                scrollable_list.scroll_to(0, next_match)  # Scroll to the next match
-                scrollable_list.refresh()
-            else:
-                log_msg("No next match found.")
-        except LookupError:
-            log_msg("No active ScrollableList found for next match.")
+        if isinstance(self.screen, SearchableScreen):
+            try:
+                self.screen.scroll_to_next_match()
+            except Exception as e:
+                log_msg(f"[Search] Error in next_match: {e}")
+        else:
+            log_msg("[Search] Current screen does not support search.")
 
     def action_previous_match(self):
-        """Scroll to the previous match."""
-        try:
-            scrollable_list = self.query_one("#list", ScrollableList)
-            current_y = scrollable_list.scroll_offset.y
-            previous_match = next(
-                (i for i in reversed(scrollable_list.matches) if i < current_y), None
-            )
-            if previous_match is not None:
-                scrollable_list.scroll_to(
-                    0, previous_match
-                )  # Scroll to the previous match
-                scrollable_list.refresh()
-            else:
-                log_msg("No previous match found.")
-        except LookupError:
-            log_msg("No active ScrollableList found for previous match.")
+        if isinstance(self.screen, SearchableScreen):
+            try:
+                self.screen.scroll_to_previous_match()
+            except Exception as e:
+                log_msg(f"[Search] Error in previous_match: {e}")
+        else:
+            log_msg("[Search] Current screen does not support search.")
 
-    def perform_search(self, search_term: str):
-        """Perform a search in the currently active view."""
-        self.search_term = search_term  # Update the search term globally
-        try:
-            # Find the ScrollableList in the current view
-            scrollable_list = self.query_one("#list", ScrollableList)
-            scrollable_list.set_search_term(search_term)
-            scrollable_list.refresh()
-        except LookupError:
-            log_msg("No active ScrollableList found for the current view.")
-
-    def action_show_help(self):
-        self.push_screen(DetailsScreen(HelpText))
-
-    def action_show_details(self, tag: str):
-        """Show a temporary details screen for the selected item."""
-        log_msg(f"{tag = }, {self.view = }, {self.selected_week = }")
-        details = self.controller.process_tag(tag, self.view, self.selected_week)
-        self.push_screen(DetailsScreen(details))
-
-    def action_quit(self):
-        """Exit the app."""
-        self.exit()
+    def perform_search(self, term: str):
+        self.search_term = term
+        screen = self.screen
+        if isinstance(screen, SearchableScreen):
+            screen.perform_search(term)
+        else:
+            log_msg(f"[App] Current screen does not support search.")
 
     def update_table_and_list(self):
-        """Update the table and scrollable list."""
-        log_msg(f"{self.selected_week = }, {self.current_start_date = }")
-        title, table, details = self.controller.get_table_and_list(
-            self.current_start_date, self.selected_week
-        )
-
-        # Update the table widget
-        self.query_one("#table_title", Static).update(title)
-        self.query_one("#table", Static).update(table)
-
-        # Extract the title (always the first line) and update the title widget
-        if details:
-            title = details[0]  # Use the first line as the title
-            self.query_one("#list_title", Static).update(title)
-
-        # Update the scrollable list with the remaining lines
-        scrollable_list = self.query_one("#list", ScrollableList)
-        scrollable_list.lines = [
-            Text.from_markup(line) for line in details[1:]
-        ]  # Exclude title
-        scrollable_list.virtual_size = Size(40, len(details[1:]))  # Adjust virtual size
-        scrollable_list.refresh()
-
-        # Reapply the search term if it's active
-        if self.search_term:
-            scrollable_list.set_search_term(self.search_term)
+        screen = self.screen
+        if isinstance(screen, WeeksScreen):
+            screen.update_table_and_list()
 
     def action_current_period(self):
         self.current_start_date = calculate_4_week_start()
@@ -735,12 +555,6 @@ class DynamicViewApp(App):
         self.selected_week = tuple(self.current_start_date.isocalendar()[:2])
         self.update_table_and_list()
 
-    def action_previous_week(self):
-        self.selected_week = get_previous_yrwk(*self.selected_week)
-        if self.selected_week < tuple((self.current_start_date).isocalendar()[:2]):
-            self.current_start_date -= timedelta(weeks=1)
-        self.update_table_and_list()
-
     def action_next_week(self):
         self.selected_week = get_next_yrwk(*self.selected_week)
         if self.selected_week > tuple(
@@ -749,18 +563,27 @@ class DynamicViewApp(App):
             self.current_start_date += timedelta(weeks=1)
         self.update_table_and_list()
 
+    def action_previous_week(self):
+        self.selected_week = get_previous_yrwk(*self.selected_week)
+        if self.selected_week < tuple((self.current_start_date).isocalendar()[:2]):
+            self.current_start_date -= timedelta(weeks=1)
+        self.update_table_and_list()
+
     def action_center_week(self):
-        """Make the selected week the 2nd row of the 4-week period."""
-        log_msg(f"{self.selected_week = }, {self.current_start_date = }")
         self.current_start_date = datetime.strptime(
-            " ".join(map(str, [self.selected_week[0], self.selected_week[1], 1])),
-            "%G %V %u",
+            f"{self.selected_week[0]} {self.selected_week[1]} 1", "%G %V %u"
         ) - timedelta(weeks=1)
         self.update_table_and_list()
 
-    def action_replace_with_tree_view(self):
-        """Replace the list view with a tree view."""
-        self.main_container.mount(Static("Tree View: Replace this with your tree."))
+    def action_quit(self):
+        self.exit()
+
+    def action_show_help(self):
+        self.push_screen(DetailsScreen(HelpText))
+
+    def action_show_details(self, tag: str):
+        details = self.controller.process_tag(tag, self.view, self.selected_week)
+        self.push_screen(DetailsScreen(details))
 
 
 if __name__ == "__main__":

@@ -27,7 +27,7 @@ from pygments.token import Comment
 
 import functools
 from time import perf_counter
-from typing import Callable, Any
+from typing import List, Callable, Any
 import inspect
 from typing import Literal
 
@@ -292,7 +292,7 @@ def format_extent(
     return f"{beg_fmt}{beg_suffix}-{end_fmt}{end_suffix}"
 
 
-def timedelta_str_to_seconds(time_str: str) -> int:
+def timedelta_str_to_seconds(time_str: str) -> tuple[bool, int]:
     """
     Converts a time string composed of integers followed by 'w', 'd', 'h', or 'm'
     into the total number of seconds.
