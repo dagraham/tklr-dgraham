@@ -9,7 +9,8 @@ HRS_MINS = "12"  # 12 or 24 - make this the default
 
 # TODO: these should be in a config file
 ALERT_COMMANDS = {
-    "d": "/usr/bin/say -v 'Alex' '{name}, {when} at {time}'",
+    # "d": "/usr/bin/say -v 'Alex' '{name}, {when} at {time}'",
+    "d": "/usr/bin/say -v 'Alex' '{name}, {when}'",
 }
 
 ELLIPSIS_CHAR = "…"

@@ -28,6 +28,7 @@ import string
 import shutil
 import asyncio
 
+# from textual.errors import NoMatches
 
 VERSION = parse_version(tklr_version)
 DAY_COLOR = NAMED_COLORS["LemonChiffon"]
@@ -150,20 +151,20 @@ def calculate_4_week_start():
 
 
 HelpText = f"""\
-[bold][{TITLE_COLOR}]ETM {VERSION}[/{TITLE_COLOR}][/bold]
+[bold][{TITLE_COLOR}]TKLR {VERSION}[/{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Application Keys[/{HEADER_COLOR}][/bold]
   [bold]Q[/bold]:         Quit etm
 [bold][{HEADER_COLOR}]View[/{HEADER_COLOR}][/bold]
-  [bold]W[/bold]:           Weeks view          [bold]N[/bold]:         Next occurrences 
-  [bold]F[/bold]:           Find in items       [bold]L[/bold]:         Last occurrences 
+  [bold]W[/bold]:           Weeks view        [bold]N[/bold]:       Next occurrences 
+  [bold]F[/bold]:           Find in items     [bold]L[/bold]:       Last occurrences 
 [bold][{HEADER_COLOR}]Search Keys[/{HEADER_COLOR}][/bold]
-  [bold]/[/bold]:           Set search          [bold]>[/bold]:         Next match 
-  [bold]escape[/bold]:      Clear search        [bold]<[/bold]:         Previous match           
+  [bold]/[/bold]:           Set search        Use an empty search to clear
+  [bold]>[/bold]:           Next match        [bold]<[/bold]:       Previous match           
 [bold][{HEADER_COLOR}]Navigation Keys[/{HEADER_COLOR}][/bold]
-  [bold]left[/bold]:        previous week       [bold]up[/bold]:        up in the list
-  [bold]right[/bold]:       next week           [bold]down[/bold]:      down in the list
-  [bold]shift+left[/bold]:  previous 4-weeks    [bold]period[/bold]:    center week
-  [bold]shift+right[/bold]: next 4-weeks        [bold]space[/bold]:     current 4-weeks 
+  [bold]left[/bold]:        previous week     [bold]up[/bold]:      up in the list
+  [bold]right[/bold]:       next week         [bold]down[/bold]:    down in the list
+  [bold]shift+left[/bold]:  previous 4-weeks  [bold]period[/bold]:  center week
+  [bold]shift+right[/bold]: next 4-weeks      [bold]space[/bold]:   current 4-weeks 
 
 [bold][{HEADER_COLOR}]Tags[/{HEADER_COLOR}][/bold] Each of the main views displays a list of items, with each item beginning with an alphabetic tag that can be used to display the details of the item. E.g., to see the details of the item tagged 'a', simply press 'a' on the keyboard. These tags are sequentially generated from 'a', 'b', ..., 'z', 'ba', 'bb', and so forth. Just press the corresponding key for each character in the tag. 
 """.splitlines()
@@ -193,50 +194,50 @@ class DetailsScreen(Screen):
             self.app.pop_screen()
 
 
-class SearchScreen(Screen):
-    """A screen to handle search input and display results."""
+class SearchableScreen(Screen):
+    """Base class for screens that support search."""
 
-    def __init__(self, controller):
-        super().__init__()
-        self.controller = controller
-        self.search_term = None  # Store the search term
-        self.results = []  # Store search results
+    def perform_search(self, term: str):
+        """Perform search within the screen if it has a ScrollableList with id 'list'."""
+        try:
+            scrollable_list = self.query_one("#list", ScrollableList)
+            scrollable_list.set_search_term(term)
+            scrollable_list.refresh()
+        except NoMatches:
+            log_msg(
+                f"[SearchableScreen] No #list found in {self.id or self.__class__.__name__}"
+            )
+        except Exception as e:
+            log_msg(f"[SearchableScreen] Error during search: {e}")
 
-    def compose(self) -> ComposeResult:
-        # Display search input at the top
-        yield Input(placeholder="Enter search term...", id="search_input")
-        # Display the scrollable list for search results
-        yield ScrollableList([], id="search_results")
-        # Display a footer
-        yield Static(
-            "[bold yellow]?[/bold yellow] Help [bold yellow]ESC[/bold yellow] Back",
-            id="custom_footer",
+    def clear_search(self):
+        """Clear search highlights from the ScrollableList if it exists."""
+        try:
+            scrollable_list = self.query_one("#list", ScrollableList)
+            scrollable_list.clear_search()
+            scrollable_list.refresh()
+        except NoMatches:
+            log_msg(f"[SearchableScreen] No #list found to clear.")
+        except Exception as e:
+            log_msg(f"[SearchableScreen] Error clearing search: {e}")
+
+    def scroll_to_next_match(self):
+        scrollable_list = self.query_one("#list", ScrollableList)
+        current_y = scrollable_list.scroll_offset.y
+        next_match = next((i for i in scrollable_list.matches if i > current_y), None)
+        if next_match is not None:
+            scrollable_list.scroll_to(0, next_match)
+            scrollable_list.refresh()
+
+    def scroll_to_previous_match(self):
+        scrollable_list = self.query_one("#list", ScrollableList)
+        current_y = scrollable_list.scroll_offset.y
+        prev_match = next(
+            (i for i in reversed(scrollable_list.matches) if i < current_y), None
         )
-
-    def on_input_submitted(self, event: Input.Submitted):
-        """Handle the submission of the search input."""
-        if event.input.id == "search_input":
-            self.search_term = event.value  # Capture the search term
-            self.query_one("#search_input", Input).remove()  # Remove the input
-            self.perform_search(self.search_term)  # Perform the search
-
-    def perform_search(self, search_term: str):
-        """Perform the search and update the results."""
-        self.results = self.controller.find_records(search_term)  # Query controller
-        scrollable_list = self.query_one("#search_results", ScrollableList)
-        if self.results:
-            # Populate the scrollable list with results
-            scrollable_list.lines = [Text.from_markup(line) for line in self.results]
-        else:
-            # Display a message if no results are found
-            scrollable_list.lines = [Text("No matches found.")]
-        scrollable_list.refresh()
-
-    def on_key(self, event):
-        """Handle key presses."""
-        if event.key == "escape":
-            # Return to the previous screen
-            self.app.pop_screen()
+        if prev_match is not None:
+            scrollable_list.scroll_to(0, prev_match)
+            scrollable_list.refresh()
 
 
 MATCH_COLOR = "yellow"
@@ -293,7 +294,7 @@ class ScrollableList(ScrollView):
         self.refresh()
 
 
-class WeeksScreen(Screen):
+class WeeksScreen(SearchableScreen):  # instead of Screen
     def __init__(
         self,
         title: str,
@@ -331,7 +332,7 @@ class WeeksScreen(Screen):
         self.query_one("#list", expect_type=ScrollableList).update_list(details[1:])
 
 
-class FullScreenList(Screen):
+class FullScreenList(SearchableScreen):
     """Reusable full-screen list for Last, Next, and Find views."""
 
     def __init__(
@@ -503,65 +504,36 @@ class DynamicViewApp(App):
 
     def action_clear_search(self):
         self.search_term = ""
-        try:
-            scrollable_list = self.query_one("#list", ScrollableList)
-            scrollable_list.clear_search()
-            scrollable_list.refresh()
-        except LookupError:
-            log_msg("No active ScrollableList found to clear search.")
-        try:
-            footer = self.query_one("#custom_footer", Static)
-            footer.update("[bold yellow]?[/bold yellow] Help / Search")
-        except LookupError:
-            log_msg("Footer not found to update.")
+        screen = self.screen
+        if isinstance(screen, SearchableScreen):
+            screen.clear_search()
+        self.update_footer(search_active=False)
 
     def action_next_match(self):
-        try:
-            scrollable_list = self.query_one("#list", ScrollableList)
-            current_y = scrollable_list.scroll_offset.y
-            next_match = next(
-                (i for i in scrollable_list.matches if i > current_y), None
-            )
-            if next_match is not None:
-                scrollable_list.scroll_to(0, next_match)
-                scrollable_list.refresh()
-        except LookupError:
-            log_msg("No active ScrollableList for next match.")
+        if isinstance(self.screen, SearchableScreen):
+            try:
+                self.screen.scroll_to_next_match()
+            except Exception as e:
+                log_msg(f"[Search] Error in next_match: {e}")
+        else:
+            log_msg("[Search] Current screen does not support search.")
 
     def action_previous_match(self):
-        try:
-            scrollable_list = self.query_one("#list", ScrollableList)
-            current_y = scrollable_list.scroll_offset.y
-            prev_match = next(
-                (i for i in reversed(scrollable_list.matches) if i < current_y), None
-            )
-            if prev_match is not None:
-                scrollable_list.scroll_to(0, prev_match)
-                scrollable_list.refresh()
-        except LookupError:
-            log_msg("No active ScrollableList for previous match.")
-
-    # def perform_search(self, term: str):
-    #     self.search_term = term
-    #     try:
-    #         scrollable_list = self.query_one("#list", ScrollableList)
-    #         scrollable_list.set_search_term(term)
-    #         scrollable_list.refresh()
-    #     except LookupError:
-    #         log_msg("No active ScrollableList for search.")
+        if isinstance(self.screen, SearchableScreen):
+            try:
+                self.screen.scroll_to_previous_match()
+            except Exception as e:
+                log_msg(f"[Search] Error in previous_match: {e}")
+        else:
+            log_msg("[Search] Current screen does not support search.")
 
     def perform_search(self, term: str):
         self.search_term = term
         screen = self.screen
-        if hasattr(screen, "query_one"):
-            try:
-                scrollable_list = screen.query_one("#list", ScrollableList)
-                scrollable_list.set_search_term(term)
-                scrollable_list.refresh()
-            except Exception as e:
-                log_msg(f"Search error: {e}")
+        if isinstance(screen, SearchableScreen):
+            screen.perform_search(term)
         else:
-            log_msg("Current screen does not support search.")
+            log_msg(f"[App] Current screen does not support search.")
 
     def update_table_and_list(self):
         screen = self.screen

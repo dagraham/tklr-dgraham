@@ -1,3 +1,4 @@
+from math import log
 import os
 import sqlite3
 import json
@@ -45,6 +46,10 @@ def regexp(pattern, value):
 DEFAULT_LOG_FILE = "log_msg.md"
 
 
+def is_date(obj):
+    return isinstance(obj, date) and not isinstance(obj, datetime)
+
+
 def td_str_to_td(duration_str: str) -> timedelta:
     """Convert a duration string like '1h30m20s' into a timedelta."""
     duration_str = duration_str.strip()
@@ -53,15 +58,17 @@ def td_str_to_td(duration_str: str) -> timedelta:
         sign = duration_str[0]
         duration_str = duration_str[1:]
 
-    pattern = r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
+    # pattern = r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
+    # pattern = r"(?:(\d+)d)?(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
+    pattern = r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
     match = re.fullmatch(pattern, duration_str.strip())
     if not match:
         raise ValueError(f"Invalid duration format: '{duration_str}'")
-    hours, minutes, seconds = [int(x) if x else 0 for x in match.groups()]
+    days, hours, minutes, seconds = [int(x) if x else 0 for x in match.groups()]
     if sign == "-":
-        return -timedelta(hours=hours, minutes=minutes, seconds=seconds)
+        return -timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
     else:
-        return timedelta(hours=hours, minutes=minutes, seconds=seconds)
+        return timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
 
 
 def td_str_to_seconds(duration_str: str) -> int:
@@ -72,16 +79,19 @@ def td_str_to_seconds(duration_str: str) -> int:
         sign = duration_str[0]
         duration_str = duration_str[1:]
 
-    pattern = r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
+    # pattern = r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
+    pattern = r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
     match = re.fullmatch(pattern, duration_str.strip())
     if not match:
         raise ValueError(f"Invalid duration format: '{duration_str}'")
-    hours, minutes, seconds = [int(x) if x else 0 for x in match.groups()]
+    days, hours, minutes, seconds = [int(x) if x else 0 for x in match.groups()]
+
+    log_msg(f"{days = }, {hours = }, {minutes = }, {seconds = }")
 
     if sign == "-":
-        return -(hours * 3600 + minutes * 60 + seconds)
+        return -(days * 86400 + hours * 3600 + minutes * 60 + seconds)
     else:
-        return hours * 3600 + minutes * 60 + seconds
+        return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
 
 def dt_str_to_seconds(datetime_str: str) -> int:
@@ -96,7 +106,10 @@ def dt_str_to_seconds(datetime_str: str) -> int:
 
 def dt_to_dtstr(dt_obj: datetime) -> str:
     """Convert a datetime object to 'YYYYMMDDTHHMMSS' format."""
-    return dt_obj.strftime("%Y%m%dT%H%M%S")
+    if is_date:
+        return dt_obj.strftime("%Y%m%d")
+    else:
+        return dt_obj.strftime("%Y%m%dT%H%M%S")
 
 
 def td_to_tdstr(td_obj: timedelta) -> str:
@@ -105,10 +118,15 @@ def td_to_tdstr(td_obj: timedelta) -> str:
     if total == 0:
         return "0s"
 
-    h, remainder = divmod(total, 3600)
+    d, remainder = divmod(total, 86400)
+
+    h, remainder = divmod(remainder, 3600)
+
     m, s = divmod(remainder, 60)
 
     parts = []
+    if d:
+        parts.append(f"{d}d")
     if h:
         parts.append(f"{h}h")
     if m:
@@ -142,6 +160,9 @@ class DatabaseManager:
 
         self.populate_tags()  # NEW: Populate Tags + RecordTags
         self.populate_alerts()  # Populate today's alerts
+        log_msg("calling beginby")
+        self.get_pending_beginby_items()
+        log_msg("back from beginby")
 
     def setup_database(self):
         """
@@ -236,9 +257,9 @@ class DatabaseManager:
                 """
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
-                    extent, alerts, context, jobs, tags,
+                    extent, alerts, beginby, context, jobs, tags,
                     structured_tokens, processed
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.itemtype,
@@ -248,6 +269,7 @@ class DatabaseManager:
                     item.tz_str,  # if item.timezone else None,
                     item.extent,  # assuming this is a string, e.g. "1h30m"
                     json.dumps(item.alerts),
+                    item.beginby,
                     item.context,  # if present; else set to None or derive from tags
                     json.dumps(item.jobs),
                     json.dumps(item.tags),
@@ -684,7 +706,7 @@ class DatabaseManager:
         occurrences = list(rule.between(start_date, end_date, inc=True))
         extent = td_str_to_td(extent) if isinstance(extent, str) else extent
         log_msg(
-            f"Generating for {len(occurrences) = } between {start_date = } and {end_date = } with {extent = }."
+            f"Generating for {len(occurrences) = } between {start_date = } and {end_date = } with {extent = } for {rule_str = }."
         )
 
         # Create (start, end) pairs
@@ -791,6 +813,32 @@ class DatabaseManager:
                 )
 
         return grouped_events
+
+    def get_pending_beginby_items(self) -> list[str]:
+        log_msg("processing beginby items")
+        now = round(datetime.now().timestamp())
+        self.cursor.execute(
+            """
+            SELECT R.id, R.subject, D.start_datetime, R.beginby
+            FROM Records R
+            JOIN DateTimes D ON R.id = D.record_id
+            WHERE R.beginby IS NOT NULL AND R.beginby != ''
+            """
+        )
+        results = []
+        for record_id, subject, start_ts, beginby_str in self.cursor.fetchall():
+            log_msg(f"{beginby_str = }")
+            try:
+                td = td_str_to_td(beginby_str)
+                log_msg(f"{td = }")
+                beginby_ts = start_ts - td.total_seconds()
+                if beginby_ts <= now < start_ts:
+                    dt = datetime.fromtimestamp(start_ts).strftime("%Y-%m-%d %H:%M")
+                    results.append(f"⏳ '{subject}' scheduled for {dt} is approaching.")
+            except Exception as e:
+                log_msg(f"⚠️ Error processing beginby for {record_id}: {e}")
+        log_msg(f"{results = }")
+        return results
 
     def get_last_instances(self) -> List[Tuple[int, str, str, str, datetime]]:
         """

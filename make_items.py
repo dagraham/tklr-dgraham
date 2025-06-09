@@ -8,8 +8,9 @@ import lorem
 from typing import List, Tuple, Union
 from dateutil.tz import gettz
 from dateutil import rrule
-from dateutil.rrule import rrulestr
-import math
+from dateutil.rrule import rruleset, rrulestr
+from dateutil.parser import parse
+
 
 ONEDAY = timedelta(days=1)
 
@@ -95,7 +96,7 @@ tags = ["red", "green", "blue"]
 dates = [0, 0, 0, 1, 0, 0, 0]  # dates 1/7 of the time
 repeat = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0]  # repeat 1/10 of the time
 # duration = [to_tdstr(x) for x in range(6, 2 * 60 * 60, 6)]
-duration = [to_tdstr(x) for x in range(0, 1815, 15)]
+duration = [to_tdstr(x) for x in range(0, 2 * 60 * 60, 300)]
 
 now = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 num_konnections = 0
@@ -105,6 +106,26 @@ months = num_items // 200
 start = wkbeg - 12 * 7 * ONEDAY
 until = wkend + (40 * 7) * ONEDAY
 print(f"Generating {num_items} records from {start} to {until}...")
+
+
+def parse_rruleset(rrule_text: str) -> rruleset:
+    lines = rrule_text.strip().splitlines()
+    rset = rruleset()
+    dtstart = None
+
+    for line in lines:
+        if line.startswith("DTSTART"):
+            _, dt_str = line.split(":", 1)
+            dtstart = parse(dt_str)
+        elif line.startswith("RRULE"):
+            rule = rrulestr(line, dtstart=dtstart)
+            rset.rrule(rule)
+        elif line.startswith("RDATE"):
+            _, dt_str = line.split(":", 1)
+            for rdate in dt_str.split(","):
+                rset.rdate(parse(rdate))
+
+    return rset
 
 
 def handle_new_entry(self, entry_str: str):
@@ -177,15 +198,17 @@ items = [
     f"* tomorrow @d all day event @s {tomorrow_date}",
     f"- end of yesterday @d all day event @s {yesterday_date}T235959",
     f"- end of today @d all day event @s {today_date}T235959",
-    f"- end of tomorrow @d all day event @s {tomorrow_date}T235959",
+    f"* end of tomorrow @d all day event @s {tomorrow_date}T235959",
     f"* zero extent float @s {tomorrow_date}T100000 @z none",
-    f"* daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",
+    f"* daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",  # ***
     f"* daily date @s {today_date} @d whatever @c wherever @r d &c 10 @z US/Pacific",
     f"* single date @s {today_date}",
-    f"* single datetime @s {in_one_hour()}",
+    f"* single datetime @s {in_one_hour()} @e 2h30m @b 1d",
     "- with tags @d This item has a description @t red @t white @t blue",
-    f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",
-    f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",
+    f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
+    f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
+    f"- multiple rdates @s {yesterday_date} @+ {today_date}, {tomorrow_date}",
+    f"* multiple rdatetimes @s {in_ten_minutes()} @e {random.choice(duration)}  @+ {in_one_hour()}, {in_one_day()}",
 ]
 
 records = []
