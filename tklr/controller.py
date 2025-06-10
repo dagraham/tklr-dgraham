@@ -27,6 +27,7 @@ import shutil
 import subprocess
 import shlex
 import textwrap
+import json
 from typing import Literal
 
 from .model import DatabaseManager
@@ -347,20 +348,42 @@ class Controller:
         self.width = shutil.get_terminal_size()[0] - 2
         print(f"{self.width = }")
 
-    def get_record_details_as_string(self, record_id):
+    def get_structured_tokens(self, record_id: int) -> list[dict]:
         """
-        Retrieve and format the description of a record as a string.
+        Retrieve the structured_tokens field from a record and return it as a list of dictionaries.
+        Returns an empty list if the field is null, empty, or if the record is not found.
+        """
+        self.db_manager.cursor.execute(
+            "SELECT structured_tokens FROM Records WHERE id = ?", (record_id,)
+        )
+        result = self.db_manager.cursor.fetchone()
+
+        if result and result[0]:
+            try:
+                return json.loads(result[0])
+            except json.JSONDecodeError:
+                log_msg(f"⚠️ Could not decode structured_tokens for record {record_id}")
+        return []
+
+    def get_entry(self, record_id):
+        structured_tokens = selfl.get_structured_tokens(record_id)
+        entry_str = " ".join([t["token"] for t in structured_tokens])
+        return entry_str 
+
+    def get_entry_as_string(self, record_id):
+        """
+        Retrieve and format the entry of a record as a string.
 
         Args:
             record_id (int): The ID of the record to retrieve.
 
         Returns:
-            str: A formatted string with the record's description.
+            str: A formatted string with the record's entry.
         """
         # log_msg(f"Fetching description for record ID {record_id}")
         self.db_manager.cursor.execute(
             """
-            SELECT id, itemtype, subject, description, rruleset, extent
+            SELECT id, structured_tokens
             FROM Records
             WHERE id = ?
             """,
@@ -371,8 +394,12 @@ class Controller:
 
         if not record:
             return f"[red]No record found for ID {record_id}[/red]"
+        
+        for record_id, structured_token 
 
-        fields = ["Id", "itemtype", "subject e", "description", "RRule", "Extent"]
+
+        fields = ["Id", "structured_tokens"]
+        
         content = "\n".join(
             f" [cyan]{field}:[/cyan] [white]{value if value is not None else '[dim]NULL[/dim]'}[/white]"
             for field, value in zip(fields, record)
