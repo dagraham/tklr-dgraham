@@ -922,8 +922,8 @@ class Controller:
         Fetch and format description for the next instances.
         """
         events = self.db_manager.find_records(search_str)
-        header = f"Items containg a match for [{SELECTED_COLOR}]{search_str}[/{SELECTED_COLOR}] ({len(events)})"
-        description = [header]
+        header = f"Items ({len(events)})\n containing a match for [{SELECTED_COLOR}]{search_str}[/{SELECTED_COLOR}] "
+        description = header.split("\n")
 
         if not events:
             description.append(f" [{HEADER_COLOR}]Nothing found[/{HEADER_COLOR}]")
