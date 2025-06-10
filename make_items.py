@@ -204,7 +204,7 @@ items = [
     f"* daily date @s {today_date} @d whatever @c wherever @r d &c 10 @z US/Pacific",
     f"* single date @s {today_date}",
     f"* single datetime @s {in_one_hour()} @e 2h30m @b 1d",
-    "- with tags @d This item has a description @t red @t white @t blue",
+    f"- with tags and description @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
     f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
     f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
     f"- multiple rdates @s {yesterday_date} @+ {today_date}, {tomorrow_date}",

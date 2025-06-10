@@ -28,12 +28,11 @@ Generally the same format as _etm_ for a task entry but without the beginning it
 - @b begin:timedelta requires @s (task status = postponed before @s - @b then available)
 - @c context:str (home, shop, work, ...) alternatives specified in config.
   As with TW, specifying a context would limit the list display to tasks with that context.
-- @d due:datetime -
-- @e estimate:timedelta estimated time required for completion
+- @e extent: timedelta - estimated time required for completion
 
-    a. Perhaps a "quick" command to order tasks by extent, shortest first? Someway of taking advantage of having, say 15 minutes, before a meeting?
-    b. Maybe a command to limit the list display to tasks for which the estimated completion times add up to less than a specified time?
-    c. Should due urgency be adjusted for the estimated time?
+  a. Perhaps a "quick" command to order tasks by extent, shortest first? Someway of taking advantage of having, say 15 minutes, before a meeting?
+  b. Maybe a command to limit the list display to tasks for which the estimated completion times add up to less than a specified time?
+  c. Should due urgency be adjusted for the estimated time?
 
 - @f finished:datetime
 - @i importance:[N)ext, H)igh, M)edium, L)low, S)omeday] numeric values in config (corresponds to next (tag) and priority in TW)
@@ -51,7 +50,7 @@ Generally the same format as _etm_ for a task entry but without the beginning it
 ## Task status characters and meaning
 
 - -) Available (not waiting, finished, postponed or deleted - corresponds to pending in TW)
-- *) Available and now - modified <= 1 week (modified within the last week - corresponds to current in TW)
+- \*) Available and now - modified <= 1 week (modified within the last week - corresponds to current in TW)
 - D) Deleted (has an @d entry or @s and @u entries with @s + @u <= now)
 - F) Finished (task with an @f entry or job with an &f entry)
 - P) Postponed (has @b and @s entries and @s - @b is in the future - corresponds to waiting in TW)
@@ -59,17 +58,17 @@ Generally the same format as _etm_ for a task entry but without the beginning it
 
 ## Repeating tasks
 
-The @r entry is a _rrule_ (recurrence rule) as implemented in _etm_. A copy of the task is created in the Instances table with the id of parent task used as the task_id, the next occurrence of the task used for @s, the current datetime for the _created_ and _modified_ datetimes and with the @r entry removed. This instance of the recurring task is then treated as a normal task with a scheduled date and time.
+The @r entry is a _rrule_ (recurrence rule) as implemented in _etm_. A copy of the task is created in the Instances table with the id of parent task used as the task*id, the next occurrence of the task used for @s, the current datetime for the \_created* and _modified_ datetimes and with the @r entry removed. This instance of the recurring task is then treated as a normal task with a scheduled date and time.
 
 If and when an instance is completed or the single instance deleted and the recurrence rule in the parent task calls for another instance, this process is repeated.
 
 ## Tasks with component jobs
 
-This is a simplification of the current implementation in _etm_. __The need to manually enter job ids and prerequisites has been eliminated by using the position of the job in the sequence and its indentation level.__
+This is a simplification of the current implementation in _etm_. **The need to manually enter job ids and prerequisites has been eliminated by using the position of the job in the sequence and its indentation level.**
 
 A task with @j (job) entries forms a group of related implied tasks, one for each @j entry. The prerequisites for a job, if any, are
 
-Here are some examples of tasks with jobs. In each case "input" gives the multiline task as it would be entered. What follows are the results of processing by _tklr_. The list of jobs adds an id, "i" for each job, just the jobs position in the list starting from 0, and an integer indention level, "node", again starting from 0.   Using the "i" (id) elements from the list of "jobs", "prereqs" gives the prerequisites for each job, if any, using the "i" entries of the relevant jobs. Similarly "available" gives the ids of jobs that are available for completion, i.e., jobs without unfinished prerequisites, "waiting"  gives the ids of the jobs that are not available because of unfinished prerequisites and "finished" give the ids of the jobs that have been finished.  
+Here are some examples of tasks with jobs. In each case "input" gives the multiline task as it would be entered. What follows are the results of processing by _tklr_. The list of jobs adds an id, "i" for each job, just the jobs position in the list starting from 0, and an integer indention level, "node", again starting from 0. Using the "i" (id) elements from the list of "jobs", "prereqs" gives the prerequisites for each job, if any, using the "i" entries of the relevant jobs. Similarly "available" gives the ids of jobs that are available for completion, i.e., jobs without unfinished prerequisites, "waiting" gives the ids of the jobs that are not available because of unfinished prerequisites and "finished" give the ids of the jobs that have been finished.
 
 ### jobs without prerequisites
 
@@ -262,64 +261,64 @@ When an `@s` scheduled entry specifies a date without a time, i.e., a date inste
 
 When an item is specified with an `@r` entry, an `@s` entry is required and is used as the `DTSTART` entry in the recurrence rule. E.g.,
 
-  ```python
-  * datetime repeating @s 2024-08-07 14:00 @r d &i 2
-  ```
+```python
+* datetime repeating @s 2024-08-07 14:00 @r d &i 2
+```
 
-  is serialized (stored) as
+is serialized (stored) as
 
-  ```python
-    {
-        "itemtype": "*",
-        "subject": "datetime repeating",
-        "rruleset": "DTSTART:20240807T140000\nRRULE:FREQ=DAILY;INTERVAL=2",
-    }
-  ```
+```python
+  {
+      "itemtype": "*",
+      "subject": "datetime repeating",
+      "rruleset": "DTSTART:20240807T140000\nRRULE:FREQ=DAILY;INTERVAL=2",
+  }
+```
 
-__Note__: The datetimes generated by the rrulestr correspond to datetimes matching the specification of `@r` which  occur __on or after__ the datetime specified by `@s`. The datetime corresponding to `@s` itself will only be generated if it matches the specification of `@r`.
+**Note**: The datetimes generated by the rrulestr correspond to datetimes matching the specification of `@r` which occur **on or after** the datetime specified by `@s`. The datetime corresponding to `@s` itself will only be generated if it matches the specification of `@r`.
 
 ### @s is given but not @r
 
 On the other hand, if an `@s` entry is specified, but `@r` is not, then the `@s` entry is stored as an `RDATE` in the recurrence rule. E.g.,
 
-  ```python
-  * datetime only @s 2024-08-07 14:00 @e 1h30m
-  ```
+```python
+* datetime only @s 2024-08-07 14:00 @e 1h30m
+```
 
-  is serialized (stored) as
+is serialized (stored) as
 
-  ```python
-  {
-    "itemtype": "*",
-    "subject": "datetime only",
-    "e": 5400,
-    "rruleset": "RDATE:20240807T140000"
-  }
-  ```
+```python
+{
+  "itemtype": "*",
+  "subject": "datetime only",
+  "e": 5400,
+  "rruleset": "RDATE:20240807T140000"
+}
+```
 
 The datetime corresponding to `@s` itself is, of course, generated in this case.
 
 ### @+ is specified, with or without @r
 
-When `@s` is specified, an `@+` entry can be used to specify one or more, comma separated datetimes.  When `@r` is given, these datetimes are added to those generated by the `@r` specification. Otherwise, they are added to the datetime specified by `@s`. E.g.,   is a special case. It is used to specify a datetime that is relative to the current datetime. E.g.,
+When `@s` is specified, an `@+` entry can be used to specify one or more, comma separated datetimes. When `@r` is given, these datetimes are added to those generated by the `@r` specification. Otherwise, they are added to the datetime specified by `@s`. E.g., is a special case. It is used to specify a datetime that is relative to the current datetime. E.g.,
 
-  ```python
-  * rdates @s 2024-08-07 14:00 @+ 2024-08-09 21:00 
-  ```
+```python
+* rdates @s 2024-08-07 14:00 @+ 2024-08-09 21:00
+```
 
-  would be serialized (stored) as
+would be serialized (stored) as
 
-  ```python
-  {
-    "itemtype": "*",
-    "subject": "rdates",
-    "rruleset": "RDATE:20240807T140000, 20240809T210000"
-  }
-  ```
+```python
+{
+  "itemtype": "*",
+  "subject": "rdates",
+  "rruleset": "RDATE:20240807T140000, 20240809T210000"
+}
+```
 
 This option is particularly useful for irregular recurrences such as annual doctor visits. After the initial visit, subsequent visits can simply be added to the `@+` entry of the existing event once the new appointment is made.
 
-__Note__: Without `@r`, the `@s` datetime is included in the datetimes generated but with `@r`, it is only used to set the beginning of the recurrence and otherwise ignored.
+**Note**: Without `@r`, the `@s` datetime is included in the datetimes generated but with `@r`, it is only used to set the beginning of the recurrence and otherwise ignored.
 
 ### Timezone considerations
 
@@ -327,7 +326,7 @@ __Note__: Without `@r`, the `@s` datetime is included in the datetimes generated
 
 When a datetime is specified, the timezone is assumed to be the local timezone. The datetime is converted to UTC for storage in the database. When a datetime is displayed, it is converted back to the local timezone.
 
-This would work perfectly but for _recurrence_ and _daylight savings time_. The recurrence rules are stored in UTC and the datetimes generated by the rules are also in UTC. When these datetimes are displayed, they are converted to the local timezone.  
+This would work perfectly but for _recurrence_ and _daylight savings time_. The recurrence rules are stored in UTC and the datetimes generated by the rules are also in UTC. When these datetimes are displayed, they are converted to the local timezone.
 
 ```python
 - fall back @s 2024-11-01 10:00 EST  @r d &i 1 &c 4
@@ -352,43 +351,43 @@ item.entry = '- fall back @s 2024-11-01 10:00 EST  @r d &i 1 &c 4'
 ```yaml
 # cfg.yaml - variables and default values
 
-task.contexts: 
-  - errands 
+task.contexts:
+  - errands
   - home
   - shop
   - work
 
 datetime.ambiguous.day_first: false
-datetime.ambiguous.year_first: true 
+datetime.ambiguous.year_first: true
 # for parsing ambiguous dates
 
-datetime.ampm: false 
+datetime.ampm: false
 # 12 hour clock if true else 24 hour clock
 
-urgency.current: 4.0 
+urgency.current: 4.0
 # now - modified <= 1 week (modified within the last week)
 
-urgency.blocking: 8.0 
+urgency.blocking: 8.0
 # is pending and a prerequisite for another job
 
 urgency.age: 2.0 # coefficient for age
 urgency.scheduled: 12.0 # past scheduled
 urgency.due: 16.0 # past due or near due date
-urgency.importance.next: 15.0 # next 
-urgency.importance.high: 6.0 # high 
-urgency.importance.medium: 2.0 # medium 
-urgency.importance.low: -2.0 # low 
-urgency.importance.someday: -6.0 # someday 
+urgency.importance.next: 15.0 # next
+urgency.importance.high: 6.0 # high
+urgency.importance.medium: 2.0 # medium
+urgency.importance.low: -2.0 # low
+urgency.importance.someday: -6.0 # someday
 urgency.note: 1.0 # has a note
 urgency.project: 1.0 # is assigned to a project
 
-urgency.tags: 1.0 
-# each tag (other than "next") up to a maximum of 3 
+urgency.tags: 1.0
+# each tag (other than "next") up to a maximum of 3
 ```
 
 ## urgency
 
-As in TaskWarrior the most important urgency components are (1) having a "next" tag which gets an urgency component of 15 and (2) having a due date which gets a maximum urgency of 12. The intent seems to be to have the "next" tasks always at the top of the default (next) list with other pending tasks sorted by their urgency. This places unfinished tasks with due dates falling on or before the current date near the top of the default "next" list.  
+As in TaskWarrior the most important urgency components are (1) having a "next" tag which gets an urgency component of 15 and (2) having a due date which gets a maximum urgency of 12. The intent seems to be to have the "next" tasks always at the top of the default (next) list with other pending tasks sorted by their urgency. This places unfinished tasks with due dates falling on or before the current date near the top of the default "next" list.
 
 ### due
 
@@ -398,9 +397,9 @@ For tasks with an `@d` due datetime, the contribution of due to the urgency of t
 def urgency_due(due: datetime) -> float:
     """
     This function calculates the urgency coefficient for a task based
-    on its due datetime relative to the current datetime and returns 
+    on its due datetime relative to the current datetime and returns
     a float value between 0.2 when (due >= now + 14 days) and 1.0 when
-    (due <= now - 7 days). This coefficient is then multiplied by the 
+    (due <= now - 7 days). This coefficient is then multiplied by the
     urgency.due.coefficient (12.0) to get the due contribution to the
     overall urgency of the task.
     """
@@ -457,7 +456,7 @@ def urgency_age(created:datetime) -> float:
     This function calculates the urgency coefficient for a task based
     on its age relative to the current datetime and returns a float
     value between 0.0 (when created = now) and 1.0 (when created =
-    now - 365 days). This coefficient is then multiplied by the 
+    now - 365 days). This coefficient is then multiplied by the
     urgency.age.coefficient (2.0) to get the age contribution to the
     overall urgency of the task.
     """
@@ -470,7 +469,7 @@ def urgency_age(created:datetime) -> float:
     elif days_old <= 0.0:
         return 0.0  # created today
     else:
-        return days_old / 365.0 
+        return days_old / 365.0
 ```
 
 ## Views
@@ -494,7 +493,7 @@ Pressing the key or keys corresponding to row number opens a view showing the de
 
 ### Next - the default view
 
-Tasks are ordered by __urgency__. Columns include
+Tasks are ordered by **urgency**. Columns include
 
 - row number (a, b, c, ...)
 - status

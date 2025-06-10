@@ -26,6 +26,7 @@ import string
 import shutil
 import subprocess
 import shlex
+import textwrap
 from typing import Literal
 
 from .model import DatabaseManager
@@ -99,6 +100,22 @@ TYPE_TO_COLOR = {
     ">": BEGIN_COLOR,  # begin
     "!": INBOX_COLOR,  # inbox
 }
+
+
+def wrap_preserve_newlines(text, width=70, initial_indent="", subsequent_indent=""):
+    lines = text.splitlines()  # preserve \n boundaries
+    wrapped_lines = [
+        subline
+        for line in lines
+        for subline in textwrap.wrap(
+            line,
+            width=width,
+            initial_indent=initial_indent,
+            subsequent_indent=subsequent_indent,
+        )
+        or [""]
+    ]
+    return wrapped_lines
 
 
 def format_hours_mins(dt: datetime, mode: Literal["24", "12"]) -> str:
@@ -327,6 +344,8 @@ class Controller:
         self.start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
         self.list_tag_to_id = {}  # Maps tag numbers to event IDs
+        self.width = shutil.get_terminal_size()[0] - 2
+        print(f"{self.width = }")
 
     def get_record_details_as_string(self, record_id):
         """
@@ -358,8 +377,22 @@ class Controller:
             f" [cyan]{field}:[/cyan] [white]{value if value is not None else '[dim]NULL[/dim]'}[/white]"
             for field, value in zip(fields, record)
         )
+
+        lines = []
+        for line in content.split("\n"):
+            lines.extend(
+                [
+                    f"\n{x}"
+                    for x in textwrap.wrap(
+                        value.strip(),
+                        width=self.width,
+                        initial_indent="",
+                        subsequent_indent="   ",
+                    )
+                ]
+            )
         # log_msg(f"Content: {content}")
-        return content
+        return "\n".join(lines)
 
     def get_record(self, record_id):
         return self.db_manager.get_record(record_id)
@@ -523,12 +556,29 @@ class Controller:
 
         fields = ["Id", "itemtype", "subject", "description", "RRule", "Extent"]
         width = max(len(field) for field in fields) + 1
-        content = [
-            f"[{FIELD_COLOR}]{field:<{width}}[/{FIELD_COLOR}] [white]{value if value is not None else '[dim]NULL[/dim]'}[/white]"
-            for field, value in zip(fields, record)
-        ]
-        # log_msg(f"Content: {content}")
-        return content
+
+        lines = []
+        for field, value in zip(fields, record):
+            line = f"[{FIELD_COLOR}]{field:<{width}}[/{FIELD_COLOR}]"
+            if value is None:
+                line += "[dim]NULL[/dim]"
+                lines.append(line)
+            elif len(str(value)) <= self.width - width:
+                line += f"[white]{value}[/white]"
+                lines.append(line)
+            else:
+                wrapped = wrap_preserve_newlines(
+                    value,
+                    width=self.width,
+                    initial_indent=width * " ",
+                    subsequent_indent=width * " ",
+                )
+                line += f"[white]{wrapped.pop(0).lstrip()}"
+                lines.append(line)
+                wrapped[-1] = f"{wrapped[-1]}[/white]"
+                lines.extend(wrapped)
+
+        return lines
 
     def process_tag(self, tag, view: str, selected_week: Tuple[int, int]):
         """
