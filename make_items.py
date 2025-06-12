@@ -39,6 +39,13 @@ def in_one_day():
     return next.strftime("%Y%m%dT%H%M%S")
 
 
+def in_five_days():
+    now = datetime.now().replace(second=0, microsecond=0)
+    delta_minutes = 60 + (15 - now.minute % 15)
+    next = now + timedelta(days=5, minutes=delta_minutes)
+    return next.strftime("%Y%m%dT%H%M%S")
+
+
 def local_dtstr_to_utc_str(local_dt_str: str) -> str:
     """
     Convert a local datetime string to a UTC datetime string.
@@ -200,19 +207,26 @@ items = [
     f"- end of today @d all day event @s {today_date}T235959",
     f"* end of tomorrow @d all day event @s {tomorrow_date}T235959",
     f"* zero extent float @s {tomorrow_date}T100000 @z none",
-    f"* daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",  # ***
-    f"* daily date @s {today_date} @d whatever @c wherever @r d &c 10 @z US/Pacific",
+    f"* daily date @s {today_date} @d *whatever @c wherever @r d &i 3 &c 10 @z US/Pacific",
     f"* single date @s {today_date}",
-    f"* single datetime @s {in_one_hour()} @e 2h30m @b 1d",
-    "- with tags @d This item has a description @t red @t white @t blue",
-    f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
-    f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
+    f"* single datetime @s {in_five_days()} @e 2h30m @b 6d",
+    f"- with tags and description @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
     f"- multiple rdates @s {yesterday_date} @+ {today_date}, {tomorrow_date}",
     f"* multiple rdatetimes @s {in_ten_minutes()} @e {random.choice(duration)}  @+ {in_one_hour()}, {in_one_day()}",
+    # f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
+    # f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
+    f"* daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",  # ***
+    f"""% long formatted description @s {yesterday_date} 
+    @d Title 
+    1. This 
+       i. with part one
+       ii. and this 
+    2. And finally this. @t test @l label
+    """,
 ]
 
 records = []
-num_items = 0
+num_items = 100
 while len(items) < num_items:
     t = random.choice(types)
     name = phrase()
@@ -246,4 +260,6 @@ for entry in items:
     print(f"{item = }")
 
     dbm.add_item(item)
+dbm.populate_dependent_tables()
+
 print(f"Inserted {num_items} records into the database, last_id {id}.")

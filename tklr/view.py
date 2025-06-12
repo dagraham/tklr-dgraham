@@ -153,7 +153,7 @@ def calculate_4_week_start():
 HelpText = f"""\
 [bold][{TITLE_COLOR}]TKLR {VERSION}[/{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Application Keys[/{HEADER_COLOR}][/bold]
-  [bold]Q[/bold]:         Quit etm
+  [bold]Q[/bold]:         Quit etm            [bold]S[/bold]:       Take Screenshot
 [bold][{HEADER_COLOR}]View[/{HEADER_COLOR}][/bold]
   [bold]W[/bold]:           Weeks view        [bold]N[/bold]:       Next occurrences 
   [bold]F[/bold]:           Find in items     [bold]L[/bold]:       Last occurrences 
@@ -181,7 +181,7 @@ class DetailsScreen(Screen):
         self.lines = details[1:]
         self.footer = [
             "",
-            "[bold yellow]ESC[/bold yellow] return to previus screen",
+            "[bold yellow]ESC[/bold yellow] return to previous screen",
         ]
 
     def compose(self) -> ComposeResult:
@@ -374,7 +374,7 @@ class DynamicViewApp(App):
     CSS_PATH = "view_textual.css"
 
     digit_buffer = reactive([])
-    afill = 1
+    # afill = 1
     search_term = reactive("")
 
     BINDINGS = [
@@ -406,6 +406,25 @@ class DynamicViewApp(App):
         self.view_mode = "list"
         self.view = "week"
         self.saved_lines = []
+        self.afill = 1
+        log_msg(f"{self.afill = }")
+
+    def set_afill(self, details: list, method: str):
+        if self.view == "week":
+            log_msg(f"{self.selected_week = }")
+            tag_to_id = self.controller.tag_to_id[self.selected_week]
+        elif self.view in ["next", "last", "find"]:
+            tag_to_id = self.controller.list_tag_to_id[self.view]
+        elif self.view == "alerts":
+            tag_to_id = self.controller.list_tag_to_id["alerts"]
+        else:
+            return ["Invalid view."]
+        num_tags = len(tag_to_id.keys())
+        new_afill = 1 if num_tags <= 26 else 2 if num_tags <= 676 else 3
+        if new_afill != self.afill:
+            old_afill = self.afill
+            self.afill = new_afill
+            log_msg(f"view reset afill in {method} from {old_afill} -> {self.afill}")
 
     async def on_mount(self):
         self.action_show_weeks()
@@ -417,6 +436,8 @@ class DynamicViewApp(App):
 
     def on_key(self, event):
         """Handle key events."""
+        log_msg(f"{self.afill = }")
+
         if event.key in "abcdefghijklmnopqrstuvwxyz":
             # Handle lowercase letters
             self.digit_buffer.append(event.key)
@@ -446,14 +467,15 @@ class DynamicViewApp(App):
         )
         list_title = details[0] if details else "Untitled"
         details = details[1:] if details else []
-        self.afill = 1 if len(details) <= 26 else 2 if len(details) <= 676 else 3
+        log_msg(f"{len(details) = }")
+        self.set_afill(details, "action_show_weeks")
         footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
         self.push_screen(WeeksScreen(title, table, list_title, details, footer))
 
     def action_show_last(self):
         self.view = "last"
         details = self.controller.get_last()
-        self.afill = 1 if len(details) <= 26 else 2 if len(details) <= 676 else 3
+        self.set_afill(details, "action_show_last")
         footer = (
             "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] ESC Back"
         )
@@ -462,7 +484,8 @@ class DynamicViewApp(App):
     def action_show_next(self):
         self.view = "next"
         details = self.controller.get_next()
-        self.afill = 1 if len(details) <= 26 else 2 if len(details) <= 676 else 3
+        self.set_afill(details, "action_show_next")
+
         footer = (
             "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] ESC Back"
         )
@@ -477,7 +500,8 @@ class DynamicViewApp(App):
     def action_show_alerts(self):
         self.view = "alerts"
         details = self.controller.get_active_alerts()
-        self.afill = 1 if len(details) <= 26 else 2 if len(details) <= 676 else 3
+        self.set_afill(details, "action_show_alerts")
+
         footer = (
             "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] ESC Back"
         )
@@ -490,7 +514,7 @@ class DynamicViewApp(App):
         if event.input.id == "find_input":
             self.view = "find"
             results = self.controller.find_records(search_term)
-            self.afill = 1 if len(results) <= 26 else 2 if len(results) <= 676 else 3
+            self.set_afill(results, "on_input_submitted")
             footer = "[bold yellow]?[/bold yellow] Help ESC Back / Search"
             self.push_screen(FullScreenList(results, footer))
 
