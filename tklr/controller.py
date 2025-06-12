@@ -103,6 +103,70 @@ TYPE_TO_COLOR = {
 }
 
 
+def format_tokens(tokens, width):
+    # tokens = json.loads(structured_tokens)
+    # output_lines = ["[cyan]entry:[/cyan]"]
+    output_lines = []
+    current_line = ""
+
+    for i, t in enumerate(tokens):
+        token = t["token"].rstrip()
+        key = t.get("key", "")
+
+        if t["t"] == "itemtype":
+            current_line = "entry: "
+
+        if key == "@d":
+            # Handle @d block: always on its own, preserve and wrap content
+            if current_line:
+                output_lines.append(current_line)
+                current_line = ""
+            output_lines.append("")  # extra newline before @d
+            wrapped_lines = []
+            for line in token.splitlines():
+                indent = len(line) - len(line.lstrip(" "))
+                wrap = textwrap.wrap(line, width=width, subsequent_indent=" " * indent)
+                wrapped_lines.extend(wrap or [""])
+            output_lines.extend(wrapped_lines)
+            output_lines.append("")  # extra newline after @d
+            continue
+
+        # Calculate length if this token is added to current_line
+        if len(current_line) + len(token) + 1 > width:
+            output_lines.append(current_line)
+            current_line = ""
+
+        if current_line:
+            current_line += " "
+
+        # current_line += f"{token} "
+        current_line += token
+
+    if current_line:
+        output_lines.append(current_line)
+
+    def highlight(line):
+        # Highlight @x and &x preceded by space or line start, followed by space
+        return re.sub(
+            r"(^|(?<=\s))([@&]\S\s)",
+            lambda m: m.group(1) + f"[yellow]{m.group(2)}[/yellow]",
+            line,
+        )
+
+    if (
+        len(output_lines) >= 1
+        and output_lines[0]
+        and output_lines[0].startswith("entry: ")
+    ):
+        line = output_lines.pop(0)
+        line = f"[cyan]entry:[/cyan] [bold yellow]{line[8]}[/bold yellow]{line[9:]}"
+        # line = f"[bold yellow]{line[4]}[/bold yellow]{line[5:]}"
+        output_lines.insert(0, line)
+    log_msg(f"{output_lines = }")
+
+    return "\n".join(highlight(line) for line in output_lines)
+
+
 def wrap_preserve_newlines(text, width=70, initial_indent="", subsequent_indent=""):
     lines = text.splitlines()  # preserve \n boundaries
     wrapped_lines = [
@@ -346,80 +410,112 @@ class Controller:
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
         self.list_tag_to_id = {}  # Maps tag numbers to event IDs
         self.width = shutil.get_terminal_size()[0] - 2
+        self.afill = 1
         print(f"{self.width = }")
 
-    def get_structured_tokens(self, record_id: int) -> list[dict]:
-        """
-        Retrieve the structured_tokens field from a record and return it as a list of dictionaries.
-        Returns an empty list if the field is null, empty, or if the record is not found.
-        """
-        self.db_manager.cursor.execute(
-            "SELECT structured_tokens FROM Records WHERE id = ?", (record_id,)
-        )
-        result = self.db_manager.cursor.fetchone()
+    def set_afill(self, details: list, method: str):
+        new_afill = 1 if len(details) <= 26 else 2 if len(details) <= 676 else 3
+        if new_afill != self.afill:
+            old_afill = self.afill
+            self.afill = new_afill
+            log_msg(
+                f"controller reset afill in {method} from {old_afill} -> {self.afill}"
+            )
 
-        if result and result[0]:
-            try:
-                return json.loads(result[0])
-            except json.JSONDecodeError:
-                log_msg(f"⚠️ Could not decode structured_tokens for record {record_id}")
+        # def get_structured_tokens(self, record_id: int) -> list[str]:
+        #     """
+        #     Retrieve the structured_tokens field from a record and return it as a list of dictionaries.
+        #     Returns an empty list if the field is null, empty, or if the record is not found.
+        #     """
+        #     self.db_manager.cursor.execute(
+        #         "SELECT structured_tokens, created, modified FROM Records WHERE id = ?",
+        #         (record_id,),
+        #     )
+        #     return [
+        #         (structured_tokens, created, modified)
+        #         for (structured_tokens, created, modified) in self.cursor.fetchall()
+        #     ]
+
+        # result = self.db_manager.cursor.fetchone()
+        #
+        # if result and result[0]:
+        #     try:
+        #         return json.loads(result[0]), created, modified
+        #     except json.JSONDecodeError:
+        #         log_msg(f"⚠️ Could not decode structured_tokens for record {record_id}")
         return []
 
     def get_entry(self, record_id):
-        structured_tokens = selfl.get_structured_tokens(record_id)
-        entry_str = " ".join([t["token"] for t in structured_tokens])
-        return entry_str 
-
-    def get_entry_as_string(self, record_id):
-        """
-        Retrieve and format the entry of a record as a string.
-
-        Args:
-            record_id (int): The ID of the record to retrieve.
-
-        Returns:
-            str: A formatted string with the record's entry.
-        """
-        # log_msg(f"Fetching description for record ID {record_id}")
-        self.db_manager.cursor.execute(
-            """
-            SELECT id, structured_tokens
-            FROM Records
-            WHERE id = ?
-            """,
-            (record_id,),
-        )
-        record = self.db_manager.cursor.fetchone()
-        # log_msg(f"Record: {record = }")
-
-        if not record:
-            return f"[red]No record found for ID {record_id}[/red]"
-        
-        for record_id, structured_token 
-
-
-        fields = ["Id", "structured_tokens"]
-        
-        content = "\n".join(
-            f" [cyan]{field}:[/cyan] [white]{value if value is not None else '[dim]NULL[/dim]'}[/white]"
-            for field, value in zip(fields, record)
-        )
-
+        result = self.db_manager.get_structured_tokens(record_id)
+        tokens, rruleset, created, modified = result[0]
+        entry = format_tokens(tokens, self.width)
+        # entry = f"\n{2 * ' '}".join(entry.splitlines())
+        # log_msg(f"{result = }")
+        rruleset = f"\n{10 * ' '}".join(rruleset.splitlines())
+        log_msg(f"{entry = }, {rruleset = }, {created = }, {modified = }")
+        # # lines = ["details", f"[cyan]Id:[/cyan]{record_id}"]
         lines = []
-        for line in content.split("\n"):
-            lines.extend(
-                [
-                    f"\n{x}"
-                    for x in textwrap.wrap(
-                        value.strip(),
-                        width=self.width,
-                        initial_indent="",
-                        subsequent_indent="   ",
-                    )
-                ]
-            )
-        # log_msg(f"Content: {content}")
-        return "\n".join(lines)
+        lines.extend(
+            [
+                f"{entry}",
+                "",
+                f"[cyan]rruleset:[/cyan] {rruleset}",
+                f"[cyan]created:[/cyan]  {created}",
+                f"[cyan]modified:[/cyan] {modified}",
+            ]
+        )
+        return lines
+
+    # def get_entry_as_string(self, record_id):
+    #     """
+    #     Retrieve and format the entry of a record as a string.
+    #
+    #     Args:
+    #         record_id (int): The ID of the record to retrieve.
+    #
+    #     Returns:
+    #         str: A formatted string with the record's entry.
+    #     """
+    #     # log_msg(f"Fetching description for record ID {record_id}")
+    #     self.db_manager.cursor.execute(
+    #         """
+    #         SELECT id, structured_tokens
+    #         FROM Records
+    #         WHERE id = ?
+    #         """,
+    #         (record_id,),
+    #     )
+    #     record = self.db_manager.cursor.fetchone()
+    #     # log_msg(f"Record: {record = }")
+    #
+    #     if not record:
+    #         return f"[red]No record found for ID {record_id}[/red]"
+    #
+    #     for record_id, structured_token
+    #
+    #
+    #     fields = ["Id", "structured_tokens"]
+    #
+    #     content = "\n".join(
+    #         f" [cyan]{field}:[/cyan] [white]{value if value is not None else '[dim]NULL[/dim]'}[/white]"
+    #         for field, value in zip(fields, record)
+    #     )
+    #
+    #     lines = []
+    #     for line in content.split("\n"):
+    #         lines.extend(
+    #             [
+    #                 f"\n{x}"
+    #                 for x in textwrap.wrap(
+    #                     value.strip(),
+    #                     width=self.width,
+    #                     initial_indent="",
+    #                     subsequent_indent="   ",
+    #                 )
+    #             ]
+    #         )
+    #     # log_msg(f"Content: {content}")
+    #     return "\n".join(lines)
 
     def get_record(self, record_id):
         return self.db_manager.get_record(record_id)
@@ -519,7 +615,8 @@ class Controller:
         )
 
         self.list_tag_to_id.setdefault("alerts", {})
-        self.afill = 1 if len(alerts) <= 26 else 2 if len(alerts) <= 676 else 3
+        # self.afill = 1 if len(alerts) <= 26 else 2 if len(alerts) <= 676 else 3
+        self.set_afill(alerts, "get_active_alerts")
         indx = 0
         tag = indx_to_tag(indx, self.afill)
         for alert in alerts:
@@ -625,16 +722,16 @@ class Controller:
             return [
                 "Invalid view.",
             ]
+        self.num_tags = len(tag_to_id.keys())
 
         # description = [f"Tag [{SELECTED_COLOR}]{tag}[/{SELECTED_COLOR}] description"]
         if tag in tag_to_id:
             record_id = tag_to_id[tag]
-            description = [
-                f"details for [{SELECTED_COLOR}]{record_id}[/{SELECTED_COLOR}]"
-            ]
+            description = ["details", f"[cyan]id:[/cyan] {record_id}"]
             # log_msg(f"Tag '{tag}' corresponds to record ID {record_id}")
             # description = self.get_record_details_as_string(record_id)
-            fields = self.get_record_details(record_id)
+            # fields = self.get_record_details(record_id)
+            fields = self.get_entry(record_id)
             return description + fields
 
         return [f"There is no item corresponding to tag '{tag}'."]
@@ -811,7 +908,9 @@ class Controller:
             return description
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
-        self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
+        # self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
+        # log_msg(f"{len(events) = }, {self.afill = }")
+        self.set_afill(events, "get_week_details")
 
         self.tag_to_id.setdefault(yr_wk, {})
         weekday_to_events = {}
@@ -902,7 +1001,8 @@ class Controller:
             return display
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
-        self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
+        # self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
+        self.set_afill(events, "get_next")
 
         self.list_tag_to_id.setdefault("next", {})
         yr_mnth_to_events = {}
@@ -956,7 +1056,8 @@ class Controller:
             return display
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
-        self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
+        # self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
+        self.set_afill(events, "get_last")
 
         self.list_tag_to_id.setdefault("last", {})
         yr_mnth_to_events = {}
@@ -1008,7 +1109,8 @@ class Controller:
             return description
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
-        self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
+        # self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
+        self.set_afill(events, "find_records")
 
         self.list_tag_to_id.setdefault("find", {})
 

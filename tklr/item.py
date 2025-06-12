@@ -630,7 +630,7 @@ class Item:
         self.job_tokens = []
         self.token_store = None
         self.rrules = []
-        self.jobs = []
+        self.jobset = []
         self.tags = []
         # self.tag_str = ""
         self.alerts = []
@@ -686,9 +686,9 @@ class Item:
         # Only build jobs if @j group exists
         if self.collect_grouped_tokens({"j"}):
             # print("building jobs")
-            jobs = self.build_jobs()
+            jobset = self.build_jobs()
             # print(f"{jobs = }")
-            success, finalized = self.finalize_jobs(jobs)
+            success, finalized = self.finalize_jobs(jobset)
             # print(f"{success = }, {finalized = }")
 
         if "s" in self.item and "z" not in self.item:
@@ -1088,8 +1088,8 @@ class Item:
                     self.rrules.append(result)
                     self._dispatch_sub_tokens(sub_tokens, "r")
                 elif token_type == "j":
-                    # print(f"appending {result} to self.jobs")
-                    self.jobs.append(result)
+                    # print(f"appending {result} to self.jobset")
+                    self.jobset.append(result)
                     self._dispatch_sub_tokens(sub_tokens, "j")
                 # elif token_type == "+":
                 #     self.rdates.extend(result)
@@ -1153,7 +1153,7 @@ class Item:
             "tags": self.tag_str,
             "alerts": self.alert_str,
             "context": self.context,
-            "jobs": self.jobs,
+            "jobset": self.jobset,
             # "structured_tokens": self.structured_tokens,
         }
 
@@ -2004,7 +2004,7 @@ class Item:
 
     def build_jobs(self):
         """
-        Build self.jobs from @j + &... token groups in self.structured_tokens.
+        Build self.jobset from @j + &... token groups in self.structured_tokens.
         Handles node (indentation after @j), job name, and any &-key metadata.
         """
         job_groups = self.collect_grouped_tokens({"j"})
@@ -2175,13 +2175,21 @@ class Item:
             req = prereqs.get(i, [])
             if req:
                 job["prereqs"] = req
+            if i in available:
+                job["status"] = "available"
+            elif i in waiting:
+                job["status"] = "waiting"
+            elif i in finished:
+                job["status"] = "finished"
+
             print(f"  {job})")
             jobs.append(job)
 
         self.item["j"] = jobs
         # json_jobs = json.dumps(jobs, indent=2)
-        json_jobs = json.dumps(jobs, cls=CustomJSONEncoder)
-        print(json_jobs)
+        jobset = json.dumps(jobs, cls=CustomJSONEncoder)
+        print(f"{jobset = }")
+        self.jobset = jobset
 
         print("prereqs")
         for i, reqs in prereqs.items():

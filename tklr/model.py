@@ -4,8 +4,6 @@ import sqlite3
 import json
 from typing import Optional
 
-# from bisect import bisect_left, bisect_right
-# from collections import defaultdict
 from datetime import datetime, date, timedelta
 from dateutil.rrule import rrulestr
 from typing import List, Tuple
@@ -19,7 +17,6 @@ from .shared import (
     duration_in_words,
     datetime_in_words,
 )
-# from .item import Item
 
 import re
 
@@ -46,6 +43,11 @@ def regexp(pattern, value):
 DEFAULT_LOG_FILE = "log_msg.md"
 
 
+def utc_now_string():
+    """Return current UTC time as 'YYYYMMDDTHHMMSS'."""
+    return datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+
+
 def is_date(obj):
     return isinstance(obj, date) and not isinstance(obj, datetime)
 
@@ -58,8 +60,6 @@ def td_str_to_td(duration_str: str) -> timedelta:
         sign = duration_str[0]
         duration_str = duration_str[1:]
 
-    # pattern = r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
-    # pattern = r"(?:(\d+)d)?(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
     pattern = r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
     match = re.fullmatch(pattern, duration_str.strip())
     if not match:
@@ -79,7 +79,6 @@ def td_str_to_seconds(duration_str: str) -> int:
         sign = duration_str[0]
         duration_str = duration_str[1:]
 
-    # pattern = r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
     pattern = r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
     match = re.fullmatch(pattern, duration_str.strip())
     if not match:
@@ -108,8 +107,7 @@ def dt_to_dtstr(dt_obj: datetime) -> str:
     """Convert a datetime object to 'YYYYMMDDTHHMMSS' format."""
     if is_date:
         return dt_obj.strftime("%Y%m%d")
-    else:
-        return dt_obj.strftime("%Y%m%dT%H%M%S")
+    return dt_obj.strftime("%Y%m%dT%H%M%S")
 
 
 def td_to_tdstr(td_obj: timedelta) -> str:
@@ -161,7 +159,8 @@ class DatabaseManager:
         self.populate_tags()  # NEW: Populate Tags + RecordTags
         self.populate_alerts()  # Populate today's alerts
         log_msg("calling beginby")
-        self.get_pending_beginby_items()
+        self.populate_beginby()
+
         log_msg("back from beginby")
 
     def setup_database(self):
@@ -172,8 +171,8 @@ class DatabaseManager:
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Records (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                itemtype TEXT, 
-                subject TEXT NOT NULL,
+                itemtype TEXT,
+                subject TEXT,
                 description TEXT,
                 rruleset TEXT,
                 timezone TEXT,
@@ -181,10 +180,12 @@ class DatabaseManager:
                 alerts TEXT,
                 beginby TEXT,
                 context TEXT,
-                jobs TEXT DEFAULT '[]',
-                tags TEXT DEFAULT '[]',
-                structured_tokens TEXT DEFAULT '[]',
-                processed INTEGER DEFAULT 0
+                jobs TEXT,
+                tags TEXT,
+                structured_tokens TEXT,
+                processed INTEGER,
+                created TEXT,     -- UTC timestamp in 'YYYYMMDDTHHMMSS'
+                modified TEXT     -- UTC timestamp in 'YYYYMMDDTHHMMSS'
             );
         """)
 
@@ -248,38 +249,177 @@ class DatabaseManager:
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
             )
         """)
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS Beginby (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id INTEGER NOT NULL,
+                days_remaining INTEGER NOT NULL,
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+            )
+            """
+        )
+
         self.conn.commit()
+
+    def populate_dependent_tables(self):
+        """Populate all tables derived from current Records (Tags, DateTimes, Alerts, Beginby)."""
+        yr, wk = datetime.now().isocalendar()[:2]
+        log_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
+        self.extend_datetimes_for_weeks(yr, wk, 12)
+        self.populate_tags()
+        self.populate_alerts()
+        self.populate_beginby()
 
     def add_item(self, item: Item):
         print(f"{item = }")
         try:
+            timestamp = utc_now_string()
             self.cursor.execute(
                 """
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
                     extent, alerts, beginby, context, jobs, tags,
-                    structured_tokens, processed
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    structured_tokens, processed, created, modified
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.itemtype,
                     item.subject,
                     item.description,
                     item.rruleset,
-                    item.tz_str,  # if item.timezone else None,
-                    item.extent,  # assuming this is a string, e.g. "1h30m"
+                    item.tz_str,
+                    item.extent,
                     json.dumps(item.alerts),
                     item.beginby,
-                    item.context,  # if present; else set to None or derive from tags
+                    item.context,
                     json.dumps(item.jobs),
                     json.dumps(item.tags),
                     json.dumps(item.structured_tokens),
-                    0,  # unprocessed by default
+                    0,
+                    timestamp,  # created
+                    timestamp,  # modified (same on insert)
                 ),
             )
             self.conn.commit()
         except Exception as e:
             print(f"Error adding {item}: {e}")
+
+    def update_item(self, record_id: int, item: Item):
+        """
+        Update an existing record with new values from an Item object.
+        Only non-None fields in the item will be updated.
+        The 'modified' timestamp is always updated.
+        """
+        try:
+            fields = []
+            values = []
+
+            # Map of field names to item attributes
+            field_map = {
+                "itemtype": item.itemtype,
+                "subject": item.subject,
+                "description": item.description,
+                "rruleset": item.rruleset,
+                "timezone": item.tz_str,
+                "extent": item.extent,
+                "alerts": json.dumps(item.alerts) if item.alerts is not None else None,
+                "beginby": item.beginby,
+                "context": item.context,
+                "jobs": json.dumps(item.jobs) if item.jobs is not None else None,
+                "tags": json.dumps(item.tags) if item.tags is not None else None,
+                "structured_tokens": json.dumps(item.structured_tokens)
+                if item.structured_tokens is not None
+                else None,
+                "processed": 0,  # reset processed
+            }
+
+            for field, value in field_map.items():
+                if value is not None:
+                    fields.append(f"{field} = ?")
+                    values.append(value)
+
+            # Always update 'modified' timestamp
+            fields.append("modified = ?")
+            values.append(utc_now_string())
+
+            values.append(record_id)
+
+            sql = f"UPDATE Records SET {', '.join(fields)} WHERE id = ?"
+            self.cursor.execute(sql, values)
+            self.conn.commit()
+        except Exception as e:
+            print(f"Error updating record {record_id}: {e}")
+
+    def save_record(self, item: Item, record_id: int | None = None):
+        """Insert or update a record and refresh associated tables."""
+        timestamp = utc_now_string()
+
+        if record_id is None:
+            # Insert new record
+            self.cursor.execute(
+                """
+                INSERT INTO Records (
+                    itemtype, subject, description, rruleset, timezone,
+                    extent, alerts, beginby, context, jobs, tags,
+                    structured_tokens, processed, created, modified
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    item.itemtype,
+                    item.subject,
+                    item.description,
+                    item.rruleset,
+                    item.tz_str,
+                    item.extent,
+                    json.dumps(item.alerts),
+                    item.beginby,
+                    item.context,
+                    json.dumps(item.jobs),
+                    json.dumps(item.tags),
+                    json.dumps(item.structured_tokens),
+                    0,
+                    timestamp,
+                    timestamp,
+                ),
+            )
+            record_id = self.cursor.lastrowid
+        else:
+            # Update existing record
+            self.cursor.execute(
+                """
+                UPDATE Records
+                SET itemtype = ?, subject = ?, description = ?, rruleset = ?, timezone = ?,
+                    extent = ?, alerts = ?, beginby = ?, context = ?, jobs = ?, tags = ?,
+                    structured_tokens = ?, modified = ?
+                WHERE id = ?
+                """,
+                (
+                    item.itemtype,
+                    item.subject,
+                    item.description,
+                    item.rruleset,
+                    item.tz_str,
+                    item.extent,
+                    json.dumps(item.alerts),
+                    item.beginby,
+                    item.context,
+                    json.dumps(item.jobs),
+                    json.dumps(item.tags),
+                    json.dumps(item.structured_tokens),
+                    timestamp,
+                    record_id,
+                ),
+            )
+
+        self.conn.commit()
+
+        # Refresh auxiliary tables
+        self.update_tags_for_record(record_id, item.tags)
+        self.generate_datetimes_for_record(record_id)
+        self.populate_alerts_for_record(record_id)
+        if item.beginby:
+            self.populate_beginby_for_record(record_id)
 
     def get_due_alerts(self):
         """Retrieve alerts that need execution within the next 6 seconds."""
@@ -390,8 +530,6 @@ class DatabaseManager:
             log_msg(f"❌ Alert command not found for '{command_name}'")
             return None  # Explicitly return None if command is missing
 
-        # today = date.today()
-        # today_fmt = today.strftime("%Y-%m-%d")
         name = record_name
         description = record_description
         location = record_location
@@ -404,7 +542,6 @@ class DatabaseManager:
             when = f"{duration_in_words(-timedelta)} ago"
 
         start = format_datetime(start_datetime, HRS_MINS)
-        # time_fmt = start_time if start_date == today_fmt else start_date
         time_fmt = datetime_in_words(start_datetime)
 
         alert_command = alert_command.format(
@@ -417,6 +554,53 @@ class DatabaseManager:
         )
         log_msg(f"formatted alert {alert_command = }")
         return alert_command
+
+    def get_beginby_for_today(self):
+        self.cursor.execute("""
+            SELECT Records.itemtype, Records.subject, Beginby.days_remaining
+            FROM Beginby
+            JOIN Records ON Beginby.record_id = Records.id
+            ORDER BY Beginby.days_remaining ASC
+        """)
+        return [
+            (
+                record_id,
+                itemtype,
+                subject,
+                int(round(days_remaining)),
+            )
+            for (
+                record_id,
+                itemtype,
+                subject,
+                days_remaining,
+            ) in self.cursor.fetchall()
+        ]
+
+    def get_structured_tokens(self, record_id: int):
+        """
+        Retrieve the structured_tokens field from a record and return it as a list of dictionaries.
+        Returns an empty list if the field is null, empty, or if the record is not found.
+        """
+        self.cursor.execute(
+            "SELECT structured_tokens, rruleset, created, modified FROM Records WHERE id = ?",
+            (record_id,),
+        )
+        return [
+            (
+                # " ".join([t["token"] for t in json.loads(structured_tokens)]),
+                json.loads(structured_tokens),
+                rruleset,
+                created,
+                modified,
+            )
+            for (
+                structured_tokens,
+                rruleset,
+                created,
+                modified,
+            ) in self.cursor.fetchall()
+        ]
 
     def populate_tags(self):
         """
@@ -546,6 +730,73 @@ class DatabaseManager:
         self.conn.commit()
         log_msg("✅ Alerts table updated with today's relevant alerts.")
 
+    def populate_alerts_for_record(self, record_id: int):
+        """Regenerate alerts for a specific record, but only if any are scheduled for today."""
+
+        # Clear old alerts for this record
+        self.cursor.execute("DELETE FROM Alerts WHERE record_id = ?", (record_id,))
+
+        # Look up the record’s alert data and start datetimes
+        self.cursor.execute(
+            """
+            SELECT R.subject, R.description, R.context, R.alerts, D.start_datetime 
+            FROM Records R
+            JOIN DateTimes D ON R.id = D.record_id
+            WHERE R.id = ? AND R.alerts IS NOT NULL AND R.alerts != ''
+            """,
+            (record_id,),
+        )
+        records = self.cursor.fetchall()
+        if not records:
+            log_msg(f"🔕 No alerts to populate for record {record_id}")
+            return
+
+        now = round(datetime.now().timestamp())
+        midnight = round(
+            datetime.now().replace(hour=23, minute=59, second=59).timestamp()
+        )
+
+        for subject, description, context, alerts_json, start_ts in records:
+            # start_dt = datetime.fromtimestamp(start_ts)
+            alerts = json.loads(alerts_json)
+            for alert in alerts:
+                if ":" not in alert:
+                    continue
+                time_part, command_part = alert.split(":")
+                timedelta_values = [
+                    td_to_seconds(t.strip()) for t in time_part.split(",")
+                ]
+                commands = [cmd.strip() for cmd in command_part.split(",")]
+
+                for td in timedelta_values:
+                    trigger = start_ts - td
+                    if now <= trigger < midnight:
+                        for name in commands:
+                            alert_command = self.create_alert(
+                                name,
+                                td,
+                                start_ts,
+                                record_id,
+                                subject,
+                                description,
+                                context,
+                            )
+                            if alert_command:
+                                self.cursor.execute(
+                                    "INSERT INTO Alerts (record_id, record_name, trigger_datetime, start_datetime, alert_name, alert_command) VALUES (?, ?, ?, ?, ?, ?)",
+                                    (
+                                        record_id,
+                                        subject,
+                                        trigger,
+                                        start_ts,
+                                        name,
+                                        alert_command,
+                                    ),
+                                )
+
+        self.conn.commit()
+        log_msg(f"✅ Alerts updated for record {record_id}")
+
     def extend_datetimes_for_weeks(self, start_year, start_week, weeks):
         """
         Extend the DateTimes table by generating data for the specified number of weeks
@@ -561,7 +812,7 @@ class DatabaseManager:
 
         start_year, start_week = start.isocalendar()[:2]
         end_year, end_week = end.isocalendar()[:2]
-        beg_year, beg_week = datetime.min.isocalendar()[:2]
+        # beg_year, beg_week = datetime.min.isocalendar()[:2]
         # log_msg(f"Generating weeks {beg_year}-{beg_week} to {end_year}-{end_week}")
 
         self.cursor.execute(
@@ -723,6 +974,70 @@ class DatabaseManager:
 
         return results
 
+    def generate_datetimes_for_record(self, record_id: int):
+        """
+        Regenerate DateTimes entries for a single record.
+        This mirrors logic from generate_datetimes_for_period but for one record.
+        """
+
+        # Fetch the record's recurrence data
+        self.cursor.execute(
+            "SELECT rruleset, extent FROM Records WHERE id = ?", (record_id,)
+        )
+        result = self.cursor.fetchone()
+        if not result:
+            log_msg(f"⚠️ No record found with id {record_id}")
+            return
+
+        rruleset, extent = result
+
+        # Clean and normalize the rruleset string
+        rule_str = rruleset.replace("\\N", "\n").replace("\\n", "\n")
+
+        try:
+            # Clear existing datetimes for this record
+            self.cursor.execute(
+                "DELETE FROM DateTimes WHERE record_id = ?", (record_id,)
+            )
+
+            # Determine if the recurrence is finite
+            is_finite = (
+                "RRULE" not in rule_str or "COUNT=" in rule_str or "UNTIL=" in rule_str
+            )
+
+            if is_finite:
+                occurrences = self.generate_datetimes(
+                    rule_str, extent, datetime.min, datetime.max
+                )
+                self.cursor.execute(
+                    "UPDATE Records SET processed = 1 WHERE id = ?", (record_id,)
+                )
+            else:
+                # For infinite recurrences, only generate a 12-week forward window
+                start = datetime.now()
+                end = start + timedelta(weeks=12)
+                occurrences = self.generate_datetimes(rule_str, extent, start, end)
+
+            for start_dt, end_dt in occurrences:
+                self.cursor.execute(
+                    """
+                    INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
+                    VALUES (?, ?, ?)
+                    """,
+                    (
+                        record_id,
+                        int(start_dt.timestamp()),
+                        int(end_dt.timestamp()),
+                    ),
+                )
+
+            self.conn.commit()
+
+        except Exception as e:
+            log_msg(
+                f"⚠️ Error processing rruleset {rule_str} for record_id {record_id}: {e}"
+            )
+
     def get_events_for_period(self, start_date, end_date):
         """
         Retrieve all events that occur or overlap within a specified period,
@@ -769,9 +1084,6 @@ class DatabaseManager:
         grouped_events = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
         for start_ts, end_ts, itemtype, subject, id in events:
-            # Convert timestamps to localized datetime objects
-            # if start_ts == end_ts:
-            #     log_msg(f"Event {name} has zero duration")
             start_dt = (
                 datetime.utcfromtimestamp(start_ts)
                 .replace(tzinfo=gettz("UTC"))
@@ -788,7 +1100,7 @@ class DatabaseManager:
             # Process and split events across day boundaries
             while start_dt.date() <= end_dt.date():
                 # Compute the end time for the current day
-                zero_duration = start_dt == end_dt
+                # zero_duration = start_dt == end_dt
                 # if zero_duration:
                 #     log_msg(f"zero_duration item: {name}")
                 day_end = min(
@@ -814,31 +1126,51 @@ class DatabaseManager:
 
         return grouped_events
 
-    def get_pending_beginby_items(self) -> list[str]:
-        log_msg("processing beginby items")
-        now = round(datetime.now().timestamp())
+    def populate_beginby(self):
+        """
+        Populate the Beginby table for all records with valid beginby entries.
+        This clears existing entries and recomputes them from current record data.
+        """
+        self.cursor.execute("DELETE FROM Beginby;")
+        self.conn.commit()
+
+        # Fetch both record_id and beginby value
         self.cursor.execute(
-            """
-            SELECT R.id, R.subject, D.start_datetime, R.beginby
-            FROM Records R
-            JOIN DateTimes D ON R.id = D.record_id
-            WHERE R.beginby IS NOT NULL AND R.beginby != ''
-            """
+            "SELECT id, beginby FROM Records WHERE beginby IS NOT NULL AND beginby != ''"
         )
-        results = []
-        for record_id, subject, start_ts, beginby_str in self.cursor.fetchall():
-            log_msg(f"{beginby_str = }")
-            try:
-                td = td_str_to_td(beginby_str)
-                log_msg(f"{td = }")
-                beginby_ts = start_ts - td.total_seconds()
-                if beginby_ts <= now < start_ts:
-                    dt = datetime.fromtimestamp(start_ts).strftime("%Y-%m-%d %H:%M")
-                    results.append(f"⏳ '{subject}' scheduled for {dt} is approaching.")
-            except Exception as e:
-                log_msg(f"⚠️ Error processing beginby for {record_id}: {e}")
-        log_msg(f"{results = }")
-        return results
+        for record_id, beginby in self.cursor.fetchall():
+            self.populate_beginby_for_record(record_id)
+
+        self.conn.commit()
+
+    def populate_beginby_for_record(self, record_id: int):
+        self.cursor.execute("SELECT beginby FROM Records WHERE id = ?", (record_id,))
+        row = self.cursor.fetchone()
+        if not row or not row[0]:
+            return  # no beginby for this record
+        beginby_str = row[0]
+
+        self.cursor.execute(
+            "SELECT start_datetime FROM DateTimes WHERE record_id = ?", (record_id,)
+        )
+        occurrences = self.cursor.fetchall()
+
+        today = date.today()
+        # today_start = datetime.combine(today, datetime.min.time())
+
+        offset = td_str_to_td(beginby_str)
+
+        for (start_ts,) in occurrences:
+            scheduled_dt = datetime.fromtimestamp(start_ts)
+            beginby_dt = scheduled_dt - offset
+            if beginby_dt.date() <= today < scheduled_dt.date():
+                days_remaining = (scheduled_dt.date() - today).days
+                self.cursor.execute(
+                    "INSERT INTO Beginby (record_id, days_remaining) VALUES (?, ?)",
+                    (record_id, days_remaining),
+                )
+
+        self.conn.commit()
 
     def get_last_instances(self) -> List[Tuple[int, str, str, str, datetime]]:
         """
