@@ -1,4 +1,5 @@
 import random
+import os
 from datetime import datetime, timedelta
 from rich import print
 from tklr.item import Item
@@ -92,7 +93,7 @@ def week(dt: datetime) -> Union[datetime, datetime]:
     return wk_beg.date(), wk_end.date()
 
 
-dbm = DatabaseManager("tklr.db", reset=True)
+dbm = DatabaseManager("./example/tklr.db", reset=True)
 # Insert the UTC records into the database
 
 num_items = 20

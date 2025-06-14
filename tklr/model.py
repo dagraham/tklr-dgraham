@@ -145,6 +145,7 @@ class DatabaseManager:
             reset (bool): Whether to replace the existing database.
         """
         self.db_path = db_path
+        print(f"using {self.db_path = }")
         if reset and os.path.exists(db_path):
             os.remove(db_path)
         self.conn = sqlite3.connect(self.db_path)

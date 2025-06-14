@@ -20,13 +20,6 @@ def initialize_database(path):
     conn.close()
 
 
-env = TklrEnvironment()
-env.ensure(init_config=True, init_db_fn=initialize_database)
-
-print("Using config:", env.config_path)
-print("Using database:", env.db_path)
-
-
 def get_tklr_home() -> Path:
     # 1. Current working directory override (if config + db found)
     cwd = Path.cwd()
@@ -44,6 +37,14 @@ def get_tklr_home() -> Path:
         return Path(xdg_home).expanduser() / "tklr"
     else:
         return Path.home() / ".config" / "tklr"
+
+
+env = TklrEnvironment()
+env.ensure(init_db_fn=initialize_database)
+config = env.config  # ← validated, corrected, comment-preserving config
+
+print("Using config:", env.config_path)
+print("Using database:", env.db_path)
 
 
 def main():
