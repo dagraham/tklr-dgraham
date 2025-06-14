@@ -223,10 +223,19 @@ items = [
        ii. and this 
     2. And finally this. @t test @l label
     """,
+    f"""- dog house @s {first_of_month}
+    @j paint &c shop 
+    @j   sand &c shop 
+    @j     assemble &c shop 
+    @j       cut pieces &c shop 
+    @j          get wood &c Lowes
+    @j       get hardware &c Lowes 
+    @j   get paint &c Lowes 
+    """,
 ]
 
 records = []
-num_items = 100
+num_items = 0
 while len(items) < num_items:
     t = random.choice(types)
     name = phrase()

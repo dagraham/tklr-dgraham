@@ -1,5 +1,26 @@
 # Jobs
 
+## thoughts
+
+The @s "scheduled" datetime is treated differently for tasks than for events. I want to have a separate view for tasks and jobs where they will be sorted by their computed "urgency". I'm thinking that a separate "Urgency" table (analagous to DateTimes) might be a good idea:
+
+- Urgency table
+  - id
+  - record_id (of the relevant task)
+  - job_id (None for a task without jobs)
+  - urgency
+
+Each task without jobs would have one entry in the urgency table and each task with jobs would have an entry in the table for each job.
+
+An Agenda view would be used to display in two, vertically separated, scrolling panels:
+
+1. events for 3 days beginning with the current datetime and including only events that have ending datetimes >= "now". I.e., events for today that have already ended would not be displayed.
+2. The N most urgent tasks/jobs
+
+Thoughts about all this?
+
+
+
 ## status
 
 - ◻ available/not active
@@ -31,4 +52,4 @@
 
 - [ ] add jobset to Item
 - [ ] what & fields for jobs?
-- [ ] all tasks -> jobs? 
+- [ ] normal tasks and tasks with jobs, all in -> jobs?
