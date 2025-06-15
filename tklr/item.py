@@ -275,6 +275,7 @@ def is_lowercase_letter(char):
 type_keys = {
     "*": "event",
     "-": "task",
+    "+": "task group",
     "%": "journal",
     "!": "inbox",
     # "~": "goal",
@@ -630,6 +631,7 @@ class Item:
         self.job_tokens = []
         self.token_store = None
         self.rrules = []
+        self.jobs = []
         self.jobset = []
         self.tags = []
         # self.tag_str = ""
@@ -1518,7 +1520,11 @@ class Item:
                 # undiagnosed problem
                 problems.append(f"{x} is invalid")
         if problems:
-            problem_str = f"Problem entries: {', '.join(bad)}\n{'\n'.join(problems)}"
+            probs = []
+            probs.append(", ".join(bad))
+            probs.append("\n", join(problems))
+            probs_str = "\n".join(probs)
+            problem_str = f"Problem entries: {probs_str}"
         good = []
         for x in matches:
             s = f"{x[0]}{x[1]}" if x[0] else f"{x[1]}"
@@ -2185,11 +2191,15 @@ class Item:
             print(f"  {job})")
             jobs.append(job)
 
-        self.item["j"] = jobs
         # json_jobs = json.dumps(jobs, indent=2)
-        jobset = json.dumps(jobs, cls=CustomJSONEncoder)
+        jobset = json.dumps(
+            jobs,
+            cls=CustomJSONEncoder,
+        )
         print(f"{jobset = }")
         self.jobset = jobset
+        self.item["jobs"] = jobset
+        self.jobs = jobset
 
         print("prereqs")
         for i, reqs in prereqs.items():

@@ -40,7 +40,7 @@ def regexp(pattern, value):
 # FREE = "□"  # U+25A1 this will be busy_bar free character
 # ADAY = "━"  # U+2501 for all day events ━
 
-DEFAULT_LOG_FILE = "log_msg.md"
+# DEFAULT_LOG_FILE = "log_msg.md"
 
 
 def utc_now_string():
@@ -145,6 +145,7 @@ class DatabaseManager:
             reset (bool): Whether to replace the existing database.
         """
         self.db_path = db_path
+        print(f"using {self.db_path = }")
         if reset and os.path.exists(db_path):
             os.remove(db_path)
         self.conn = sqlite3.connect(self.db_path)
@@ -259,7 +260,17 @@ class DatabaseManager:
             )
             """
         )
-
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS Urgency (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id INTEGER NOT NULL,
+                job_id INTEGER,                   -- NULL for tasks without jobs
+                urgency REAL NOT NULL,
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+            )
+            """
+        )
         self.conn.commit()
 
     def populate_dependent_tables(self):

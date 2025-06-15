@@ -1,4 +1,5 @@
 import random
+import os
 from datetime import datetime, timedelta
 from rich import print
 from tklr.item import Item
@@ -92,7 +93,7 @@ def week(dt: datetime) -> Union[datetime, datetime]:
     return wk_beg.date(), wk_end.date()
 
 
-dbm = DatabaseManager("tklr.db", reset=True)
+dbm = DatabaseManager("./example/tklr.db", reset=True)
 # Insert the UTC records into the database
 
 num_items = 20
@@ -223,10 +224,19 @@ items = [
        ii. and this 
     2. And finally this. @t test @l label
     """,
+    f"""- dog house @s {first_of_month}
+    @j paint &c shop 
+    @j   sand &c shop 
+    @j     assemble &c shop 
+    @j       cut pieces &c shop 
+    @j          get wood &c Lowes
+    @j       get hardware &c Lowes 
+    @j   get paint &c Lowes 
+    """,
 ]
 
 records = []
-num_items = 100
+num_items = 0
 while len(items) < num_items:
     t = random.choice(types)
     name = phrase()
