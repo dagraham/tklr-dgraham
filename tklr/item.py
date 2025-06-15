@@ -1520,7 +1520,11 @@ class Item:
                 # undiagnosed problem
                 problems.append(f"{x} is invalid")
         if problems:
-            problem_str = f"Problem entries: {', '.join(bad)}\n{'\n'.join(problems)}"
+            probs = []
+            probs.append(", ".join(bad))
+            probs.append("\n", join(problems))
+            probs_str = "\n".join(probs)
+            problem_str = f"Problem entries: {probs_str}"
         good = []
         for x in matches:
             s = f"{x[0]}{x[1]}" if x[0] else f"{x[1]}"

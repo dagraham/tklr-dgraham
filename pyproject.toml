@@ -4,7 +4,7 @@ dynamic = ["version"]                                               # 👈 tell 
 description = "CLI task and job planning tool"
 authors = [{ name = "Daniel Graham", email = "dnlgrhm@gmail.com" }]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = ["textual>=0.42.0", "python-dateutil>=2.8.2"]
 
 [project.scripts]

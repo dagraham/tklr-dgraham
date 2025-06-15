@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+import sys
+
+if sys.version_info < (3, 11):
+    print("❌ Tklr requires Python 3.11 or newer.")
+    print(f"   You are using: Python {sys.version.split()[0]}")
+    sys.exit(1)
+
 from pathlib import Path
 import os
 from typing import Optional

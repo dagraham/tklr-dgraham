@@ -1,42 +1,79 @@
 from pathlib import Path
 import os
-from typing import Optional
-from tomlkit import parse, dumps
-from tomlkit.exceptions import TOMLKitError
+import tomllib
 from pydantic import BaseModel, Field, ValidationError
-
-# ─── Default content for a new config.toml ─────────────────────────────────────
-DEFAULT_CONFIG = """\
-# Tklr Configuration File
-
-[ui]
-# Theme can be 'light' or 'dark'
-theme = "dark"
-# Whether to show completed tasks
-show_completed = true
-
-[paths]
-# Relative or absolute path to the database file
-db = "data.sqlite3"
-"""
+from typing import Optional
 
 
-# ─── Pydantic Schema for Config Validation ─────────────────────────────────────
+# ─── Config Schema ─────────────────────────────────────────────────
 class UIConfig(BaseModel):
     theme: str = Field("dark", pattern="^(dark|light)$")
     show_completed: bool = True
 
 
 class PathsConfig(BaseModel):
-    db: str = "data.sqlite3"
+    db: str = "tklr.db"
 
 
 class TklrConfig(BaseModel):
-    ui: UIConfig
-    paths: PathsConfig
+    title: str = "Tklr Configuration"
+    ui: UIConfig = UIConfig()
+    paths: PathsConfig = PathsConfig()
 
 
-# ─── Main Tklr Environment Manager ─────────────────────────────────────────────
+# ─── Commented Template ────────────────────────────────────
+CONFIG_TEMPLATE = """\
+title = {title}
+
+[ui]
+# theme: str = 'dark' | 'light'
+theme = {ui.theme}
+
+# show_completed: bool
+show_completed = {ui.show_completed}
+
+[paths]
+# db: str = path to SQLite database file
+db = {paths.db}
+"""
+
+# ─── Format Values as TOML Literals ──────────────────────────────
+
+
+def format_value(value):
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    elif isinstance(value, (int, float)):
+        return str(value)
+    elif isinstance(value, str):
+        return f'"{value}"'
+    else:
+        raise TypeError(f"Unsupported value type: {type(value)}")
+
+
+# ─── Save Config with Comments ───────────────────────────────
+
+
+def save_config_from_template(config: TklrConfig, path: Path):
+    rendered = CONFIG_TEMPLATE.format(
+        title=format_value(config.title),
+        ui=type(
+            "Obj",
+            (),
+            {
+                "theme": format_value(config.ui.theme),
+                "show_completed": format_value(config.ui.show_completed),
+            },
+        )(),
+        paths=type("Obj", (), {"db": format_value(config.paths.db)})(),
+    )
+    path.write_text(rendered.strip() + "\n", encoding="utf-8")
+    print(f"✅ Config with comments written to: {path}")
+
+
+# ─── Main Environment Class ───────────────────────────────
+
+
 class TklrEnvironment:
     def __init__(self):
         self._home = self._resolve_home()
@@ -58,75 +95,23 @@ class TklrEnvironment:
         self.home.mkdir(parents=True, exist_ok=True)
 
         if init_config and not self.config_path.exists():
-            self.config_path.write_text(DEFAULT_CONFIG, encoding="utf-8")
+            save_config_from_template(TklrConfig(), self.config_path)
 
         if init_db_fn and not self.db_path.exists():
             init_db_fn(self.db_path)
 
     def load_config(self) -> TklrConfig:
-        from tomlkit import parse, dumps
-        from tomlkit.exceptions import TOMLKitError
-        from pydantic import ValidationError
-
         try:
-            raw_text = self.config_path.read_text(encoding="utf-8")
-            doc = parse(raw_text)
-        except TOMLKitError as e:
-            print(f"❌ Syntax error in config file: {self.config_path}")
-            print(f"   {e.__class__.__name__}: {e}")
+            with open(self.config_path, "rb") as f:
+                data = tomllib.load(f)
+            config = TklrConfig.model_validate(data)
+        except (ValidationError, tomllib.TOMLDecodeError) as e:
+            print(f"⚠️ Config error in {self.config_path}: {e}\nUsing defaults.")
+            config = TklrConfig()
+            save_config_from_template(config, self.config_path)
 
-            # Step 1: Backup the broken config
-            backup_path = self.config_path.with_suffix(".toml.bak")
-            self.config_path.rename(backup_path)
-            print(f"🔁 Backed up invalid config to: {backup_path}")
-
-            # Step 2: Restore default config
-            self.config_path.write_text(DEFAULT_CONFIG, encoding="utf-8")
-            print(f"✅ Restored default config to: {self.config_path}")
-
-            # Step 3: Parse defaults and continue
-            raw_text = DEFAULT_CONFIG
-            doc = parse(raw_text)
-
-        # Step 4: Validate and correct
-        try:
-            model = TklrConfig.model_validate(doc)
-        except ValidationError as e:
-            print(f"⚠️ Found validation errors in {self.config_path}:")
-            for err in e.errors():
-                loc = " → ".join(str(part) for part in err["loc"])
-                msg = err["msg"]
-                print(f"  - {loc}: {msg}")
-
-            model = TklrConfig()
-
-            if isinstance(doc.get("ui"), dict):
-                ui_doc = doc["ui"]
-                if isinstance(ui_doc.get("theme"), str) and ui_doc["theme"] in (
-                    "dark",
-                    "light",
-                ):
-                    model.ui.theme = ui_doc["theme"]
-                if isinstance(ui_doc.get("show_completed"), bool):
-                    model.ui.show_completed = ui_doc["show_completed"]
-
-            if isinstance(doc.get("paths"), dict):
-                paths_doc = doc["paths"]
-                if isinstance(paths_doc.get("db"), str):
-                    model.paths.db = paths_doc["db"]
-
-        # Step 5: Resave corrected config
-        doc["ui"]["theme"] = model.ui.theme
-        doc["ui"]["show_completed"] = model.ui.show_completed
-        doc["paths"]["db"] = model.paths.db
-
-        new_text = dumps(doc)
-        if new_text != raw_text:
-            self.config_path.write_text(new_text, encoding="utf-8")
-            print(f"✅ Corrected config written to: {self.config_path}")
-
-        self._config = model
-        return model
+        self._config = config
+        return config
 
     @property
     def config(self) -> TklrConfig:
@@ -136,7 +121,7 @@ class TklrEnvironment:
 
     def _resolve_home(self) -> Path:
         cwd = Path.cwd()
-        if (cwd / "config.toml").exists() and (cwd / "data.sqlite3").exists():
+        if (cwd / "config.toml").exists() and (cwd / "tklr.db").exists():
             return cwd
 
         env_home = os.getenv("TKLR_HOME")
