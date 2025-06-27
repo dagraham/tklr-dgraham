@@ -275,8 +275,8 @@ def is_lowercase_letter(char):
 type_keys = {
     "*": "event",
     "-": "task",
-    "+": "task group",
-    "%": "journal",
+    # "+": "task group",
+    "%": "note",
     "!": "inbox",
     # "~": "goal",
     # "+": "track",
@@ -368,20 +368,20 @@ requires = {
 
 
 # NOTE: experiment for replacing jinja2
-def itemhsh_to_details(item: dict[str, str]) -> str:
-    format_dict = {
-        "itemtype": "",
-        "subject": " ",
-        "s": f"\n@s ",
-        "e": f" @e ",
-        "r": f"\n@r ",
-    }
-
-    formatted_string = ""
-    for key in format_dict.keys():
-        if key in item:
-            formatted_string += f"{format_dict[key]}{item[key]}"
-    return formatted_string
+# def itemhsh_to_details(item: dict[str, str]) -> str:
+#     format_dict = {
+#         "itemtype": "",
+#         "subject": " ",
+#         "s": f"\n@s ",
+#         "e": f" @e ",
+#         "r": f"\n@r ",
+#     }
+#
+#     formatted_string = ""
+#     for key in format_dict.keys():
+#         if key in item:
+#             formatted_string += f"{format_dict[key]}{item[key]}"
+#     return formatted_string
 
 
 class Paragraph:
@@ -485,6 +485,7 @@ class Item:
         "s": ["scheduled", "starting date or datetime", "do_s"],
         "t": ["tag", "tag name", "do_tag"],
         "r": ["recurrence", "recurrence rule", "do_rrule"],
+        "o": ["over", "recurrence rule", "do_over"],
         "j": ["job", "job entry", "do_job"],
         "+": ["rdate", "recurrence dates", "do_rdate"],
         "-": ["exdate", "exception dates", "do_exdate"],
@@ -624,7 +625,8 @@ class Item:
         self.previous_tokens = []
         self.structured_tokens = []
         self.rruleset = ""
-        self.extent = "0m"
+        self.extent = ""
+        self.over = ""
         self.context = ""
         self.messages = []
         self.rrule_tokens = []
@@ -1189,6 +1191,37 @@ class Item:
         ok, res = timedelta_str_to_seconds(arg)
         return ok, res
 
+    def do_beginby(self, token):
+        # Process datetime token
+        beginby = re.sub("^@. ", "", token["token"].strip()).lower()
+
+        ok, beginby_obj = timedelta_str_to_seconds(beginby)
+        if ok:
+            self.beginby = beginby
+            return True, beginby_obj, []
+        else:
+            return False, beginby_obj, []
+
+    def do_extent(self, token):
+        # Process datetime token
+        extent = re.sub("^@. ", "", token["token"].strip()).lower()
+        ok, extent_obj = timedelta_str_to_seconds(extent)
+        if ok:
+            self.extent = extent
+            return True, extent_obj, []
+        else:
+            return False, extent_obj, []
+
+    def do_over(self, token):
+        # Process datetime token
+        over = re.sub("^@. ", "", token["token"].strip()).lower()
+        ok, over_obj = timedelta_str_to_seconds(over)
+        if ok:
+            self.over = over
+            return True, over_obj, []
+        else:
+            return False, over_obj, []
+
     def do_alert(self, token):
         """
         Process an alert string, validate it and return a corresponding string
@@ -1232,17 +1265,6 @@ class Item:
             return False, "\n".join(issues), []
         return True, res, []
 
-    def do_beginby(self, token):
-        # Process datetime token
-        beginby = re.sub("^@. ", "", token["token"].strip()).lower()
-
-        ok, beginby_obj = timedelta_str_to_seconds(beginby)
-        if ok:
-            self.beginby = beginby
-            return True, beginby_obj, []
-        else:
-            return False, beginby_obj, []
-
     def do_description(self, token):
         description = re.sub("^@. ", "", token["token"])
         print(f"description {token = }, {description = }")
@@ -1255,16 +1277,6 @@ class Item:
             return True, description, []
         else:
             return False, description, []
-
-    def do_extent(self, token):
-        # Process datetime token
-        extent = re.sub("^@. ", "", token["token"].strip()).lower()
-        ok, extent_obj = timedelta_str_to_seconds(extent)
-        if ok:
-            self.extent = extent
-            return True, extent_obj, []
-        else:
-            return False, extent_obj, []
 
     def do_tag(self, token):
         # Process datetime token
@@ -2174,6 +2186,14 @@ class Item:
             elif j not in finished:
                 available.add(j)
 
+        blocking = {}
+        for i in available:
+            blocking.setdefault(i, 0)
+            for j in waiting:
+                if i in prereqs.get(j, []):
+                    blocking[i] += 1
+            print(f"{i} {blocking[i] = }")
+
         jobs = []
         print("jobs: ")
         for job in finalized_jobs:
@@ -2183,6 +2203,7 @@ class Item:
                 job["prereqs"] = req
             if i in available:
                 job["status"] = "available"
+                job["blocking"] = blocking[i]
             elif i in waiting:
                 job["status"] = "waiting"
             elif i in finished:

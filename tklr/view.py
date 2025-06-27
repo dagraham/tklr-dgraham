@@ -153,7 +153,7 @@ def calculate_4_week_start():
 HelpText = f"""\
 [bold][{TITLE_COLOR}]TKLR {VERSION}[/{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Application Keys[/{HEADER_COLOR}][/bold]
-  [bold]Q[/bold]:         Quit etm            [bold]S[/bold]:       Take Screenshot
+  [bold]Q[/bold]:           Quit etm          [bold]S[/bold]:       Take Screenshot
 [bold][{HEADER_COLOR}]View[/{HEADER_COLOR}][/bold]
   [bold]W[/bold]:           Weeks view        [bold]N[/bold]:       Next occurrences 
   [bold]F[/bold]:           Find in items     [bold]L[/bold]:       Last occurrences 

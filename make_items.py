@@ -222,7 +222,7 @@ items = [
     1. This 
        i. with part one
        ii. and this 
-    2. And finally this. @t test @l label
+    2. And finally this. @t test @l label @t red 
     """,
     f"""- dog house @s {first_of_month}
     @j paint &c shop 
