@@ -191,6 +191,42 @@ class DatabaseManager:
         """)
 
         self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Urgency (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id TEXT,                     -- NULL for standalone tasks
+                record_id INTEGER NOT NULL,      -- Link to Records
+                subject TEXT NOT NULL,           -- Task name or "job name → task"
+                urgency FLOAT NOT NULL,          -- Final score
+                status TEXT NOT NULL,            -- "next", "waiting", "scheduled", etc.
+                touched INTEGER,                 -- Timestamp of last interaction with this instance
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+            );
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_urgency ON Urgency(urgency)
+        """)
+
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ActiveUrgency (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                urgency_id INTEGER UNIQUE,
+                FOREIGN KEY (urgency_id) REFERENCES Urgency(id) ON DELETE SET NULL
+            )
+        """)
+
+        # 🔁 Add this trigger to clear active urgency when its row is deleted
+        self.cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS clear_active_urgency_on_delete
+            AFTER DELETE ON Urgency
+            FOR EACH ROW
+            WHEN OLD.id = (SELECT urgency_id FROM ActiveUrgency WHERE id = 1)
+            BEGIN
+                UPDATE ActiveUrgency SET urgency_id = NULL WHERE id = 1;
+            END;
+        """)
+
+        self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Tags (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE
@@ -207,18 +243,18 @@ class DatabaseManager:
             );
         """)
 
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Jobs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id INTEGER NOT NULL,
-                job_name TEXT NOT NULL,
-                node INTEGER,
-                context TEXT,
-                index_within_record INTEGER,
-                prereqs TEXT,
-                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-            );
-        """)
+        # self.cursor.execute("""
+        #     CREATE TABLE IF NOT EXISTS Jobs (
+        #         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        #         record_id INTEGER NOT NULL,
+        #         job_name TEXT NOT NULL,
+        #         node INTEGER,
+        #         context TEXT,
+        #         index_within_record INTEGER,
+        #         prereqs TEXT,
+        #         FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+        #     );
+        # """)
 
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS DateTimes (
@@ -426,11 +462,73 @@ class DatabaseManager:
         self.conn.commit()
 
         # Refresh auxiliary tables
-        self.update_tags_for_record(record_id, item.tags)
+        self.update_tags_for_record(record_id)
         self.generate_datetimes_for_record(record_id)
         self.populate_alerts_for_record(record_id)
         if item.beginby:
             self.populate_beginby_for_record(record_id)
+
+    def touch_record(self, record_id: int):
+        """
+        Update the 'modified' timestamp for the given record to the current UTC time.
+        """
+        now = utc_now_string()
+        self.cursor.execute(
+            """
+            UPDATE Records SET modified = ? WHERE id = ?
+            """,
+            (now, record_id),
+        )
+        self.conn.commit()
+
+    def touch_urgency(self, record_id: int, job_id: Optional[str] = None):
+        """
+        Update the 'touched' timestamp in the Urgency table for a given task instance
+        or specific job.
+
+        Args:
+            record_id (int): The ID of the task record.
+            job_id (Optional[str]): The job identifier, if applicable.
+        """
+        now = int(datetime.now().timestamp())
+        if job_id is None:
+            self.cursor.execute(
+                "UPDATE Urgency SET touched = ? WHERE record_id = ? AND job_id IS NULL",
+                (now, record_id),
+            )
+        else:
+            self.cursor.execute(
+                "UPDATE Urgency SET touched = ? WHERE record_id = ? AND job_id = ?",
+                (now, record_id, job_id),
+            )
+        self.conn.commit()
+
+    def set_active_urgency(self, urgency_id: int):
+        """Mark a specific urgency record as active."""
+        self.cursor.execute(
+            """
+            INSERT INTO ActiveUrgency (id, urgency_id)
+            VALUES (1, ?)
+            ON CONFLICT(id) DO UPDATE SET urgency_id = excluded.urgency_id
+        """,
+            (urgency_id,),
+        )
+        self.conn.commit()
+
+    def get_active_urgency(self) -> Optional[int]:
+        """Return the ID of the currently active urgency row, if any."""
+        self.cursor.execute("SELECT urgency_id FROM ActiveUrgency WHERE id = 1")
+        result = self.cursor.fetchone()
+        return result[0] if result else None
+
+    def clear_active_urgency(self):
+        """Clear the active urgency selection."""
+        self.cursor.execute("""
+            INSERT INTO ActiveUrgency (id, urgency_id)
+            VALUES (1, NULL)
+            ON CONFLICT(id) DO UPDATE SET urgency_id = NULL
+        """)
+        self.conn.commit()
 
     def get_due_alerts(self):
         """Retrieve alerts that need execution within the next 6 seconds."""
@@ -1279,7 +1377,8 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
-    def update_record_with_tags(self, record_data):
+    # FIXME: should access record_id
+    def update_tags_for_record(self, record_data):
         cur = self.conn.cursor()
         tags = record_data.pop("tags", [])
         record_data["structured_tokens"] = json.dumps(
@@ -1326,25 +1425,127 @@ class DatabaseManager:
         )
         return [row[0] for row in cur.fetchall()]
 
-    def sync_jobs_from_record(self, record_id, jobs_list):
-        cur = self.conn.cursor()
-        cur.execute("DELETE FROM Jobs WHERE record_id = ?", (record_id,))
-        for job in jobs_list:
-            cur.execute(
+    def populate_urgency_from_record(self, record: dict, config):
+        """
+        Populate the Urgency table for a task record using priority settings from TklrEnvironment.
+        Supports tasks with or without jobs.
+
+        Args:
+            record (dict): Task record including id, subject, status, jobs, touched, etc.
+            env (TklrEnvironment): The environment providing urgency priority settings.
+        """
+        record_id = record["id"]
+        subject = record["subject"]
+        jobs = record.get("jobs", [])
+        status = record.get("status", "next")
+        touched = record.get("touched")
+        now = datetime.utcnow()
+
+        priority_map = config.urgency.priority.model_dump()
+
+        self.cursor.execute("DELETE FROM Urgency WHERE record_id = ?", (record_id,))
+
+        def compute_urgency(job_status: str, touched_str: Optional[str]) -> float:
+            base = priority_map.get(job_status, 0.0)
+            if touched_str:
+                try:
+                    touched_dt = datetime.fromisoformat(touched_str)
+                    age_days = (now - touched_dt).total_seconds() / 86400
+                    base += min(age_days, 30)
+                except Exception:
+                    pass
+            return round(base, 2)
+
+        if jobs:
+            for job in jobs:
+                job_name = job.get("j", "").strip()
+                job_status = job.get("status", "pending")
+                if job_status != "finished":
+                    urgency = compute_urgency(job_status, touched)
+                    label = f"{job_name} → {subject}"
+                    self.cursor.execute(
+                        """
+                        INSERT INTO Urgency (job_id, record_id, subject, urgency, status)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            job_name,
+                            record_id,
+                            label,
+                            urgency,
+                            job_status,
+                        ),
+                    )
+        else:
+            urgency = compute_urgency(status, touched)
+            self.cursor.execute(
                 """
-                INSERT INTO Jobs (record_id, job_name, node, context, index_within_record, prereqs)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """,
+                INSERT INTO Urgency (job_id, record_id, subject, urgency, status)
+                VALUES (?, ?, ?, ?, ?)
+                """,
                 (
+                    None,
                     record_id,
-                    job.get("j"),
-                    job.get("node"),
-                    job.get("c"),
-                    job.get("i"),
-                    json.dumps(job.get("prereqs", [])),
+                    subject,
+                    urgency,
+                    status,
                 ),
             )
+
         self.conn.commit()
+
+    def populate_all_urgency(self, config):
+        self.cursor.execute("DELETE FROM Urgency")
+        tasks = self.get_all_tasks()  # You may need to define this
+        for task in tasks:
+            self.populate_urgency_from_record(task, config)
+        self.conn.commit()
+
+    def update_urgency(self, urgency_id: int):
+        """
+        Recalculate urgency score for a given entry using only fields in the Urgency table.
+        """
+        self.cursor.execute("SELECT urgency_id FROM ActiveUrgency WHERE id = 1")
+        row = self.cursor.fetchone()
+        active_id = row[0] if row else None
+
+        self.cursor.execute(
+            """
+            SELECT id, touched, status FROM Urgency WHERE id = ?
+        """,
+            (urgency_id,),
+        )
+        row = self.cursor.fetchone()
+        if not row:
+            return  # skip nonexistent
+
+        urgency_id, touched_ts, status = row
+        now_ts = int(time.time())
+
+        # Example scoring
+        age_days = (now_ts - touched_ts) / 86400 if touched_ts else 0
+        active_bonus = 10.0 if urgency_id == active_id else 0.0
+        status_weight = {
+            "next": 5.0,
+            "scheduled": 2.0,
+            "waiting": -1.0,
+            "someday": -5.0,
+        }.get(status, 0.0)
+
+        score = age_days + active_bonus + status_weight
+
+        self.cursor.execute(
+            """
+            UPDATE Urgency SET urgency = ? WHERE id = ?
+        """,
+            (score, urgency_id),
+        )
+        self.conn.commit()
+
+    def update_all_urgencies(self):
+        self.cursor.execute("SELECT id FROM Urgency")
+        for (urgency_id,) in self.cursor.fetchall():
+            self.update_urgency(urgency_id)
 
     def get_all(self):
         cur = self.conn.cursor()
