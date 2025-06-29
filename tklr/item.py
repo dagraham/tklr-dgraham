@@ -304,6 +304,7 @@ datetime_methods = list("abe+-")
 
 job_methods = list("efhp") + [
     "j",
+    "jr",
     "jj",
     "ja",
     "jb",
@@ -341,13 +342,14 @@ multiple_allowed = [
 
 wrap_methods = ["w"]
 
-required = {"*": ["s"], "-": [], "%": [], "!": []}
+required = {"*": ["s"], "-": [], "+": ["j"], "%": [], "!": []}
 
 all_keys = common_methods + datetime_methods + job_methods + repeating_methods
 
 allowed = {
     "*": common_methods + datetime_methods + repeating_methods + wrap_methods,
-    "-": common_methods + datetime_methods + job_methods + repeating_methods,
+    "-": common_methods + datetime_methods + repeating_methods,
+    "+": common_methods + datetime_methods + job_methods + repeating_methods,
     "%": common_methods,
     "!": all_keys,
 }
@@ -474,7 +476,7 @@ class Item:
     token_keys = {
         "itemtype": [
             "item type",
-            "character from * (event), - (task), % (journal), ~ (goal), + (track) or ! (inbox)",
+            "character from * (event), - (task), + (project), % (note), ~ (goal) or ! (inbox)",
             "do_itemtype",
         ],
         "subject": [
@@ -578,10 +580,10 @@ class Item:
         "ji": ["unique id", " integer or string", "do_string"],
         "jl": ["label", " string", "do_string"],
         "jm": ["mask", "string to be masked", "do_mask"],
-        "jp": [
-            "prerequisite ids",
+        "jr": [
+            "id and list of requirement ids",
             "list of ids of immediate prereqs",
-            "do_stringlist",
+            "do_requires",
         ],
         "js": [
             "scheduled",
@@ -876,9 +878,13 @@ class Item:
 
         # First: itemtype
         itemtype = entry[0]
-        if itemtype not in {"*", "-", "%", "!"}:
+        if itemtype not in {"*", "-", "+", "%", "!"}:
             self.messages.append(
-                (False, f"Invalid itemtype '{itemtype}' (expected *, -, %, or !)", [])
+                (
+                    False,
+                    f"Invalid itemtype '{itemtype}' (expected *, -, +, %, or !)",
+                    [],
+                )
             )
             return
 
@@ -1264,6 +1270,50 @@ class Item:
         if issues:
             return False, "\n".join(issues), []
         return True, res, []
+
+    def do_requires(self, token):
+        """
+        Process a requires string for a job.
+        Format:
+            N
+            or
+            N:M[,K...]
+        where N is the primary id, and M,K,... are dependency ids.
+
+        Returns:
+            (True, "", primary, dependencies) on success
+            (False, "error message", None, None) on failure
+        """
+        requires = token["token"][2:].strip()
+
+        try:
+            if ":" in requires:
+                primary_str, deps_str = requires.split(":", 1)
+                primary = int(primary_str.strip())
+                dependencies = []
+                for part in deps_str.split(","):
+                    part = part.strip()
+                    if part == "":
+                        continue
+                    try:
+                        dependencies.append(int(part))
+                    except ValueError:
+                        return (
+                            False,
+                            f"Invalid dependency value: '{part}' in token '{requires}'",
+                            [],
+                        )
+            else:
+                primary = int(requires.strip())
+                dependencies = []
+        except ValueError as e:
+            return (
+                False,
+                f"Invalid requires token: '{requires}' ({e})",
+                [],
+            )
+
+        return True, primary, dependencies
 
     def do_description(self, token):
         description = re.sub("^@. ", "", token["token"])
@@ -2023,7 +2073,9 @@ class Item:
     def build_jobs(self):
         """
         Build self.jobset from @j + &... token groups in self.structured_tokens.
-        Handles node (indentation after @j), job name, and any &-key metadata.
+        In the new explicit &r format:
+        - parse &r for job id and immediate prereqs
+        - keep job name
         """
         job_groups = self.collect_grouped_tokens({"j"})
         job_entries = []
@@ -2032,175 +2084,147 @@ class Item:
             anchor = group[0]
             token_str = anchor["token"]
 
-            # Extract content after "@j"
-            job_portion = token_str[3:]  # removes '@j'
-            leading_spaces = len(job_portion) - len(job_portion.lstrip())
-
-            # Get job name up to first &-key or end
+            # get job name up to first &
+            job_portion = token_str[3:].strip()
             split_index = job_portion.find("&")
             if split_index != -1:
                 job_name = job_portion[:split_index].strip()
             else:
-                job_name = job_portion.strip()
+                job_name = job_portion
 
-            node_level = leading_spaces // 2  # adjust to match your indent standard
+            job = {"j": job_name}
 
-            job = {
-                "j": job_name,
-                "node": node_level,
-                # "s": anchor["s"],
-                # "e": anchor["e"],
-            }
-
-            # Process &-keys
+            # process &-keys
             for token in group[1:]:
                 try:
                     k, v = token["token"][1:].split(maxsplit=1)
                     k = k.strip()
                     v = v.strip()
 
-                    if k == "f":  # finished datetime
+                    if k == "r":
+                        ok, primary, dependencies = self.do_requires(
+                            {"token": f"&r {v}"}
+                        )
+                        if not ok:
+                            self.errors.append(primary)
+                            continue
+                        job["i"] = primary
+                        job["reqs"] = dependencies
+                    elif k == "f":  # finished
                         try:
-                            dt = dt_parse(v)
+                            dt = parse(v)
                             job["f"] = round(dt.timestamp())
-                        except Exception as e:
-                            job["f"] = v  # fallback: preserve original string
+                        except Exception:
+                            job["f"] = v
                     else:
                         job[k] = v
                 except Exception as e:
                     self.errors.append(
-                        f"Failed to parse job metadata token: {token['token']}. Error: {e}"
+                        f"Failed to parse job metadata token: {token['token']} ({e})"
                     )
 
             job_entries.append(job)
 
         self.jobs = job_entries
-
         return job_entries
 
     def finalize_jobs(self, jobs):
         """
-        From the list of jobs, assign ids taking account of jobs shared
-        through labels and then from the place of the job in the sequence, its
-        node (level of indention) and its finished status, determine the
-        relevant prequisites, and the lists of available, waiting and finished
-        jobs.
+        With jobs that have explicit ids and prereqs, build:
+        - available jobs (no prereqs or prereqs finished)
+        - waiting jobs (unmet prereqs)
+        - finished jobs
         """
         if not jobs:
             return False, "No jobs to process"
         if not self.parse_ok:
             return False, "Error parsing tokens"
 
-        # subject = self.item["subject"]
-        job_hsh = {}
+        # map id -> job
+        job_map = {job["i"]: job for job in jobs if "i" in job}
 
-        branch = []
-        branches = []
-        job_names = {}
-        labels = {}
-        idx = 0
-        finalized_jobs = []
-        last_job = {}
-        for _, job in enumerate(jobs):
-            bump_idx = False
-            job_name = job["j"]
-            if job_name in labels:
-                # this is an instance of labeled job and should use the idx of the label
-                # take the node level from the job
-                this_node = job.get("node", 0)
-                # use the labeled job for the rest
-                this_job = deepcopy(labels[job_name])
-                this_i = this_job.get("i", 0)
-                this_job["node"] = this_node
-                this_job["i"] = this_i
-                job_names[idx] = this_job["j"]
-                # print(f"{this_job = }")
-            else:
-                # a job needing an idx, perhaps with a lobel
-                bump_idx = True
-                this_job = deepcopy(job)
-                this_job["i"] = idx
-                job_names[idx] = this_job["j"]
+        # determine finished
+        finished = {job["i"] for job in jobs if "f" in job}
 
-                if "l" in this_job:
-                    label = this_job["l"]
-                    if label in labels:
-                        raise ValueError(f"Duplicate label: {label}")
-                    job_copy = deepcopy(this_job)
-                    del job_copy["l"]
-                    if "jl" in job_copy:
-                        del job_copy["jl"]
-                    labels[label] = job_copy
-                    this_job = job_copy
+        # build transitive prereqs
+        all_prereqs = {}
+        for job in jobs:
+            if "i" not in job:
+                continue
+            i = job["i"]
+            # only include unfinished jobs in deps
+            deps = set([j for j in job.get("reqs", []) if j not in finished])
 
-            if "node" in this_job:
-                if this_job["node"] >= 0 and len(branch) >= this_job["node"]:
-                    branches.append(branch)
-                    branch = branch[: this_job["node"]]
-                branch.append(this_job["i"])
-            else:
-                log_msg(f"node missing from {this_job = }")
-
-            job_hsh[idx] = this_job
-            finalized_jobs.append(this_job)
-            last_job = this_job
-            if bump_idx:
-                idx += 1
-
-        if "node" in last_job:
-            branches.append(branch)
-            branch = []
-
-        all = set()
-        prereqs = {}
-        if branches:
-            for branch in branches:
-                # print(f"branch = {branch}")
-                for _ in branch:
-                    all.add(_)
-                for position, i in enumerate(branch):
-                    branch_tail = branch[position + 1 :]
-                    if branch_tail:
-                        prereqs.setdefault(i, set())
-                        for j in branch_tail:
-                            prereqs[i].add(j)
-
-        finished = set(job["i"] for job in finalized_jobs if "f" in job)
-        empty = []
-        for j, req in prereqs.items():
-            prereqs[j] = req - finished
-            if not prereqs[j]:
-                empty.append(j)
-
-        for j in empty:
-            del prereqs[j]
+            # transitively expand:
+            transitive = set(deps)
+            to_process = list(deps)
+            while to_process:
+                d = to_process.pop()
+                if d in job_map:
+                    subdeps = set(job_map[d].get("reqs", []))
+                    for sd in subdeps:
+                        if sd not in transitive:
+                            transitive.add(sd)
+                            to_process.append(sd)
+            all_prereqs[i] = transitive
 
         available = set()
         waiting = set()
-        for j in all:
-            if j in prereqs:
-                if prereqs[j]:
-                    waiting.add(j)
-                else:
-                    available.add(j)
-            elif j not in finished:
-                available.add(j)
+        for i, reqs in all_prereqs.items():
+            unmet = reqs - finished
+            print(f"{reqs = }, {finished = } => {unmet = }")
+            if unmet:
+                waiting.add(i)
+            elif i in finished:
+                continue
+            else:
+                available.add(i)
 
+        # jobs with no prereqs:
+        for job in jobs:
+            if "i" in job and job["i"] not in all_prereqs and job["i"] not in finished:
+                available.add(job["i"])
+
+        print(f"{available = }")
+        # annotate jobs
         blocking = {}
         for i in available:
-            blocking.setdefault(i, 0)
-            for j in waiting:
-                if i in prereqs.get(j, []):
-                    blocking[i] += 1
-            print(f"{i} {blocking[i] = }")
+            blocking[i] = len(waiting) / len(available)
+            # blocking[i] = sum(1 for j in waiting if i in all_prereqs.get(j, set()))
 
-        jobs = []
-        print("jobs: ")
-        for job in finalized_jobs:
+        # # finalize
+        # final = []
+        # for job in jobs:
+        #     if "i" not in job:
+        #         continue
+        #     i = job["i"]
+        #     job["prereqs"] = sorted(all_prereqs.get(i, []))
+        #     if i in available:
+        #         job["status"] = "available"
+        #         job["blocking"] = blocking[i]
+        #     elif i in waiting:
+        #         job["status"] = "waiting"
+        #     elif i in finished:
+        #         job["status"] = "finished"
+        #     final.append(job)
+
+        num_available = len(available)
+        num_waiting = len(waiting)
+        num_finished = len(finished)
+
+        task_subject = self.item.get("subject", "")
+        if len(task_subject) > 12:
+            task_subject_display = task_subject[:10] + " …"
+        else:
+            task_subject_display = task_subject
+
+        # finalize
+        final = []
+        for job in jobs:
+            if "i" not in job:
+                continue
             i = job["i"]
-            req = prereqs.get(i, [])
-            if req:
-                job["prereqs"] = req
+            job["prereqs"] = sorted(all_prereqs.get(i, []))
             if i in available:
                 job["status"] = "available"
                 job["blocking"] = blocking[i]
@@ -2209,30 +2233,17 @@ class Item:
             elif i in finished:
                 job["status"] = "finished"
 
-            print(f"  {job})")
-            jobs.append(job)
+            job["display_subject"] = (
+                f"{job['j']} [{task_subject_display} {num_available}/{num_waiting}/{num_finished}]"
+            )
 
-        # json_jobs = json.dumps(jobs, indent=2)
-        jobset = json.dumps(
-            jobs,
-            cls=CustomJSONEncoder,
-        )
-        print(f"{jobset = }")
-        self.jobset = jobset
-        self.item["jobs"] = jobset
-        self.jobs = jobset
+            final.append(job)
 
-        print("prereqs")
-        for i, reqs in prereqs.items():
-            print(f"  {i}: {reqs}")
-        for name, value in {
-            "available": available,
-            "waiting": waiting,
-            "finished": finished,
-        }.items():
-            print(f"{name} = {pp_set(value)}")
+        self.jobset = json.dumps(final, cls=CustomJSONEncoder)
+        self.jobs = final
+        self.item["jobs"] = self.jobset
 
-        return True, jobs
+        return True, final
 
     def do_completion(self, token):
         """ "process completion command"""
