@@ -1,18 +1,26 @@
-[project]
+[tool.poetry]
 name = "tklr-dgraham"
-dynamic = ["version"]                                               # 👈 tell tools it's not hardcoded
+version = "0.1.0"
 description = "CLI task and job planning tool"
-authors = [{ name = "Daniel Graham", email = "dnlgrhm@gmail.com" }]
+authors = ["Daniel Graham <dnlgrhm@gmail.com>"]
 readme = "README.md"
-requires-python = ">=3.11"
-dependencies = ["textual>=0.42.0", "python-dateutil>=2.8.2"]
+packages = [{ include = "tklr" }]  # 👈 This is what tells Poetry to use ./tklr
 
-[project.scripts]
-tklr = "tklr:main" # Update this if your entry point is elsewhere
+[tool.poetry.dependencies]
+python = ">=3.11,<4.0"
+textual = ">=0.42.0"
+python-dateutil = ">=2.8.2"
+tzlocal = "^5.3.1"
+packaging = "^25.0"
+pydantic = "^2.11.7"
+jinja2 = "^3.1.6"
+
+[tool.poetry.group.dev.dependencies]
+lorem = "*"
+
+[tool.poetry.scripts]
+tklr = "tklr.__main__:main"
 
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools.dynamic]
-version = { attr = "tklr.__version__.version" }
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
