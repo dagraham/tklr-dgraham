@@ -7,7 +7,6 @@ from typing import Optional
 from datetime import datetime, date, timedelta
 from dateutil.rrule import rrulestr
 from typing import List, Tuple
-from prompt_toolkit.styles.named_colors import NAMED_COLORS
 
 from .shared import (
     HRS_MINS,
@@ -31,9 +30,6 @@ def regexp(pattern, value):
 
 
 # Constants for busy bar rendering
-# BUSY_COLOR = NAMED_COLORS["YellowGreen"]
-# CONF_COLOR = NAMED_COLORS["Tomato"]
-# FRAME_COLOR = NAMED_COLORS["DimGrey"]
 # SLOT_HOURS = [0, 4, 8, 12, 16, 20, 24]
 # SLOT_MINUTES = [x * 60 for x in SLOT_HOURS]
 # BUSY = "■"  # U+25A0 this will be busy_bar busy and conflict character

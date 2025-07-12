@@ -1,8 +1,10 @@
+from packaging.version import parse as parse_version
+from .__version__ import version as tklr_version
+VERSION = parse_version(tklr_version)
 # TODO: Keep the display part - the model part will be in model.py
 from datetime import datetime, timedelta
 from logging import log
 from sre_compile import dis
-from prompt_toolkit.styles.named_colors import NAMED_COLORS
 from rich.console import Console
 from rich.table import Table
 from rich.box import HEAVY_EDGE
@@ -19,9 +21,9 @@ from rich import box
 from typing import List, Tuple, Dict
 from bisect import bisect_left, bisect_right
 
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.keys import Keys
-from prompt_toolkit.shortcuts import PromptSession
+# from prompt_toolkit.key_binding import KeyBindings
+# from prompt_toolkit.keys import Keys
+# from prompt_toolkit.shortcuts import PromptSession
 import string
 import shutil
 import subprocess
@@ -45,33 +47,48 @@ from .shared import (
 )
 
 # The overall background color of the app is #2e2e2e - set in view_textual.css
-DAY_COLOR = NAMED_COLORS["LemonChiffon"]
-FRAME_COLOR = NAMED_COLORS["Grey"]
-DIM_COLOR = NAMED_COLORS["DarkGray"]
-# EVENT_COLOR = NAMED_COLORS["LimeGreen"]
-EVENT_COLOR = NAMED_COLORS["LightGreen"]
-AVAILABLE_COLOR = NAMED_COLORS["LightSkyBlue"]
-WAITING_COLOR = NAMED_COLORS["SlateGrey"]
-FINISHED_COLOR = NAMED_COLORS["DarkGrey"]
-GOAL_COLOR = NAMED_COLORS["GoldenRod"]
-CHORE_COLOR = NAMED_COLORS["Khaki"]
-PASTDUE_COLOR = NAMED_COLORS["DarkOrange"]
-BEGIN_COLOR = NAMED_COLORS["Gold"]
-INBOX_COLOR = NAMED_COLORS["OrangeRed"]
-TODAY_COLOR = NAMED_COLORS["Tomato"]
-SELECTED_BACKGROUND = "#4e4e4e"
-# SELECTED_BACKGROUND = "#3b3b3b"
-# SELECTED_BACKGROUND = "#3d3d3d"
-# SELECTED_BACKGROUND = "#4d4d4d"
-# SELECTED_BACKGROUND = "#5d5d5d"
-# SELECTED_BACKGROUND = "#737373"
+LEMON_CHIFFON     = "#FFFACD"
+KHAKI             = "#F0E68C"
+LIGHT_SKY_BLUE    = "#87CEFA"
+DARK_GRAY         = "#A9A9A9"
+LIME_GREEN        = "#32CD32"
+SLATE_GREY        = "#708090"
+DARK_GREY         = "#A9A9A9"  # same as DARK_GRAY
+GOLDENROD         = "#DAA520"
+DARK_ORANGE       = "#FF8C00"
+GOLD              = "#FFD700"
+ORANGE_RED        = "#FF4500"
+TOMATO            = "#FF6347"
+CORNSILK          = "#FFF8DC"
 
-BUSY_COLOR = NAMED_COLORS["YellowGreen"]
-CONF_COLOR = NAMED_COLORS["Tomato"]
-# BUSY_FRAME_COLOR = "#4e4e4e"
-BUSY_FRAME_COLOR = "#5d5d5d"
-# BUSY_FRAME_COLOR = "#6e6e6e"
-# BUSY_FRAME_COLOR = NAMED_COLORS["DimGrey"]
+# App version
+VERSION = parse_version(tklr_version)
+
+# Colors for UI elements
+DAY_COLOR            = LEMON_CHIFFON
+FRAME_COLOR          = KHAKI
+HEADER_COLOR         = LIGHT_SKY_BLUE
+DIM_COLOR            = DARK_GRAY
+EVENT_COLOR          = LIME_GREEN
+AVAILABLE_COLOR      = LIGHT_SKY_BLUE
+WAITING_COLOR        = SLATE_GREY
+FINISHED_COLOR       = DARK_GREY
+GOAL_COLOR           = GOLDENROD
+CHORE_COLOR          = KHAKI
+PASTDUE_COLOR        = DARK_ORANGE
+BEGIN_COLOR          = GOLD
+INBOX_COLOR          = ORANGE_RED
+TODAY_COLOR          = TOMATO
+SELECTED_BACKGROUND  = "#566573"
+MATCH_COLOR          = TOMATO
+TITLE_COLOR          = CORNSILK
+BUSY_COLOR           = "#9acd32"
+BUSY_COLOR           = "#adff2f"
+CONF_COLOR           = TOMATO
+BUSY_FRAME_COLOR     = "#5d5d5d"
+
+# This one appears to be a Rich/Textual style string
+SELECTED_COLOR       = "bold yellow"
 # SLOT_HOURS = [0, 4, 8, 12, 16, 20, 24]
 SLOT_HOURS = [0, 6, 12, 18, 24]
 SLOT_MINUTES = [x * 60 for x in SLOT_HOURS]
@@ -79,12 +96,12 @@ BUSY = "■"  # U+25A0 this will be busy_bar busy and conflict character
 FREE = "□"  # U+25A1 this will be busy_bar free character
 ADAY = "━"  # U+2501 for all day events ━
 
-SELECTED_COLOR = NAMED_COLORS["Yellow"]
+SELECTED_COLOR = "yellow"
 # SELECTED_COLOR = "bold yellow"
 
-HEADER_COLOR = NAMED_COLORS["LemonChiffon"]
-HEADER_STYLE = f"bold {NAMED_COLORS['LemonChiffon']}"
-FIELD_COLOR = NAMED_COLORS["SkyBlue"]
+HEADER_COLOR = LEMON_CHIFFON
+HEADER_STYLE = f"bold {LEMON_CHIFFON}"
+FIELD_COLOR = LIGHT_SKY_BLUE
 
 ONEDAY = timedelta(days=1)
 ONEWK = 7 * ONEDAY

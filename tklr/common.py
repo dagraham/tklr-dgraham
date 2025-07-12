@@ -36,11 +36,7 @@ from typing import Literal
 # logger = logging.getLogger('etm')
 # settings = None
 
-from ruamel.yaml import __version__ as ruamel_version
 from dateutil import __version__ as dateutil_version
-from tinydb import __version__ as tinydb_version
-from jinja2 import __version__ as jinja2_version
-from prompt_toolkit import __version__ as prompt_toolkit_version
 
 from time import perf_counter as timer
 # from etm.make_examples import make_examples
@@ -465,8 +461,6 @@ class TimeIt(object):
 
 python_version = platform.python_version()
 system_platform = platform.platform(terse=True)
-# etm_version = version.version
-etm_version = "not defined"
 sys_platform = platform.system()
 mac = sys.platform == "darwin"
 windoz = sys_platform in ("Windows", "Microsoft")
@@ -478,13 +472,8 @@ etmhome = None
 timers_file = None
 
 VERSION_INFO = f"""\
- etm version:        {etm_version}
  python:             {python_version}
  dateutil:           {dateutil_version}
- prompt_toolkit:     {prompt_toolkit_version}
- tinydb:             {tinydb_version}
- jinja2:             {jinja2_version}
- ruamel.yaml:        {ruamel_version}
  platform:           {system_platform}\
 """
 

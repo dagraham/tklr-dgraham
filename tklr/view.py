@@ -4,7 +4,6 @@ from .shared import log_msg, display_messages
 from datetime import datetime, timedelta
 from logging import log
 from packaging.version import parse as parse_version
-from prompt_toolkit.styles.named_colors import NAMED_COLORS
 from rich import box
 from rich.console import Console
 from rich.segment import Segment
@@ -30,30 +29,45 @@ import asyncio
 
 # from textual.errors import NoMatches
 
+# Color hex values for readability (formerly from prompt_toolkit.styles.named_colors)
+LEMON_CHIFFON     = "#FFFACD"
+KHAKI             = "#F0E68C"
+LIGHT_SKY_BLUE    = "#87CEFA"
+DARK_GRAY         = "#A9A9A9"
+LIME_GREEN        = "#32CD32"
+SLATE_GREY        = "#708090"
+DARK_GREY         = "#A9A9A9"  # same as DARK_GRAY
+GOLDENROD         = "#DAA520"
+DARK_ORANGE       = "#FF8C00"
+GOLD              = "#FFD700"
+ORANGE_RED        = "#FF4500"
+TOMATO            = "#FF6347"
+CORNSILK          = "#FFF8DC"
+
+# App version
 VERSION = parse_version(tklr_version)
-DAY_COLOR = NAMED_COLORS["LemonChiffon"]
-FRAME_COLOR = NAMED_COLORS["Khaki"]
-HEADER_COLOR = NAMED_COLORS["LightSkyBlue"]
-# HEADER_COLOR = NAMED_COLORS["LemonChiffon"]
-DIM_COLOR = NAMED_COLORS["DarkGray"]
-EVENT_COLOR = NAMED_COLORS["LimeGreen"]
-AVAILABLE_COLOR = NAMED_COLORS["LightSkyBlue"]
-WAITING_COLOR = NAMED_COLORS["SlateGrey"]
-FINISHED_COLOR = NAMED_COLORS["DarkGrey"]
-GOAL_COLOR = NAMED_COLORS["GoldenRod"]
-CHORE_COLOR = NAMED_COLORS["Khaki"]
-PASTDUE_COLOR = NAMED_COLORS["DarkOrange"]
-BEGIN_COLOR = NAMED_COLORS["Gold"]
-INBOX_COLOR = NAMED_COLORS["OrangeRed"]
-TODAY_COLOR = NAMED_COLORS["Tomato"]
-SELECTED_BACKGROUND = "#566573"
-# SELECTED_BACKGROUND = "#5d5d5d"
-MATCH_COLOR = NAMED_COLORS["Tomato"]
-TITLE_COLOR = NAMED_COLORS["Cornsilk"]
 
+# Colors for UI elements
+DAY_COLOR            = LEMON_CHIFFON
+FRAME_COLOR          = KHAKI
+HEADER_COLOR         = LIGHT_SKY_BLUE
+DIM_COLOR            = DARK_GRAY
+EVENT_COLOR          = LIME_GREEN
+AVAILABLE_COLOR      = LIGHT_SKY_BLUE
+WAITING_COLOR        = SLATE_GREY
+FINISHED_COLOR       = DARK_GREY
+GOAL_COLOR           = GOLDENROD
+CHORE_COLOR          = KHAKI
+PASTDUE_COLOR        = DARK_ORANGE
+BEGIN_COLOR          = GOLD
+INBOX_COLOR          = ORANGE_RED
+TODAY_COLOR          = TOMATO
+SELECTED_BACKGROUND  = "#566573"
+MATCH_COLOR          = TOMATO
+TITLE_COLOR          = CORNSILK
 
-# SELECTED_COLOR = NAMED_COLORS["Yellow"]
-SELECTED_COLOR = "bold yellow"
+# This one appears to be a Rich/Textual style string
+SELECTED_COLOR       = "bold yellow"
 
 ONEDAY = timedelta(days=1)
 ONEWK = 7 * ONEDAY
@@ -412,7 +426,14 @@ class DynamicViewApp(App):
     def set_afill(self, details: list, method: str):
         if self.view == "week":
             log_msg(f"{self.selected_week = }")
-            tag_to_id = self.controller.tag_to_id[self.selected_week]
+            week = self.controller.tag_to_id.get(self.selected_week, None)
+            if week:
+                tag_to_id = week
+            else:
+                log_msg(f"invalid week: {self.selected_week = }")
+                return ["Invalid week"]
+                
+            # tag_to_id = self.controller.tag_to_id.get(self.selected_week, None)
         elif self.view in ["next", "last", "find"]:
             tag_to_id = self.controller.list_tag_to_id[self.view]
         elif self.view == "alerts":
