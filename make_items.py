@@ -225,7 +225,7 @@ items = [
        ii. and this 
     2. And finally this. @t test @l label @t red 
     """,
-    f"""- dog house @s {first_of_month}
+    f"""+ dog house @s {first_of_month}
     @j create plan &r 1 
     @j go to Lowes &r 2: 1 
     @j buy lumber &r 3: 2

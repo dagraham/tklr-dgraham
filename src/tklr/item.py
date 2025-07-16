@@ -1,9 +1,9 @@
-import re, shutil
+import re
+import shutil
 import json
 from dateutil.parser import parse as duparse
-from dateutil import rrule
 from dateutil.rrule import rruleset, rrulestr
-from datetime import time, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 
 # from dateutil.tz import gettz
 # import pytz
@@ -13,7 +13,6 @@ from dateutil.tz import gettz
 
 # from collections import defaultdict
 from math import ceil
-from copy import deepcopy
 
 from typing import Iterable, List
 
@@ -84,7 +83,7 @@ def get_local_zoneinfo():
         tz_path = os.readlink("/etc/localtime")
         if "zoneinfo" in tz_path:
             return ZoneInfo(tz_path.split("zoneinfo/")[-1])
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -513,11 +512,6 @@ class Item:
         ],
         "m": ["mask", "string to be masked", "do_mask"],
         "n": ["attendee", "name <email address>", "do_string"],
-        "o": [
-            "overdue",
-            "character from (r)estart, (s)kip or (k)eep",
-            "do_overdue",
-        ],
         "p": [
             "priority",
             "priority from 0 (none) to 4 (urgent)",
@@ -768,7 +762,7 @@ class Item:
                     return fmt_error(
                         f"@{this_atkey}, The use of this @-key is not supported in type '{itemtype}' reminders"
                     )
-                if this_atkey in used_atkeys and not (this_atkey in multiple_allowed):
+                if this_atkey in used_atkeys and this_atkey not in multiple_allowed:
                     return fmt_error(
                         f"@{current_atkey}, Multiple instances of this @-key are not allowed"
                     )
@@ -788,7 +782,7 @@ class Item:
                             needed.append(_key)
             elif token["t"] == "&":
                 this_ampkey = f"{current_atkey}{token['k']}"
-                if not current_atkey in ["r", "j"]:
+                if current_atkey not in ["r", "j"]:
                     return fmt_error(
                         f"&{token['k']}, The use of &-keys is not supported for @{current_atkey}"
                     )
@@ -797,9 +791,7 @@ class Item:
                     return fmt_error(
                         f"&{token['k']}, This &-key is not supported for @{current_atkey}"
                     )
-                if this_ampkey in used_ampkeys and not (
-                    this_ampkey in multiple_allowed
-                ):
+                if this_ampkey in used_ampkeys and this_ampkey not in multiple_allowed:
                     return fmt_error(
                         f"&{current_ampkey}, Multiple instances of this &-key are not supported"
                     )
@@ -1356,7 +1348,7 @@ class Item:
                     res = str(p)
                     obj_lst.append(res)
                     rep_lst.append(res)
-                except Exception as e:
+                except Exception:
                     all_ok = False
                     rep_lst.append(f"~{arg}~")
 
@@ -1391,7 +1383,7 @@ class Item:
                     res = str(arg)
                     obj_lst.append(res)
                     rep_lst.append(res)
-                except Exception as e:
+                except Exception:
                     all_ok = False
                     rep_lst.append(f"~{arg}~")
             obj = obj_lst if all_ok else None
@@ -1402,7 +1394,7 @@ class Item:
         try:
             obj = re.sub("^@. ", "", token.strip())
             rep = obj
-        except Exception as e:
+        except Exception:
             obj = None
             rep = f"invalid: {token}"
         return obj, rep, []
@@ -1540,10 +1532,10 @@ class Item:
         return matches
 
     def do_at(self):
-        print(f"TODO: do_at() -> show available @ tokens")
+        print("TODO: do_at() -> show available @ tokens")
 
     def do_amp(self):
-        print(f"TODO: do_amp() -> show available & tokens")
+        print("TODO: do_amp() -> show available & tokens")
 
     @classmethod
     def do_weekdays(cls, wkd_str: str):
@@ -1603,7 +1595,7 @@ class Item:
         """
         try:
             arg = int(arg)
-        except Exception as e:
+        except Exception:
             return False, "interval must be a postive integer"
         else:
             if arg < 1:
@@ -1736,11 +1728,11 @@ class Item:
 
     @classmethod
     def do_two_periods(cls, arg: List[str]) -> str:
-        return True, f"not implemented", []
+        return True, "not implemented", []
 
     @classmethod
     def do_mask(cls, arg: str) -> str:
-        return True, f"not implemented", []
+        return True, "not implemented", []
 
     def integer(cls, arg, min, max, zero, typ=None):
         """
@@ -1758,7 +1750,7 @@ class Item:
         msg = ""
         try:
             arg = int(arg)
-        except Exception as e:
+        except Exception:
             if typ:
                 return False, "{}: {}".format(typ, arg)
             else:
@@ -1798,7 +1790,7 @@ class Item:
         if type(arg) == str:
             try:
                 args = [int(x) for x in arg.split(",")]
-            except Exception as e:
+            except Exception:
                 if typ:
                     return False, "{}: {}".format(typ, arg)
                 else:
@@ -1806,7 +1798,7 @@ class Item:
         elif type(arg) == list:
             try:
                 args = [int(x) for x in arg]
-            except Exception as e:
+            except Exception:
                 if typ:
                     return False, "{}: {}".format(typ, arg)
                 else:

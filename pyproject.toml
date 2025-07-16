@@ -1,6 +1,6 @@
 [project]
 name = "tklr"
-version = "0.1.0"
+version = "0.0.0a35"
 description = "CLI task and job planning tool"
 authors = [{ name = "Daniel Graham", email = "dnlgrhm@gmail.com" }]
 readme = "README.md"
@@ -11,14 +11,15 @@ dependencies = [
   "tzlocal >=5.3.1",
   "packaging >=25.0",
   "pydantic >=2.11.7",
-  "jinja2 >=3.1.6"
+  "jinja2 >=3.1.6",
+  "click>=8.2.1",
 ]
 
 [project.optional-dependencies]
 dev = ["lorem"]
 
 [project.scripts]
-tklr = "tklr.__main__:main"
+tklr = "tklr.cli.main:cli"
 
 [build-system]
 requires = ["uv-build>=0.7.19,<0.8.0"]

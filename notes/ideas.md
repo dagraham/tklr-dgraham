@@ -2,9 +2,26 @@
 
 ## What's next?
 
+- Click interface
+
 - Agenda view
 
-## recurrent tasks and chores
+## CLI interface
+
+```python3
+from rich import print
+from tklr.item import Item
+from tklr.model import DatabaseManager
+
+dbm = DatabaseManager("./example/tklr.db")
+
+def add_item(entry: str) -> None:
+    print(f"{entry = }")
+    item = Item(entry)  # .to_dict()
+    print(f"{item = }")
+    dbm.add_item(item)
+dbm.populate_dependent_tables()
+```
 
 Note: these are both tasks with itemtype character `-` but use `@o` to schedule recurrences instead of `@r`.
 

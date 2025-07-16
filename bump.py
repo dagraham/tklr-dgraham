@@ -4,10 +4,11 @@ import os
 import sys
 import subprocess
 from datetime import datetime
-import importlib.util
+import tomllib
+import tomli_w
 
-# --- Configurable paths and options ---
-VERSION_FILE = os.path.join("tklr", "__version__.py")
+# --- Configuration ---
+PYPROJECT_PATH = "pyproject.toml"
 MAIN_BRANCH = "master"
 WORKING_BRANCH = "working"
 DRY_RUN = "--dry-run" in sys.argv
@@ -31,20 +32,25 @@ def check_output(cmd):
         return True, res
     except subprocess.CalledProcessError as e:
         print(f"Error running {cmd}\n'{e.output}'")
-        lines = e.output.strip().split("\n")
-        msg = lines[-1]
-        return False, msg
+        return False, e.output.strip().split("\n")[-1]
 
 
-def load_version(path):
-    spec = importlib.util.spec_from_file_location("__version__", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.version
+def load_version():
+    with open(PYPROJECT_PATH, "rb") as f:
+        data = tomllib.load(f)
+    return data["project"]["version"]
 
 
-# --- Main logic ---
-version = load_version(VERSION_FILE)
+def write_version(new_version):
+    with open(PYPROJECT_PATH, "rb") as f:
+        data = tomllib.load(f)
+    data["project"]["version"] = new_version
+    with open(PYPROJECT_PATH, "wb") as f:
+        f.write(tomli_w.dumps(data).encode("utf-8"))
+
+
+# --- Version Bumping Logic ---
+version = load_version()
 pre = post = version
 ext = "a"
 ext_num = 1
@@ -102,7 +108,7 @@ tmsg = f"Tagged version {new_version}. {tplus}"
 print(f"\nThe tag message for the new version will be:\n{tmsg}\n")
 if DRY_RUN:
     print(f"[dry-run] Would set new version: {new_version}")
-    print(f"[dry-run] Would update {VERSION_FILE}")
+    print(f"[dry-run] Would update pyproject.toml")
     print(f"[dry-run] Would commit and tag with message:\n\n{tmsg}\n")
     sys.exit(0)
 
@@ -110,31 +116,31 @@ if input(f"Commit and tag new version: {new_version}? [yN] ").lower() != "y":
     print("cancelled")
     sys.exit()
 
-with open(VERSION_FILE, "w") as fo:
-    fo.write(f"version = '{new_version}'\n")
+write_version(new_version)
 
 check_output(f"git commit -a -m '{tmsg}'")
 ok, version_info = check_output("git log --pretty=format:'%ai' -n 1")
 check_output(f"git tag -a -f '{new_version}' -m '{version_info}'")
 
-# Generate CHANGES.txt but do NOT commit it
+# Generate CHANGES.txt (but don't commit it)
 changes_text = f"Recent tagged changes as of {datetime.now()}:\n"
 ok, changelog = check_output(
-    f"git log --pretty=format:'- %ar%d %an%n    %h %ai%n%w(70,4,4)%B' --max-count=20 --no-walk --tags"
+    "git log --pretty=format:'- %ar%d %an%n    %h %ai%n%w(70,4,4)%B' "
+    "--max-count=20 --no-walk --tags"
 )
 if ok:
-    with open("CHANGES.txt", "w") as changes_file:
-        changes_file.write(changes_text)
-        changes_file.write(changelog)
+    with open("CHANGES.txt", "w") as f:
+        f.write(changes_text)
+        f.write(changelog)
     print("CHANGES.txt generated (not committed).")
 
-if input("switch to master, merge working and push to origin? [yN] ").lower() == "y":
+if input("Switch to master, merge working, and push? [yN] ").lower() == "y":
     check_output(
-        f"git checkout {MAIN_BRANCH} && git merge {WORKING_BRANCH} && git push && git checkout {WORKING_BRANCH} && git push"
+        f"git checkout {MAIN_BRANCH} && git merge {WORKING_BRANCH} && "
+        f"git push && git checkout {WORKING_BRANCH} && git push"
     )
 
-    if input("upload sdist to PyPi using twine? [yN] ").lower() == "y":
-        check_output("./upload_sdist.sh")
-
+    if input("Upload to PyPI using uv publish? [yN] ").lower() == "y":
+        check_output("uv publish --yes")
 else:
     print(f"retained version: {version}")
