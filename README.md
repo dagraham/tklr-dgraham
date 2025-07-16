@@ -3,7 +3,7 @@
     <td>
   <h1>tklr</h1>
       Short for "Task Lister" but pronounced "Tickler" -
-      a task manager that adopts TaskWarrior's urgency approach to ranking tasks but supports the entry format, component jobs, datetime parsing and recurrence features of <strong>etm</strong>.</p>
+      a task manager that ranks tasks by urgency and supports the entry format, component jobs, datetime parsing and recurrence features of <strong>etm</strong>.</p>
   <p>Make the most of your time!</p>
       <p></p>
     </td>
@@ -21,235 +21,93 @@ Requires: Python, SQLite3, DateUtil and Textual.
 
 _Preliminary and incomplete version._ This notice will be removed when the code is ready for use.
 
-## Task attributes
+## 🛠️ Developer Install Guide
 
-Generally the same format as _etm_ for a task entry but without the beginning item type character: the name of the task, followed by a list of @ and & delineated attributes. The attributes are separated by spaces and include the following:
+This guide walks you through setting up a development environment for `tklr` using [`uv`](https://github.com/astral-sh/uv) and a local virtual environment.
 
-- @b begin:timedelta requires @s (task status = postponed before @s - @b then available)
-- @c context:str (home, shop, work, ...) alternatives specified in config.
-  As with TW, specifying a context would limit the list display to tasks with that context.
-- @e extent: timedelta - estimated time required for completion
+### ✅ Step 1: Clone the repository
 
-  a. Perhaps a "quick" command to order tasks by extent, shortest first? Someway of taking advantage of having, say 15 minutes, before a meeting?
-  b. Maybe a command to limit the list display to tasks for which the estimated completion times add up to less than a specified time?
-  c. Should due urgency be adjusted for the estimated time?
-
-- @f finished:datetime
-- @i importance:[N)ext, H)igh, M)edium, L)low, S)omeday] numeric values in config (corresponds to next (tag) and priority in TW)
-- @j job (can be used multiple times - examples below)
-- @n note:str
-- @p project:str
-- @r rrule - requires @s (as implemented in _etm_)
-- @s scheduled:datetime - a date or datetime (corresponds to due date in TW)
-- @t tag:str (can be used multiple times)
-- @u until:timedelta - requires @s (task status = deleted after @s + @u if pending before)
-- @x deleted:d/noteatetime
-
-- The (unique) id for a task and its _created_ and (last) _modified_ dates are maintained internally.
-
-## Task status characters and meaning
-
-- -) Available (not waiting, finished, postponed or deleted - corresponds to pending in TW)
-- \*) Available and now - modified <= 1 week (modified within the last week - corresponds to current in TW)
-- D) Deleted (has an @d entry or @s and @u entries with @s + @u <= now)
-- F) Finished (task with an @f entry or job with an &f entry)
-- P) Postponed (has @b and @s entries and @s - @b is in the future - corresponds to waiting in TW)
-- W) Waiting (has one or more unfinished prerequisites - corresponds to blocked in TW)
-
-## Repeating tasks
-
-The @r entry is a _rrule_ (recurrence rule) as implemented in _etm_. A copy of the task is created in the Instances table with the id of parent task used as the task*id, the next occurrence of the task used for @s, the current datetime for the \_created* and _modified_ datetimes and with the @r entry removed. This instance of the recurring task is then treated as a normal task with a scheduled date and time.
-
-If and when an instance is completed or the single instance deleted and the recurrence rule in the parent task calls for another instance, this process is repeated.
-
-## Tasks with component jobs
-
-This is a simplification of the current implementation in _etm_. **The need to manually enter job ids and prerequisites has been eliminated by using the position of the job in the sequence and its indentation level.**
-
-A task with @j (job) entries forms a group of related implied tasks, one for each @j entry. The prerequisites for a job, if any, are
-
-Here are some examples of tasks with jobs. In each case "input" gives the multiline task as it would be entered. What follows are the results of processing by _tklr_. The list of jobs adds an id, "i" for each job, just the jobs position in the list starting from 0, and an integer indention level, "node", again starting from 0. Using the "i" (id) elements from the list of "jobs", "prereqs" gives the prerequisites for each job, if any, using the "i" entries of the relevant jobs. Similarly "available" gives the ids of jobs that are available for completion, i.e., jobs without unfinished prerequisites, "waiting" gives the ids of the jobs that are not available because of unfinished prerequisites and "finished" give the ids of the jobs that have been finished.
-
-### jobs without prerequisites
-
-```python
-input:
-- jobs without prerequisites @d No prerequisites for any job
-    @j A
-    @j B
-    @j C
-
-
-# Computed from input:
-jobs:
-  {'j': 'A', 'node': 0, 'i': 0})
-  {'j': 'B', 'node': 0, 'i': 1})
-  {'j': 'C', 'node': 0, 'i': 2})
-prereqs
-available = {0, 1, 2}
-waiting = {}
-finished = {}
+```bash
+git clone https://github.com/dagraham/tklr-dgraham.git
+cd tklr-dgraham
 ```
 
-### each job depends on the following jobs
+### ✅ Step 2: Create a virtual environment with `uv`
 
-```python
-input:
-- jobs without prerequisites @d No prerequisites for any job
-    @j A
-    @j B
-    @j C
-
-
-# Computed from input:
-jobs:
-  {'j': 'A', 'node': 0, 'i': 0})
-  {'j': 'B', 'node': 0, 'i': 1})
-  {'j': 'C', 'node': 0, 'i': 2})
-prereqs
-available = {0, 1, 2}
-waiting = {}
-finished = {}
+```bash
+uv venv
 ```
 
-### more complex prerequisites - make a dog house
+This creates a `.venv/` directory inside your project.
 
-```python
-input:
-- dog house @s 2025-05-15
-    @j paint &c shop
-    @j   sand &c shop
-    @j     assemble &c shop
-    @j       cut pieces &c shop
-    @j          get wood &c Lowes
-    @j       get hardware &c Lowes
-    @j   get paint &c Lowes
+### ✅ Step 3: Install the project in editable mode
 
-
-# Computed from input:
-jobs:
-  {'j': 'paint', 'node': 0, 'c': 'shop', 'i': 0})
-  {'j': 'sand', 'node': 1, 'c': 'shop', 'i': 1})
-  {'j': 'assemble', 'node': 2, 'c': 'shop', 'i': 2})
-  {'j': 'cut pieces', 'node': 3, 'c': 'shop', 'i': 3})
-  {'j': 'get wood', 'node': 4, 'c': 'Lowes', 'i': 4})
-  {'j': 'get hardware', 'node': 3, 'c': 'Lowes', 'i': 5})
-  {'j': 'get paint', 'node': 1, 'c': 'Lowes', 'i': 6})
-prereqs
-  0: {1, 2, 3, 4, 5, 6}
-  1: {2, 3, 4, 5}
-  2: {3, 4, 5}
-  3: {4}
-available = {4, 5, 6}
-waiting = {0, 1, 2, 3}
-finished = {}
+```bash
+uv pip install -e .
 ```
 
-Note that the outline structure incorporates _backward induction_ - what must be done last is considered first. When will "dog house" be done? When "paint" is completed. What has to be done before "paint"? The jobs "sand" and "get paint". And so forth. Also note the handy role of _context_.
+### ✅ Step 4: Use the CLI
 
-### more complex prerequisites - dog house with shared jobs
+You have two options for activating the CLI:
 
-Here two jobs are added, "go to Lowes" and "create plan and parts list", which are both prerequisites for the jobs "get wood", "get hardware" and "get paint". Since the latter three jobs are on different branches, the "lowes" and "plan" jobs will need to be added to each of the three branches. To do this without creating copies of the jobs, labels will be created the first time the jobs are inserted using "&l" and then the label will be used subsequently to represent the same job.
+#### ☑️ Option 1: Manual activation (every session)
 
-```python
-input:
-- dog house @s 2025-05-15
-    @j paint &c shop
-    @j   sand &c shop
-    @j     assemble &c shop
-    @j       cut pieces &c shop
-    @j          get wood &c Lowes
-    @j            go to Lowes &l lowes &c errands
-    @j            create plan &l plan
-    @j       get hardware &c Lowes
-    @j         lowes
-    @j         plan
-    @j   get paint &c Lowes
-    @j     lowes
-    @j     plan
-
-
-# Computed from input:
-jobs:
-  {'j': 'paint', 'node': 0, 'c': 'shop', 'i': 0})
-  {'j': 'sand', 'node': 1, 'c': 'shop', 'i': 1})
-  {'j': 'assemble', 'node': 2, 'c': 'shop', 'i': 2})
-  {'j': 'cut pieces', 'node': 3, 'c': 'shop', 'i': 3})
-  {'j': 'get wood', 'node': 4, 'c': 'Lowes', 'i': 4})
-  {'j': 'go to Lowes', 'node': 5, 'c': 'errands', 'i': 5})
-  {'j': 'create plan', 'node': 5, 'i': 6})
-  {'j': 'get hardware', 'node': 3, 'c': 'Lowes', 'i': 7})
-  {'j': 'go to Lowes', 'node': 4, 'c': 'errands', 'i': 5})
-  {'j': 'create plan', 'node': 4, 'i': 6})
-  {'j': 'get paint', 'node': 1, 'c': 'Lowes', 'i': 8})
-  {'j': 'go to Lowes', 'node': 2, 'c': 'errands', 'i': 5})
-  {'j': 'create plan', 'node': 2, 'i': 6})
-prereqs
-  0: {1, 2, 3, 4, 5, 6, 7, 8}
-  1: {2, 3, 4, 5, 6, 7}
-  2: {3, 4, 5, 6, 7}
-  3: {4, 5, 6}
-  4: {5, 6}
-  7: {5, 6}
-  8: {5, 6}
-available = {5, 6}
-waiting = {0, 1, 2, 3, 4, 7, 8}
-finished = {}
+```bash
+source .venv/bin/activate
 ```
 
-### more complex prerequisites - dog house with shared jobs and completions
+Then you can run:
 
-Here the 2 shared jobs "lowes" and "plan" have been finished and the 3 lowes jobs "get wood", "get hardware" and "get paint" have thus become available.
-
-```python
-input:
-- dog house @s 2025-05-15
-    @j paint &c shop
-    @j   sand &c shop
-    @j     assemble &c shop
-    @j       cut pieces &c shop
-    @j          get wood &c Lowes
-    @j            go to Lowes &l lowes &c errands &f 2025-03-26 4:00pm
-    @j            create plan &l plan &f 2025-03-24 2:00pm
-    @j       get hardware &c Lowes
-    @j         lowes
-    @j         plan
-    @j   get paint &c Lowes
-    @j     lowes
-    @j     plan
-
-
-# Computed from input:
-TODO: do_completion() -> implement
-jobs:
-  {'j': 'paint', 'node': 0, 'c': 'shop', 'i': 0})
-  {'j': 'sand', 'node': 1, 'c': 'shop', 'i': 1})
-  {'j': 'assemble', 'node': 2, 'c': 'shop', 'i': 2})
-  {'j': 'cut pieces', 'node': 3, 'c': 'shop', 'i': 3})
-  {'j': 'get wood', 'node': 4, 'c': 'Lowes', 'i': 4})
-  {'j': 'go to Lowes', 'node': 5, 'c': 'errands', 'f': '2025-03-26 4:00pm', 'i': 5})
-  {'j': 'create plan', 'node': 5, 'f': '2025-03-24 2:00pm', 'i': 6})
-  {'j': 'get hardware', 'node': 3, 'c': 'Lowes', 'i': 7})
-  {'j': 'go to Lowes', 'node': 4, 'c': 'errands', 'f': '2025-03-26 4:00pm', 'i': 5})
-  {'j': 'create plan', 'node': 4, 'f': '2025-03-24 2:00pm', 'i': 6})
-  {'j': 'get paint', 'node': 1, 'c': 'Lowes', 'i': 8})
-  {'j': 'go to Lowes', 'node': 2, 'c': 'errands', 'f': '2025-03-26 4:00pm', 'i': 5})
-  {'j': 'create plan', 'node': 2, 'f': '2025-03-24 2:00pm', 'i': 6})
-prereqs
-  0: {1, 2, 3, 4, 7, 8}
-  1: {2, 3, 4, 7}
-  2: {3, 4, 7}
-  3: {4}
-available = {8, 4, 7}
-waiting = {0, 1, 2, 3}
-finished = {5, 6}
+```bash
+tklr --version
+tklr add "- test task @s 2025-08-01"
+tklr ui
 ```
 
-Note that the two available jobs, "cut pieces" and "get paint", would each be "blocking" since they are prerequisites for other jobs and would thus get the associated urgency.blocking points.
+To deactivate:
 
-My idea is that available jobs and only available jobs should also get any relevant urgency points for "next" and "due". Furthermore, since jobs can have "&s" timedelta entries so that the scheduled (TW due) date for a job would actually be @s - &s, the urgency.due points should be calculated based on this adjusted scheduled date. Reactions?
+```bash
+deactivate
+```
 
-By way of contrast, a list of jobs with the same zero indention level would be treated as a list of independent tasks since none have prerequisites.
+#### ☑️ Option 2: Automatic activation with `direnv` (recommended)
+
+##### 1. Install `direnv`
+
+```bash
+brew install direnv        # macOS
+sudo apt install direnv    # Ubuntu/Debian
+```
+
+##### 2. Add the shell hook to your `~/.zshrc` or `~/.bashrc`
+
+```sh
+eval "$(direnv hook zsh)"   # or bash
+```
+
+Restart your shell or run `source ~/.zshrc`.
+
+##### 3. In the project directory, create a `.envrc` file
+
+```bash
+echo 'export PATH="$PWD/.venv/bin:$PATH"' > .envrc
+```
+
+##### 4. Allow it
+
+```bash
+direnv allow
+```
+
+Now every time you `cd` into the project, your environment is activated automatically and, as with the manual option, test your setup with
+
+```bash
+tklr --version
+tklr add "- test task @s 2025-08-01"
+tklr ui
+```
+
+✅ You're now ready to develop, test, and run `tklr` locally with full CLI and UI support.
 
 ## Dates and times
 
@@ -346,11 +204,9 @@ item.entry = '- fall back @s 2024-11-01 10:00 EST  @r d &i 1 &c 4'
   Mon 2024-11-04 09:00 EST -0500
 ```
 
-## configuration
+## urgency settings - preliminary
 
 ```yaml
-# cfg.yaml - variables and default values
-
 task.contexts:
   - errands
   - home
@@ -385,9 +241,7 @@ urgency.tags: 1.0
 # each tag (other than "next") up to a maximum of 3
 ```
 
-## urgency
-
-As in TaskWarrior the most important urgency components are (1) having a "next" tag which gets an urgency component of 15 and (2) having a due date which gets a maximum urgency of 12. The intent seems to be to have the "next" tasks always at the top of the default (next) list with other pending tasks sorted by their urgency. This places unfinished tasks with due dates falling on or before the current date near the top of the default "next" list.
+The most important urgency components are (1) having a "next" tag which gets an urgency component of 15 and (2) having a due date which gets a maximum urgency of 12. The intent is to have the "next" tasks always at the top of the default (next) list with other pending tasks sorted by their urgency. This places unfinished tasks with due dates falling on or before the current date near the top of the default "next" list.
 
 ### due
 
@@ -471,32 +325,3 @@ def urgency_age(created:datetime) -> float:
     else:
         return days_old / 365.0
 ```
-
-## Views
-
-The style for each list view is similar - a table with columns for variables and a row for each listed task. Rows are numbered (base-26) using lower case alphabetic characters where a = 0, ..., z = 25.
-
-Pressing the key or keys corresponding to row number opens a view showing the details for that task and enables keys bound to various commands associated with the displayed task including:
-
-- A) activate
-- B) begin
-- C) context
-- D) delete
-- E) edit
-- F) finish
-- I) importance
-- M) refresh modified date (makes the task current for a week)
-- P) project
-- S) scheduled date
-- T) tags
-- U) until
-
-### Next - the default view
-
-Tasks are ordered by **urgency**. Columns include
-
-- row number (a, b, c, ...)
-- status
-- name
-- (context)
-- (project)
