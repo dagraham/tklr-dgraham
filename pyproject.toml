@@ -1,6 +1,6 @@
 [project]
 name = "tklr"
-version = "0.0.0b0"
+version = "0.0.0b1"
 description = "CLI task and job planning tool"
 authors = [
     { name = "Daniel Graham", email = "dnlgrhm@gmail.com" },
