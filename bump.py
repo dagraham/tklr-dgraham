@@ -144,3 +144,6 @@ if input("Switch to master, merge working, and push? [yN] ").lower() == "y":
         check_output("uv publish --yes")
 else:
     print(f"retained version: {version}")
+
+if not DRY_RUN:
+    check_output("uv pip install -e .")
