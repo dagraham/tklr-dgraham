@@ -39,15 +39,15 @@ The interval between the datetime of an _actual_ completion and the datetime _sc
 
 ## goals
 
-Between a task (something to be done) and an event (cannot be past due). Event but with different, attention getting color? 
+Between a task (something to be done) and an event (cannot be past due). Event but with different, attention getting color?
 
 ```
-~ trash to curb @s 8a mon @r w 
-~ stationary bike @s mon @r w &w TU, WE, FR, SA 
+~ trash to curb @s 8a mon @r w
+~ stationary bike @s mon @r w &w TU, WE, FR, SA
 ```
 
 - `~`: itemtype character for goal
-- `@o [+-]times/timedelta` for goals, e.g., `+3/6d`, because of the `+`, set goal for at least 3 times every 6 days `-2/w`, because of the minus sign, set goal for no more than 2 times per week.
+- `@r` for goals, e.g., `+3/6d`, because of the `+`, set goal for at least 3 times every 6 days `-2/w`, because of the minus sign, set goal for no more than 2 times per week.
 
 - relevant fields
   - `@s datetime` starting datetime
