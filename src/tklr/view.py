@@ -1,5 +1,6 @@
 import tklr
-from .__version__ import version as tklr_version
+
+from importlib.metadata import version
 from .shared import log_msg, display_messages
 from datetime import datetime, timedelta
 from logging import log
@@ -27,47 +28,48 @@ import string
 import shutil
 import asyncio
 
+tklr_version = version("tklr")
 # from textual.errors import NoMatches
 
 # Color hex values for readability (formerly from prompt_toolkit.styles.named_colors)
-LEMON_CHIFFON     = "#FFFACD"
-KHAKI             = "#F0E68C"
-LIGHT_SKY_BLUE    = "#87CEFA"
-DARK_GRAY         = "#A9A9A9"
-LIME_GREEN        = "#32CD32"
-SLATE_GREY        = "#708090"
-DARK_GREY         = "#A9A9A9"  # same as DARK_GRAY
-GOLDENROD         = "#DAA520"
-DARK_ORANGE       = "#FF8C00"
-GOLD              = "#FFD700"
-ORANGE_RED        = "#FF4500"
-TOMATO            = "#FF6347"
-CORNSILK          = "#FFF8DC"
+LEMON_CHIFFON = "#FFFACD"
+KHAKI = "#F0E68C"
+LIGHT_SKY_BLUE = "#87CEFA"
+DARK_GRAY = "#A9A9A9"
+LIME_GREEN = "#32CD32"
+SLATE_GREY = "#708090"
+DARK_GREY = "#A9A9A9"  # same as DARK_GRAY
+GOLDENROD = "#DAA520"
+DARK_ORANGE = "#FF8C00"
+GOLD = "#FFD700"
+ORANGE_RED = "#FF4500"
+TOMATO = "#FF6347"
+CORNSILK = "#FFF8DC"
 
 # App version
 VERSION = parse_version(tklr_version)
 
 # Colors for UI elements
-DAY_COLOR            = LEMON_CHIFFON
-FRAME_COLOR          = KHAKI
-HEADER_COLOR         = LIGHT_SKY_BLUE
-DIM_COLOR            = DARK_GRAY
-EVENT_COLOR          = LIME_GREEN
-AVAILABLE_COLOR      = LIGHT_SKY_BLUE
-WAITING_COLOR        = SLATE_GREY
-FINISHED_COLOR       = DARK_GREY
-GOAL_COLOR           = GOLDENROD
-CHORE_COLOR          = KHAKI
-PASTDUE_COLOR        = DARK_ORANGE
-BEGIN_COLOR          = GOLD
-INBOX_COLOR          = ORANGE_RED
-TODAY_COLOR          = TOMATO
-SELECTED_BACKGROUND  = "#566573"
-MATCH_COLOR          = TOMATO
-TITLE_COLOR          = CORNSILK
+DAY_COLOR = LEMON_CHIFFON
+FRAME_COLOR = KHAKI
+HEADER_COLOR = LIGHT_SKY_BLUE
+DIM_COLOR = DARK_GRAY
+EVENT_COLOR = LIME_GREEN
+AVAILABLE_COLOR = LIGHT_SKY_BLUE
+WAITING_COLOR = SLATE_GREY
+FINISHED_COLOR = DARK_GREY
+GOAL_COLOR = GOLDENROD
+CHORE_COLOR = KHAKI
+PASTDUE_COLOR = DARK_ORANGE
+BEGIN_COLOR = GOLD
+INBOX_COLOR = ORANGE_RED
+TODAY_COLOR = TOMATO
+SELECTED_BACKGROUND = "#566573"
+MATCH_COLOR = TOMATO
+TITLE_COLOR = CORNSILK
 
 # This one appears to be a Rich/Textual style string
-SELECTED_COLOR       = "bold yellow"
+SELECTED_COLOR = "bold yellow"
 
 ONEDAY = timedelta(days=1)
 ONEWK = 7 * ONEDAY
@@ -432,7 +434,7 @@ class DynamicViewApp(App):
             else:
                 log_msg(f"invalid week: {self.selected_week = }")
                 return ["Invalid week"]
-                
+
             # tag_to_id = self.controller.tag_to_id.get(self.selected_week, None)
         elif self.view in ["next", "last", "find"]:
             tag_to_id = self.controller.list_tag_to_id[self.view]

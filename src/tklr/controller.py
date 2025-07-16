@@ -1,6 +1,7 @@
 from packaging.version import parse as parse_version
-from .__version__ import version as tklr_version
-VERSION = parse_version(tklr_version)
+from importlib.metadata import version
+
+VERSION = version("tklr")
 # TODO: Keep the display part - the model part will be in model.py
 from datetime import datetime, timedelta
 from logging import log
@@ -47,48 +48,46 @@ from .shared import (
 )
 
 # The overall background color of the app is #2e2e2e - set in view_textual.css
-LEMON_CHIFFON     = "#FFFACD"
-KHAKI             = "#F0E68C"
-LIGHT_SKY_BLUE    = "#87CEFA"
-DARK_GRAY         = "#A9A9A9"
-LIME_GREEN        = "#32CD32"
-SLATE_GREY        = "#708090"
-DARK_GREY         = "#A9A9A9"  # same as DARK_GRAY
-GOLDENROD         = "#DAA520"
-DARK_ORANGE       = "#FF8C00"
-GOLD              = "#FFD700"
-ORANGE_RED        = "#FF4500"
-TOMATO            = "#FF6347"
-CORNSILK          = "#FFF8DC"
+LEMON_CHIFFON = "#FFFACD"
+KHAKI = "#F0E68C"
+LIGHT_SKY_BLUE = "#87CEFA"
+DARK_GRAY = "#A9A9A9"
+LIME_GREEN = "#32CD32"
+SLATE_GREY = "#708090"
+DARK_GREY = "#A9A9A9"  # same as DARK_GRAY
+GOLDENROD = "#DAA520"
+DARK_ORANGE = "#FF8C00"
+GOLD = "#FFD700"
+ORANGE_RED = "#FF4500"
+TOMATO = "#FF6347"
+CORNSILK = "#FFF8DC"
 
-# App version
-VERSION = parse_version(tklr_version)
 
 # Colors for UI elements
-DAY_COLOR            = LEMON_CHIFFON
-FRAME_COLOR          = KHAKI
-HEADER_COLOR         = LIGHT_SKY_BLUE
-DIM_COLOR            = DARK_GRAY
-EVENT_COLOR          = LIME_GREEN
-AVAILABLE_COLOR      = LIGHT_SKY_BLUE
-WAITING_COLOR        = SLATE_GREY
-FINISHED_COLOR       = DARK_GREY
-GOAL_COLOR           = GOLDENROD
-CHORE_COLOR          = KHAKI
-PASTDUE_COLOR        = DARK_ORANGE
-BEGIN_COLOR          = GOLD
-INBOX_COLOR          = ORANGE_RED
-TODAY_COLOR          = TOMATO
-SELECTED_BACKGROUND  = "#566573"
-MATCH_COLOR          = TOMATO
-TITLE_COLOR          = CORNSILK
-BUSY_COLOR           = "#9acd32"
-BUSY_COLOR           = "#adff2f"
-CONF_COLOR           = TOMATO
-BUSY_FRAME_COLOR     = "#5d5d5d"
+DAY_COLOR = LEMON_CHIFFON
+FRAME_COLOR = KHAKI
+HEADER_COLOR = LIGHT_SKY_BLUE
+DIM_COLOR = DARK_GRAY
+EVENT_COLOR = LIME_GREEN
+AVAILABLE_COLOR = LIGHT_SKY_BLUE
+WAITING_COLOR = SLATE_GREY
+FINISHED_COLOR = DARK_GREY
+GOAL_COLOR = GOLDENROD
+CHORE_COLOR = KHAKI
+PASTDUE_COLOR = DARK_ORANGE
+BEGIN_COLOR = GOLD
+INBOX_COLOR = ORANGE_RED
+TODAY_COLOR = TOMATO
+SELECTED_BACKGROUND = "#566573"
+MATCH_COLOR = TOMATO
+TITLE_COLOR = CORNSILK
+BUSY_COLOR = "#9acd32"
+BUSY_COLOR = "#adff2f"
+CONF_COLOR = TOMATO
+BUSY_FRAME_COLOR = "#5d5d5d"
 
 # This one appears to be a Rich/Textual style string
-SELECTED_COLOR       = "bold yellow"
+SELECTED_COLOR = "bold yellow"
 # SLOT_HOURS = [0, 4, 8, 12, 16, 20, 24]
 SLOT_HOURS = [0, 6, 12, 18, 24]
 SLOT_MINUTES = [x * 60 for x in SLOT_HOURS]
