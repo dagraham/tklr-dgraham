@@ -26,7 +26,7 @@ from .common import timedelta_str_to_seconds
 from tzlocal import get_localzone_name
 
 local_timezone = get_localzone_name()  # e.g., "America/New_York"
-print(f"using {local_timezone = }")
+# print(f"using {local_timezone = }")
 
 JOB_PATTERN = re.compile(r"^@j ( *)([^&]*)(?:(&.*))?")
 LETTER_SET = set("abcdefghijklmnopqrstuvwxyz")  # Define once
@@ -618,6 +618,8 @@ class Item:
         self.subject = ""
         self.description = ""
         self.item = {}
+        self.parse_ok = False
+        self.parse_message = ""
         self.previous_tokens = []
         self.structured_tokens = []
         self.rruleset = ""
@@ -654,13 +656,14 @@ class Item:
         """
         Parses the input string to extract tokens, then processes and validates the tokens.
         """
-        print("--- begin entry ---\n", f"{entry}", "\n--- end entry --- ")
+        # print("--- begin entry ---\n", f"{entry}", "\n--- end entry --- ")
         digits = "1234567890" * ceil(len(entry) / 10)
         self._tokenize(entry)
 
         message = self.validate()
         if message:
-            print(f"Validate {message = }")
+            self.parse_ok = False
+            self.parse_message = message
             return
 
         # print("calling parse_tokens")
@@ -693,13 +696,13 @@ class Item:
 
         if "s" in self.item and "z" not in self.item:
             self.timezone = local_timezone
-            print(f"{self.timezone = }")
+            # print(f"{self.timezone = }")
 
         self.itemtype = self.item.get("itemtype", "")
         self.subject = self.item.get("subject", "")
         # self.extent = self.item.get("extent", "")
         self.rruleset = self.item.get("rruleset", "")
-        print(f"{self.rruleset = }")
+        # print(f"{self.rruleset = }")
 
         if self.tags:
             # self.tag_str = "; ".join(self.tags)
@@ -711,11 +714,11 @@ class Item:
             print(f"{self.alerts = }")
 
         # print(f"{self.item = }")
-        print(
-            "###\n",
-            " ".join([f"{t['token']}" for t in self.structured_tokens]),
-            "\n###",
-        )
+        # print(
+        #     "###\n",
+        #     " ".join([f"{t['token']}" for t in self.structured_tokens]),
+        #     "\n###",
+        # )
 
     def validate(self):
         if len(self.structured_tokens) < 2:
@@ -737,7 +740,7 @@ class Item:
         used_ampkeys = []
         needed = required_fortype
         count = 0
-        print(f"{len(self.structured_tokens) = }")
+        # print(f"{len(self.structured_tokens) = }")
         for token in self.structured_tokens:
             count += 1
             if token.get("incomplete", False) == True:
@@ -958,7 +961,7 @@ class Item:
         if partial_token:
             self.structured_tokens.append(partial_token)
 
-        print(f"{self.structured_tokens = }")
+        # print(f"{self.structured_tokens = }")
 
         # if not self.errors:
         #     # self.input_hsh = tokens_to_hsh(self.tokens)
@@ -1103,6 +1106,7 @@ class Item:
                 self.parse_ok = False
                 log_msg(f"Error processing '{token_type}': {result}")
         else:
+            self.parse_ok = False
             log_msg(f"No handler for token: {token}")
 
     def _dispatch_sub_tokens(self, sub_tokens, prefix):
@@ -1309,13 +1313,13 @@ class Item:
 
     def do_description(self, token):
         description = re.sub("^@. ", "", token["token"])
-        print(f"description {token = }, {description = }")
+        # print(f"description {token = }, {description = }")
         if not description:
             return False, "missing description", []
         # ok, rep = Item.do_paragraph(description)
         if description:
             self.description = description
-            print(f"{self.description = }")
+            # print(f"{self.description = }")
             return True, description, []
         else:
             return False, description, []
@@ -1448,7 +1452,7 @@ class Item:
         return True, self.dtstart, []
 
     def do_rrule(self, token):
-        print(f"Processing rrule token: {token}")
+        # print(f"Processing rrule token: {token}")
 
         # Locate the group starting with this @r token
         group = None
@@ -2130,7 +2134,7 @@ class Item:
         if not jobs:
             return False, "No jobs to process"
         if not self.parse_ok:
-            return False, "Error parsing tokens"
+            return False, "Error parsing job tokens"
 
         # map id -> job
         job_map = {job["i"]: job for job in jobs if "i" in job}

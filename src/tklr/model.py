@@ -141,7 +141,7 @@ class DatabaseManager:
             reset (bool): Whether to replace the existing database.
         """
         self.db_path = db_path
-        print(f"using {self.db_path = }")
+        # print(f"using {self.db_path = }")
         if reset and os.path.exists(db_path):
             os.remove(db_path)
         self.conn = sqlite3.connect(self.db_path)
@@ -315,7 +315,7 @@ class DatabaseManager:
         self.populate_beginby()
 
     def add_item(self, item: Item):
-        print(f"{item = }")
+        # print(f"{item = }")
         try:
             timestamp = utc_now_string()
             self.cursor.execute(

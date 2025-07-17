@@ -1,12 +1,20 @@
 import sys
 import click
 import importlib.metadata
+import shutil
 
 from rich import print
 from tklr.item import Item
 from tklr.controller import Controller
 from tklr.model import DatabaseManager
 from tklr.view import DynamicViewApp
+
+# width = shutil.get_terminal_size()[0] - 2
+# width = 30
+
+
+def format_tokens(tokens):
+    return " ".join([f"{t['token'].strip()}" for t in tokens])
 
 
 @click.group()
@@ -26,36 +34,62 @@ def cli(ctx, db, verbose):
 
 
 @cli.command()
-@click.argument("entry", required=False)
-@click.option("--dry-run", is_flag=True, help="Parse but do not add to the database")
+@click.argument("entry", nargs=-1)
 @click.pass_context
-def add(ctx, entry, dry_run):
-    """Add an item via command-line or piped input."""
+def add(ctx, entry):
+    """Add an item via command-line, pipe, or interactively."""
     db = ctx.obj["DB"]
     verbose = ctx.obj["VERBOSE"]
 
-    if not entry and not sys.stdin.isatty():
-        entry = sys.stdin.read().strip()
+    # 1. Determine input source
+    if entry:
+        entry_str = " ".join(entry).strip()
+    elif not sys.stdin.isatty():
+        entry_str = sys.stdin.read().strip()
+    else:
+        print("[bold yellow]No entry given.[/] [dim]Let's add one interactively.")
+        print("[dim]Begin your entry with *, -, ~, or % for the item type")
+        print("[dim]and when complete, press Enter to submit:")
+        try:
+            entry_str = input("> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\n[red]✘ Input cancelled.[/]")
+            sys.exit(1)
 
-    if not entry:
-        print("[red]✘ No entry provided. Use argument or pipe.[/]")
+    if not entry_str:
+        print("[bold red]✘ No entry provided. Use argument, pipe, or interactively.[/]")
         sys.exit(1)
 
+    # 2. Parse and check
     try:
-        if verbose:
-            print(f"[blue]Input:[/] {entry!r}")
-        item = Item(entry)
-        if verbose:
-            print(f"[blue]Parsed Item:[/] {item}")
-        if dry_run:
-            print("[yellow]Dry run:[/] Item parsed but not added.")
-        else:
-            dbm = DatabaseManager(db)
-            dbm.add_item(item)
-            dbm.populate_dependent_tables()
-            print("[green]✔ Item added to database.[/]")
+        item = Item(entry_str)
+
+        if not item.parse_ok:
+            print(f"[red]✘ Invalid entry:[/] {entry_str!r}")
+            print(f"  [yellow]{item.parse_message}[/]")
+            if verbose:
+                print(f"[blue]Entry:[/] {format_tokens(item.structured_tokens)}")
+            sys.exit(1)
+
+        print(f"[green]✔ Entry is valid.[/]")
+        if verbose or sys.stdin.isatty():
+            print(f"[blue]Entry:[/] {format_tokens(item.structured_tokens)}")
+
+        # 3. Ask user to confirm before adding (only if interactive)
+        if sys.stdin.isatty():
+            answer = input("Add this item to the database? [Y/n] ").strip().lower()
+            if answer in ("n", "no"):
+                print("[yellow]✔ Entry was valid but not added.[/]")
+                sys.exit(0)
+
+        # 4. Add to DB
+        dbm = DatabaseManager(db)
+        dbm.add_item(item)
+        dbm.populate_dependent_tables()
+        print("[green]✔ Item added to database.[/]")
+
     except Exception as e:
-        print(f"[red]✘ Error:[/] {e}")
+        print(f"[red]✘ Unexpected error:[/] {e}")
         sys.exit(1)
 
 
@@ -70,3 +104,37 @@ def ui(ctx):
     if verbose:
         print(f"[blue]Launching UI with database:[/] {db}")
     DynamicViewApp(controller).run()
+
+
+@cli.command()
+@click.argument("entry", nargs=-1)
+@click.pass_context
+def check(ctx, entry):
+    """Check whether an entry is valid (parsing only)."""
+    verbose = ctx.obj["VERBOSE"]
+
+    if not entry and not sys.stdin.isatty():
+        entry = sys.stdin.read().strip()
+    else:
+        entry = " ".join(entry).strip()
+
+    if not entry:
+        print("[bold red]✘ No entry provided. Use argument or pipe.[/]")
+        sys.exit(1)
+
+    try:
+        item = Item(entry)
+        if item.parse_ok:
+            print("[green]✔ Entry is valid.[/]")
+            if verbose:
+                print(f"[blue]Entry:[/] {format_tokens(item.structured_tokens, width)}")
+        else:
+            print(f"[red]✘ Invalid entry:[/] {entry!r}")
+            print(f"  [yellow]{item.parse_message}[/]")
+            if verbose:
+                print(f"[blue]Entry:[/] {format_tokens(item.structured_tokens, width)}")
+            sys.exit(1)
+
+    except Exception as e:
+        print(f"[red]✘ Unexpected error:[/] {e}")
+        sys.exit(1)

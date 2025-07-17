@@ -1,7 +1,6 @@
 from packaging.version import parse as parse_version
 from importlib.metadata import version
 
-VERSION = version("tklr")
 # TODO: Keep the display part - the model part will be in model.py
 from datetime import datetime, timedelta
 from logging import log
@@ -47,6 +46,8 @@ from .shared import (
     truncate_string,
 )
 
+VERSION = version("tklr")
+
 # The overall background color of the app is #2e2e2e - set in view_textual.css
 LEMON_CHIFFON = "#FFFACD"
 KHAKI = "#F0E68C"
@@ -61,7 +62,6 @@ GOLD = "#FFD700"
 ORANGE_RED = "#FF4500"
 TOMATO = "#FF6347"
 CORNSILK = "#FFF8DC"
-
 
 # Colors for UI elements
 DAY_COLOR = LEMON_CHIFFON
@@ -130,7 +130,7 @@ def format_tokens(tokens, width):
         key = t.get("key", "")
 
         if t["t"] == "itemtype":
-            current_line = "entry: "
+            current_line = ""
 
         if key == "@d":
             # Handle @d block: always on its own, preserve and wrap content
@@ -427,7 +427,7 @@ class Controller:
         self.list_tag_to_id = {}  # Maps tag numbers to event IDs
         self.width = shutil.get_terminal_size()[0] - 2
         self.afill = 1
-        print(f"{self.width = }")
+        # print(f"{self.width = }")
 
     def set_afill(self, details: list, method: str):
         new_afill = 1 if len(details) <= 26 else 2 if len(details) <= 676 else 3
