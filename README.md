@@ -6,8 +6,8 @@
   <p>Make the most of your time!</p>
       <p></p>
     </td>
-    <td style="width: 460px; vertical-align: top;">
-      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif" alt="tklr" title="Tklr" width="460px" />
+    <td style="width: 520px; vertical-align: top;">
+      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif" alt="tklr" title="Tklr" width="520px" />
       <!-- <img src="mouse_short_bkgrnd.avif" alt="tklr" title="Tklr" width="180px" /> -->
     </td>
 
