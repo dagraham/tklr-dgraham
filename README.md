@@ -114,7 +114,7 @@ tklr ui
 
 ✅ You're now ready to develop, test, and run `tklr` locally with full CLI and UI support.
 
-### ✅ Step 5: Updating your repository
+### ✅ Step 6: Updating your repository
 
 To update your local copy of **Tklr** to the latest version:
 
