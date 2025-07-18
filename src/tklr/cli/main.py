@@ -37,60 +37,91 @@ def cli(ctx, db, verbose):
 @click.argument("entry", nargs=-1)
 @click.pass_context
 def add(ctx, entry):
-    """Add an item via command-line, pipe, or interactively."""
+    """Add an item via command-line, pipe, or external editor."""
+
     db = ctx.obj["DB"]
     verbose = ctx.obj["VERBOSE"]
 
-    # 1. Determine input source
+    def edit_entry(initial: str, reason: str = "") -> str | None:
+        header = ""
+        if reason:
+            header = f"# Fix the entry below or return unchanged to cancel.\n# ERROR: {reason}\n# Lines starting with # will be ignored.\n"
+        result = click.edit(header + initial.strip(), extension=".tklr")
+        if result is None:
+            return None
+        lines = [
+            line for line in result.splitlines() if not line.strip().startswith("#")
+        ]
+        return "\n".join(lines).strip() or None
+
+    # 1. Determine initial entry
     if entry:
         entry_str = " ".join(entry).strip()
+        interactive = False
     elif not sys.stdin.isatty():
         entry_str = sys.stdin.read().strip()
+        interactive = False
     else:
-        print("[bold yellow]No entry given.[/] [dim]Let's add one interactively.")
-        print("[dim]Begin your entry with *, -, ~, or % for the item type")
-        print("[dim]and when complete, press Enter to submit:")
-        try:
-            entry_str = input("> ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\n[red]✘ Input cancelled.[/]")
+        print("[bold yellow]No entry provided.[/]")
+        if click.confirm("Create the entry in your editor?", default=True):
+            entry_str = edit_entry("") or ""
+            interactive = True
+        else:
+            print("[yellow]✘ Cancelled.[/]")
             sys.exit(1)
 
     if not entry_str:
-        print("[bold red]✘ No entry provided. Use argument, pipe, or interactively.[/]")
+        print("[red]✘ Empty entry; nothing to add.[/]")
         sys.exit(1)
 
-    # 2. Parse and check
-    try:
-        item = Item(entry_str)
+    was_edited = not (entry or not sys.stdin.isatty())
+
+    # 2. Parse-check loop
+    while True:
+        try:
+            item = Item(entry_str)
+        except Exception as e:
+            print(f"[red]✘ Internal error during parsing:[/] {e}")
+            sys.exit(1)
 
         if not item.parse_ok:
             print(f"[red]✘ Invalid entry:[/] {entry_str!r}")
             print(f"  [yellow]{item.parse_message}[/]")
             if verbose:
-                print(f"[blue]Entry:[/] {format_tokens(item.structured_tokens)}")
-            sys.exit(1)
+                from tklr.view_rich import format_tokens
 
-        print(f"[green]✔ Entry is valid.[/]")
-        if verbose or sys.stdin.isatty():
-            print(f"[blue]Entry:[/] {format_tokens(item.structured_tokens)}")
+                print(
+                    f"[blue]Parsed tokens:[/] {format_tokens(item.structured_tokens)}"
+                )
 
-        # 3. Ask user to confirm before adding (only if interactive)
-        if sys.stdin.isatty():
-            answer = input("Add this item to the database? [Y/n] ").strip().lower()
-            if answer in ("n", "no"):
+            if interactive or sys.stdout.isatty():
+                edited = edit_entry(entry_str, reason=item.parse_message)
+                if not edited:
+                    print("[yellow]✘ Cancelled or empty after editing.[/]")
+                    sys.exit(1)
+                entry_str = edited
+                was_edited = True
+                continue
+            else:
+                print("[red]✘ Entry invalid. Exiting.[/]")
+                sys.exit(1)
+
+        # ✔ Entry is valid
+        print("[green]✔ Entry is valid.[/]")
+        if verbose:
+            print(f"[blue]Parsed tokens:[/] {format_tokens(item.structured_tokens)}")
+
+        # Only confirm if interactive and wasn't already edited
+        if interactive and not was_edited:
+            if not click.confirm("Add this item to the database?", default=True):
                 print("[yellow]✔ Entry was valid but not added.[/]")
                 sys.exit(0)
 
-        # 4. Add to DB
         dbm = DatabaseManager(db)
         dbm.add_item(item)
         dbm.populate_dependent_tables()
         print("[green]✔ Item added to database.[/]")
-
-    except Exception as e:
-        print(f"[red]✘ Unexpected error:[/] {e}")
-        sys.exit(1)
+        sys.exit(0)
 
 
 @cli.command()
