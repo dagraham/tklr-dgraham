@@ -108,11 +108,10 @@ alpha = [x for x in string.ascii_lowercase]
 
 TYPE_TO_COLOR = {
     "*": EVENT_COLOR,  # event
-    "-": AVAILABLE_COLOR,  # available task
+    "~": AVAILABLE_COLOR,  # available task
+    "^": AVAILABLE_COLOR,  # available task
     "+": WAITING_COLOR,  # waiting task
     "%": FINISHED_COLOR,  # finished task
-    "~": GOAL_COLOR,  # goal
-    "^": CHORE_COLOR,  # chore
     "<": PASTDUE_COLOR,  # past due task
     ">": BEGIN_COLOR,  # begin
     "!": INBOX_COLOR,  # inbox

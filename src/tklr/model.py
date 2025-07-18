@@ -7,6 +7,7 @@ from typing import Optional
 from datetime import datetime, date, timedelta
 from dateutil.rrule import rrulestr
 from typing import List, Tuple
+from rich import print
 
 from .shared import (
     HRS_MINS,
@@ -163,7 +164,7 @@ class DatabaseManager:
     def setup_database(self):
         """
         Set up the SQLite database schema.
-        # CHECK(itemtype IN ('*', '-', '%', '!')) NOT NULL,
+        # CHECK(itemtype IN ('*', '~', '^', '%', '!')) NOT NULL,
         """
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Records (
@@ -315,7 +316,7 @@ class DatabaseManager:
         self.populate_beginby()
 
     def add_item(self, item: Item):
-        # print(f"{item = }")
+        print(f"{item.itemtype = }, {item.subject}")
         try:
             timestamp = utc_now_string()
             self.cursor.execute(

@@ -81,6 +81,7 @@ def add(ctx, entry):
         try:
             item = Item(entry_str)
         except Exception as e:
+            print(f"exception: {e = }")
             print(f"[red]✘ Internal error during parsing:[/] {e}")
             sys.exit(1)
 
@@ -88,8 +89,6 @@ def add(ctx, entry):
             print(f"[red]✘ Invalid entry:[/] {entry_str!r}")
             print(f"  [yellow]{item.parse_message}[/]")
             if verbose:
-                from tklr.view_rich import format_tokens
-
                 print(
                     f"[blue]Parsed tokens:[/] {format_tokens(item.structured_tokens)}"
                 )
@@ -109,7 +108,8 @@ def add(ctx, entry):
         # ✔ Entry is valid
         print("[green]✔ Entry is valid.[/]")
         if verbose:
-            print(f"[blue]Parsed tokens:[/] {format_tokens(item.structured_tokens)}")
+            print(f"{item = }")
+            # print(f"[blue]Parsed tokens:[/] {format_tokens(item.structured_tokens)}")
 
         # Only confirm if interactive and wasn't already edited
         if interactive and not was_edited:

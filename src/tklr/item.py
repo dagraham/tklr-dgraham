@@ -28,7 +28,7 @@ from tzlocal import get_localzone_name
 local_timezone = get_localzone_name()  # e.g., "America/New_York"
 # print(f"using {local_timezone = }")
 
-JOB_PATTERN = re.compile(r"^@j ( *)([^&]*)(?:(&.*))?")
+JOB_PATTERN = re.compile(r"^@~ ( *)([^&]*)(?:(&.*))?")
 LETTER_SET = set("abcdefghijklmnopqrstuvwxyz")  # Define once
 
 
@@ -120,11 +120,11 @@ def promote_date_to_datetime(dt: datetime, itemtype: str) -> datetime | date:
     """
     If dt is exactly midnight (00:00:00), adjust:
     - For events (*): move to 00:00:01
-    - For tasks (-): move to 23:59:59
+    - For tasks (~): move to 23:59:59
     """
     if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
         # return dt.date()
-        if itemtype == "-":
+        if itemtype == "~":
             return dt.replace(hour=23, minute=59, second=59)
         else:
             return dt.replace(second=1)
@@ -273,8 +273,8 @@ def is_lowercase_letter(char):
 
 type_keys = {
     "*": "event",
-    "-": "task",
-    # "+": "task group",
+    "~": "task",
+    "^": "project",
     "%": "note",
     "!": "inbox",
     # "~": "goal",
@@ -302,35 +302,35 @@ repeating_methods = list("o") + [
 datetime_methods = list("abe+-")
 
 job_methods = list("efhp") + [
-    "j",
-    "jr",
-    "jj",
-    "ja",
-    "jb",
-    "jc",
-    "jd",
-    "je",
-    "jf",
-    "ji",
-    "jl",
-    "jm",
-    "jp",
-    "js",
-    "ju",
+    "~",
+    "~r",
+    "~j",
+    "~a",
+    "~b",
+    "~c",
+    "~d",
+    "~e",
+    "~f",
+    "~i",
+    "~l",
+    "~m",
+    "~p",
+    "~s",
+    "~u",
 ]
 
 multiple_allowed = [
     "a",
     "u",
     "r",
-    "j",
+    "~",
     "t",
     # "jj",
     # "ji",
     # "js",
     # "jb",
     # "jp",
-    "ja",
+    "~a",
     # "jd",
     # "je",
     # "jf",
@@ -341,14 +341,14 @@ multiple_allowed = [
 
 wrap_methods = ["w"]
 
-required = {"*": ["s"], "-": [], "+": ["j"], "%": [], "!": []}
+required = {"*": ["s"], "~": [], "^": ["~"], "%": [], "!": []}
 
 all_keys = common_methods + datetime_methods + job_methods + repeating_methods
 
 allowed = {
     "*": common_methods + datetime_methods + repeating_methods + wrap_methods,
-    "-": common_methods + datetime_methods + repeating_methods,
-    "+": common_methods + datetime_methods + job_methods + repeating_methods,
+    "~": common_methods + datetime_methods + repeating_methods,
+    "^": common_methods + datetime_methods + job_methods + repeating_methods,
     "%": common_methods,
     "!": all_keys,
 }
@@ -362,9 +362,9 @@ requires = {
     "-": ["rr"],
     "r": ["s"],
     "rr": ["s"],
-    "js": ["s"],
-    "ja": ["s"],
-    "jb": ["s"],
+    "~s": ["s"],
+    "~a": ["s"],
+    "~b": ["s"],
 }
 
 
@@ -433,7 +433,7 @@ class Paragraph:
 
             # Determine subsequent_indent based on the first non-whitespace character
             stripped_para = para.lstrip()
-            if stripped_para.startswith(("+", "-", "*", "%", "!", "~")):
+            if stripped_para.startswith(("^", "~", "*", "%", "!")):
                 subsequent_indent = initial_indent + " " * 2
             elif stripped_para.startswith(("@", "&")):
                 subsequent_indent = initial_indent + " " * 3
@@ -475,7 +475,7 @@ class Item:
     token_keys = {
         "itemtype": [
             "item type",
-            "character from * (event), - (task), + (project), % (note), ~ (goal) or ! (inbox)",
+            "character from * (event), ~ (task), ^ (project), % (note) or ! (inbox)",
             "do_itemtype",
         ],
         "subject": [
@@ -487,7 +487,7 @@ class Item:
         "t": ["tag", "tag name", "do_tag"],
         "r": ["recurrence", "recurrence rule", "do_rrule"],
         "o": ["over", "recurrence rule", "do_over"],
-        "j": ["job", "job entry", "do_job"],
+        "~": ["job", "job entry", "do_job"],
         "+": ["rdate", "recurrence dates", "do_rdate"],
         "-": ["exdate", "exception dates", "do_exdate"],
         # Add more `&` token handlers for @j here as needed
@@ -556,36 +556,36 @@ class Item:
         "ru": ["until", "datetime", "do_until"],
         "rs": ["set positions", "integer", "do_setpositions"],
         "r?": ["repetition &-key", "enter &-key", "do_ampr"],
-        "jj": [
+        "~~": [
             "subject",
             "job subject. Append an '&' to add a job option.",
             "do_string",
         ],
-        "ja": [
+        "~a": [
             "alert",
             "list of timeperiods before job is scheduled followed by a colon and a list of commands",
             "do_alert",
         ],
-        "jb": ["beginby", " beginby period", "do_beginby"],
-        "jc": ["context", " string", "do_string"],
-        "jd": ["description", " string", "do_description"],
-        "je": ["extent", " timeperiod", "do_duration"],
-        "jf": ["finish", " completion done -> due", "do_completion"],
-        "ji": ["unique id", " integer or string", "do_string"],
-        "jl": ["label", " string", "do_string"],
-        "jm": ["mask", "string to be masked", "do_mask"],
-        "jr": [
+        "~b": ["beginby", " beginby period", "do_beginby"],
+        "~c": ["context", " string", "do_string"],
+        "~d": ["description", " string", "do_description"],
+        "~e": ["extent", " timeperiod", "do_duration"],
+        "~f": ["finish", " completion done -> due", "do_completion"],
+        "~i": ["unique id", " integer or string", "do_string"],
+        "~l": ["label", " string", "do_string"],
+        "~m": ["mask", "string to be masked", "do_mask"],
+        "~r": [
             "id and list of requirement ids",
             "list of ids of immediate prereqs",
             "do_requires",
         ],
-        "js": [
+        "~s": [
             "scheduled",
             "timeperiod before task scheduled when job is scheduled",
             "do_duration",
         ],
-        "ju": ["used time", "timeperiod: datetime", "do_usedtime"],
-        "j?": ["job &-key", "enter &-key", "do_ampj"],
+        "~u": ["used time", "timeperiod: datetime", "do_usedtime"],
+        "~?": ["job &-key", "enter &-key", "do_ampj"],
     }
 
     wkd_list = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"]
@@ -669,6 +669,7 @@ class Item:
         # print("calling parse_tokens")
         self._parse_tokens(entry)
         # print("back from parse_tokens")
+        log_msg(f"{self.structured_tokens = }")
 
         self.parse_ok = True
         self.previous_entry = entry
@@ -687,7 +688,7 @@ class Item:
             self.item["rruleset"] = f"{self.rdstart_str}"
 
         # Only build jobs if @j group exists
-        if self.collect_grouped_tokens({"j"}):
+        if self.collect_grouped_tokens({"~"}):
             # print("building jobs")
             jobset = self.build_jobs()
             # print(f"{jobs = }")
@@ -873,11 +874,11 @@ class Item:
 
         # First: itemtype
         itemtype = entry[0]
-        if itemtype not in {"*", "-", "+", "%", "!"}:
+        if itemtype not in {"*", "~", "^", "%", "!"}:
             self.messages.append(
                 (
                     False,
-                    f"Invalid itemtype '{itemtype}' (expected *, -, +, %, or !)",
+                    f"Invalid itemtype '{itemtype}' (expected *, ~, ^, %, or !)",
                     [],
                 )
             )
@@ -886,6 +887,7 @@ class Item:
         self.structured_tokens.append(
             {"token": itemtype, "s": 0, "e": 1, "t": "itemtype"}
         )
+        self.itemtype = itemtype
 
         rest = entry[1:].lstrip()
         offset = 1 + len(entry[1:]) - len(rest)
@@ -900,6 +902,7 @@ class Item:
             self.structured_tokens.append(
                 {"token": subject_token, "s": start, "e": end, "t": "subject"}
             )
+            self.subject = subject
         else:
             self.errors.append("Missing subject")
 
@@ -907,7 +910,8 @@ class Item:
 
         # Token pattern that keeps @ and & together
         # pattern = r"(@\w+ [^@&]+)|(&\w+ [^@&]+)"
-        pattern = r"(@[\w\+\-]+ [^@&]+)|(&\w+ [^@&]+)"
+        # pattern = r"(@[\w\+\-]+ [^@&]+)|(&\w+ [^@&]+)"
+        pattern = r"(@[~\w\+\-]+ [^@&]+)|(&\w+ [^@&]+)"
         for match in re.finditer(pattern, remainder):
             token = match.group(0)
             start_pos = match.start() + offset + len(subject)
@@ -1092,10 +1096,10 @@ class Item:
                     # print(f"appending {result} to self.rrules")
                     self.rrules.append(result)
                     self._dispatch_sub_tokens(sub_tokens, "r")
-                elif token_type == "j":
+                elif token_type == "~":
                     # print(f"appending {result} to self.jobset")
                     self.jobset.append(result)
-                    self._dispatch_sub_tokens(sub_tokens, "j")
+                    self._dispatch_sub_tokens(sub_tokens, "~")
                 # elif token_type == "+":
                 #     self.rdates.extend(result)
                 # elif token_type == "-":
@@ -1509,6 +1513,7 @@ class Item:
     def do_job(self, token):
         # Process journal token
         # print(" ### do_job ### ")
+        print(f"{token = }")
         node, summary, tokens_remaining = self._extract_job_node_and_summary(
             token["token"]
         )

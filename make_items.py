@@ -1,13 +1,14 @@
 #! /usr/bin/env python3
 import random
-import os
+
 from datetime import datetime, timedelta
 from rich import print
 from tklr.item import Item
 from tklr.model import DatabaseManager
-from tklr.shared import log_msg
+
+# from tklr.shared import log_msg
 import lorem
-from typing import List, Tuple, Union
+from typing import Union
 from dateutil.tz import gettz
 from dateutil import rrule
 from dateutil.rrule import rruleset, rrulestr
@@ -205,15 +206,15 @@ items = [
     f"* yesterday @d all day event @s {yesterday_date}",
     f"* today @d all day event @s {today_date}",
     f"* tomorrow @d all day event @s {tomorrow_date}",
-    f"- end of yesterday @d all day event @s {yesterday_date}T235959",
-    f"- end of today @d all day event @s {today_date}T235959",
+    f"~ end of yesterday @d all day event @s {yesterday_date}T235959",
+    f"~ end of today @d all day event @s {today_date}T235959",
     f"* end of tomorrow @d all day event @s {tomorrow_date}T235959",
     f"* zero extent float @s {tomorrow_date}T100000 @z none",
     f"* daily date @s {today_date} @d *whatever @c wherever @r d &i 3 &c 10 @z US/Pacific",
     f"* single date @s {today_date}",
     f"* single datetime @s {in_five_days()} @e 2h30m @b 6d",
-    f"- with tags and description @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
-    f"- multiple rdates @s {yesterday_date} @+ {today_date}, {tomorrow_date}",
+    f"~ with tags and description @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
+    f"~ multiple rdates @s {yesterday_date} @+ {today_date}, {tomorrow_date}",
     f"* multiple rdatetimes @s {in_ten_minutes()} @e {random.choice(duration)}  @+ {in_one_hour()}, {in_one_day()}",
     # f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
     # f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
@@ -225,16 +226,16 @@ items = [
        ii. and this 
     2. And finally this. @t test @l label @t red 
     """,
-    f"""+ dog house @s {first_of_month}
-    @j create plan &r 1 
-    @j go to Lowes &r 2: 1 
-    @j buy lumber &r 3: 2
-    @j buy hardware &r 4: 2
-    @j buy paint &r 5: 2
-    @j cut pieces &r 6: 3 
-    @j assemble &r 7: 4, 6 
-    @j sand &r 8: 7 
-    @j paint &r 9: 8
+    f"""^ dog house @s {first_of_month}
+    @~ create plan &r 1 
+    @~ go to Lowes &r 2: 1 
+    @~ buy lumber &r 3: 2
+    @~ buy hardware &r 4: 2
+    @~ buy paint &r 5: 2
+    @~ cut pieces &r 6: 3 
+    @~ assemble &r 7: 4, 6 
+    @~ sand &r 8: 7 
+    @~ paint &r 9: 8
     """,
 ]
 

@@ -36,3 +36,8 @@ build-backend = "uv_build"
 packages = [
     "tklr",
 ]
+
+[dependency-groups]
+dev = [
+    "ty>=0.0.1a14",
+]
