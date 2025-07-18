@@ -109,6 +109,21 @@ tklr ui
 
 ✅ You're now ready to develop, test, and run `tklr` locally with full CLI and UI support.
 
+### ✅ Step 5: Updating your repository
+
+To update your local copy of **Tklr** to the latest version:
+
+```bash
+# Navigate to your project directory
+cd ~/Projects/tklr-dgraham  # adjust this path as needed
+
+# Pull the latest changes from GitHub
+git pull origin master
+
+# Reinstall in editable mode (picks up new code and dependencies)
+uv pip install -e .
+```
+
 ## Dates and times
 
 When an `@s` scheduled entry specifies a date without a time, i.e., a date instead of a datetime, the interpretation is that the task is due sometime on that day. Specifically, it is not due until `00:00:00` on that day and not past due until `00:00:00` on the following day. The interpretation of `@b` and `@u` in this circumstance is similar. For example, if `@s 2025-04-06` is specified with `@b 3d` and `@u 2d` then the task status would change from waiting to pending at `2025-04-03 00:00:00` and, if not completed, to deleted at `2025-04-09 00:00:00`.
