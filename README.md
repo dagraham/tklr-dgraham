@@ -2,15 +2,14 @@
   <tr>
     <td>
   <h1>tklr</h1>
-      A <em>Tickler file</em> originally referred to a file system based on 12 monthly files and 31 daily files used to keep track of reminders. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates seeing what's relevant <b>now</b>. It supports the entry format, component jobs, datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line and graphical user interfaces.</p>
+      The term <em>tickler file</em> originally referred to a file system based on 12 monthly files and 31 daily files used to keep track of reminders. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates seeing what's relevant <b>now</b>. It supports the entry format, component jobs, datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line and graphical user interfaces.</p>
   <p>Make the most of your time!</p>
       <p></p>
     </td>
-    <td style="width: 540px; vertical-align: center;">
-      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif" alt="tklr" title="Tklr" width="540px" />
-      <!-- <img src="mouse_short_bkgrnd.avif" alt="tklr" title="Tklr" width="180px" /> -->
+      <td style="width: 25%; vertical-align: middle;">
+      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif"
+          alt="tklr" title="Tklr" style="max-width: 100%; height: auto;" />
     </td>
-
   </tr>
 </table>
 
