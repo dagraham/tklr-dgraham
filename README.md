@@ -2,53 +2,58 @@
   <tr>
     <td>
   <h1>tklr</h1>
-      Short for "Task Lister" but pronounced "Tickler" -
-      a task manager that ranks tasks by urgency and supports the entry format, component jobs, datetime parsing and recurrence features of <strong>etm</strong>.</p>
+      A <em>Tickler file</em> originally referred to a file system based on 12 monthly files and 31 daily files used to keep track of reminders. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates seeing what's relevant <b>now</b>. It supports the entry format, component jobs, datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line and graphical user interfaces.</p>
   <p>Make the most of your time!</p>
       <p></p>
     </td>
-    <td style="width: 320px; vertical-align: top;">
-      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif" alt="tklr" title="Tklr" width="320px" />
+    <td style="width: 280px; vertical-align: top;">
+      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif" alt="tklr" title="Tklr" width="280px" />
       <!-- <img src="mouse_short_bkgrnd.avif" alt="tklr" title="Tklr" width="180px" /> -->
     </td>
 
   </tr>
 </table>
 
-Requires: Python, SQLite3, DateUtil and Textual.
-
 💬 Join the conversation on the [Discussions tab](https://github.com/dagraham/tklr-dgraham/discussions)
 
-_Preliminary and incomplete version._ This notice will be removed when the code is ready for use.
+> [!WARNING] Preliminary and incomplete version. This notice will be removed when the code is ready for general use.
 
-## 🛠️ Developer Install Guide
+## Developer Install Guide
 
-This guide walks you through setting up a development environment for `tklr` using [`uv`](https://github.com/astral-sh/uv) and a local virtual environment.
+This guide walks you through setting up a development environment for `tklr` using [`uv`](https://github.com/astral-sh/uv) and a local virtual environment. Eventually the normal python installation procedures using pip or pipx will be available.
 
 ### ✅ Step 1: Clone the repository
+
+This step will create a directory named _tklr-dgrham_ in your current working directory that contains a clone of the github repository for _tklr_.
 
 ```bash
 git clone https://github.com/dagraham/tklr-dgraham.git
 cd tklr-dgraham
 ```
 
-### ✅ Step 2: Create a virtual environment with `uv`
+### ✅ Step 2: Install uv (if needed)
+
+```bash
+which uv || curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### ✅ Step 3: Create a virtual environment with `uv`
+
+This will create a `.venv/` directory inside your project to hold all the relevant imports.
 
 ```bash
 uv venv
 ```
 
-This creates a `.venv/` directory inside your project.
-
-### ✅ Step 3: Install the project in editable mode
+### ✅ Step 4: Install the project in editable mode
 
 ```bash
 uv pip install -e .
 ```
 
-### ✅ Step 4: Use the CLI
+### ✅ Step 5: Use the CLI
 
-You have two options for activating the CLI:
+You have two options for activating the virtual environment for the CLI:
 
 #### ☑️ Option 1: Manual activation (every session)
 
