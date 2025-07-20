@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from rich import print
 from tklr.item import Item
 from tklr.model import DatabaseManager
+from tklr.tklr_env import TklrEnvironment
 
 # from tklr.shared import log_msg
 import lorem
@@ -95,7 +96,8 @@ def week(dt: datetime) -> Union[datetime, datetime]:
     return wk_beg.date(), wk_end.date()
 
 
-dbm = DatabaseManager("./example/tklr.db", reset=True)
+env = TklrEnvironment()
+dbm = DatabaseManager("./example/tklr.db", env, reset=True)
 # Insert the UTC records into the database
 
 num_items = 20
@@ -206,15 +208,14 @@ items = [
     f"* yesterday @d all day event @s {yesterday_date}",
     f"* today @d all day event @s {today_date}",
     f"* tomorrow @d all day event @s {tomorrow_date}",
-    f"~ end of yesterday @d all day event @s {yesterday_date}T235959",
-    f"~ end of today @d all day event @s {today_date}T235959",
+    f"~ end of yesterday @d all day task @p 1 @s {yesterday_date}T235959",
+    f"~ end of today @d all day task @p 2 @s {today_date}T235959",
     f"* end of tomorrow @d all day event @s {tomorrow_date}T235959",
     f"* zero extent float @s {tomorrow_date}T100000 @z none",
-    f"* daily date @s {today_date} @d *whatever @c wherever @r d &i 3 &c 10 @z US/Pacific",
+    f"* daily date @s {today_date} @d whatever @c wherever @p 5 @r d &i 3 &c 10 @z US/Pacific",
     f"* single date @s {today_date}",
     f"* single datetime @s {in_five_days()} @e 2h30m @b 6d",
-    f"~ with tags and description @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
-    f"~ multiple rdates @s {yesterday_date} @+ {today_date}, {tomorrow_date}",
+    f"~ with tags and description @p 3 @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
     f"* multiple rdatetimes @s {in_ten_minutes()} @e {random.choice(duration)}  @+ {in_one_hour()}, {in_one_day()}",
     # f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
     # f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
@@ -226,17 +227,20 @@ items = [
        ii. and this 
     2. And finally this. @t test @l label @t red 
     """,
-    f"""^ dog house @s {first_of_month}
-    @~ create plan &r 1 
-    @~ go to Lowes &r 2: 1 
+    f"""^ dog house @s {first_of_month} @e 3h @p 3
+    @~ create plan &e 1h &r 1 
+    @~ go to Lowes &e 2h &r 2: 1 
     @~ buy lumber &r 3: 2
     @~ buy hardware &r 4: 2
     @~ buy paint &r 5: 2
-    @~ cut pieces &r 6: 3 
-    @~ assemble &r 7: 4, 6 
-    @~ sand &r 8: 7 
-    @~ paint &r 9: 8
+    @~ cut pieces &e 3h &r 6: 3 
+    @~ assemble &e 5h &r 7: 4, 6 
+    @~ sand &e 1h &r 8: 7 
+    @~ paint &e 2h &r 9: 8
     """,
+    f"~ one date with bad priority @s {yesterday_date} @p a",
+    f"~ one date with priority @s {yesterday_date} @p 1",
+    f"~ multiple rdates with priority @s {yesterday_date} @+ {today_date}, {tomorrow_date} @p 2",
 ]
 
 records = []

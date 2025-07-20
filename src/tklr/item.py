@@ -301,6 +301,8 @@ repeating_methods = list("o") + [
 
 datetime_methods = list("abe+-")
 
+task_methods = list("p")
+
 job_methods = list("efhp") + [
     "~",
     "~r",
@@ -347,7 +349,7 @@ all_keys = common_methods + datetime_methods + job_methods + repeating_methods
 
 allowed = {
     "*": common_methods + datetime_methods + repeating_methods + wrap_methods,
-    "~": common_methods + datetime_methods + repeating_methods,
+    "~": common_methods + datetime_methods + task_methods + repeating_methods,
     "^": common_methods + datetime_methods + job_methods + repeating_methods,
     "%": common_methods,
     "!": all_keys,
@@ -514,7 +516,7 @@ class Item:
         "n": ["attendee", "name <email address>", "do_string"],
         "p": [
             "priority",
-            "priority from 0 (none) to 4 (urgent)",
+            "priority from 1 (someday), 2 (low), 3 (medium), 4 (high) to 5 (next)",
             "do_priority",
         ],
         "z": [
@@ -632,6 +634,7 @@ class Item:
         self.token_store = None
         self.rrules = []
         self.jobs = []
+        self.priority = None
         self.jobset = []
         self.tags = []
         # self.tag_str = ""
@@ -656,7 +659,7 @@ class Item:
         """
         Parses the input string to extract tokens, then processes and validates the tokens.
         """
-        # print("--- begin entry ---\n", f"{entry}", "\n--- end entry --- ")
+        print("--- begin entry ---\n", f"{entry}", "\n--- end entry --- ")
         digits = "1234567890" * ceil(len(entry) / 10)
         self._tokenize(entry)
 
@@ -664,12 +667,13 @@ class Item:
         if message:
             self.parse_ok = False
             self.parse_message = message
+            print(f"parse failed: {message = }")
             return
 
         # print("calling parse_tokens")
         self._parse_tokens(entry)
-        # print("back from parse_tokens")
-        log_msg(f"{self.structured_tokens = }")
+        print("back from parse_tokens")
+        print(f"{self.structured_tokens = }")
 
         self.parse_ok = True
         self.previous_entry = entry
@@ -701,6 +705,8 @@ class Item:
 
         self.itemtype = self.item.get("itemtype", "")
         self.subject = self.item.get("subject", "")
+        priority = self.item.get("priority", None)
+        print(f"{priority = }")
         # self.extent = self.item.get("extent", "")
         self.rruleset = self.item.get("rruleset", "")
         # print(f"{self.rruleset = }")
@@ -713,13 +719,6 @@ class Item:
             # self.alert_str = "; ".join(self.alerts)
             self.item["a"] = self.alerts
             print(f"{self.alerts = }")
-
-        # print(f"{self.item = }")
-        # print(
-        #     "###\n",
-        #     " ".join([f"{t['token']}" for t in self.structured_tokens]),
-        #     "\n###",
-        # )
 
     def validate(self):
         if len(self.structured_tokens) < 2:
@@ -775,7 +774,7 @@ class Item:
                 # if current_atkey not in multiple_allowed:
                 #     allowed_fortype.remove(current_atkey)
                 # print(f"{used_atkeys = }, {count = }")
-                if this_atkey in ["r", "j"]:
+                if this_atkey in ["r", "~"]:
                     # reset for this use
                     used_ampkeys = []
                 if current_atkey in needed:
@@ -786,7 +785,7 @@ class Item:
                             needed.append(_key)
             elif token["t"] == "&":
                 this_ampkey = f"{current_atkey}{token['k']}"
-                if current_atkey not in ["r", "j"]:
+                if current_atkey not in ["r", "~"]:
                     return fmt_error(
                         f"&{token['k']}, The use of &-keys is not supported for @{current_atkey}"
                     )
@@ -817,7 +816,7 @@ class Item:
         self.skip_token_positions = set()
         self.token_group_anchors = {}  # maps (start, end) of &token -> (start, end) of anchor
 
-        anchor_keys = {"r", "j"}  # @-keys with grouped &-tokens
+        anchor_keys = {"r", "~"}  # @-keys with grouped &-tokens
         grouped = self.collect_grouped_tokens(anchor_keys)
 
         for group in grouped:
@@ -831,7 +830,7 @@ class Item:
         """
         Collect multiple groups of @-tokens and their trailing &-tokens.
 
-        anchor_keys: e.g. {'r'} or {'j'} — only @r or @j will start a group.
+        anchor_keys: e.g. {'r'} or {'~'} — only @r or @~ will start a group.
 
         Returns:
             List of token groups: each group is a list of structured tokens.
@@ -949,7 +948,7 @@ class Item:
                 # Optionally find parent group (r or j)
                 parent = None
                 for tok in reversed(self.structured_tokens):
-                    if tok["t"] == "@" and tok["k"] in ["r", "j"]:
+                    if tok["t"] == "@" and tok["k"] in ["r", "~"]:
                         parent = tok["k"]
                         break
                 partial_token = {
@@ -964,15 +963,6 @@ class Item:
 
         if partial_token:
             self.structured_tokens.append(partial_token)
-
-        # print(f"{self.structured_tokens = }")
-
-        # if not self.errors:
-        #     # self.input_hsh = tokens_to_hsh(self.tokens)
-        #     input_str = hsh_to_input(self.input_hsh)
-        #     print(f"{input_str = }")
-        # else:
-        #     self.input_hsh = {}
 
     def _parse_tokens(self, entry: str):
         if not self.previous_entry:
@@ -1021,6 +1011,7 @@ class Item:
         dispatched_anchors = set()
 
         for token in self.structured_tokens:
+            print(f"parsing {token = }")
             start_pos, end_pos = token["s"], token["e"]
             if token.get("k", "") == "+":
                 print(f"identified @+ {token = }")
@@ -1125,7 +1116,7 @@ class Item:
                     if is_valid:
                         if prefix == "r":
                             self.rrule_tokens[-1][1][token_type] = result
-                        elif prefix == "j":
+                        elif prefix == "~":
                             self.job_tokens[-1][1][token_type] = result
                     else:
                         self.parse_ok = False
@@ -1164,6 +1155,7 @@ class Item:
             "alerts": self.alert_str,
             "context": self.context,
             "jobset": self.jobset,
+            "priority": self.p,
             # "structured_tokens": self.structured_tokens,
         }
 
@@ -1196,6 +1188,22 @@ class Item:
             return False, f"time period {arg}"
         ok, res = timedelta_str_to_seconds(arg)
         return ok, res
+
+    def do_priority(self, token):
+        # Process datetime token
+        print(f"processing priorty {token = }")
+        x = re.sub("^@. ", "", token["token"].strip()).lower()
+        try:
+            y = int(x)
+            if 1 <= y <= 5:
+                self.priority = y
+                print(f"set {self.priority = }")
+                return True, y, []
+            else:
+                return False, x, []
+        except ValueError:
+            print(f"failed priority {token = }, {x = }")
+            return False, x, []
 
     def do_beginby(self, token):
         # Process datetime token
@@ -1232,7 +1240,7 @@ class Item:
         """
         Process an alert string, validate it and return a corresponding string
         """
-        print(f"{token = }")
+        # print(f"{token = }")
 
         alert = token["token"][2:].strip()
 
@@ -1334,7 +1342,7 @@ class Item:
 
         if tag:
             self.tags.append(tag)
-            print(f"{self.tags = }")
+            # print(f"{self.tags = }")
             return True, tag, []
         else:
             return False, tag, []
@@ -1513,11 +1521,11 @@ class Item:
     def do_job(self, token):
         # Process journal token
         # print(" ### do_job ### ")
-        print(f"{token = }")
+        # print(f"{token = }")
         node, summary, tokens_remaining = self._extract_job_node_and_summary(
             token["token"]
         )
-        job_params = {"j": summary}
+        job_params = {"~": summary}
         job_params["node"] = node
         sub_tokens = []
         if tokens_remaining is not None:
@@ -1912,7 +1920,7 @@ class Item:
             # Remove the "@-" prefix and extra whitespace
             token_body = token.strip()[2:].strip()
             # Split on commas to get individual date strings
-            print(f"{token_body = }")
+            # print(f"{token_body = }")
             dt_strs = [s.strip() for s in token_body.split(",") if s.strip()]
             exdates = []
             for dt_str in dt_strs:
@@ -2073,12 +2081,13 @@ class Item:
 
     def build_jobs(self):
         """
-        Build self.jobset from @j + &... token groups in self.structured_tokens.
+        Build self.jobset from @~ + &... token groups in self.structured_tokens.
         In the new explicit &r format:
         - parse &r for job id and immediate prereqs
         - keep job name
         """
-        job_groups = self.collect_grouped_tokens({"j"})
+        job_groups = self.collect_grouped_tokens({"~"})
+        # print(f"{job_groups = }")
         job_entries = []
 
         for group in job_groups:
@@ -2093,7 +2102,7 @@ class Item:
             else:
                 job_name = job_portion
 
-            job = {"j": job_name}
+            job = {"~": job_name}
 
             # process &-keys
             for token in group[1:]:
@@ -2127,6 +2136,7 @@ class Item:
             job_entries.append(job)
 
         self.jobs = job_entries
+        print(f"{self.jobs = }")
         return job_entries
 
     def finalize_jobs(self, jobs):
@@ -2173,7 +2183,7 @@ class Item:
         waiting = set()
         for i, reqs in all_prereqs.items():
             unmet = reqs - finished
-            print(f"{reqs = }, {finished = } => {unmet = }")
+            # print(f"{reqs = }, {finished = } => {unmet = }")
             if unmet:
                 waiting.add(i)
             elif i in finished:
@@ -2186,7 +2196,7 @@ class Item:
             if "i" in job and job["i"] not in all_prereqs and job["i"] not in finished:
                 available.add(job["i"])
 
-        print(f"{available = }")
+        # print(f"{available = }")
         # annotate jobs
         blocking = {}
         for i in available:
@@ -2235,7 +2245,7 @@ class Item:
                 job["status"] = "finished"
 
             job["display_subject"] = (
-                f"{job['j']} [{task_subject_display} {num_available}/{num_waiting}/{num_finished}]"
+                f"{job['~']} [{task_subject_display} {num_available}/{num_waiting}/{num_finished}]"
             )
 
             final.append(job)

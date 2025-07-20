@@ -1,14 +1,21 @@
 import sys
 import click
 import importlib.metadata
-import shutil
+# import shutil
 
 from rich import print
 from tklr.item import Item
 from tklr.controller import Controller
 from tklr.model import DatabaseManager
 from tklr.view import DynamicViewApp
+from tklr.tklr_env import TklrEnvironment
 
+env = TklrEnvironment()
+# urgency = env.config.urgency.model_dump()
+urgency = env.config.urgency
+print(f"{urgency = }\n{urgency.due.max = }")
+# urgency = env.config.urgency
+# print(f"{urgency = }\n{urgency.active_value = }\n{urgency.priority.high = }")
 # width = shutil.get_terminal_size()[0] - 2
 # width = 30
 
@@ -117,7 +124,7 @@ def add(ctx, entry):
                 print("[yellow]✔ Entry was valid but not added.[/]")
                 sys.exit(0)
 
-        dbm = DatabaseManager(db)
+        dbm = DatabaseManager(db, env)
         dbm.add_item(item)
         dbm.populate_dependent_tables()
         print("[green]✔ Item added to database.[/]")
@@ -130,7 +137,7 @@ def ui(ctx):
     """Launch the Tklr Textual interface."""
     db = ctx.obj["DB"]
     verbose = ctx.obj["VERBOSE"]
-    controller = Controller(db)
+    controller = Controller(db, env)
 
     if verbose:
         print(f"[blue]Launching UI with database:[/] {db}")

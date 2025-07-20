@@ -415,9 +415,9 @@ def get_busy_bar(events):
 
 
 class Controller:
-    def __init__(self, database_path: str):
+    def __init__(self, database_path: str, env):
         # Initialize the database manager
-        self.db_manager = DatabaseManager(database_path)
+        self.db_manager = DatabaseManager(database_path, env)
         self.tag_to_id = {}  # Maps tag numbers to event IDs
         self.yrwk_to_details = {}  # Maps (iso_year, iso_week) to week description
         self.rownum_to_yrwk = {}  # Maps row numbers to (iso_year, iso_week)
