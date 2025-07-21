@@ -98,22 +98,22 @@ yearfirst = {{ ui.yearfirst | lower }}
 # all values are float
 
 # is this the active task or job?
-active_value = {{ urgency.active_value }}
+active = {{ urgency.active }}
 
 # are other jobs waiting for this job to be finished
-blocking_value = {{ urgency.blocking_value }}
+blocking = {{ urgency.blocking }}
 #
 # does this task or job have a description?
-description_value = {{ urgency.description_value }}
+description = {{ urgency.description }}
 
 # if there is an extent, apply this hourly rate
-extent_hourly = {{ urgency.extent_hourly }}
+extent = {{ urgency.extent }}
 
 # is this a job and thus part of a project?
-project_value = {{ urgency.project_value }}
+project = {{ urgency.project }}
 
 # are there tags?
-tag_value = {{ urgency.tag_value }}
+tag = {{ urgency.tag }}
 
 # Each of the "max/interval" settings below involves a 
 # max and an interval over which the contribution ranges
@@ -128,14 +128,14 @@ tag_value = {{ urgency.tag_value }}
 # now >= due.
 
 max = {{ urgency.due.max }}
-interval = {{ urgency.due.interval }}
+interval = "{{ urgency.due.interval }}"
 
 [urgency.pastdue]
 # Return 0.0 when now <= due and max when now >= 
 # due + interval. 
 
 max = {{ urgency.pastdue.max }}
-interval = {{ urgency.pastdue.interval }}
+interval = "{{ urgency.pastdue.interval }}"
 
 [urgency.recent]
 # The "recent" value is max when now = modified and 
@@ -144,7 +144,7 @@ interval = {{ urgency.pastdue.interval }}
 # value thus decreases initially over the 
 
 max = {{ urgency.recent.max }}
-interval = {{ urgency.recent.interval }}
+interval = "{{ urgency.recent.interval }}"
 
 [urgency.age]
 # The "age" value is 0.0 when now = modified and max 
@@ -152,7 +152,7 @@ interval = {{ urgency.recent.interval }}
 # value and "recent" (above) is returned. 
 
 max = {{ urgency.age.max }}
-interval = {{ urgency.age.interval }}
+interval = "{{ urgency.age.interval }}"
 
 [urgency.priority]
 # Priority levels used in urgency calculation.
@@ -213,19 +213,6 @@ class TklrEnvironment:
 
         if init_db_fn and not self.db_path.exists():
             init_db_fn(self.db_path)
-
-    # def load_config(self) -> TklrConfig:
-    #     try:
-    #         with open(self.config_path, "rb") as f:
-    #             data = tomllib.load(f)
-    #         config = TklrConfig.model_validate(data)
-    #     except (ValidationError, tomllib.TOMLDecodeError) as e:
-    #         print(f"⚠️ Config error in {self.config_path}: {e}\nUsing defaults.")
-    #         config = TklrConfig()
-    #         save_config_from_template(config, self.config_path)
-    #
-    #     self._config = config
-    #     return config
 
     def load_config(self) -> TklrConfig:
         from jinja2 import Template
