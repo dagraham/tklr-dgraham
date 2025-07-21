@@ -9,10 +9,6 @@
       <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif"
            alt="tklr" title="Tklr" style="max-width: 360px; width: 100%; height: auto;" />
     </td>
-    <td style="width: 25%; vertical-align: middle;">
-      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif"
-           alt="tklr" title="Tklr" style="max-width: 360px; width: 100%; height: auto;" />
-    </td>
 
   </tr>
 </table>
