@@ -8,6 +8,7 @@ from datetime import datetime, date, timedelta
 from dateutil.rrule import rrulestr
 from typing import List, Tuple
 from rich import print
+from tklr.tklr_env import TklrEnvironment
 
 from .shared import (
     HRS_MINS,
@@ -43,6 +44,10 @@ def regexp(pattern, value):
 def utc_now_string():
     """Return current UTC time as 'YYYYMMDDTHHMMSS'."""
     return datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+
+
+def utc_now_to_seconds():
+    return round(datetime.utcnow().timestamp())
 
 
 def is_date(obj):
@@ -132,19 +137,142 @@ def td_to_tdstr(td_obj: timedelta) -> str:
     return "".join(parts)
 
 
-class DatabaseManager:
-    def __init__(self, db_path, reset=False):
-        """
-        Initialize the database manager and optionally replace the database.
+# [urgency]
+# active_value = 20.0
+#
+# due_max = d_m
+# due_interval = d_i
+# due = max(0, min(dm, dm * (1  - (now - due)/d_i) => 0 at now = due - d_i, d_m at now = due
+# past_due_max
+# past_due_interval
+# age_daily = 0.2
+# blocking_value = 1.0
+# description_value = 1.0
+# extent_hourly = 0.25
+# project_value = 1.0
+# tag_value = 1.0
+#
+# [urgency.priority]
+# next = 15.0
+# high = 6.0
+# medium = 2.0
+# low = -2.0
+# someday = -6.0
 
-        Args:
-            db_path (str): Path to the SQLite database file.
-            reset (bool): Whether to replace the existing database.
-        """
+
+# urgency = {'active_value': 20.0, 'age_daily': 0.2,
+# 'blocking_value': 1.0, 'description_value': 1.0,
+# 'extent_hourly': 0.25, 'project_value': 1.0, 'tag_value': 1.0,
+# 'priority': {'next': 15.0, 'high': 6.0, 'medium': 2.0, 'low':
+# -2.0, 'someday': -6.0}}
+#
+urgency = dict(
+    due_max=15.0,
+    due_interval="2w",
+    past_due_max=5.0,
+    past_due_interval="2w",
+    recent_max=3.0,
+    recent_interval="1w",
+    age_max=20.0,
+    age_interval="26w",
+)
+
+
+def urgency_due(due: datetime, urgency: dict) -> float:
+    """
+    This function calculates the urgency contribution for a task based
+    on its due datetime relative to the current datetime and returns
+    a float value between 0.0 when (now <= due - interval) and due_max when
+    (now >= due).
+    """
+    now_seconds = utc_now_to_seconds()
+    due_seconds = dt_str_to_seconds(due)
+    value = urgency.due.max
+    interval = urgency.due.interval
+    if value and interval:
+        interval_seconds = td_str_to_seconds(interval)
+        return max(
+            0.0,
+            min(
+                value,
+                value * (1.0 - (now_seconds - due_seconds) / interval_seconds),
+            ),
+        )
+    return 0.0
+
+
+def urgency_past_due(due: datetime, urgency) -> float:
+    """
+    This function calculates the urgency contribution for a task based
+    on its due datetime relative to the current datetime and returns
+    a float value between 0.0 when (now <= due) and past_max when
+    (now >= due + interval). Note: this adds to "due_max".
+    """
+    now_seconds = utc_now_to_seconds()
+    due_seconds = dt_str_to_seconds(due)
+
+    value = urgency.pastdue.max
+    interval = urgency.pastdue.interval
+    if value and interval:
+        interval_seconds = td_str_to_seconds(interval)
+        return max(
+            0.0,
+            min(
+                value,
+                value * (now_seconds - due_seconds) / interval_seconds,
+            ),
+        )
+    return 0.0
+
+
+def urgency_age(modified: datetime, urgency) -> float:
+    """
+    This function calculates the urgency contribution for a task based
+    on the current datetime relative to the (last) modified datetime. It
+    represents a combination of a decreasing contribution from recent_max
+    based on how recently it was modified and an increasing contribution
+    from 0 based on how long ago it was modified. The maximum of the two
+    is the age contribution.
+    """
+    recent_contribution = age_contribution = 0
+    now_seconds = utc_now_to_seconds()
+    modified_seconds = dt_str_to_seconds(modified)
+    recent_max = urgency.recent.max
+    recent_interval = urgency.recent.interval
+    age_max = urgency.age.max
+    age_interval = urgency.age.interval
+    if recent_max and recent_interval:
+        recent_interval_seconds = td_str_to_seconds(recent_interval)
+        recent_contribution = max(
+            0.0,
+            min(
+                recent_max,
+                recent_max
+                * (1 - (now_seconds - modified_seconds) / recent_interval_seconds),
+            ),
+        )
+
+    if age_max and age_interval:
+        age_interval_seconds = td_str_to_seconds(age_interval)
+        age_contribution = max(
+            0.0,
+            min(
+                age_max,
+                age_max * (now_seconds - modified_seconds) / age_interval_seconds,
+            ),
+        )
+    return max(recent_contribution, age_contribution)
+
+
+class DatabaseManager:
+    def __init__(self, db_path: str, env: TklrEnvironment, reset: bool = False):
         self.db_path = db_path
-        # print(f"using {self.db_path = }")
-        if reset and os.path.exists(db_path):
-            os.remove(db_path)
+        self.env = env
+        self.urgency = self.env.config.urgency
+
+        if reset and os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
         self.conn.create_function("REGEXP", 2, regexp)
@@ -158,6 +286,7 @@ class DatabaseManager:
         self.populate_alerts()  # Populate today's alerts
         log_msg("calling beginby")
         self.populate_beginby()
+        self.populate_all_urgency()
 
         log_msg("back from beginby")
 
@@ -180,6 +309,7 @@ class DatabaseManager:
                 context TEXT,
                 jobs TEXT,
                 tags TEXT,
+                priority INTEGER CHECK (priority IN (1, 2, 3, 4, 5)),
                 structured_tokens TEXT,
                 processed INTEGER,
                 created TEXT,     -- UTC timestamp in 'YYYYMMDDTHHMMSS'
@@ -195,7 +325,6 @@ class DatabaseManager:
                 subject TEXT NOT NULL,           -- Task name or "job name → task"
                 urgency FLOAT NOT NULL,          -- Final score
                 status TEXT NOT NULL,            -- "next", "waiting", "scheduled", etc.
-                touched INTEGER,                 -- Timestamp of last interaction with this instance
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
             );
         """)
@@ -239,19 +368,6 @@ class DatabaseManager:
                 PRIMARY KEY (record_id, tag_id)
             );
         """)
-
-        # self.cursor.execute("""
-        #     CREATE TABLE IF NOT EXISTS Jobs (
-        #         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        #         record_id INTEGER NOT NULL,
-        #         job_name TEXT NOT NULL,
-        #         node INTEGER,
-        #         context TEXT,
-        #         index_within_record INTEGER,
-        #         prereqs TEXT,
-        #         FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-        #     );
-        # """)
 
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS DateTimes (
@@ -323,9 +439,9 @@ class DatabaseManager:
                 """
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
-                    extent, alerts, beginby, context, jobs, tags,
+                    extent, alerts, beginby, context, jobs, priority, tags,
                     structured_tokens, processed, created, modified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.itemtype,
@@ -338,6 +454,7 @@ class DatabaseManager:
                     item.beginby,
                     item.context,
                     json.dumps(item.jobs),
+                    item.priority,
                     json.dumps(item.tags),
                     json.dumps(item.structured_tokens),
                     0,
@@ -464,6 +581,8 @@ class DatabaseManager:
         self.populate_alerts_for_record(record_id)
         if item.beginby:
             self.populate_beginby_for_record(record_id)
+        if item.itemtype in ["~", "^"]:
+            self.populate_urgency_from_record(record_id)
 
     def touch_record(self, record_id: int):
         """
@@ -478,27 +597,27 @@ class DatabaseManager:
         )
         self.conn.commit()
 
-    def touch_urgency(self, record_id: int, job_id: Optional[str] = None):
-        """
-        Update the 'touched' timestamp in the Urgency table for a given task instance
-        or specific job.
-
-        Args:
-            record_id (int): The ID of the task record.
-            job_id (Optional[str]): The job identifier, if applicable.
-        """
-        now = int(datetime.now().timestamp())
-        if job_id is None:
-            self.cursor.execute(
-                "UPDATE Urgency SET touched = ? WHERE record_id = ? AND job_id IS NULL",
-                (now, record_id),
-            )
-        else:
-            self.cursor.execute(
-                "UPDATE Urgency SET touched = ? WHERE record_id = ? AND job_id = ?",
-                (now, record_id, job_id),
-            )
-        self.conn.commit()
+    # def touch_urgency(self, record_id: int, job_id: Optional[str] = None):
+    #     """
+    #     Update the 'touched' timestamp in the Urgency table for a given task instance
+    #     or specific job.
+    #
+    #     Args:
+    #         record_id (int): The ID of the task record.
+    #         job_id (Optional[str]): The job identifier, if applicable.
+    #     """
+    #     now = int(datetime.now().timestamp())
+    #     if job_id is None:
+    #         self.cursor.execute(
+    #             "UPDATE Urgency SET touched = ? WHERE record_id = ? AND job_id IS NULL",
+    #             (now, record_id),
+    #         )
+    #     else:
+    #         self.cursor.execute(
+    #             "UPDATE Urgency SET touched = ? WHERE record_id = ? AND job_id = ?",
+    #             (now, record_id, job_id),
+    #         )
+    #     self.conn.commit()
 
     def set_active_urgency(self, urgency_id: int):
         """Mark a specific urgency record as active."""
@@ -582,6 +701,23 @@ class DatabaseManager:
             )
 
         return results
+
+    def get_all_tasks(self) -> list[dict]:
+        """
+        Retrieve all task and project records from the database.
+
+        Returns:
+            A list of dictionaries representing task and project records.
+        """
+        self.cursor.execute(
+            """
+            SELECT * FROM Records
+            WHERE itemtype IN ('~', '^')
+            ORDER BY id
+            """
+        )
+        columns = [column[0] for column in self.cursor.description]
+        return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
 
     def get_all_alerts(self):
         """Retrieve all stored alerts for debugging."""
@@ -1422,59 +1558,58 @@ class DatabaseManager:
         )
         return [row[0] for row in cur.fetchall()]
 
-    def populate_urgency_from_record(self, record: dict, config):
-        """
-        Populate the Urgency table for a task record using priority settings from TklrEnvironment.
-        Supports tasks with or without jobs.
-
-        Args:
-            record (dict): Task record including id, subject, status, jobs, touched, etc.
-            env (TklrEnvironment): The environment providing urgency priority settings.
-        """
+    def populate_urgency_from_record(self, record: dict):
+        log_msg(f"{record = }")
         record_id = record["id"]
         subject = record["subject"]
-        jobs = record.get("jobs", [])
+        created = record["created"]
+        modified = record["modified"]
+        priority = record.get("priority", "")
+        extent = record.get("extent", "")
+        jobs = json.loads(record.get("jobs", "[]"))
+        tags = json.loads(record.get("tags", "[]"))
         status = record.get("status", "next")
-        touched = record.get("touched")
+        # touched = record.get("touched")
         now = datetime.utcnow()
 
-        priority_map = config.urgency.priority.model_dump()
+        priority_map = self.env.config.urgency.priority.model_dump()
 
         self.cursor.execute("DELETE FROM Urgency WHERE record_id = ?", (record_id,))
 
-        def compute_urgency(job_status: str, touched_str: Optional[str]) -> float:
+        def compute_urgency(job_status: str) -> float:
             base = priority_map.get(job_status, 0.0)
-            if touched_str:
-                try:
-                    touched_dt = datetime.fromisoformat(touched_str)
-                    age_days = (now - touched_dt).total_seconds() / 86400
-                    base += min(age_days, 30)
-                except Exception:
-                    pass
+            # if touched_str:
+            #     try:
+            #         touched_dt = datetime.fromisoformat(touched_str)
+            #         age_days = (now - touched_dt).total_seconds() / 86400
+            #         base += min(age_days, 30)
+            #     except Exception:
+            #         pass
             return round(base, 2)
 
         if jobs:
             for job in jobs:
-                job_name = job.get("j", "").strip()
+                log_msg(f"{job = }")
+                job_id = job.get("i", "")
                 job_status = job.get("status", "pending")
+                subject = job.get("display_subject", "")
                 if job_status != "finished":
-                    urgency = compute_urgency(job_status, touched)
-                    label = f"{job_name} → {subject}"
+                    urgency = compute_urgency(job_status)
                     self.cursor.execute(
                         """
                         INSERT INTO Urgency (job_id, record_id, subject, urgency, status)
                         VALUES (?, ?, ?, ?, ?)
                         """,
                         (
-                            job_name,
+                            job_id,
                             record_id,
-                            label,
+                            subject,
                             urgency,
                             job_status,
                         ),
                     )
         else:
-            urgency = compute_urgency(status, touched)
+            urgency = compute_urgency(status)
             self.cursor.execute(
                 """
                 INSERT INTO Urgency (job_id, record_id, subject, urgency, status)
@@ -1491,11 +1626,12 @@ class DatabaseManager:
 
         self.conn.commit()
 
-    def populate_all_urgency(self, config):
+    def populate_all_urgency(self):
         self.cursor.execute("DELETE FROM Urgency")
-        tasks = self.get_all_tasks()  # You may need to define this
+        tasks = self.get_all_tasks()
         for task in tasks:
-            self.populate_urgency_from_record(task, config)
+            log_msg(f"processing {task = }")
+            self.populate_urgency_from_record(task)
         self.conn.commit()
 
     def update_urgency(self, urgency_id: int):
