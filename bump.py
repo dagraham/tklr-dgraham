@@ -7,14 +7,12 @@ from datetime import datetime
 import tomllib
 import tomli_w
 
-# --- Configuration ---
 PYPROJECT_PATH = "pyproject.toml"
 MAIN_BRANCH = "master"
 WORKING_BRANCH = "working"
 DRY_RUN = "--dry-run" in sys.argv
 
 
-# --- Helpers ---
 def check_output(cmd):
     if not cmd:
         return
@@ -23,15 +21,11 @@ def check_output(cmd):
         return True, ""
     try:
         res = subprocess.check_output(
-            cmd,
-            stderr=subprocess.STDOUT,
-            shell=True,
-            universal_newlines=True,
-            encoding="UTF-8",
+            cmd, stderr=subprocess.STDOUT, shell=True, encoding="utf-8"
         )
         return True, res
     except subprocess.CalledProcessError as e:
-        print(f"Error running {cmd}\n'{e.output}'")
+        print(f"❌ Error running: {cmd}\n{e.output}")
         return False, e.output.strip().split("\n")[-1]
 
 
@@ -49,7 +43,15 @@ def write_version(new_version):
         f.write(tomli_w.dumps(data).encode("utf-8"))
 
 
-# --- Version Bumping Logic ---
+# --- Ensure we're on the working branch ---
+ok, current_branch = check_output("git rev-parse --abbrev-ref HEAD")
+current_branch = current_branch.strip()
+if current_branch != WORKING_BRANCH:
+    print(f"⚠️  You are on '{current_branch}', not '{WORKING_BRANCH}'.")
+    print(f"Please switch to '{WORKING_BRANCH}' before running this script.")
+    sys.exit(1)
+
+# --- Bump Logic ---
 version = load_version()
 pre = post = version
 ext = "a"
@@ -83,7 +85,7 @@ opts += [f"  p: {b_patch}", f"  n: {b_minor}", f"  j: {b_major}"]
 print("\n".join(opts))
 res = input("Which new version? ").lower().strip()
 if not res:
-    print("cancelled")
+    print("Cancelled.")
     sys.exit()
 
 if res in extension_options.get(ext, {}):
@@ -113,16 +115,15 @@ if DRY_RUN:
     sys.exit(0)
 
 if input(f"Commit and tag new version: {new_version}? [yN] ").lower() != "y":
-    print("cancelled")
+    print("Cancelled.")
     sys.exit()
 
 write_version(new_version)
-
 check_output(f"git commit -a -m '{tmsg}'")
 ok, version_info = check_output("git log --pretty=format:'%ai' -n 1")
 check_output(f"git tag -a -f '{new_version}' -m '{version_info}'")
 
-# Generate CHANGES.txt (but don't commit it)
+# Generate CHANGES.txt
 changes_text = f"Recent tagged changes as of {datetime.now()}:\n"
 ok, changelog = check_output(
     "git log --pretty=format:'- %ar%d %an%n    %h %ai%n%w(70,4,4)%B' "
@@ -134,16 +135,20 @@ if ok:
         f.write(changelog)
     print("CHANGES.txt generated (not committed).")
 
+# Merge to master and sync
 if input("Switch to master, merge working, and push? [yN] ").lower() == "y":
-    check_output(
-        f"git checkout {MAIN_BRANCH} && git merge {WORKING_BRANCH} && "
-        f"git push && git checkout {WORKING_BRANCH} && git push"
-    )
+    check_output(f"git checkout {MAIN_BRANCH}")
+    check_output(f"git merge {WORKING_BRANCH}")
+    check_output(f"git push origin {MAIN_BRANCH}")
+
+    check_output(f"git checkout {WORKING_BRANCH}")
+    check_output(f"git reset --hard {MAIN_BRANCH}")
+    check_output(f"git push origin {WORKING_BRANCH} --force")
 
     if input("Upload to PyPI using uv publish? [yN] ").lower() == "y":
         check_output("uv publish --yes")
 else:
-    print(f"retained version: {version}")
+    print(f"Retained version: {version}")
 
 if not DRY_RUN:
     check_output("uv pip install -e .")
