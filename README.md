@@ -128,6 +128,23 @@ git pull origin master
 uv pip install -e .
 ```
 
+## Starting tklr for the first time
+
+**Tklr** needs a _home_ directory to store these two files:
+
+- _config.toml_: An editable file that holds user configuration settings
+- _tkrl.db_: An _SQLite3_ database file that holds all the records for events, tasks and other reminders created when using _tklr_
+
+Any directory can be used for _home_. These are the options:
+
+1. If started using the command `tklr --home <path_to_home>` and the directory `<path_to_home>` exists then _tklr_ will use this directory and, if necessary, create the files `config.toml` and `tklr.db` in this directory.
+2. If the `--home <path_to_home>` is not passed to _tklr_ then the _home_ will be selected in this order:
+
+   - If the current working directory contains files named `config.toml` and `tklr.db` then it will be used as _home_
+   - Else if the environmental variable `TKLR_HOME` is set and specifies a path to an existing directory then it will be used as _home_
+   - Else if the environmental variable `XDG_CONFIG_HOME` is set, and specifies a path to an existing directory which contains a directory named `tklr`, then that directory will be used.
+   - Else the directory `~/.config/tklr` will be used.
+
 ## Dates and times
 
 When an `@s` scheduled entry specifies a date without a time, i.e., a date instead of a datetime, the interpretation is that the task is due sometime on that day. Specifically, it is not due until `00:00:00` on that day and not past due until `00:00:00` on the following day. The interpretation of `@b` and `@u` in this circumstance is similar. For example, if `@s 2025-04-06` is specified with `@b 3d` and `@u 2d` then the task status would change from waiting to pending at `2025-04-03 00:00:00` and, if not completed, to deleted at `2025-04-09 00:00:00`.
