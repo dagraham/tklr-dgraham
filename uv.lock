@@ -312,7 +312,7 @@ wheels = [
 
 [[package]]
 name = "tklr"
-version = "0.0.0b9"
+version = "0.0.0b12"
 source = { editable = "." }
 dependencies = [
     { name = "click" },

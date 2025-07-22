@@ -19,48 +19,77 @@ class UIConfig(BaseModel):
 #     db: str = "tklr.db"
 
 
+class UrgencyWeights(BaseModel):
+    recent_age: float = 2.0
+    due_pastdue: float = 2.0
+    extent: float = 1.0
+    blocking: float = 1.0
+    tag: float = 1.0
+    active: float = 2.0
+    description: float = 1.0
+    priority: float = 1.0
+    project: float = 1.0
+
+
 class PriorityConfig(BaseModel):
-    next: float = 12.0
+    next: float = 10.0
     high: float = 8.0
-    medium: float = 4.0
-    low: float = 0.0
-    someday: float = -4.0
+    medium: float = 5.0
+    low: float = 2.0
+    someday: float = -5.0
 
 
 class DueConfig(BaseModel):
-    max: float = 15.0
+    max: float = 8.0
     interval: str = "1w"
 
 
 class PastdueConfig(BaseModel):
-    max: float = 5.0
-    interval: str = "1w"
+    max: float = 10.0
+    interval: str = "2w"
 
 
 class RecentConfig(BaseModel):
-    max: float = 3.0
-    interval: str = "1w"
+    max: float = 6.0
+    interval: str = "2w"
 
 
 class AgeConfig(BaseModel):
-    max: float = 20.0
+    max: float = 9.0
     interval: str = "26w"
 
 
+class ExtentConfig(BaseModel):
+    max: float = 5.0
+    interval: str = "12h"
+
+
+class BlockingConfig(BaseModel):
+    max: float = 6.0
+    count: int = 3
+
+
+class TagsConfig(BaseModel):
+    max: float = 4.0
+    count: int = 2
+
+
 class UrgencyConfig(BaseModel):
-    active: float = 20.0
-    blocking: float = 1.0
+    active: float = 10.0
     description: float = 1.0
-    extent: float = 0.25
-    project: float = 1.0
-    tag: float = 1.0
+    project: float = 2.0
 
     due: DueConfig = DueConfig()
     pastdue: PastdueConfig = PastdueConfig()
     recent: RecentConfig = RecentConfig()
     age: AgeConfig = AgeConfig()
+    extent: ExtentConfig = ExtentConfig()
+    blocking: BlockingConfig = BlockingConfig()
+    tags: TagsConfig = TagsConfig()
 
     priority: PriorityConfig = PriorityConfig()
+
+    weights: UrgencyWeights = UrgencyWeights()
 
 
 class TklrConfig(BaseModel):
@@ -100,20 +129,11 @@ yearfirst = {{ ui.yearfirst | lower }}
 # is this the active task or job?
 active = {{ urgency.active }}
 
-# are other jobs waiting for this job to be finished
-blocking = {{ urgency.blocking }}
-#
 # does this task or job have a description?
 description = {{ urgency.description }}
 
-# if there is an extent, apply this hourly rate
-extent = {{ urgency.extent }}
-
 # is this a job and thus part of a project?
 project = {{ urgency.project }}
-
-# are there tags?
-tag = {{ urgency.tag }}
 
 # Each of the "max/interval" settings below involves a 
 # max and an interval over which the contribution ranges
@@ -154,6 +174,27 @@ interval = "{{ urgency.recent.interval }}"
 max = {{ urgency.age.max }}
 interval = "{{ urgency.age.interval }}"
 
+[urgency.extent]
+# The "extent" value is 0.0 when extent = "0m" and max 
+# when extent >= interval. 
+
+max = {{ urgency.extent.max }}
+interval = "{{ urgency.extent.interval }}"
+
+[urgency.blocking]
+# The "blocking" value is 0.0 when blocking = 0 and max 
+# when blocking >= count. 
+
+max = {{ urgency.blocking.max }}
+count = {{ urgency.blocking.count }}
+
+[urgency.tags]
+# The "tags" value is 0.0 when len(tags) = 0 and max 
+# when len(tags) >= count. 
+
+max = {{ urgency.tags.max }}
+count = {{ urgency.tags.count }}
+
 [urgency.priority]
 # Priority levels used in urgency calculation.
 # These are mapped from user input `@p 1` through `@p 5` 
@@ -166,14 +207,31 @@ interval = "{{ urgency.age.interval }}"
 #   @p 4 = high
 #   @p 5 = next     → most urgent
 #
-# Set these values to tune the effect of each level.
+# Set these values to tune the effect of each level. Note 
+# that omitting @p in a task is equivalent to setting 
+# priority = 0.0 for the task.
 
 someday = {{ urgency.priority.someday }}
 low     = {{ urgency.priority.low }}
-medium  = {{ urgency.priority.medium }}
+weights = {{ urgency.priority.medium }}
 high    = {{ urgency.priority.high }}
 next    = {{ urgency.priority.next }}
 
+[urgency.weights]
+# These weights give the relative importance of the various 
+# components. The weights used to compute urgency correspond 
+# to each of these weights divided by the sum of all of the 
+# weights.
+
+recent_age   = {{ urgency.weights.recent_age  }}
+due_pastdue  = {{ urgency.weights.due_pastdue }}
+extent       = {{ urgency.weights.extent      }}
+blocking     = {{ urgency.weights.blocking    }}
+tag          = {{ urgency.weights.tag         }}
+active       = {{ urgency.weights.active      }}
+description  = {{ urgency.weights.description }}
+priority     = {{ urgency.weights.priority    }}
+project      = {{ urgency.weights.project     }}
 """
 
 # ─── Save Config with Comments ───────────────────────────────

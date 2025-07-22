@@ -2,7 +2,7 @@
   <tr>
     <td>
   <h1>tklr</h1>
-      The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates the same purpose - seeing what's relevant <b>now</b>. It supports the entry format, component jobs, datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line and graphical user interfaces.</p>
+      The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates the same purpose - discovering what's relevant <b>now</b> quickly and easily. It supports the entry format, component jobs, datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line and graphical user interfaces.</p>
   <p>Make the most of your time!</p>
       <p></p>
     <td style="width: 25%; vertical-align: middle;">
@@ -130,7 +130,7 @@ uv pip install -e .
 
 ## Starting tklr for the first time
 
-**Tklr** needs a _home_ directory to store these two files:
+**Tklr** needs a _home_ directory to store its files - most importantly these two:
 
 - _config.toml_: An editable file that holds user configuration settings
 - _tkrl.db_: An _SQLite3_ database file that holds all the records for events, tasks and other reminders created when using _tklr_
@@ -240,124 +240,170 @@ item.entry = '- fall back @s 2024-11-01 10:00 EST  @r d &i 1 &c 4'
   Mon 2024-11-04 09:00 EST -0500
 ```
 
-## urgency settings - preliminary
+## Urgency
 
-```yaml
-task.contexts:
-  - errands
-  - home
-  - shop
-  - work
+Since urgency values are used ultimately to give an ordinal ranking of tasks, all that matters is the relative values used to compute the urgency scores. Accordingly, all urgency scores are constrained to fall within the interval from -10.0 to 10.0. The default urgency is 0.0 for a component that is not given.
 
-datetime.ambiguous.day_first: false
-datetime.ambiguous.year_first: true
-# for parsing ambiguous dates
+These are the components that potentially contribute to the urgency - default settings in _config.toml_ are in the next section:
 
-datetime.ampm: false
-# 12 hour clock if true else 24 hour clock
+- max_interval components:
+  - urgency.age: how long since modified - the longer, the greater the urgency:
+  - urgency.recent: how long since modified - the more recent, the greater the urgency:
+  - urgency.due: how soon is the task due - the sooner, the greater the urgency:
+  - urgency.pastdue: how long since the task was due - the longer, the greater the urgency:
+  - urgency.extent: how long is the expected completion time - the longer the greater the urgency:
+- count components:
+  - urgency.blocking: how many tasks are waiting for the completion of this task - the more, the greater the urgency:
+  - urgency.tags: how many tags does this task have - the more, the greater the urgency:
+- value components:
+  - urgency.active: if this task is the unique, active task:
+  - urgency.description: if this task has a description:
+  - urgency.priority: if this task has a priority setting
+  - urgency.project: if this task belongs to a project
 
-urgency.current: 4.0
-# now - modified <= 1 week (modified within the last week)
+For each of the max_interval components, a method is defined that takes the maximum value and interval from the parameters given in config.toml for the component combined with the characteristics of the task and returns a float in the interval \[0.0, 10.0\]. Note that the computed urgency will be at least as great as the default, 0.0. Additionally:
 
-urgency.blocking: 8.0
-# is pending and a prerequisite for another job
+- recent and age are combined to return a single urgency, _recent_age_, which is the greater of the two components
+- due and past\*due are combined to return a single urgency, _due_pastdue_, which is the greater of the two components
 
-urgency.age: 2.0 # coefficient for age
-urgency.scheduled: 12.0 # past scheduled
-urgency.due: 16.0 # past due or near due date
-urgency.importance.next: 15.0 # next
-urgency.importance.high: 6.0 # high
-urgency.importance.medium: 2.0 # medium
-urgency.importance.low: -2.0 # low
-urgency.importance.someday: -6.0 # someday
-urgency.note: 1.0 # has a note
-urgency.project: 1.0 # is assigned to a project
+For both of the count components, a method is defined that takes a maximum value from _config.toml_ and a count from the task and returns a float in [0.0, 10.0]. Again the computed value will be at least as great as the default.
 
-urgency.tags: 1.0
-# each tag (other than "next") up to a maximum of 3
-```
+For each of the value components, the provided method simply returns the value for the component from _config.toml_.
 
-The most important urgency components are (1) having a "next" tag which gets an urgency component of 15 and (2) having a due date which gets a maximum urgency of 12. The intent is to have the "next" tasks always at the top of the default (next) list with other pending tasks sorted by their urgency. This places unfinished tasks with due dates falling on or before the current date near the top of the default "next" list.
+Non-negative, _relative weights_ are specified in _config.toml_ for each these urgency components. _Absolute weights_ for each component are then obtained by dividing each of the relative weights by sum of all of the relative weights.
 
-### due
+The _task urgency_ is then computed as the weighted average of the component values using the _absolute weights_.
 
-For tasks with an `@d` due datetime, the contribution of due to the urgency of the task is calculated as follows:
+### Urgency settings in _config.toml_
 
-```python
-def urgency_due(due: datetime) -> float:
-    """
-    This function calculates the urgency coefficient for a task based
-    on its due datetime relative to the current datetime and returns
-    a float value between 0.2 when (due >= now + 14 days) and 1.0 when
-    (due <= now - 7 days). This coefficient is then multiplied by the
-    urgency.due.coefficient (12.0) to get the due contribution to the
-    overall urgency of the task.
-    """
-    if not due or not isinstance(due, datetime):
-        return 0.0
+```toml
+title = "Tklr Configuration"
 
-    now = datetime.now()
+[ui]
+# theme: str = 'dark' | 'light'
+theme = "dark"
 
-    days_past = (now - due).total_seconds() / 86400.0
-    if days_past >= 7.0:
-        return 1.0  # < 1 wk ago
-    elif days_past >= -14.0:
-        return ((days_past + 14.0) * 0.8 / 21.0) + 0.2
-    else:
-        return 0.2  # > 2 wks
-```
+# ampm: bool = true | false
+ampm = false
 
-Note that the 14 days, the 7 days and the 0.2 - 1.0 range are hard coded in TaskWarrior - the only user configuration variable is the urgency.due.coefficient (12.0). Here is the range of values when due differs from now by an integer number of days between -7 and +14:
+# dayfirst: bool = true | false
+dayfirst = false
 
-```python
-Today: 2025-04-06
-days  due date    c     12c
- -7  2025-03-30  1.00  12.00
- -6  2025-03-31  0.96  11.54
- -5  2025-04-01  0.92  11.09
- -4  2025-04-02  0.89  10.63
- -3  2025-04-03  0.85  10.17
- -2  2025-04-04  0.81   9.71
- -1  2025-04-05  0.77   9.26
-  0  2025-04-06  0.73   8.80
-  1  2025-04-07  0.70   8.34
-  2  2025-04-08  0.66   7.89
-  3  2025-04-09  0.62   7.43
-  4  2025-04-10  0.58   6.97
-  5  2025-04-11  0.54   6.51
-  6  2025-04-12  0.50   6.06
-  7  2025-04-13  0.47   5.60
-  8  2025-04-14  0.43   5.14
-  9  2025-04-15  0.39   4.69
- 10  2025-04-16  0.35   4.23
- 11  2025-04-17  0.31   3.77
- 12  2025-04-18  0.28   3.31
- 13  2025-04-19  0.24   2.86
- 14  2025-04-20  0.20   2.40
-```
+# yearfirst: bool = true | false
+yearfirst = true
 
-### age
+[alerts]
+# dict[str, str]: character -> command_str
 
-The contribution of age to the urgency of the task is calculated as follows:
 
-```python
-def urgency_age(created:datetime) -> float:
-    """
-    This function calculates the urgency coefficient for a task based
-    on its age relative to the current datetime and returns a float
-    value between 0.0 (when created = now) and 1.0 (when created =
-    now - 365 days). This coefficient is then multiplied by the
-    urgency.age.coefficient (2.0) to get the age contribution to the
-    overall urgency of the task.
-    """
-    if not created or not isinstance(created, datetime):
-        return 0.0
+[urgency]
+# values for item urgency calculation
+# all values are floats.
 
-    days_old = (now - created).total_seconds() / 86400.0
-    if days_old >= 365.0:
-        return 1.0  # > 365 days old
-    elif days_old <= 0.0:
-        return 0.0  # created today
-    else:
-        return days_old / 365.0
+# is this the active task or job?
+active = 10.0
+
+# does this task or job have a description?
+description = 1.0
+
+# is this a job and thus part of a project?
+project = 2.0
+
+# Each of the "max/interval" settings below involves a
+# max and an interval over which the contribution ranges
+# between the max value and 0.0. In each case, "now" refers
+# to the current datetime, "due" to the scheduled datetime
+# and "modified" to the last modified datetime. Note that
+# necessarily, "now" >= "modified". The returned value
+# varies linearly over the interval in each case.
+
+[urgency.due]
+# Return 0.0 when now <= due - interval and max when
+# now >= due.
+
+max = 8.0
+interval = "1w"
+
+[urgency.pastdue]
+# Return 0.0 when now <= due and max when now >=
+# due + interval.
+
+max = 10.0
+interval = "2w"
+
+[urgency.recent]
+# The "recent" value is max when now = modified and
+# 0.0 when now >= modified + interval. The maximum of
+# this value and "age" (below) is returned. The returned
+# value thus decreases initially over the
+
+max = 6.0
+interval = "2w"
+
+[urgency.age]
+# The "age" value is 0.0 when now = modified and max
+# when now >= modified + interval. The maximum of this
+# value and "recent" (above) is returned.
+
+max = 9.0
+interval = "26w"
+
+[urgency.extent]
+# The "extent" value is 0.0 when extent = "0m" and max
+# when extent >= interval.
+
+max = 5.0
+interval = "12h"
+
+[urgency.blocking]
+# The "blocking" value is 0.0 when blocking = 0 and max
+# when blocking >= count.
+
+max = 6.0
+count = 3
+
+[urgency.tags]
+# The "tags" value is 0.0 when len(tags) = 0 and max
+# when len(tags) >= count.
+
+max = 4.0
+count = 2
+
+[urgency.priority]
+# Priority levels used in urgency calculation.
+# These are mapped from user input `@p 1` through `@p 5`
+# so that entering "@p 1" entails the priority value for
+# "someday", "@p 2" the priority value for "low" and so forth.
+#
+#   @p 1 = someday  → least urgent
+#   @p 2 = low
+#   @p 3 = medium
+#   @p 4 = high
+#   @p 5 = next     → most urgent
+#
+# Set these values to tune the effect of each level. Note
+# that omitting @p in a task is equivalent to setting
+# priority = 0.0 for the task.
+
+someday = -5.0
+low     = 2.0
+weights = 5.0
+high    = 8.0
+next    = 10.0
+
+[urgency.weights]
+# These weights give the relative importance of the various
+# components. The weights used to compute urgency correspond
+# to each of these weights divided by the sum of all of the
+# weights.
+
+recent_age   = 2.0
+due_pastdue  = 2.0
+extent       = 1.0
+blocking     = 1.0
+tag          = 1.0
+active       = 2.0
+description  = 1.0
+priority     = 1.0
+project      = 1.0
 ```
