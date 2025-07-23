@@ -2,7 +2,7 @@
   <tr>
     <td>
   <h1>tklr</h1>
-      The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates the same purpose - discovering what's relevant <b>now</b> quickly and easily. It supports the entry format, component jobs, datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line and graphical user interfaces.</p>
+      The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates the same purpose - discovering what's relevant <b>now</b> quickly and easily. It supports the entry format and project support of <strong>etm</strong>, the datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line (Click) and graphical user interfaces (Textual).</p>
   <p>Make the most of your time!</p>
       <p></p>
     <td style="width: 25%; vertical-align: middle;">
@@ -16,6 +16,60 @@
 💬 Join the conversation on the [Discussions tab](https://github.com/dagraham/tklr-dgraham/discussions)
 
 > [!WARNING] Preliminary and incomplete version. This notice will be removed when the code is ready for general use.
+
+## Overview {#overview}
+
+_tklr_ began life in 2013 as _etm-qt_ sporting a gui based on _Qt_. The intent was to provide an app supporting GTD (David Allen's Getting Things Done) and exploiting the power of python-dateutil. The name changed to _etmtk_ in 2014 when _Tk_ replaced _Qt_. Development of _etmtk_ continued until 2019 when name changed to _etm-dgraham_, to honor the PyPi naming convention, and the interface changed to a terminal based one based on _prompt_toolkit_. In 2025 the name changed to "tklr", the datastore to SQLite3 and the interface to Click (CLI) and Textual. Features have changed over the years but the text based interface and basic format of the reminders has changed very little. The goal has always been to be the Swiss Army Knife of tools for managing reminders.
+
+## Reminders {#reminders}
+
+_tklr_ offers a simple way to manage your events, tasks and other reminders.
+
+Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used. Each reminder in _tklr_ begins with a _type character_ followed by a brief _summary_ of the item and then, perhaps, by one or more _@key value_ pairs to specify other attributes of the reminder. Mnemonics are used to make the keys easy to remember, e.g, @s for scheduled datetime, @l for location, @d for description and so forth.
+
+The 4 types of reminders in _tklr_ with their associated type characters:
+
+| type    | char |
+| ------- | ---- |
+| task    | ~    |
+| project | ^    |
+| event   | \*   |
+| note    | %    |
+| inbox   | !    |
+
+### examples {#examples}
+
+- A task (**~**): pick up milk.
+
+        ~ pick up milk
+
+- An event (**\***): have lunch with Ed [s]tarting next Tuesday at 12pm and [e]xtending for 90 minutes, i.e., lasting from 12pm until 1:30pm.
+
+        * Lunch with Ed @s tue 12p @e 90m
+
+- A journal entry (**%**): a favorite Churchill quotation that you heard at 2pm today with the quote itself as the [d]escription.
+
+        % Give me a pig - Churchill @s 2p @d Dogs look up at
+          you. Cats look down at you. Give me a pig - they
+          look you in the eye and treat you as an equal.
+
+  The _subject_, "Give me a pig - Churchill" in this example, follows the type character and is meant to be brief - analogous to the subject of an email. The optional _description_ follows the "@d" and is meant to be more expansive - analogous to the body of an email.
+
+- A project (**^**): build a dog house, with component [@~] tasks.
+
+        ^ Build dog house @~ pick up materials @~ cut pieces
+          @~ assemble @~ sand @~ paint
+
+- Inbox (**!**): meet Alex for coffee Friday.
+
+        ! Coffee with Alex @s fri @e 1h
+
+  This can be changed to an event when the details are confirmed by replacing the **!** with an **\*** and adding the time to `@s`. This inbox entry will appear highlighted on the current day until you make the changes.
+
+- An appointment (event) for a dental exam and cleaning at 2pm on Feb 5 and then again [@+] at 9am on Sep 3.
+
+        * dental exam and cleaning @s 2p feb 5 2019 @e 45m
+          @+ 9am Sep 3 2019
 
 ## Developer Install Guide
 
