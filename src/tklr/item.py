@@ -276,7 +276,7 @@ type_keys = {
     "~": "task",
     "^": "project",
     "%": "note",
-    "!": "inbox",
+    "!": "draft",
     # "~": "goal",
     # "+": "track",
     # '✓': 'finished',  # more a property of a task than an item type
@@ -477,7 +477,7 @@ class Item:
     token_keys = {
         "itemtype": [
             "item type",
-            "character from * (event), ~ (task), ^ (project), % (note) or ! (inbox)",
+            "character from * (event), ~ (task), ^ (project), % (note) or ! (draft)",
             "do_itemtype",
         ],
         "subject": [

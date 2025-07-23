@@ -246,6 +246,7 @@ items = [
 
 records = []
 num_items = 0
+count = 0
 while len(items) < num_items:
     t = random.choice(types)
     name = phrase()
@@ -273,6 +274,7 @@ while len(items) < num_items:
 
 id = 0
 for entry in items:
+    count += 1
     id += 1
     print(f"{entry = }")
     item = Item(entry)  # .to_dict()
@@ -281,4 +283,4 @@ for entry in items:
     dbm.add_item(item)
 dbm.populate_dependent_tables()
 
-print(f"Inserted {num_items} records into the database, last_id {id}.")
+print(f"Inserted {count} records into the database, last_id {id}.")

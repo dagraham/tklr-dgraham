@@ -19,7 +19,7 @@
 
 ## Overview
 
-_tklr_ began life in 2013 as _etm-qt_ sporting a gui based on _Qt_. The intent was to provide an app supporting GTD (David Allen's Getting Things Done) and exploiting the power of python-dateutil. The name changed to _etmtk_ in 2014 when _Tk_ replaced _Qt_. Development of _etmtk_ continued until 2019 when name changed to _etm-dgraham_, to honor the PyPi naming convention, and the interface changed to a terminal based one based on _prompt_toolkit_. In 2025 the name changed to "tklr", the datastore to SQLite3 and the interface to Click (CLI) and Textual. Features have changed over the years but the text based interface and basic format of the reminders has changed very little. The goal has always been to be the Swiss Army Knife of tools for managing reminders.
+_tklr_ began life in 2013 as _etm-qt_ sporting a gui based on _Qt_. The intent was to provide an app supporting GTD (David Allen's Getting Things Done) and exploiting the power of python-dateutil. The name changed to _etmtk_ in 2014 when _Tk_ replaced _Qt_. Development of _etmtk_ continued until 2019 when name changed to _etm-dgraham_, to honor the PyPi naming convention, and the interface changed to a terminal based one based on _prompt_toolkit_. In 2025 the name changed to "tklr", the database to SQLite3 and the interface to Click (CLI) and Textual. Features have changed over the years but the text based interface and basic format of the reminders has changed very little. The goal has always been to be the Swiss Army Knife of tools for managing reminders.
 
 ## Reminders
 
@@ -31,23 +31,23 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
 | type    | char |
 | ------- | ---- |
+| event   | \*   |
 | task    | ~    |
 | project | ^    |
-| event   | \*   |
 | note    | %    |
-| inbox   | !    |
+| draft   | !    |
 
 ### examples
 
-- A task (**~**): pick up milk.
+- A _task_, **~**: pick up milk.
 
         ~ pick up milk
 
-- An event (**\***): have lunch with Ed [s]tarting next Tuesday at 12pm with an [e]xtent of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
+- An _event_ reminder, **\***: have lunch with Ed [s]tarting next Tuesday at 12pm with an **e**xtent of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
 
         * Lunch with Ed @s tue 12p @e 1h30m
 
-- A journal entry (**%**): a favorite Churchill quotation that you heard at 2pm today with the quote itself as the [d]escription.
+- A _note_ reminder, **%**: a favorite Churchill quotation that you heard at 2pm today with the quote itself as the **d**escription.
 
         % Give me a pig - Churchill @s 2p @d Dogs look up at
           you. Cats look down at you. Give me a pig - they
@@ -55,23 +55,35 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
   The _subject_, "Give me a pig - Churchill" in this example, follows the type character and is meant to be brief - analogous to the subject of an email. The optional _description_ follows the "@d" and is meant to be more expansive - analogous to the body of an email.
 
-- A project (**^**): build a dog house, with component [@~] tasks.
+- A _project_ reminder, **^**: build a dog house, with component **@~** tasks.
 
         ^ Build dog house @~ pick up materials &r 1  @~ cut pieces &r 2: 1
           @~ assemble &r 3: 2 @~ sand &r 4: 3 @~ paint &r 5: 4
 
-  The "&r X: Y" entries label the task as "X" and establish the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite.
+  The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite.
 
-- Inbox (**!**): meet Alex for coffee Friday.
+- A _draft_ reminder, **!**: meet Alex for coffee Friday.
 
         ! Coffee with Alex @s fri @e 1h
 
-  This can be changed to an event when the details are confirmed by replacing the **!** with an **\*** and adding the time to `@s`. This inbox entry will appear highlighted on the current day until you make the changes.
+  This can be changed to an event when the details are confirmed by replacing the **!** with an **\*** and adding the time to `@s`. This _draft_ will appear highlighted on the current day until you make the changes to complete it.
 
-- An appointment (event) for a dental exam and cleaning at 2pm on Feb 5 and then again [@+] at 9am on Sep 3.
+### Simple repetition
 
-        * dental exam and cleaning @s 2p feb 5 2019 @e 45m
-          @+ 9am Sep 3 2019
+- An appointment (_event_) for a dental exam and cleaning at 2pm on Feb 5 and then again, **@+**, at 9am on Sep 3.
+
+        * dental exam and cleaning @s 2p feb 5 @e 45m @+ 9am Sep 3
+
+- A _task_ to fill the bird feeders starting Friday of the current week and repeating thereafter at 4 days intervals after the previous completion.
+
+       ~ fill bird feeders @s fri @o 4d
+
+### More complex repetition
+
+- The full flexibility of the superb Python _dateutil_ package is supported. Consider, for example, a reminder for Presidential election day which starts in November, 2020 and repeats every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
+
+-        * Presidential election day @s nov 1 2020 @r y &i 4
+            &w TU &m 2, 3, 4, 5, 6, 7, 8 &M 11
 
 ## Developer Install Guide
 
