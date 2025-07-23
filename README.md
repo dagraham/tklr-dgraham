@@ -17,15 +17,15 @@
 
 > [!WARNING] Preliminary and incomplete version. This notice will be removed when the code is ready for general use.
 
-## Overview {#overview}
+## Overview
 
 _tklr_ began life in 2013 as _etm-qt_ sporting a gui based on _Qt_. The intent was to provide an app supporting GTD (David Allen's Getting Things Done) and exploiting the power of python-dateutil. The name changed to _etmtk_ in 2014 when _Tk_ replaced _Qt_. Development of _etmtk_ continued until 2019 when name changed to _etm-dgraham_, to honor the PyPi naming convention, and the interface changed to a terminal based one based on _prompt_toolkit_. In 2025 the name changed to "tklr", the datastore to SQLite3 and the interface to Click (CLI) and Textual. Features have changed over the years but the text based interface and basic format of the reminders has changed very little. The goal has always been to be the Swiss Army Knife of tools for managing reminders.
 
-## Reminders {#reminders}
+## Reminders
 
 _tklr_ offers a simple way to manage your events, tasks and other reminders.
 
-Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used. Each reminder in _tklr_ begins with a _type character_ followed by a brief _summary_ of the item and then, perhaps, by one or more _@key value_ pairs to specify other attributes of the reminder. Mnemonics are used to make the keys easy to remember, e.g, @s for scheduled datetime, @l for location, @d for description and so forth.
+Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used. Each reminder in _tklr_ begins with a _type character_ followed by the _subject_ of the reminder and then, perhaps, by one or more _@key value_ pairs to specify other attributes of the reminder. Mnemonics are used to make the keys easy to remember, e.g, @s for scheduled datetime, @l for location, @d for description and so forth.
 
 The 4 types of reminders in _tklr_ with their associated type characters:
 
@@ -37,15 +37,15 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 | note    | %    |
 | inbox   | !    |
 
-### examples {#examples}
+### examples
 
 - A task (**~**): pick up milk.
 
         ~ pick up milk
 
-- An event (**\***): have lunch with Ed [s]tarting next Tuesday at 12pm and [e]xtending for 90 minutes, i.e., lasting from 12pm until 1:30pm.
+- An event (**\***): have lunch with Ed [s]tarting next Tuesday at 12pm with an [e]xtent of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
 
-        * Lunch with Ed @s tue 12p @e 90m
+        * Lunch with Ed @s tue 12p @e 1h30m
 
 - A journal entry (**%**): a favorite Churchill quotation that you heard at 2pm today with the quote itself as the [d]escription.
 
@@ -57,8 +57,10 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
 - A project (**^**): build a dog house, with component [@~] tasks.
 
-        ^ Build dog house @~ pick up materials @~ cut pieces
-          @~ assemble @~ sand @~ paint
+        ^ Build dog house @~ pick up materials &r 1  @~ cut pieces &r 2: 1
+          @~ assemble &r 3: 2 @~ sand &r 4: 3 @~ paint &r 5: 4
+
+  The "&r X: Y" entries label the task as "X" and establish the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite.
 
 - Inbox (**!**): meet Alex for coffee Friday.
 

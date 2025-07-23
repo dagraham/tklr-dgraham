@@ -238,6 +238,7 @@ items = [
     @~ sand &s 3d &e 1h &r 8: 7 
     @~ paint &s 2d &e 2h &r 9: 8
     """,
+    "^ no requirements @~ this &r 1 @~ that &r 2",
     f"~ one date with bad priority @s {yesterday_date} @p a",
     f"~ one date with priority @s {yesterday_date} @p 1",
     f"~ multiple rdates with priority @s {yesterday_date} @+ {today_date}, {tomorrow_date} @p 2",
