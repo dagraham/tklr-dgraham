@@ -16,7 +16,8 @@ env = TklrEnvironment()
 DEFAULT_DB_PATH = env.db_path
 # urgency = env.config.urgency.model_dump()
 urgency = env.config.urgency
-print(f"{urgency = }\n{urgency.due.max = }")
+print(f"{urgency = }")
+print(f"{urgency.priority = }")
 # urgency = env.config.urgency
 # print(f"{urgency = }\n{urgency.active_value = }\n{urgency.priority.high = }")
 # width = shutil.get_terminal_size()[0] - 2

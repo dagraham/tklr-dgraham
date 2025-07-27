@@ -6,6 +6,7 @@ from typing import Optional
 
 from datetime import datetime, date, timedelta
 from dateutil.rrule import rrulestr
+from dateutil.parser import parse
 from typing import List, Tuple
 from rich import print
 from tklr.tklr_env import TklrEnvironment
@@ -20,8 +21,10 @@ from .shared import (
 )
 
 import re
-
 from tklr.item import Item
+
+env = TklrEnvironment()
+urgency = env.config.urgency
 
 
 def regexp(pattern, value):
@@ -29,16 +32,6 @@ def regexp(pattern, value):
         return re.search(pattern, value) is not None
     except TypeError:
         return False  # Handle None values gracefully
-
-
-# Constants for busy bar rendering
-# SLOT_HOURS = [0, 4, 8, 12, 16, 20, 24]
-# SLOT_MINUTES = [x * 60 for x in SLOT_HOURS]
-# BUSY = "■"  # U+25A0 this will be busy_bar busy and conflict character
-# FREE = "□"  # U+25A1 this will be busy_bar free character
-# ADAY = "━"  # U+2501 for all day events ━
-
-# DEFAULT_LOG_FILE = "log_msg.md"
 
 
 def utc_now_string():
@@ -54,6 +47,29 @@ def is_date(obj):
     return isinstance(obj, date) and not isinstance(obj, datetime)
 
 
+def parse_rdates(rule_str):
+    """
+    Extract RDATE lines and parse them into datetime objects.
+    Supports multiple RDATEs separated by commas.
+    """
+    rdates = []
+    for line in rule_str.splitlines():
+        if line.startswith("RDATE:"):
+            _, value = line.split(":", 1)
+            for date_str in value.split(","):
+                try:
+                    # Try parsing with time first, fall back to date only
+                    if "T" in date_str:
+                        dt = datetime.strptime(date_str.strip(), "%Y%m%dT%H%M%S")
+                    else:
+                        dt = datetime.strptime(date_str.strip(), "%Y%m%d")
+                    rdates.append(dt)
+                except Exception as e:
+                    log_msg(f"Invalid RDATE value: {date_str} — {e}")
+    log_msg(f"{rdates = }")
+    return rdates
+
+
 def td_str_to_td(duration_str: str) -> timedelta:
     """Convert a duration string like '1h30m20s' into a timedelta."""
     duration_str = duration_str.strip()
@@ -62,43 +78,54 @@ def td_str_to_td(duration_str: str) -> timedelta:
         sign = duration_str[0]
         duration_str = duration_str[1:]
 
-    pattern = r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
+    pattern = r"(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
     match = re.fullmatch(pattern, duration_str.strip())
     if not match:
         raise ValueError(f"Invalid duration format: '{duration_str}'")
-    days, hours, minutes, seconds = [int(x) if x else 0 for x in match.groups()]
+    weeks, days, hours, minutes, seconds = [int(x) if x else 0 for x in match.groups()]
     if sign == "-":
-        return -timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+        return -timedelta(
+            weeks=weeks, days=days, hours=hours, minutes=minutes, seconds=seconds
+        )
     else:
-        return timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+        return timedelta(
+            weeks=weeks, days=days, hours=hours, minutes=minutes, seconds=seconds
+        )
 
 
 def td_str_to_seconds(duration_str: str) -> int:
     """Convert a duration string like '1h30m20s' into a timedelta."""
     duration_str = duration_str.strip()
+    if not duration_str:
+        return 0
     sign = "+"
     if duration_str[0] in ["+", "-"]:
         sign = duration_str[0]
         duration_str = duration_str[1:]
 
-    pattern = r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
+    pattern = r"(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
     match = re.fullmatch(pattern, duration_str.strip())
     if not match:
         raise ValueError(f"Invalid duration format: '{duration_str}'")
-    days, hours, minutes, seconds = [int(x) if x else 0 for x in match.groups()]
+    weeks, days, hours, minutes, seconds = [int(x) if x else 0 for x in match.groups()]
 
-    log_msg(f"{days = }, {hours = }, {minutes = }, {seconds = }")
+    log_msg(f"{weeks = }, {days = }, {hours = }, {minutes = }, {seconds = }")
 
     if sign == "-":
-        return -(days * 86400 + hours * 3600 + minutes * 60 + seconds)
+        return -(weeks * 604800 + days * 86400 + hours * 3600 + minutes * 60 + seconds)
     else:
-        return days * 86400 + hours * 3600 + minutes * 60 + seconds
+        return weeks * 604800 + days * 86400 + hours * 3600 + minutes * 60 + seconds
 
 
 def dt_str_to_seconds(datetime_str: str) -> int:
     """Convert a datetime string like '20250601T090000' into a datetime object."""
+    if not datetime_str:
+        return None
+    if "T" not in datetime_str:
+        datetime_str += "T000000"
     try:
         return round(datetime.strptime(datetime_str, "%Y%m%dT%H%M%S").timestamp())
+
     except ValueError:
         return round(
             datetime.strptime(datetime_str, "%Y%m%dT000000").timestamp()
@@ -118,6 +145,8 @@ def td_to_tdstr(td_obj: timedelta) -> str:
     if total == 0:
         return "0s"
 
+    w, remainder = divmod(total, 604800)
+
     d, remainder = divmod(total, 86400)
 
     h, remainder = divmod(remainder, 3600)
@@ -125,6 +154,8 @@ def td_to_tdstr(td_obj: timedelta) -> str:
     m, s = divmod(remainder, 60)
 
     parts = []
+    if w:
+        parts.append(f"{d}w")
     if d:
         parts.append(f"{d}d")
     if h:
@@ -137,60 +168,118 @@ def td_to_tdstr(td_obj: timedelta) -> str:
     return "".join(parts)
 
 
-# [urgency]
-# active_value = 20.0
+def compute_weighted_urgency(
+    values: dict[str, float | None], weights: dict[str, float]
+) -> float:
+    """
+    Compute normalized, weighted urgency score from a dictionary of values and weights.
+
+    - Skips any value that is None (i.e., not applicable).
+    - Normalizes the remaining weights so that they sum to 1.
+    - Applies those normalized weights to the values.
+
+    Args:
+        values: A dict of urgency feature values in [0.0, 1.0] or None.
+        weights: A dict of importance weights for each feature.
+
+    Returns:
+        A float urgency score in [0.0, 1.0].
+    """
+    applicable = {k: v for k, v in values.items() if v is not None and k in weights}
+
+    if not applicable:
+        return 0.0  # No valid signals to compute urgency
+
+    weight_total = sum(weights[k] for k in applicable)
+    if weight_total == 0:
+        return 0.0  # Avoid division by zero
+
+    normalized_weights = {k: weights[k] / weight_total for k in applicable}
+
+    urgency_score = sum(applicable[k] * normalized_weights[k] for k in applicable)
+    return urgency_score
+
+
+def compute_partitioned_urgency(weights: dict[str, float]) -> float:
+    """
+    Compute urgency from signed weights:
+    - Positive weights push urgency up
+    - Negative weights pull urgency down
+    - Absence of weights → urgency = 0
+
+    Returns:
+        urgency ∈ [0.0, 1.0]
+    """
+    W_1 = sum(w for w in weights.values() if w > 0)
+    W_0 = 1 + sum(abs(w) for w in weights.values() if w < 0)
+
+    return W_1 / (W_0 + W_1)
+
+
+# def compute_urgency(
+#     weights: dict[str, float],
+# ) -> dict(str, float):
+#     """
+#     Compute normalized, weighted urgency score from a dictionary of keys and weight values
+#     which are determined from the urgency configuration settings and the attributes of the
+#     record.
 #
-# due_max = d_m
-# due_interval = d_i
-# due = max(0, min(dm, dm * (1  - (now - due)/d_i) => 0 at now = due - d_i, d_m at now = due
-# past_due_max
-# past_due_interval
-# age_daily = 0.2
-# blocking_value = 1.0
-# description_value = 1.0
-# extent_hourly = 0.25
-# project_value = 1.0
-# tag_value = 1.0
+#     Begin by setting the intial values of variables W_0 = 1 and W_1 = 0. Then for each key,
+#     "k", in the dictionary and each corresponding value, w_k, add positive values to W_1
+#     and the absolute values of negative ones to W_0. I.e.,
+#     - if w_k > 0: W_1 += w_k
+#     - if w_k < 0: W_0 += abs(w_k)
 #
-# [urgency.priority]
-# next = 15.0
-# high = 6.0
-# medium = 2.0
-# low = -2.0
-# someday = -6.0
-
-
-# urgency = {'active_value': 20.0, 'age_daily': 0.2,
-# 'blocking_value': 1.0, 'description_value': 1.0,
-# 'extent_hourly': 0.25, 'project_value': 1.0, 'tag_value': 1.0,
-# 'priority': {'next': 15.0, 'high': 6.0, 'medium': 2.0, 'low':
-# -2.0, 'someday': -6.0}}
+#     When all dictionary entries have been added, compute the urgency of the record as
 #
-urgency = dict(
-    due_max=15.0,
-    due_interval="2w",
-    past_due_max=5.0,
-    past_due_interval="2w",
-    recent_max=3.0,
-    recent_interval="1w",
-    age_max=20.0,
-    age_interval="26w",
-)
+#         urgency = 0 * W_0 / (W_0 + W_1) + 1 * W_1 / (W_0 + W_1)
+#         = W_1 / (W_0 + W_1)
+#
+#     Thinking of urgency as a weighted average, 1 - urgency will be the "weight" applied to 0
+#     and urgency will be the weight applied to 1. Each non-negative and sum to 1. Thus for any
+#     values of W_0 and W_1,
+#
+#         urgency returns a value in [0.0, 1.0]
+#
+#     Also, since the derivative of computed urgency with with respect to w_k is
+#
+#     - when w_k is positive
+#         = ((W_0 + W_1) * 1 - W_1 * 1) / (W_0 + w_1)^2
+#         = W_0 / (W_0 + W_1)^2
+#         and since W_0 >= 1, this is strictly positive
+#     - when w_k is negative
+#         = ((W_0 + W_1) * 0  - W_1 * 1) / (W_0 + W_1)^2
+#         = - W_1 / (W_0 + W_1)^2
+#         which is non-positive and strictly negative when W_1 > 0
+#
+#     """
+#     applicable = {k: v for k, v in values.items() if v is not None and k in weights}
+#
+#     if not applicable:
+#         return 0.0  # No valid signals to compute urgency
+#
+#     weight_total = sum(weights[k] for k in applicable)
+#     if weight_total == 0:
+#         return 0.0  # Avoid division by zero
+#
+#     normalized_weights = {k: weights[k] / weight_total for k in applicable}
+#
+#     urgency_score = sum(applicable[k] * normalized_weights[k] for k in applicable)
+#     return urgency_score
 
 
-def urgency_due(due: datetime, urgency: dict) -> float:
+def urgency_due(due_seconds: int, now_seconds: int) -> float:
     """
     This function calculates the urgency contribution for a task based
     on its due datetime relative to the current datetime and returns
     a float value between 0.0 when (now <= due - interval) and due_max when
     (now >= due).
     """
-    now_seconds = utc_now_to_seconds()
-    due_seconds = dt_str_to_seconds(due)
-    value = urgency.due.max
+    value = 1.0
     interval = urgency.due.interval
-    if value and interval:
+    if due_seconds and value and interval:
         interval_seconds = td_str_to_seconds(interval)
+        log_msg(f"{value = }, {interval = }, {interval_seconds = }")
         return max(
             0.0,
             min(
@@ -201,19 +290,17 @@ def urgency_due(due: datetime, urgency: dict) -> float:
     return 0.0
 
 
-def urgency_past_due(due: datetime, urgency) -> float:
+def urgency_past_due(due_seconds: int, now_seconds: int) -> float:
     """
     This function calculates the urgency contribution for a task based
     on its due datetime relative to the current datetime and returns
     a float value between 0.0 when (now <= due) and past_max when
     (now >= due + interval). Note: this adds to "due_max".
     """
-    now_seconds = utc_now_to_seconds()
-    due_seconds = dt_str_to_seconds(due)
 
-    value = urgency.pastdue.max
+    value = 1.0
     interval = urgency.pastdue.interval
-    if value and interval:
+    if due_seconds and value and interval:
         interval_seconds = td_str_to_seconds(interval)
         return max(
             0.0,
@@ -225,7 +312,7 @@ def urgency_past_due(due: datetime, urgency) -> float:
     return 0.0
 
 
-def urgency_age(modified: datetime, urgency) -> float:
+def urgency_recent(modified_seconds: int, now_seconds: int) -> float:
     """
     This function calculates the urgency contribution for a task based
     on the current datetime relative to the (last) modified datetime. It
@@ -234,13 +321,10 @@ def urgency_age(modified: datetime, urgency) -> float:
     from 0 based on how long ago it was modified. The maximum of the two
     is the age contribution.
     """
-    recent_contribution = age_contribution = 0
-    now_seconds = utc_now_to_seconds()
-    modified_seconds = dt_str_to_seconds(modified)
-    recent_max = urgency.recent.max
+    recent_contribution = 0.0
     recent_interval = urgency.recent.interval
-    age_max = urgency.age.max
-    age_interval = urgency.age.interval
+    recent_max = urgency.recent.max
+    log_msg(f"{recent_interval = }")
     if recent_max and recent_interval:
         recent_interval_seconds = td_str_to_seconds(recent_interval)
         recent_contribution = max(
@@ -251,7 +335,23 @@ def urgency_age(modified: datetime, urgency) -> float:
                 * (1 - (now_seconds - modified_seconds) / recent_interval_seconds),
             ),
         )
+    log_msg(f"returning {recent_contribution = }")
+    return recent_contribution
 
+
+def urgency_age(modified_seconds: int, now_seconds: int) -> float:
+    """
+    This function calculates the urgency contribution for a task based
+    on the current datetime relative to the (last) modified datetime. It
+    represents a combination of a decreasing contribution from recent_max
+    based on how recently it was modified and an increasing contribution
+    from 0 based on how long ago it was modified. The maximum of the two
+    is the age contribution.
+    """
+    age_contribution = 0
+    age_interval = urgency.age.interval
+    age_max = urgency.age.max
+    log_msg(f"{age_interval = }")
     if age_max and age_interval:
         age_interval_seconds = td_str_to_seconds(age_interval)
         age_contribution = max(
@@ -261,7 +361,42 @@ def urgency_age(modified: datetime, urgency) -> float:
                 age_max * (now_seconds - modified_seconds) / age_interval_seconds,
             ),
         )
-    return max(recent_contribution, age_contribution)
+    log_msg(f"returning {age_contribution = }")
+    return age_contribution
+
+
+def urgency_priority(priority_level: int) -> float:
+    priority = urgency.priority.root.get(str(priority_level), 0.0)
+    log_msg(f"in urgency_priority with {priority = }")
+    return priority
+
+
+def urgency_extent(extent_seconds: int) -> float:
+    extent_max = 1.0
+    extent_interval = td_str_to_seconds(urgency.extent.interval)
+    extent = max(0.0, min(extent_max, extent_max * extent_seconds / extent_interval))
+    log_msg(f"{extent_seconds = }, {extent = }")
+    return extent
+
+
+def urgency_blocking(num_blocking: int) -> float:
+    if num_blocking:
+        blocking_max = 1.0
+        blocking_count = urgency.blocking.count
+        blocking = max(
+            0.0, min(blocking_max, blocking_max * num_blocking / blocking_count)
+        )
+        log_msg(f"{num_blocking = }, {blocking = }")
+        return blocking
+    return 0.0
+
+
+def urgency_tags(num_tags: int) -> float:
+    tags_max = 1.0
+    tags_count = urgency.blocking.count
+    tags = max(0.0, min(tags_max, tags_max * num_tags / tags_count))
+    log_msg(f"{num_tags = }, {tags = }")
+    return tags
 
 
 class DatabaseManager:
@@ -320,8 +455,8 @@ class DatabaseManager:
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Urgency (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                job_id TEXT,                     -- NULL for standalone tasks
                 record_id INTEGER NOT NULL,      -- Link to Records
+                job_id TEXT,                     -- NULL for standalone tasks
                 subject TEXT NOT NULL,           -- Task name or "job name → task"
                 urgency FLOAT NOT NULL,          -- Final score
                 status TEXT NOT NULL,            -- "next", "waiting", "scheduled", etc.
@@ -334,22 +469,10 @@ class DatabaseManager:
         """)
 
         self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS ActiveUrgency (
-                id INTEGER PRIMARY KEY CHECK (id = 1),
-                urgency_id INTEGER UNIQUE,
-                FOREIGN KEY (urgency_id) REFERENCES Urgency(id) ON DELETE SET NULL
+            CREATE TABLE IF NOT EXISTS Pinned (
+                record_id INTEGER PRIMARY KEY,
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
             )
-        """)
-
-        # 🔁 Add this trigger to clear active urgency when its row is deleted
-        self.cursor.execute("""
-            CREATE TRIGGER IF NOT EXISTS clear_active_urgency_on_delete
-            AFTER DELETE ON Urgency
-            FOR EACH ROW
-            WHEN OLD.id = (SELECT urgency_id FROM ActiveUrgency WHERE id = 1)
-            BEGIN
-                UPDATE ActiveUrgency SET urgency_id = NULL WHERE id = 1;
-            END;
         """)
 
         self.cursor.execute("""
@@ -597,54 +720,23 @@ class DatabaseManager:
         )
         self.conn.commit()
 
-    # def touch_urgency(self, record_id: int, job_id: Optional[str] = None):
-    #     """
-    #     Update the 'touched' timestamp in the Urgency table for a given task instance
-    #     or specific job.
-    #
-    #     Args:
-    #         record_id (int): The ID of the task record.
-    #         job_id (Optional[str]): The job identifier, if applicable.
-    #     """
-    #     now = int(datetime.now().timestamp())
-    #     if job_id is None:
-    #         self.cursor.execute(
-    #             "UPDATE Urgency SET touched = ? WHERE record_id = ? AND job_id IS NULL",
-    #             (now, record_id),
-    #         )
-    #     else:
-    #         self.cursor.execute(
-    #             "UPDATE Urgency SET touched = ? WHERE record_id = ? AND job_id = ?",
-    #             (now, record_id, job_id),
-    #         )
-    #     self.conn.commit()
-
-    def set_active_urgency(self, urgency_id: int):
-        """Mark a specific urgency record as active."""
-        self.cursor.execute(
-            """
-            INSERT INTO ActiveUrgency (id, urgency_id)
-            VALUES (1, ?)
-            ON CONFLICT(id) DO UPDATE SET urgency_id = excluded.urgency_id
-        """,
-            (urgency_id,),
-        )
+    def toggle_pinned(self, record_id: int) -> None:
+        self.cursor.execute("SELECT 1 FROM Pinned WHERE record_id = ?", (record_id,))
+        if self.cursor.fetchone():
+            self.cursor.execute("DELETE FROM Pinned WHERE record_id = ?", (record_id,))
+        else:
+            self.cursor.execute(
+                "INSERT INTO Pinned (record_id) VALUES (?)", (record_id,)
+            )
         self.conn.commit()
 
-    def get_active_urgency(self) -> Optional[int]:
-        """Return the ID of the currently active urgency row, if any."""
-        self.cursor.execute("SELECT urgency_id FROM ActiveUrgency WHERE id = 1")
-        result = self.cursor.fetchone()
-        return result[0] if result else None
+    def get_pinned_record_ids(self) -> list[int]:
+        self.cursor.execute("SELECT record_id FROM Pinned")
+        return [row[0] for row in self.cursor.fetchall()]
 
-    def clear_active_urgency(self):
-        """Clear the active urgency selection."""
-        self.cursor.execute("""
-            INSERT INTO ActiveUrgency (id, urgency_id)
-            VALUES (1, NULL)
-            ON CONFLICT(id) DO UPDATE SET urgency_id = NULL
-        """)
-        self.conn.commit()
+    def is_pinned(self, record_id: int) -> bool:
+        self.cursor.execute("SELECT 1 FROM Pinned WHERE record_id = ?", (record_id,))
+        return self.cursor.fetchone() is not None
 
     def get_due_alerts(self):
         """Retrieve alerts that need execution within the next 6 seconds."""
@@ -1132,11 +1224,10 @@ class DatabaseManager:
 
             try:
                 if is_finite:
-                    # Generate all occurrences for the entire recurrence period
-                    full_occurrences = self.generate_datetimes(
-                        rule_str, extent, datetime.min, datetime.max
-                    )
-                    for start_dt, end_dt in full_occurrences:
+                    # Handle RDATEs
+                    rdate_occurrences = parse_rdates(rule_str)
+                    for start_dt in rdate_occurrences:
+                        end_dt = start_dt  # or compute duration from extent
                         self.cursor.execute(
                             """
                             INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
@@ -1148,7 +1239,24 @@ class DatabaseManager:
                                 int(end_dt.timestamp()),
                             ),
                         )
-                    # Mark finite rules (RRULE or RDATE) as processed after all occurrences are inserted
+                    # Handle RRULEs if present
+                    if "RRULE" in rule_str:
+                        full_occurrences = self.generate_datetimes(
+                            rule_str, extent, datetime.min, datetime.max
+                        )
+                        for start_dt, end_dt in full_occurrences:
+                            self.cursor.execute(
+                                """
+                                INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
+                                VALUES (?, ?, ?)
+                                """,
+                                (
+                                    record_id,
+                                    int(start_dt.timestamp()),
+                                    int(end_dt.timestamp()),
+                                ),
+                            )
+
                     self.cursor.execute(
                         "UPDATE Records SET processed = 1 WHERE id = ?", (record_id,)
                     )
@@ -1176,7 +1284,7 @@ class DatabaseManager:
 
             except Exception as e:
                 log_msg(
-                    f"Error processing rruleset {rule_str} for record_id {record_id}: {rule_str}\n{e}"
+                    f"Error processing\n{rruleset = }\n{rule_str = } for {record_id = }:\n  {e}"
                 )
 
         self.conn.commit()
@@ -1195,6 +1303,9 @@ class DatabaseManager:
             List[Tuple[datetime, datetime]]: A list of (start_dt, end_dt) tuples.
         """
 
+        log_msg(
+            f"getting datetimes for {rule_str} between {start_date = } and {end_date = }"
+        )
         rule = rrulestr(rule_str, dtstart=start_date)
         occurrences = list(rule.between(start_date, end_date, inc=True))
         extent = td_str_to_td(extent) if isinstance(extent, str) else extent
@@ -1561,68 +1672,121 @@ class DatabaseManager:
     def populate_urgency_from_record(self, record: dict):
         log_msg(f"{record = }")
         record_id = record["id"]
-        subject = record["subject"]
-        created = record["created"]
-        modified = record["modified"]
-        priority = record.get("priority", "")
-        extent = record.get("extent", "")
+        now_seconds = utc_now_to_seconds()
+        modified_seconds = dt_str_to_seconds(record["modified"])
+        extent_seconds = td_str_to_seconds(record.get("extent", "0m"))
+        beginby_seconds = td_str_to_seconds(record.get("beginby", "0m"))
+        rruleset = record.get("rruleset", "")
+        tags = len(json.loads(record.get("tags", "[]")))
         jobs = json.loads(record.get("jobs", "[]"))
-        tags = json.loads(record.get("tags", "[]"))
-        status = record.get("status", "next")
-        # touched = record.get("touched")
-        now = datetime.utcnow()
-
+        subject = record["subject"]
         priority_map = self.env.config.urgency.priority.model_dump()
+        priority_level = record.get("priority", None)
+        priority = priority_map.get(priority_level, 0)
+        pinned = self.is_pinned(record_id)
+
+        # Try to parse due from first RDATE in rruleset
+        due_seconds = None
+        if rruleset.startswith("RDATE:"):
+            due_str = rruleset.split(":", 1)[1].split(",")[0]
+            try:
+                if "T" in due_str:
+                    dt = datetime.strptime(due_str.strip(), "%Y%m%dT%H%M%SZ")
+                else:
+                    dt = datetime.strptime(due_str.strip(), "%Y%m%d")
+                due_seconds = round(dt.timestamp())
+            except Exception as e:
+                log_msg(f"Invalid RDATE value: {due_str}\n{e}")
 
         self.cursor.execute("DELETE FROM Urgency WHERE record_id = ?", (record_id,))
 
-        def compute_urgency(job_status: str) -> float:
-            base = priority_map.get(job_status, 0.0)
-            # if touched_str:
-            #     try:
-            #         touched_dt = datetime.fromisoformat(touched_str)
-            #         age_days = (now - touched_dt).total_seconds() / 86400
-            #         base += min(age_days, 30)
-            #     except Exception:
-            #         pass
-            return round(base, 2)
+        # weights and calculator
+        # weights = self.env.config.urgency.weights.model_dump()
 
+        def compute_urgency(**kwargs):
+            weights = {
+                "due": urgency_due(kwargs.get("due"), kwargs["now"]),
+                "pastdue": urgency_past_due(kwargs.get("due"), kwargs["now"]),
+                "age": urgency_age(kwargs["modified"], kwargs["now"]),
+                "recent": urgency_recent(kwargs["modified"], kwargs["now"]),
+                "priority": urgency_priority(kwargs.get("priority_level")),
+                "extent": urgency_extent(kwargs["extent"]),
+                "blocking": urgency_blocking(kwargs.get("blocking", 0.0)),
+                "tags": urgency_tags(kwargs.get("tags", 0)),
+                "description": 1.0 if bool("description") else 0.0,
+                "project": 1.0 if bool(jobs) else 0.0,
+                "pinned": 1.0 if pinned else 0.0,
+            }
+            log_msg(f"{weights = }")
+            urgency = compute_partitioned_urgency(weights)
+            return urgency  # compute_weighted_urgency(values, weights)
+
+        # Handle jobs if present
         if jobs:
             for job in jobs:
-                log_msg(f"{job = }")
-                job_id = job.get("i", "")
-                job_status = job.get("status", "pending")
-                subject = job.get("display_subject", "")
-                if job_status != "finished":
-                    urgency = compute_urgency(job_status)
-                    self.cursor.execute(
-                        """
-                        INSERT INTO Urgency (job_id, record_id, subject, urgency, status)
-                        VALUES (?, ?, ?, ?, ?)
-                        """,
-                        (
-                            job_id,
-                            record_id,
-                            subject,
-                            urgency,
-                            job_status,
-                        ),
+                status = job.get("status", "")
+                if status != "available":
+                    continue
+                job_id = job.get("i")
+                subject = job.get("display_subject", subject)
+
+                job_due = due_seconds
+                if job_due:
+                    b = td_str_to_seconds(job.get("b"))
+                    s = td_str_to_seconds(job.get("s", "0m"))
+                    if b:
+                        hide = job_due - b > now_seconds
+                        if hide:
+                            continue
+                    job_due -= s
+
+                job_extent = td_str_to_seconds(job.get("e", "0m"))
+                blocking = job.get("blocking")  # assume already computed elsewhere
+
+                urgency = (
+                    1.0
+                    if pinned
+                    else compute_urgency(
+                        now=now_seconds,
+                        modified=modified_seconds,
+                        due=job_due,
+                        extent=job_extent,
+                        priority_level=priority_level,
+                        blocking=blocking,
+                        tags=tags,
                     )
+                )
+
+                self.cursor.execute(
+                    """
+                    INSERT INTO Urgency (record_id, job_id, subject, urgency, status)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (record_id, job_id, subject, urgency, status),
+                )
+
         else:
-            urgency = compute_urgency(status)
-            self.cursor.execute(
-                """
-                INSERT INTO Urgency (job_id, record_id, subject, urgency, status)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    None,
-                    record_id,
-                    subject,
-                    urgency,
-                    status,
-                ),
+            hide = (
+                due_seconds
+                and beginby_seconds
+                and due_seconds - beginby_seconds > now_seconds
             )
+            if not hide:
+                urgency = compute_urgency(
+                    now=now_seconds,
+                    modified=modified_seconds,
+                    due=due_seconds,
+                    extent=extent_seconds,
+                    priority_level=priority_level,
+                    tags=tags,
+                )
+                self.cursor.execute(
+                    """
+                    INSERT INTO Urgency (record_id, job_id, subject, urgency, status)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (record_id, None, subject, urgency, record.get("status", "next")),
+                )
 
         self.conn.commit()
 

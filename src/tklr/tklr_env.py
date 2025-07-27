@@ -5,6 +5,12 @@ from pydantic import BaseModel, Field, ValidationError
 from typing import Optional
 from jinja2 import Template
 
+from pydantic import RootModel
+
+
+class PriorityConfig(RootModel[dict[str, float]]):
+    pass
+
 
 # ─── Config Schema ─────────────────────────────────────────────────
 class UIConfig(BaseModel):
@@ -15,68 +21,42 @@ class UIConfig(BaseModel):
     yearfirst: bool = True
 
 
-# class PathsConfig(BaseModel):
-#     db: str = "tklr.db"
-
-
-class UrgencyWeights(BaseModel):
-    recent_age: float = 2.0
-    due_pastdue: float = 2.0
-    extent: float = 1.0
-    blocking: float = 1.0
-    tag: float = 1.0
-    active: float = 2.0
-    description: float = 1.0
-    priority: float = 1.0
-    project: float = 1.0
-
-
-class PriorityConfig(BaseModel):
-    next: float = 10.0
-    high: float = 8.0
-    medium: float = 5.0
-    low: float = 2.0
-    someday: float = -5.0
-
-
 class DueConfig(BaseModel):
-    max: float = 8.0
     interval: str = "1w"
+    max: float = 8.0
 
 
 class PastdueConfig(BaseModel):
-    max: float = 10.0
-    interval: str = "2w"
+    interval: str = "2d"
+    max: float = 2.0
 
 
 class RecentConfig(BaseModel):
-    max: float = 6.0
     interval: str = "2w"
+    max: float = 4.0
 
 
 class AgeConfig(BaseModel):
-    max: float = 9.0
     interval: str = "26w"
+    max: float = 10.0
 
 
 class ExtentConfig(BaseModel):
-    max: float = 5.0
     interval: str = "12h"
+    max: float = 2.0
 
 
 class BlockingConfig(BaseModel):
-    max: float = 6.0
-    count: int = 3
+    count: int = 2
+    max: float = 2.0
 
 
 class TagsConfig(BaseModel):
-    max: float = 4.0
     count: int = 2
+    max: float = 2.0
 
 
 class UrgencyConfig(BaseModel):
-    active: float = 10.0
-    description: float = 1.0
     project: float = 2.0
 
     due: DueConfig = DueConfig()
@@ -87,9 +67,15 @@ class UrgencyConfig(BaseModel):
     blocking: BlockingConfig = BlockingConfig()
     tags: TagsConfig = TagsConfig()
 
-    priority: PriorityConfig = PriorityConfig()
-
-    weights: UrgencyWeights = UrgencyWeights()
+    priority: PriorityConfig = PriorityConfig(
+        {
+            "1": -5.0,
+            "2": 2.0,
+            "3": 5.0,
+            "4": 8.0,
+            "5": 10.0,
+        }
+    )
 
 
 class TklrConfig(BaseModel):
@@ -99,7 +85,6 @@ class TklrConfig(BaseModel):
     urgency: UrgencyConfig = UrgencyConfig()
 
 
-# ─── Commented Template ────────────────────────────────────
 CONFIG_TEMPLATE = """\
 title = "{{ title }}"
 
@@ -122,118 +107,173 @@ yearfirst = {{ ui.yearfirst | lower }}
 {{ key }} = "{{ value }}"
 {% endfor %}
 
-[urgency]
-# values for item urgency calculation
-# all values are floats.
-
-# is this the active task or job?
-active = {{ urgency.active }}
-
-# does this task or job have a description?
-description = {{ urgency.description }}
-
-# is this a job and thus part of a project?
-project = {{ urgency.project }}
-
-# Each of the "max/interval" settings below involves a 
-# max and an interval over which the contribution ranges
-# between the max value and 0.0. In each case, "now" refers
-# to the current datetime, "due" to the scheduled datetime 
-# and "modified" to the last modified datetime. Note that 
-# necessarily, "now" >= "modified". The returned value 
-# varies linearly over the interval in each case. 
+# ─── Urgency Configuration ─────────────────────────────────────
 
 [urgency.due]
-# Return 0.0 when now <= due - interval and max when 
-# now >= due.
-
-max = {{ urgency.due.max }}
+# Urgency rises as the due date approaches or passes.
+# The "due" urgency increases from 0.0 to 1.0 as now approaches the due date.
+# The "pastdue" urgency increases from 0.0 to 1.0 as now exceeds the due date.
+# The higher of the two is used as the signal value.
 interval = "{{ urgency.due.interval }}"
-
-[urgency.pastdue]
-# Return 0.0 when now <= due and max when now >= 
-# due + interval. 
-
-max = {{ urgency.pastdue.max }}
-interval = "{{ urgency.pastdue.interval }}"
+max = {{ urgency.due.max }}
 
 [urgency.recent]
-# The "recent" value is max when now = modified and 
-# 0.0 when now >= modified + interval. The maximum of 
-# this value and "age" (below) is returned. The returned 
-# value thus decreases initially over the 
-
-max = {{ urgency.recent.max }}
+# Value is 1.0 when now = modified, and 0.0 when now >= modified + interval.
 interval = "{{ urgency.recent.interval }}"
+max = {{ urgency.recent.max }}
 
 [urgency.age]
-# The "age" value is 0.0 when now = modified and max 
-# when now >= modified + interval. The maximum of this 
-# value and "recent" (above) is returned. 
-
-max = {{ urgency.age.max }}
+# Value is 0.0 when now = modified, and 1.0 when now >= modified + interval.
 interval = "{{ urgency.age.interval }}"
+max = {{ urgency.age.max }}
 
 [urgency.extent]
-# The "extent" value is 0.0 when extent = "0m" and max 
-# when extent >= interval. 
-
-max = {{ urgency.extent.max }}
+# Value is 0.0 when extent = "0m", and 1.0 when extent >= interval.
 interval = "{{ urgency.extent.interval }}"
+max = {{ urgency.extent.max }}
 
 [urgency.blocking]
-# The "blocking" value is 0.0 when blocking = 0 and max 
-# when blocking >= count. 
-
-max = {{ urgency.blocking.max }}
+# Value is 0.0 when blocking = 0, and 1.0 when blocking >= count.
 count = {{ urgency.blocking.count }}
+max = {{ urgency.blocking.max }}
 
 [urgency.tags]
-# The "tags" value is 0.0 when len(tags) = 0 and max 
-# when len(tags) >= count. 
-
-max = {{ urgency.tags.max }}
+# Value is 0.0 when there are no tags, and 1.0 when number of tags >= count.
 count = {{ urgency.tags.count }}
+max = {{ urgency.tags.max }}
 
 [urgency.priority]
-# Priority levels used in urgency calculation.
-# These are mapped from user input `@p 1` through `@p 5` 
-# so that entering "@p 1" entails the priority value for 
-# "someday", "@p 2" the priority value for "low" and so forth.
-#
-#   @p 1 = someday  → least urgent
-#   @p 2 = low
-#   @p 3 = medium
-#   @p 4 = high
-#   @p 5 = next     → most urgent
-#
-# Set these values to tune the effect of each level. Note 
-# that omitting @p in a task is equivalent to setting 
-# priority = 0.0 for the task.
+# These are mapped from user input `@p 1` through `@p 5`:
+# Omitting @p is equivalent to priority = 0.0
+{% for key, value in urgency.priority.items() %}
+"{{ key }}" = {{ value }}
+{% endfor %}
 
-someday = {{ urgency.priority.someday }}
-low     = {{ urgency.priority.low }}
-weights = {{ urgency.priority.medium }}
-high    = {{ urgency.priority.high }}
-next    = {{ urgency.priority.next }}
+[urgency.description]
+# Returns 1.0 if the task has a non-empty description, else 0.0
 
-[urgency.weights]
-# These weights give the relative importance of the various 
-# components. The weights used to compute urgency correspond 
-# to each of these weights divided by the sum of all of the 
-# weights.
+[urgency.project]
+# Returns 1.0 if this is a job (part of a project), else 0.0
 
-recent_age   = {{ urgency.weights.recent_age  }}
-due_pastdue  = {{ urgency.weights.due_pastdue }}
-extent       = {{ urgency.weights.extent      }}
-blocking     = {{ urgency.weights.blocking    }}
-tag          = {{ urgency.weights.tag         }}
-active       = {{ urgency.weights.active      }}
-description  = {{ urgency.weights.description }}
-priority     = {{ urgency.weights.priority    }}
-project      = {{ urgency.weights.project     }}
+[urgency.pinned]
+# Returns 1.0 if the task is pinned, else 0.0
+
 """
-
+# # ─── Commented Template ────────────────────────────────────
+# CONFIG_TEMPLATE = """\
+# title = "{{ title }}"
+#
+# [ui]
+# # theme: str = 'dark' | 'light'
+# theme = "{{ ui.theme }}"
+#
+# # ampm: bool = true | false
+# ampm = {{ ui.ampm | lower }}
+#
+# # dayfirst: bool = true | false
+# dayfirst = {{ ui.dayfirst | lower }}
+#
+# # yearfirst: bool = true | false
+# yearfirst = {{ ui.yearfirst | lower }}
+#
+# [alerts]
+# # dict[str, str]: character -> command_str
+# {% for key, value in alerts.items() %}
+# {{ key }} = "{{ value }}"
+# {% endfor %}
+#
+# [urgency]
+# # values for task urgency calculation
+#
+#
+# # does this task or job have a description?
+# description = {{ urgency.description }}
+#
+# # is this a job and thus part of a project?
+# project = {{ urgency.project }}
+#
+# # Each of the "max/interval" settings below involves a
+# # max and an interval over which the contribution ranges
+# # between the max value and 0.0. In each case, "now" refers
+# # to the current datetime, "due" to the scheduled datetime
+# # and "modified" to the last modified datetime. Note that
+# # necessarily, "now" >= "modified". The returned value
+# # varies linearly over the interval in each case.
+#
+# [urgency.due]
+# # Return 0.0 when now <= due - interval and max when
+# # now >= due.
+#
+# max = {{ urgency.due.max }}
+# interval = "{{ urgency.due.interval }}"
+#
+# [urgency.pastdue]
+# # Return 0.0 when now <= due and max when now >=
+# # due + interval.
+#
+# max = {{ urgency.pastdue.max }}
+# interval = "{{ urgency.pastdue.interval }}"
+#
+# [urgency.recent]
+# # The "recent" value is max when now = modified and
+# # 0.0 when now >= modified + interval. The maximum of
+# # this value and "age" (below) is returned. The returned
+# # value thus decreases initially over the
+#
+# max = {{ urgency.recent.max }}
+# interval = "{{ urgency.recent.interval }}"
+#
+# [urgency.age]
+# # The "age" value is 0.0 when now = modified and max
+# # when now >= modified + interval. The maximum of this
+# # value and "recent" (above) is returned.
+#
+# max = {{ urgency.age.max }}
+# interval = "{{ urgency.age.interval }}"
+#
+# [urgency.extent]
+# # The "extent" value is 0.0 when extent = "0m" and max
+# # when extent >= interval.
+#
+# max = {{ urgency.extent.max }}
+# interval = "{{ urgency.extent.interval }}"
+#
+# [urgency.blocking]
+# # The "blocking" value is 0.0 when blocking = 0 and max
+# # when blocking >= count.
+#
+# max = {{ urgency.blocking.max }}
+# count = {{ urgency.blocking.count }}
+#
+# [urgency.tags]
+# # The "tags" value is 0.0 when len(tags) = 0 and max
+# # when len(tags) >= count.
+#
+# max = {{ urgency.tags.max }}
+# count = {{ urgency.tags.count }}
+#
+# [urgency.priority]
+# # Priority levels used in urgency calculation.
+# # These are mapped from user input `@p 1` through `@p 5`
+# # so that entering "@p 1" entails the priority value for
+# # "someday", "@p 2" the priority value for "low" and so forth.
+# #
+# #   @p 1 = someday  → least urgent
+# #   @p 2 = low
+# #   @p 3 = medium
+# #   @p 4 = high
+# #   @p 5 = next     → most urgent
+# #
+# # Set these values to tune the effect of each level. Note
+# # that omitting @p in a task is equivalent to setting
+# # priority = 0.0 for the task.
+#
+# someday = {{ urgency.priority.someday }}
+# low     = {{ urgency.priority.low }}
+# medium = {{ urgency.priority.medium }}
+# high    = {{ urgency.priority.high }}
+# next    = {{ urgency.priority.next }}
+#
 # ─── Save Config with Comments ───────────────────────────────
 
 

@@ -74,7 +74,7 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
         * dental exam and cleaning @s 2p feb 5 @e 45m @+ 9am Sep 3
 
-- A _task_ to fill the bird feeders starting Friday of the current week and repeating thereafter at 4 days intervals after the previous completion.
+- A reminder (_task_) to fill the bird feeders starting Friday of the current week and repeat thereafter 4 days after the previous completion.
 
        ~ fill bird feeders @s fri @o 4d
 
@@ -312,6 +312,14 @@ item.entry = '- fall back @s 2024-11-01 10:00 EST  @r d &i 1 &c 4'
 
 Since urgency values are used ultimately to give an ordinal ranking of tasks, all that matters is the relative values used to compute the urgency scores. Accordingly, all urgency scores are constrained to fall within the interval from -10.0 to 10.0. The default urgency is 0.0 for a component that is not given.
 
+In these cases a task will not be displayed in the "urgency list" and there is no need, therefore, to compute its urgency:
+
+- The task does not repeat and has been completed or, if it does repeat, the last instance has been completed.
+- The task has an `@s` entry and an `@b` entry and the date corresponding to `@s - @b` falls sometime after the current date.
+- The task belongs to a project and has unfinished prerequisites.
+
+Additionally, when a task is repeating, only the first unfinished instance will be displayed.
+
 These are the components that potentially contribute to the urgency - default settings in _config.toml_ are in the next section:
 
 - max_interval components:
@@ -331,8 +339,8 @@ These are the components that potentially contribute to the urgency - default se
 
 For each of the max_interval components, a method is defined that takes the maximum value and interval from the parameters given in config.toml for the component combined with the characteristics of the task and returns a float in the interval \[0.0, 10.0\]. Note that the computed urgency will be at least as great as the default, 0.0. Additionally:
 
-- recent and age are combined to return a single urgency, _recent_age_, which is the greater of the two components
-- due and past\*due are combined to return a single urgency, _due_pastdue_, which is the greater of the two components
+- _recent_ and _age_ are combined to return a single urgency, _recent_age_, which is the greater of the two components
+- _due_ and _pastdue_ are combined to return a single urgency, _due_pastdue_, which is the greater of the two components
 
 For both of the count components, a method is defined that takes a maximum value from _config.toml_ and a count from the task and returns a float in [0.0, 10.0]. Again the computed value will be at least as great as the default.
 

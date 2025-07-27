@@ -50,6 +50,13 @@ def in_five_days():
     return next.strftime("%Y%m%dT%H%M%S")
 
 
+def in_two_weeks():
+    now = datetime.now().replace(second=0, microsecond=0)
+    delta_minutes = 60 + (15 - now.minute % 15)
+    next = now + timedelta(days=2 * 7, minutes=delta_minutes)
+    return next.strftime("%Y%m%dT%H%M%S")
+
+
 def local_dtstr_to_utc_str(local_dt_str: str) -> str:
     """
     Convert a local datetime string to a UTC datetime string.
@@ -197,10 +204,10 @@ freq = [
 
 count = [f"COUNT={n}" for n in range(2, 5)]
 
-first_of_month = now.replace(day=1).strftime("%Y%m%d")
-yesterday_date = (now - ONEDAY).strftime("%Y%m%d")
-today_date = now.strftime("%Y%m%d")
-tomorrow_date = (now + ONEDAY).strftime("%Y%m%d")
+first_of_month = now.replace(day=1).strftime("%Y%m%dT000000")
+yesterday_date = (now - ONEDAY).strftime("%Y%m%dT000000")
+today_date = now.strftime("%Y%m%dT000000")
+tomorrow_date = (now + ONEDAY).strftime("%Y%m%dT000000")
 # type, name, details, rrulestr, extent, alerts, location
 
 items = [
@@ -208,12 +215,13 @@ items = [
     f"* yesterday @d all day event @s {yesterday_date}",
     f"* today @d all day event @s {today_date}",
     f"* tomorrow @d all day event @s {tomorrow_date}",
-    f"~ end of yesterday @d all day task @p 1 @s {yesterday_date}T235959",
+    f"~ end of yesterday @d all day task @p 1 @s {yesterday_date}T235959 @f {datetime.now().replace(second=0, microsecond=0)}",
     f"~ end of today @d all day task @p 2 @s {today_date}T235959",
     f"* end of tomorrow @d all day event @s {tomorrow_date}T235959",
     f"* zero extent float @s {tomorrow_date}T100000 @z none",
     f"* daily date @s {today_date} @d whatever @c wherever @p 5 @r d &i 3 &c 10 @z US/Pacific",
     f"* single date @s {today_date}",
+    # f"~ every other date @s {today_date}T000000 @r d &i 2",
     f"* single datetime @s {in_five_days()} @e 2h30m @b 6d",
     f"~ with tags and description @p 3 @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
     f"* multiple rdatetimes @s {in_ten_minutes()} @e {random.choice(duration)}  @+ {in_one_hour()}, {in_one_day()}",
@@ -227,7 +235,7 @@ items = [
        ii. and this 
     2. And finally this. @t test @l label @t red 
     """,
-    f"""^ dog house @s {first_of_month} @e 3h @p 3
+    f"""^ dog house @s {in_five_days()} @e 3h @b 2w @p 3
     @~ create plan &s 1w &e 1h &r 1 
     @~ go to Lowes &s 1w &e 2h &r 2: 1 
     @~ buy lumber &s 1w &r 3: 2
@@ -238,10 +246,12 @@ items = [
     @~ sand &s 3d &e 1h &r 8: 7 
     @~ paint &s 2d &e 2h &r 9: 8
     """,
-    "^ no requirements @~ this &r 1 @~ that &r 2",
-    f"~ one date with bad priority @s {yesterday_date} @p a",
-    f"~ one date with priority @s {yesterday_date} @p 1",
-    f"~ multiple rdates with priority @s {yesterday_date} @+ {today_date}, {tomorrow_date} @p 2",
+    f"^ no prerequisites @s {in_two_weeks()} @b 1w @~ this &r 1 @~ that &r 2",
+    "~ once more when complete @s fri 12a @o 4d",
+    "! draft reminder - no checks",
+    f"~ one date with priority 3 @s {yesterday_date} @p 3",
+    f"~ one date with priority 4 @s {yesterday_date} @p 4",
+    f"~ multiple rdates with priority 5 @s {yesterday_date} @+ {today_date}, {tomorrow_date} @p 5",
 ]
 
 records = []

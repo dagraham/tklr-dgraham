@@ -423,7 +423,7 @@ class DynamicViewApp(App):
         self.view = "week"
         self.saved_lines = []
         self.afill = 1
-        log_msg(f"{self.afill = }")
+        # log_msg(f"{self.afill = }")
 
     def set_afill(self, details: list, method: str):
         if self.view == "week":

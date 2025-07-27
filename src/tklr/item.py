@@ -568,7 +568,7 @@ class Item:
             "list of timeperiods before job is scheduled followed by a colon and a list of commands",
             "do_alert",
         ],
-        "~b": ["beginby", " beginby period", "do_beginby"],
+        # "~b": ["beginby", " beginby period", "do_beginby"],
         "~c": ["context", " string", "do_string"],
         "~d": ["description", " string", "do_description"],
         "~e": ["extent", " timeperiod", "do_duration"],
