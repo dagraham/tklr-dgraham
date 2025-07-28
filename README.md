@@ -310,47 +310,53 @@ item.entry = '- fall back @s 2024-11-01 10:00 EST  @r d &i 1 &c 4'
 
 ## Urgency
 
-Since urgency values are used ultimately to give an ordinal ranking of tasks, all that matters is the relative values used to compute the urgency scores. Accordingly, all urgency scores are constrained to fall within the interval from -10.0 to 10.0. The default urgency is 0.0 for a component that is not given.
+Since urgency values are used ultimately to give an ordinal ranking of tasks, all that matters is the relative values used to compute the urgency scores. Accordingly, all urgency scores are constrained to fall within the interval from 0.0 to 1.0. The default urgency is 0.0 for a task with no urgency components.
 
-In these cases a task will not be displayed in the "urgency list" and there is no need, therefore, to compute its urgency:
+There are some situations in which a task will _not_ be displayed in the "urgency list" and there is no need, therefore, to compute its urgency:
 
-- The task does not repeat and has been completed or, if it does repeat, the last instance has been completed.
-- The task has an `@s` entry and an `@b` entry and the date corresponding to `@s - @b` falls sometime after the current date.
-- The task belongs to a project and has unfinished prerequisites.
+- Completed tasks are not displayed.
+- Hidden tasks are not displayed. The task is hidden if it has an `@s` entry and an `@b` entry and the date corresponding to `@s - @b` falls sometime after the current date.
+- Waiting tasks are not displayed. A task is waiting if it belongs to a project and has unfinished prerequisites.
+- Only the first _unfinished_ instance of a repeating task is displayed. Subsequent instances are not displayed.
 
-Additionally, when a task is repeating, only the first unfinished instance will be displayed.
+All other tasks will be displayed and ordered by their urgency scores. Briefly, here is the essence of this method used to compute the urgency scores. Taking "due" as an example, here is the relevant section from config.toml with the default values:
 
-These are the components that potentially contribute to the urgency - default settings in _config.toml_ are in the next section:
+```toml
+[urgency.due]
+# Urgency rises as the due date approaches or passes.
+# The "due" urgency increases from 0.0 to "max" as now approaches the scheduled date.
+interval = "1w"
+max = 8.0
+```
 
-- max_interval components:
-  - urgency.age: how long since modified - the longer, the greater the urgency:
-  - urgency.recent: how long since modified - the more recent, the greater the urgency:
-  - urgency.due: how soon is the task due - the sooner, the greater the urgency:
-  - urgency.pastdue: how long since the task was due - the longer, the greater the urgency:
-  - urgency.extent: how long is the expected completion time - the longer the greater the urgency:
-- count components:
-  - urgency.blocking: how many tasks are waiting for the completion of this task - the more, the greater the urgency:
-  - urgency.tags: how many tags does this task have - the more, the greater the urgency:
-- value components:
-  - urgency.active: if this task is the unique, active task:
-  - urgency.description: if this task has a description:
-  - urgency.priority: if this task has a priority setting
-  - urgency.project: if this task belongs to a project
+The "due" contribution of a task with an `@s` entry is computed from _now_ (the current datetime), _scheduled_ (the datetime specified by `@s`) and the _interval_ and _max_ settings from _urgency.due_.
 
-For each of the max_interval components, a method is defined that takes the maximum value and interval from the parameters given in config.toml for the component combined with the characteristics of the task and returns a float in the interval \[0.0, 10.0\]. Note that the computed urgency will be at least as great as the default, 0.0. Additionally:
+Aside on datetime and interval computations. Datetimes are represented as the integer number of seconds _since the epoch_ (1970-01-01 00:00:00 UTC) and intervals are represented as as the corresponding integer numbers of seconds. E.g., the interval "1w" corresponds to the number of seconds in 1 week, `7*24*60*60`. This means that an interval can be subtracted from a datetime to obtain another datetime which is "interval" earlier or added to get a datetime "interval" later. One datetime can also be subtracted from another to get the "interval" between the two, with the sign indicating whether the first is later (positive) or earlier (negative). (Adding datetimes, on the other hand, is meaningless.)
 
-- _recent_ and _age_ are combined to return a single urgency, _recent_age_, which is the greater of the two components
-- _due_ and _pastdue_ are combined to return a single urgency, _due_pastdue_, which is the greater of the two components
+When _now_ is less than _scheduled_ minus _interval_, the contribution is 0.0. When _now_ is greater than _scheduled_ minus _interval_ but less than _scheduled_, the contribution increases linearly from 0.0 to _max_. E.g., when half way through the interval, the contribution would be _1/2 max_. When _now_ is greater than _scheduled_, the contribution remains equal to _max_. For a task without an `@s` entry, the "due" contribution is 0.0.
 
-For both of the count components, a method is defined that takes a maximum value from _config.toml_ and a count from the task and returns a float in [0.0, 10.0]. Again the computed value will be at least as great as the default.
+Other contributions of the task to urgency are computed similarly. Depending on the configuration settings and the characteristics of the task, the value can be either positive or negative or 0.0 when missing the requisite characteristic(s).
 
-For each of the value components, the provided method simply returns the value for the component from _config.toml_.
+Once all the contributions of a task have been computed, they are aggregated into a single urgency value in the following way. Begin by setting the initial values of variables W0 = 1.0 and W1 = 0.0. The contributions are then added to W1 if positive or the absolute value to W0 if negative. When each contribution has been added, the urgency value of the task is
 
-Non-negative, _relative weights_ are specified in _config.toml_ for each these urgency components. _Absolute weights_ for each component are then obtained by dividing each of the relative weights by sum of all of the relative weights.
+```python
+urgency = W1 / (W0 + W1)
+```
 
-The _task urgency_ is then computed as the weighted average of the component values using the _absolute weights_.
+- When there are no contributions, `urgency = 0.0 / (1.0 + 0.0) = 0.0`.
+- Since `W_0 >= 1` and `W1 >= 0`, `0.0 <= urgency < 1.0`.
+- Negative contributions _never increase_ `urgency` and _strictly decrease_ it when `W1 > 0` since they increase the denominator without changing the numerator.
+- Positive contributions _always increase_ `urgency` since they increase the numerator proportionately more than the denominator.
 
-### Urgency settings in _config.toml_
+Note that urgency can be regarded as a weighted average of 0.0 and 1.0 with `W0/(W0 + W1)` and `W1/(W0 + W1)` as the weights:
+
+```python
+urgency = (W0 * 0.0 + W1 * 1.0) / (W0 + W1) = W1 / (W0 + W1)
+```
+
+## Configuration
+
+These are the default settings in _config.toml_:
 
 ```toml
 title = "Tklr Configuration"
@@ -362,6 +368,23 @@ theme = "dark"
 # ampm: bool = true | false
 ampm = false
 
+# dayfirst and yearfirst settings
+# These settings are used to resolve ambiguous date entries involving
+# 2-digit components. E.g., the interpretation of the date "12-10-11"
+# with the various possible settings for dayfirst and yearfirst:
+#
+# dayfirst  yearfirst    date     interpretation  standard
+# ========  =========  ========   ==============  ========
+#   True     True      12-10-11    2012-11-10     Y-D-M ??
+#   True     False     12-10-11    2011-10-12     D-M-Y EU
+#   False    True      12-10-11    2012-10-11     Y-M-D ISO 8601
+#   False    False     12-10-11    2011-12-10     M-D-Y US
+#
+# The defaults:
+#   dayfirst = false
+#   yearfirst = true
+# correspond to the Y-M-D ISO 8601 standard.
+
 # dayfirst: bool = true | false
 dayfirst = false
 
@@ -372,114 +395,65 @@ yearfirst = true
 # dict[str, str]: character -> command_str
 
 
-[urgency]
-# values for item urgency calculation
-# all values are floats.
-
-# is this the active task or job?
-active = 10.0
-
-# does this task or job have a description?
-description = 1.0
-
-# is this a job and thus part of a project?
-project = 2.0
-
-# Each of the "max/interval" settings below involves a
-# max and an interval over which the contribution ranges
-# between the max value and 0.0. In each case, "now" refers
-# to the current datetime, "due" to the scheduled datetime
-# and "modified" to the last modified datetime. Note that
-# necessarily, "now" >= "modified". The returned value
-# varies linearly over the interval in each case.
+# ─── Urgency Configuration ─────────────────────────────────────
 
 [urgency.due]
-# Return 0.0 when now <= due - interval and max when
-# now >= due.
-
-max = 8.0
+# Urgency rises as the due date approaches or passes.
+# The "due" urgency increases from 0.0 to "max" as now approaches the scheduled date.
 interval = "1w"
+max = 8.0
 
 [urgency.pastdue]
-# Return 0.0 when now <= due and max when now >=
-# due + interval.
-
-max = 10.0
-interval = "2w"
+# The "pastdue" urgency increases from 0.0 to "max" as now exceeds the due date.
+interval = "2d"
+max = 2.0
 
 [urgency.recent]
-# The "recent" value is max when now = modified and
-# 0.0 when now >= modified + interval. The maximum of
-# this value and "age" (below) is returned. The returned
-# value thus decreases initially over the
-
-max = 6.0
+# Value is "max" when now = modified, and 0.0 when now >= modified + interval.
 interval = "2w"
+max = 4.0
 
 [urgency.age]
-# The "age" value is 0.0 when now = modified and max
-# when now >= modified + interval. The maximum of this
-# value and "recent" (above) is returned.
-
-max = 9.0
+# Value is 0.0 when now = modified, and "max" when now >= modified + interval.
 interval = "26w"
+max = 10.0
 
 [urgency.extent]
-# The "extent" value is 0.0 when extent = "0m" and max
-# when extent >= interval.
-
-max = 5.0
+# Value is 0.0 when extent = "0m", and "max" when extent >= interval.
 interval = "12h"
+max = 4.0
 
 [urgency.blocking]
-# The "blocking" value is 0.0 when blocking = 0 and max
-# when blocking >= count.
-
-max = 6.0
+# Value is 0.0 when blocked = 0, and "max" when blocked >= count.
 count = 3
+max = 6.0
 
 [urgency.tags]
-# The "tags" value is 0.0 when len(tags) = 0 and max
-# when len(tags) >= count.
-
-max = 4.0
-count = 2
+# Value is 0.0 when there are no tags, and "max" when number of tags >= count.
+count = 3
+max = 3.0
 
 [urgency.priority]
-# Priority levels used in urgency calculation.
-# These are mapped from user input `@p 1` through `@p 5`
-# so that entering "@p 1" entails the priority value for
-# "someday", "@p 2" the priority value for "low" and so forth.
-#
-#   @p 1 = someday  → least urgent
-#   @p 2 = low
-#   @p 3 = medium
-#   @p 4 = high
-#   @p 5 = next     → most urgent
-#
-# Set these values to tune the effect of each level. Note
-# that omitting @p in a task is equivalent to setting
-# priority = 0.0 for the task.
+# The value corresponds to `@p 1` through `@p 5` specified in the task. E.g,
+# with "@p 3", the value would correspond to the "3" entry below. When @p
+# is omitted, the default is 0.0.
 
-someday = -5.0
-low     = 2.0
-weights = 5.0
-high    = 8.0
-next    = 10.0
+"1" = -5.0
 
-[urgency.weights]
-# These weights give the relative importance of the various
-# components. The weights used to compute urgency correspond
-# to each of these weights divided by the sum of all of the
-# weights.
+"2" = 2.0
 
-recent_age   = 2.0
-due_pastdue  = 2.0
-extent       = 1.0
-blocking     = 1.0
-tag          = 1.0
-active       = 2.0
-description  = 1.0
-priority     = 1.0
-project      = 1.0
+"3" = 5.0
+
+"4" = 8.0
+
+"5" = 10.0
+
+
+[urgency.description]
+# The value is "max" if the task has an @d entry and 0.0 otherwise.
+max = 2.0
+
+[urgency.project]
+# The value is "max" if the task is part of a project and 0.0 otherwise.
+max = 3.0
 ```

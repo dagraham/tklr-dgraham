@@ -216,97 +216,45 @@ def compute_partitioned_urgency(weights: dict[str, float]) -> float:
     return W_1 / (W_0 + W_1)
 
 
-# def compute_urgency(
-#     weights: dict[str, float],
-# ) -> dict(str, float):
-#     """
-#     Compute normalized, weighted urgency score from a dictionary of keys and weight values
-#     which are determined from the urgency configuration settings and the attributes of the
-#     record.
-#
-#     Begin by setting the intial values of variables W_0 = 1 and W_1 = 0. Then for each key,
-#     "k", in the dictionary and each corresponding value, w_k, add positive values to W_1
-#     and the absolute values of negative ones to W_0. I.e.,
-#     - if w_k > 0: W_1 += w_k
-#     - if w_k < 0: W_0 += abs(w_k)
-#
-#     When all dictionary entries have been added, compute the urgency of the record as
-#
-#         urgency = 0 * W_0 / (W_0 + W_1) + 1 * W_1 / (W_0 + W_1)
-#         = W_1 / (W_0 + W_1)
-#
-#     Thinking of urgency as a weighted average, 1 - urgency will be the "weight" applied to 0
-#     and urgency will be the weight applied to 1. Each non-negative and sum to 1. Thus for any
-#     values of W_0 and W_1,
-#
-#         urgency returns a value in [0.0, 1.0]
-#
-#     Also, since the derivative of computed urgency with with respect to w_k is
-#
-#     - when w_k is positive
-#         = ((W_0 + W_1) * 1 - W_1 * 1) / (W_0 + w_1)^2
-#         = W_0 / (W_0 + W_1)^2
-#         and since W_0 >= 1, this is strictly positive
-#     - when w_k is negative
-#         = ((W_0 + W_1) * 0  - W_1 * 1) / (W_0 + W_1)^2
-#         = - W_1 / (W_0 + W_1)^2
-#         which is non-positive and strictly negative when W_1 > 0
-#
-#     """
-#     applicable = {k: v for k, v in values.items() if v is not None and k in weights}
-#
-#     if not applicable:
-#         return 0.0  # No valid signals to compute urgency
-#
-#     weight_total = sum(weights[k] for k in applicable)
-#     if weight_total == 0:
-#         return 0.0  # Avoid division by zero
-#
-#     normalized_weights = {k: weights[k] / weight_total for k in applicable}
-#
-#     urgency_score = sum(applicable[k] * normalized_weights[k] for k in applicable)
-#     return urgency_score
-
-
 def urgency_due(due_seconds: int, now_seconds: int) -> float:
     """
     This function calculates the urgency contribution for a task based
     on its due datetime relative to the current datetime and returns
-    a float value between 0.0 when (now <= due - interval) and due_max when
+    a float value between 0.0 when (now <= due - interval) and max when
     (now >= due).
     """
-    value = 1.0
+    due_max = urgency.due.max
     interval = urgency.due.interval
-    if due_seconds and value and interval:
+    if due_seconds and due_max and interval:
         interval_seconds = td_str_to_seconds(interval)
-        log_msg(f"{value = }, {interval = }, {interval_seconds = }")
+        log_msg(f"{due_max = }, {interval = }, {interval_seconds = }")
         return max(
             0.0,
             min(
-                value,
-                value * (1.0 - (now_seconds - due_seconds) / interval_seconds),
+                due_max,
+                due_max * (1.0 - (now_seconds - due_seconds) / interval_seconds),
             ),
         )
     return 0.0
 
 
-def urgency_past_due(due_seconds: int, now_seconds: int) -> float:
+def urgency_pastdue(due_seconds: int, now_seconds: int) -> float:
     """
     This function calculates the urgency contribution for a task based
     on its due datetime relative to the current datetime and returns
-    a float value between 0.0 when (now <= due) and past_max when
-    (now >= due + interval). Note: this adds to "due_max".
+    a float value between 0.0 when (now <= due) and max when
+    (now >= due + interval).
     """
 
-    value = 1.0
+    pastdue_max = urgency.pastdue.max
     interval = urgency.pastdue.interval
-    if due_seconds and value and interval:
+    if due_seconds and pastdue_max and interval:
         interval_seconds = td_str_to_seconds(interval)
         return max(
             0.0,
             min(
-                value,
-                value * (now_seconds - due_seconds) / interval_seconds,
+                pastdue_max,
+                pastdue_max * (now_seconds - due_seconds) / interval_seconds,
             ),
         )
     return 0.0
@@ -367,7 +315,7 @@ def urgency_age(modified_seconds: int, now_seconds: int) -> float:
 
 def urgency_priority(priority_level: int) -> float:
     priority = urgency.priority.root.get(str(priority_level), 0.0)
-    log_msg(f"in urgency_priority with {priority = }")
+    log_msg(f"returning {priority = }")
     return priority
 
 
@@ -380,23 +328,44 @@ def urgency_extent(extent_seconds: int) -> float:
 
 
 def urgency_blocking(num_blocking: int) -> float:
+    blocking = 0.0
     if num_blocking:
-        blocking_max = 1.0
+        blocking_max = urgency.blocking.max
         blocking_count = urgency.blocking.count
-        blocking = max(
-            0.0, min(blocking_max, blocking_max * num_blocking / blocking_count)
-        )
-        log_msg(f"{num_blocking = }, {blocking = }")
-        return blocking
-    return 0.0
+        if blocking_max and blocking_count:
+            blocking = max(
+                0.0, min(blocking_max, blocking_max * num_blocking / blocking_count)
+            )
+    log_msg(f"returning {blocking = }")
+    return blocking
 
 
 def urgency_tags(num_tags: int) -> float:
-    tags_max = 1.0
-    tags_count = urgency.blocking.count
-    tags = max(0.0, min(tags_max, tags_max * num_tags / tags_count))
-    log_msg(f"{num_tags = }, {tags = }")
+    tags = 0.0
+    tags_max = urgency.tags.max
+    tags_count = urgency.tags.count
+    if tags_max and tags_count:
+        tags = max(0.0, min(tags_max, tags_max * num_tags / tags_count))
+    log_msg(f"returning {tags = }")
     return tags
+
+
+def urgency_description(has_description: bool) -> float:
+    description_max = urgency.description.max
+    description = 0.0
+    if has_description and description_max:
+        description = description_max
+    log_msg(f"returning {description = }")
+    return description
+
+
+def urgency_project(has_project: bool) -> float:
+    project_max = urgency.project.max
+    project = 0.0
+    if has_project and project_max:
+        project = project_max
+    log_msg(f"returning {project = }")
+    return project
 
 
 class DatabaseManager:
@@ -1706,7 +1675,7 @@ class DatabaseManager:
         def compute_urgency(**kwargs):
             weights = {
                 "due": urgency_due(kwargs.get("due"), kwargs["now"]),
-                "pastdue": urgency_past_due(kwargs.get("due"), kwargs["now"]),
+                "pastdue": urgency_pastdue(kwargs.get("due"), kwargs["now"]),
                 "age": urgency_age(kwargs["modified"], kwargs["now"]),
                 "recent": urgency_recent(kwargs["modified"], kwargs["now"]),
                 "priority": urgency_priority(kwargs.get("priority_level")),
@@ -1715,10 +1684,9 @@ class DatabaseManager:
                 "tags": urgency_tags(kwargs.get("tags", 0)),
                 "description": 1.0 if bool("description") else 0.0,
                 "project": 1.0 if bool(jobs) else 0.0,
-                "pinned": 1.0 if pinned else 0.0,
             }
-            log_msg(f"{weights = }")
             urgency = compute_partitioned_urgency(weights)
+            log_msg(f"{subject}:\n  {weights = }\n  returning {urgency = }")
             return urgency  # compute_weighted_urgency(values, weights)
 
         # Handle jobs if present
@@ -1794,7 +1762,6 @@ class DatabaseManager:
         self.cursor.execute("DELETE FROM Urgency")
         tasks = self.get_all_tasks()
         for task in tasks:
-            log_msg(f"processing {task = }")
             self.populate_urgency_from_record(task)
         self.conn.commit()
 

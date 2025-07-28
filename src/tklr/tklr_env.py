@@ -43,16 +43,24 @@ class AgeConfig(BaseModel):
 
 class ExtentConfig(BaseModel):
     interval: str = "12h"
-    max: float = 2.0
+    max: float = 4.0
 
 
 class BlockingConfig(BaseModel):
-    count: int = 2
-    max: float = 2.0
+    count: int = 3
+    max: float = 6.0
 
 
 class TagsConfig(BaseModel):
-    count: int = 2
+    count: int = 3
+    max: float = 3.0
+
+
+class ProjectConfig(BaseModel):
+    max: float = 3.0
+
+
+class DescriptionConfig(BaseModel):
     max: float = 2.0
 
 
@@ -66,6 +74,8 @@ class UrgencyConfig(BaseModel):
     extent: ExtentConfig = ExtentConfig()
     blocking: BlockingConfig = BlockingConfig()
     tags: TagsConfig = TagsConfig()
+    project: ProjectConfig = ProjectConfig()
+    description: DescriptionConfig = DescriptionConfig()
 
     priority: PriorityConfig = PriorityConfig(
         {
@@ -95,6 +105,23 @@ theme = "{{ ui.theme }}"
 # ampm: bool = true | false
 ampm = {{ ui.ampm | lower }}
 
+# dayfirst and yearfirst settings
+# These settings are used to resolve ambiguous date entries involving
+# 2-digit components. E.g., the interpretation of the date "12-10-11" 
+# with the various possible settings for dayfirst and yearfirst: 
+#
+# dayfirst  yearfirst    date     interpretation  standard
+# ========  =========  ========   ==============  ========
+#   True     True      12-10-11    2012-11-10     Y-D-M ??
+#   True     False     12-10-11    2011-10-12     D-M-Y EU
+#   False    True      12-10-11    2012-10-11     Y-M-D ISO 8601
+#   False    False     12-10-11    2011-12-10     M-D-Y US
+#
+# The defaults:
+#   dayfirst = false
+#   yearfirst = true 
+# correspond to the Y-M-D ISO 8601 standard.
+
 # dayfirst: bool = true | false 
 dayfirst = {{ ui.dayfirst | lower }}
 
@@ -111,52 +138,55 @@ yearfirst = {{ ui.yearfirst | lower }}
 
 [urgency.due]
 # Urgency rises as the due date approaches or passes.
-# The "due" urgency increases from 0.0 to 1.0 as now approaches the due date.
-# The "pastdue" urgency increases from 0.0 to 1.0 as now exceeds the due date.
-# The higher of the two is used as the signal value.
+# The "due" urgency increases from 0.0 to "max" as now approaches the scheduled date.
 interval = "{{ urgency.due.interval }}"
 max = {{ urgency.due.max }}
 
+[urgency.pastdue]
+# The "pastdue" urgency increases from 0.0 to "max" as now exceeds the due date.
+interval = "{{ urgency.pastdue.interval }}"
+max = {{ urgency.pastdue.max }}
+
 [urgency.recent]
-# Value is 1.0 when now = modified, and 0.0 when now >= modified + interval.
+# Value is "max" when now = modified, and 0.0 when now >= modified + interval.
 interval = "{{ urgency.recent.interval }}"
 max = {{ urgency.recent.max }}
 
 [urgency.age]
-# Value is 0.0 when now = modified, and 1.0 when now >= modified + interval.
+# Value is 0.0 when now = modified, and "max" when now >= modified + interval.
 interval = "{{ urgency.age.interval }}"
 max = {{ urgency.age.max }}
 
 [urgency.extent]
-# Value is 0.0 when extent = "0m", and 1.0 when extent >= interval.
+# Value is 0.0 when extent = "0m", and "max" when extent >= interval.
 interval = "{{ urgency.extent.interval }}"
 max = {{ urgency.extent.max }}
 
 [urgency.blocking]
-# Value is 0.0 when blocking = 0, and 1.0 when blocking >= count.
+# Value is 0.0 when blocked = 0, and "max" when blocked >= count.
 count = {{ urgency.blocking.count }}
 max = {{ urgency.blocking.max }}
 
 [urgency.tags]
-# Value is 0.0 when there are no tags, and 1.0 when number of tags >= count.
+# Value is 0.0 when there are no tags, and "max" when number of tags >= count.
 count = {{ urgency.tags.count }}
 max = {{ urgency.tags.max }}
 
 [urgency.priority]
-# These are mapped from user input `@p 1` through `@p 5`:
-# Omitting @p is equivalent to priority = 0.0
+# The value corresponds to `@p 1` through `@p 5` specified in the task. E.g,
+# with "@p 3", the value would correspond to the "3" entry below. When @p
+# is omitted, the default is 0.0.
 {% for key, value in urgency.priority.items() %}
 "{{ key }}" = {{ value }}
 {% endfor %}
 
 [urgency.description]
-# Returns 1.0 if the task has a non-empty description, else 0.0
+# The value is "max" if the task has an @d entry and 0.0 otherwise.
+max = {{ urgency.description.max }}
 
 [urgency.project]
-# Returns 1.0 if this is a job (part of a project), else 0.0
-
-[urgency.pinned]
-# Returns 1.0 if the task is pinned, else 0.0
+# The value is "max" if the task is part of a project and 0.0 otherwise.
+max = {{ urgency.project.max }}
 
 """
 # # ─── Commented Template ────────────────────────────────────
