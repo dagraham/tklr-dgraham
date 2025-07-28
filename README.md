@@ -13,9 +13,9 @@
   </tr>
 </table>
 
-💬 Join the conversation on the [Discussions tab](https://github.com/dagraham/tklr-dgraham/discussions)
+Join the conversation on the [Discussions tab](https://github.com/dagraham/tklr-dgraham/discussions)
 
-> [!WARNING] Preliminary and incomplete version. This notice will be removed when the code is ready for general use.
+❌ Preliminary and incomplete. This notice will be removed when the code is ready for general use.
 
 ## Overview
 
@@ -179,7 +179,7 @@ tklr add "- test task @s 2025-08-01"
 tklr ui
 ```
 
-✅ You're now ready to develop, test, and run `tklr` locally with full CLI and UI support.
+You're now ready to develop, test, and run `tklr` locally with full CLI and UI support.
 
 ### ✅ Step 6: Updating your repository
 
@@ -319,7 +319,9 @@ There are some situations in which a task will _not_ be displayed in the "urgenc
 - Waiting tasks are not displayed. A task is waiting if it belongs to a project and has unfinished prerequisites.
 - Only the first _unfinished_ instance of a repeating task is displayed. Subsequent instances are not displayed.
 
-All other tasks will be displayed and ordered by their urgency scores. Briefly, here is the essence of this method used to compute the urgency scores. Taking "due" as an example, here is the relevant section from config.toml with the default values:
+All other tasks will be displayed and ordered by their urgency scores. Many of these computations involve datetimes and/or intervals and it is necessary to understand both are represented by integer numbers of seconds - datetimes by the number of integer seconds _since the epoch_ (1970-01-01 00:00:00 UTC) and intervals by the corresponding integer numbers of seconds. E.g., for the datetime "2025-01-01 00:00 UTC" this would be `1735689600` for the interval "1w" this would be the number of seconds in 1 week, `7*24*60*60 = 604800` . This means that an interval can be subtracted from a datetime to obtain another datetime which is "interval" earlier or added to get a datetime "interval" later. One datetime can also be subtracted from another to get the "interval" between the two, with the sign indicating whether the first is later (positive) or earlier (negative). (Adding datetimes, on the other hand, is meaningless.)
+
+Briefly, here is the essence of this method used to compute the urgency scores. Taking "due" as an example, here is the relevant section from config.toml with the default values:
 
 ```toml
 [urgency.due]
@@ -330,8 +332,6 @@ max = 8.0
 ```
 
 The "due" contribution of a task with an `@s` entry is computed from _now_ (the current datetime), _scheduled_ (the datetime specified by `@s`) and the _interval_ and _max_ settings from _urgency.due_.
-
-Aside on datetime and interval computations. Datetimes are represented as the integer number of seconds _since the epoch_ (1970-01-01 00:00:00 UTC) and intervals are represented as as the corresponding integer numbers of seconds. E.g., the interval "1w" corresponds to the number of seconds in 1 week, `7*24*60*60`. This means that an interval can be subtracted from a datetime to obtain another datetime which is "interval" earlier or added to get a datetime "interval" later. One datetime can also be subtracted from another to get the "interval" between the two, with the sign indicating whether the first is later (positive) or earlier (negative). (Adding datetimes, on the other hand, is meaningless.)
 
 When _now_ is less than _scheduled_ minus _interval_, the contribution is 0.0. When _now_ is greater than _scheduled_ minus _interval_ but less than _scheduled_, the contribution increases linearly from 0.0 to _max_. E.g., when half way through the interval, the contribution would be _1/2 max_. When _now_ is greater than _scheduled_, the contribution remains equal to _max_. For a task without an `@s` entry, the "due" contribution is 0.0.
 
