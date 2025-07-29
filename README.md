@@ -352,18 +352,23 @@ Once all the contributions of a task have been computed, they are aggregated int
 urgency = W1 / (W0 + W1)
 ```
 
-Equivalently, urgency can be expressed as a weighted average of `0.0` and `1.0` with `W0/(W0 + W1)` and `W1/(W0 + W1)` as the weights:
+Equivalently, urgency can be regarded as a weighted average of `0.0` and `1.0` with `W0/(W0 + W1)` and `W1/(W0 + W1)` as the weights:
 
 ```python
-urgency = (W0 * 0.0 + W1 * 1.) / (W0 + W1) = W1 / (W0 + W1)
+urgency = W0 / (W0 + W1) * 0.0 + W1 / (W0 + W1) * 1 = W1 / (W0 + W1)
 ```
 
-- When there are no contributions, `urgency = 0.0 / (1.0 + 0.0) = 0.0`.
-- Since `W_0 >= 1` and `W1 >= 0`, it follows that `0.0 <= urgency < 1.0`.
-- Since negative contributions increase the denominator without changing the numerator, they _never increase_ `urgency` and _strictly decrease_ it when `W1 > 0`, i.e., when decreases are possible.
-- Since positive contributions increase the numerator proportionately more than the denominator, they _always increase_ `urgency`.
+Observations from the weighted average perspective and the fact that `W0 >= 1`:
 
-As mentioned above, when the _pinned_ status of a task is toggled on in the user interface, `urgency = 1.0` without further computations. Since, otherwise, `urgency = W1/(W0 + W1)` and since this is always less than `1.0`, _a pinned task will always appear at the top of the urgency list_.
+- `0.0 <= urgency < 1`
+  This means that _pinned_ tasks with `urgency = 1` will always be listed first.
+- `urgency = 0.0` if and only if `W1 = 0.0`
+- `W0 / (W0 + W1)` is increasing in `W0` whenever `W1 > 0.0`
+  This implies that `urgency` is _decreasing_ in `W0` whenever `urgency > 0.0`.
+- `W1 / (W0 + W1)` is _always_ increasing in `W1`
+  This implies that `urgency` is _always_ increasing in `W1`.
+
+Thus positive contributions _always_ increase urgency and negative contributions decrease urgency unless urgency is already zero.
 
 ## Configuration
 
