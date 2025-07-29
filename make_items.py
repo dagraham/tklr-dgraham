@@ -249,6 +249,7 @@ items = [
     f"^ no prerequisites @s {in_two_weeks()} @b 1w @~ this &r 1 @~ that &r 2",
     "~ once more when complete @s fri 12a @o 4d",
     "! draft reminder - no checks",
+    "~ someday @p 1",
     f"~ one date with priority 3 @s {yesterday_date} @p 3",
     f"~ one date with priority 4 @s {yesterday_date} @p 4",
     f"~ multiple rdates with priority 5 @s {yesterday_date} @+ {today_date}, {tomorrow_date} @p 5",

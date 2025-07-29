@@ -310,7 +310,7 @@ item.entry = '- fall back @s 2024-11-01 10:00 EST  @r d &i 1 &c 4'
 
 ## Urgency
 
-Since urgency values are used ultimately to give an ordinal ranking of tasks, all that matters is the relative values used to compute the urgency scores. Accordingly, all urgency scores are constrained to fall within the interval from 0.0 to 1.0. The default urgency is 0.0 for a task with no urgency components.
+Since urgency values are used ultimately to give an ordinal ranking of tasks, all that matters is the relative values used to compute the urgency scores. Accordingly, all urgency scores are constrained to fall within the interval from -1.0 to 1.0. The default urgency is 0.0 for a task with no urgency components.
 
 There are some situations in which a task will _not_ be displayed in the "urgency list" and there is no need, therefore, to compute its urgency:
 
@@ -319,7 +319,7 @@ There are some situations in which a task will _not_ be displayed in the "urgenc
 - Waiting tasks are not displayed. A task is waiting if it belongs to a project and has unfinished prerequisites.
 - Only the first _unfinished_ instance of a repeating task is displayed. Subsequent instances are not displayed.
 
-There is one other circumstance in which urgency need not be computed. When the _pinned_ status of the task is toggled on in the user interface, the task is treated as if the computed urgency were equal to `1.0` without further computations.
+There is one other circumstance in which urgency need not be computed. When the _pinned_ status of the task is toggled on in the user interface, the task is treated as if the computed urgency were equal to `1.0` without any actual computations.
 
 All other tasks will be displayed and ordered by their computed urgency scores. Many of these computations involve datetimes and/or intervals and it is necessary to understand both are represented by integer numbers of seconds - datetimes by the integer number of seconds _since the epoch_ (1970-01-01 00:00:00 UTC) and intervals by the integer numbers of seconds it spans. E.g., for the datetime "2025-01-01 00:00 UTC" this would be `1735689600` and for the interval "1w" this would be the number of seconds in 1 week, `7*24*60*60 = 604800` . This means that an interval can be subtracted from a datetime to obtain another datetime which is "interval" earlier or added to get a datetime "interval" later. One datetime can also be subtracted from another to get the "interval" between the two, with the sign indicating whether the first is later (positive) or earlier (negative). (Adding datetimes, on the other hand, is meaningless.)
 
@@ -346,29 +346,27 @@ For a task without an `@s` entry, the "due" urgency is 0.0.
 
 Other contributions of the task to urgency are computed similarly. Depending on the configuration settings and the characteristics of the task, the value can be either positive or negative or 0.0 when missing the requisite characteristic(s).
 
-Once all the contributions of a task have been computed, they are aggregated into a single urgency value in the following way. The process begins by setting the initial values of variables `W0 = 1.0` and `W1 = 0.0`. Each of the urgency values are then added, to `W1` if positive or the _absolute value_ to `W0` if negative. When each contribution has been added, the urgency value of the task is
+Once all the contributions of a task have been computed, they are aggregated into a single urgency value in the following way. The process begins by setting the initial values of variables `Wn = 1.0` and `Wp = 1.0`. Then for each of the urgency contributions, `v`, the value is added to `Wp` if `v > 0` or `abs(v)` is added to `Wn` if `v` negative. Thus either `Wp` or `Wn` is increased by each addition unless `v = 0`. When each contribution has been added, the urgency value of the task is computed as follows:
 
 ```python
-urgency = W1 / (W0 + W1)
+urgency = (Wp - Wn) / (Wn + Wp)
 ```
 
-Equivalently, urgency can be regarded as a weighted average of `0.0` and `1.0` with `W0/(W0 + W1)` and `W1/(W0 + W1)` as the weights:
+Equivalently, urgency can be regarded as a weighted average of `-1.0` and `1.0` with `Wn/(Wn + Wp)` and `Wp/(Wn + Wp)` as the weights:
 
 ```python
-urgency = W0 / (W0 + W1) * 0.0 + W1 / (W0 + W1) * 1 = W1 / (W0 + W1)
+urgency = -1.0 * Wn / (Wn + Wp) + 1.0 * Wp / (Wn + Wp) = (Wp - Wn) / (Wn + Wp)
 ```
 
-Observations from the weighted average perspective and the fact that `W0 >= 1`:
+Observations from the weighted average perspective and the fact that `Wn >= 1` and `Wp >= 1`:
 
-- `0.0 <= urgency < 1`
-  This means that _pinned_ tasks with `urgency = 1` will always be listed first.
-- `urgency = 0.0` if and only if `W1 = 0.0`
-- `W0 / (W0 + W1)` is increasing in `W0` whenever `W1 > 0.0`
-  This implies that `urgency` is _decreasing_ in `W0` whenever `urgency > 0.0`.
-- `W1 / (W0 + W1)` is _always_ increasing in `W1`
-  This implies that `urgency` is _always_ increasing in `W1`.
+- `-1.0 < urgency < 1`
+- `urgency = 0.0` if and only if `Wn = Wp`
+- `urgency` is _always increasing_ in `Wp` and _always decreasing_ in `Wn`
+- `urgency` approaches `1.0` as `Wn/Wp` approaches `0.0` - as `Wp` increases relative to `Wn`
+- `urgency` approaches `-1.0` as `Wp/Wn` approaches `0.0` - as `Wn` increases relative to `Wp`
 
-Thus positive contributions _always_ increase urgency and negative contributions decrease urgency unless urgency is already zero.
+Thus positive contributions _always_ increase urgency and negative contributions _always_ decrease urgency. The fact that the urgency derived from contributions is always less than `1.0` means that _pinned_ tasks with `urgency = 1` will always be listed first.
 
 ## Configuration
 
@@ -390,8 +388,8 @@ ampm = false
 
 # dayfirst and yearfirst settings
 # These settings are used to resolve ambiguous date entries involving
-# 2-digit components. E.g., the interpretation of the date "12-10-11"
-# with the various possible settings for dayfirst and yearfirst:
+# 2-digit components. E.g., the interpretation of the date "12-10-11" 
+# with the various possible settings for dayfirst and yearfirst: 
 #
 # dayfirst  yearfirst    date     interpretation  standard
 # ========  =========  ========   ==============  ========
@@ -402,10 +400,10 @@ ampm = false
 #
 # The defaults:
 #   dayfirst = false
-#   yearfirst = true
+#   yearfirst = true 
 # correspond to the Y-M-D ISO 8601 standard.
 
-# dayfirst: bool = true | false
+# dayfirst: bool = true | false 
 dayfirst = false
 
 # yearfirst: bool = true | false
@@ -497,7 +495,3 @@ max = 3.0
 ```
 
 <!-- END CONFIG -->
-
-```
-
-```

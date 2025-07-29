@@ -168,52 +168,20 @@ def td_to_tdstr(td_obj: timedelta) -> str:
     return "".join(parts)
 
 
-def compute_weighted_urgency(
-    values: dict[str, float | None], weights: dict[str, float]
-) -> float:
-    """
-    Compute normalized, weighted urgency score from a dictionary of values and weights.
-
-    - Skips any value that is None (i.e., not applicable).
-    - Normalizes the remaining weights so that they sum to 1.
-    - Applies those normalized weights to the values.
-
-    Args:
-        values: A dict of urgency feature values in [0.0, 1.0] or None.
-        weights: A dict of importance weights for each feature.
-
-    Returns:
-        A float urgency score in [0.0, 1.0].
-    """
-    applicable = {k: v for k, v in values.items() if v is not None and k in weights}
-
-    if not applicable:
-        return 0.0  # No valid signals to compute urgency
-
-    weight_total = sum(weights[k] for k in applicable)
-    if weight_total == 0:
-        return 0.0  # Avoid division by zero
-
-    normalized_weights = {k: weights[k] / weight_total for k in applicable}
-
-    urgency_score = sum(applicable[k] * normalized_weights[k] for k in applicable)
-    return urgency_score
-
-
 def compute_partitioned_urgency(weights: dict[str, float]) -> float:
     """
     Compute urgency from signed weights:
     - Positive weights push urgency up
     - Negative weights pull urgency down
-    - Absence of weights → urgency = 0
+    - Equal weights → urgency = 0
 
     Returns:
-        urgency ∈ [0.0, 1.0]
+        urgency ∈ [-1.0, 1.0]
     """
-    W_1 = sum(w for w in weights.values() if w > 0)
-    W_0 = 1 + sum(abs(w) for w in weights.values() if w < 0)
+    Wp = 1 + sum(w for w in weights.values() if w > 0)
+    Wn = 1 + sum(abs(w) for w in weights.values() if w < 0)
 
-    return W_1 / (W_0 + W_1)
+    return (Wp - Wn) / (Wn + Wp)
 
 
 def urgency_due(due_seconds: int, now_seconds: int) -> float:
@@ -1687,7 +1655,7 @@ class DatabaseManager:
             }
             urgency = compute_partitioned_urgency(weights)
             log_msg(f"{subject}:\n  {weights = }\n  returning {urgency = }")
-            return urgency  # compute_weighted_urgency(values, weights)
+            return urgency
 
         # Handle jobs if present
         if jobs:
