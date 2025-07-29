@@ -96,6 +96,7 @@ class TklrConfig(BaseModel):
 
 
 CONFIG_TEMPLATE = """\
+# DO NOT EDIT TITLE
 title = "{{ title }}"
 
 [ui]
@@ -103,6 +104,7 @@ title = "{{ title }}"
 theme = "{{ ui.theme }}"
 
 # ampm: bool = true | false
+# Use 12 hour AM/PM when true else 24 hour
 ampm = {{ ui.ampm | lower }}
 
 # dayfirst and yearfirst settings
@@ -129,7 +131,14 @@ dayfirst = {{ ui.dayfirst | lower }}
 yearfirst = {{ ui.yearfirst | lower }}
 
 [alerts]
-# dict[str, str]: character -> command_str  
+# dict[str, str]: character -> command_str.
+# E.g., this entry
+#   d: '/usr/bin/say -v Alex "[[volm 0.5]] {subject}, {when}"'
+# would, on my macbook, invoke the system voice to speak the subject
+# of the reminder and the time remaining until the scheduled datetime.
+# The character "d" would be associated with this command so that, e.g.,
+# the alert entry "@a 30m, 15m: d" would trigger this command 30
+# minutes before and again 15 minutes before the scheduled datetime.
 {% for key, value in alerts.items() %}
 {{ key }} = "{{ value }}"
 {% endfor %}
@@ -137,55 +146,66 @@ yearfirst = {{ ui.yearfirst | lower }}
 # ─── Urgency Configuration ─────────────────────────────────────
 
 [urgency.due]
-# Urgency rises as the due date approaches or passes.
-# The "due" urgency increases from 0.0 to "max" as now approaches the scheduled date.
+# The "due" urgency increases from 0.0 to "max" as now passes from
+# due - interval to due.
 interval = "{{ urgency.due.interval }}"
 max = {{ urgency.due.max }}
 
 [urgency.pastdue]
-# The "pastdue" urgency increases from 0.0 to "max" as now exceeds the due date.
+# The "pastdue" urgency increases from 0.0 to "max" as now passes
+# from due to due + interval.
 interval = "{{ urgency.pastdue.interval }}"
 max = {{ urgency.pastdue.max }}
 
 [urgency.recent]
-# Value is "max" when now = modified, and 0.0 when now >= modified + interval.
+# The "recent" urgency decreases from "max" to 0.0 as now passes
+# from modified to modified + interval.
 interval = "{{ urgency.recent.interval }}"
 max = {{ urgency.recent.max }}
 
 [urgency.age]
-# Value is 0.0 when now = modified, and "max" when now >= modified + interval.
+# The "age" urgency  increases from 0.0 to "max" as now increases
+# from modified to modified + interval.
 interval = "{{ urgency.age.interval }}"
 max = {{ urgency.age.max }}
 
 [urgency.extent]
-# Value is 0.0 when extent = "0m", and "max" when extent >= interval.
+# The "extent" urgency increases from 0.0 when extent = "0m" to "max"
+# when extent >= interval.
 interval = "{{ urgency.extent.interval }}"
 max = {{ urgency.extent.max }}
 
 [urgency.blocking]
-# Value is 0.0 when blocked = 0, and "max" when blocked >= count.
+# The "blocking" urgency increases from 0.0 when blocked = 0 to "max"
+# when blocked >= count.
 count = {{ urgency.blocking.count }}
 max = {{ urgency.blocking.max }}
 
 [urgency.tags]
-# Value is 0.0 when there are no tags, and "max" when number of tags >= count.
+# The "tags" urgency increases from 0.0 when tags = 0 to "max" when
+# when tags >= count.
 count = {{ urgency.tags.count }}
 max = {{ urgency.tags.max }}
 
 [urgency.priority]
-# The value corresponds to `@p 1` through `@p 5` specified in the task. E.g,
-# with "@p 3", the value would correspond to the "3" entry below. When @p
-# is omitted, the default is 0.0.
+# The "priority" urgency corresponds to the value from "1" to "5" of `@p`
+# specified in the task. E.g, with "@p 3", the value would correspond to
+# the "3" entry below. Absent an entry for "@p", the value would be 0.0.
 {% for key, value in urgency.priority.items() %}
 "{{ key }}" = {{ value }}
 {% endfor %}
 
+# In the default settings, a priority of "1" is the only one that yields
+# a negative value, `-5`, and thus reduces the urgency of the task.
+
 [urgency.description]
-# The value is "max" if the task has an @d entry and 0.0 otherwise.
+# The "description" urgency equals "max" if the task has an "@d" entry and
+# 0.0 otherwise.
 max = {{ urgency.description.max }}
 
 [urgency.project]
-# The value is "max" if the task is part of a project and 0.0 otherwise.
+# The "project" urgency equals "max" if the task belongs to a project and
+# 0.0 otherwise.
 max = {{ urgency.project.max }}
 
 """
