@@ -27,8 +27,10 @@ from textual.widgets import Placeholder
 import string
 import shutil
 import asyncio
+from tklr.common import get_version
 
-tklr_version = version("tklr")
+# tklr_version = version("tklr")
+tklr_version = get_version()
 # from textual.errors import NoMatches
 
 # Color hex values for readability (formerly from prompt_toolkit.styles.named_colors)
@@ -168,21 +170,27 @@ def calculate_4_week_start():
 
 HelpText = f"""\
 [bold][{TITLE_COLOR}]TKLR {VERSION}[/{TITLE_COLOR}][/bold]
-[bold][{HEADER_COLOR}]Application Keys[/{HEADER_COLOR}][/bold]
-  [bold]Q[/bold]:           Quit etm          [bold]S[/bold]:       Take Screenshot
+[bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
+  [bold]Q[/bold]        Quit etm       [bold]S[/bold]    Take Screenshot
 [bold][{HEADER_COLOR}]View[/{HEADER_COLOR}][/bold]
-  [bold]W[/bold]:           Weeks view        [bold]N[/bold]:       Next occurrences 
-  [bold]F[/bold]:           Find in items     [bold]L[/bold]:       Last occurrences 
-[bold][{HEADER_COLOR}]Search Keys[/{HEADER_COLOR}][/bold]
-  [bold]/[/bold]:           Set search        Use an empty search to clear
-  [bold]>[/bold]:           Next match        [bold]<[/bold]:       Previous match           
-[bold][{HEADER_COLOR}]Navigation Keys[/{HEADER_COLOR}][/bold]
-  [bold]left[/bold]:        previous week     [bold]up[/bold]:      up in the list
-  [bold]right[/bold]:       next week         [bold]down[/bold]:    down in the list
-  [bold]shift+left[/bold]:  previous 4-weeks  [bold]period[/bold]:  center week
-  [bold]shift+right[/bold]: next 4-weeks      [bold]space[/bold]:   current 4-weeks 
+  [bold]W[/bold]        Weeks view     [bold]N[/bold]    Next occurrences 
+  [bold]F[/bold]        Find in items  [bold]L[/bold]    Last occurrences 
+[bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
+  [bold]/[/bold]        Set search     Empty search clears
+  [bold]>[/bold]        Next match     [bold]<[/bold]    Previous match
+[bold][{HEADER_COLOR}]Navigation[/{HEADER_COLOR}][/bold]
+  [bold]Left[/bold]     previous week  [bold]up[/bold]   up in the list
+  [bold]Right[/bold]    next week      [bold]down[/bold] down in the list
+  [bold]S+Left[/bold]   prior 4-weeks  [bold]"."[/bold]  center week
+  [bold]S+Right[/bold]  next 4-weeks   [bold]" "[/bold]  current 4-weeks 
 
-[bold][{HEADER_COLOR}]Tags[/{HEADER_COLOR}][/bold] Each of the main views displays a list of items, with each item beginning with an alphabetic tag that can be used to display the details of the item. E.g., to see the details of the item tagged 'a', simply press 'a' on the keyboard. These tags are sequentially generated from 'a', 'b', ..., 'z', 'ba', 'bb', and so forth. Just press the corresponding key for each character in the tag. 
+[bold][{HEADER_COLOR}]Tags[/{HEADER_COLOR}][/bold] \ 
+Each of the main views displays a list of items, with each item \
+beginning with an alphabetic tag that can be used to display the \
+details of the item. E.g., to see the details of the item tagged \
+'a', simply press 'a' on the keyboard. These tags are sequentially \
+generated from 'a', 'b', ..., 'z', 'ba', 'bb', and so forth. Just \
+press the corresponding key for each character in the tag. 
 """.splitlines()
 
 
@@ -480,7 +488,7 @@ class DynamicViewApp(App):
         if now.hour == 0 and now.minute == 0 and 0 <= now.second < 6:
             self.controller.populate_alerts()
         if now.minute % 10 == 0 and now.second == 0:
-            self.notify("Checking for due alerts...", severity="info")
+            self.notify("Checking for scheduled alerts...", severity="info")
         self.controller.execute_due_alerts()
 
     def action_show_weeks(self):
@@ -523,6 +531,7 @@ class DynamicViewApp(App):
     def action_show_alerts(self):
         self.view = "alerts"
         details = self.controller.get_active_alerts()
+        log_msg(f"{details = }")
         self.set_afill(details, "action_show_alerts")
 
         footer = (

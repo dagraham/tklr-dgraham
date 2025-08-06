@@ -276,8 +276,8 @@ type_keys = {
     "~": "task",
     "^": "project",
     "%": "note",
-    "!": "draft",
-    # "~": "goal",
+    "!": "goal",
+    "?": "draft",
     # "+": "track",
     # '✓': 'finished',  # more a property of a task than an item type
 }
@@ -343,16 +343,17 @@ multiple_allowed = [
 
 wrap_methods = ["w"]
 
-required = {"*": ["s"], "~": [], "^": ["~"], "%": [], "!": []}
+required = {"*": ["s"], "~": [], "^": ["~"], "%": [], "?": [], "!": []}
 
 all_keys = common_methods + datetime_methods + job_methods + repeating_methods
 
 allowed = {
     "*": common_methods + datetime_methods + repeating_methods + wrap_methods,
     "~": common_methods + datetime_methods + task_methods + repeating_methods,
+    "!": common_methods + datetime_methods + task_methods + repeating_methods,
     "^": common_methods + datetime_methods + job_methods + repeating_methods,
     "%": common_methods,
-    "!": all_keys,
+    "?": all_keys,
 }
 
 
@@ -435,7 +436,7 @@ class Paragraph:
 
             # Determine subsequent_indent based on the first non-whitespace character
             stripped_para = para.lstrip()
-            if stripped_para.startswith(("^", "~", "*", "%", "!")):
+            if stripped_para.startswith(("^", "~", "*", "%", "?", "!")):
                 subsequent_indent = initial_indent + " " * 2
             elif stripped_para.startswith(("@", "&")):
                 subsequent_indent = initial_indent + " " * 3
@@ -477,7 +478,7 @@ class Item:
     token_keys = {
         "itemtype": [
             "item type",
-            "character from * (event), ~ (task), ^ (project), % (note) or ! (draft)",
+            "character from * (event), ~ (task), ^ (project), % (note),  ! (goal) or ? (draft)",
             "do_itemtype",
         ],
         "subject": [
@@ -492,7 +493,6 @@ class Item:
         "~": ["job", "job entry", "do_job"],
         "+": ["rdate", "recurrence dates", "do_rdate"],
         "-": ["exdate", "exception dates", "do_exdate"],
-        # Add more `&` token handlers for @j here as needed
         "a": ["alerts", "list of alerts", "do_alert"],
         "b": ["beginby", "period for beginby notices", "do_beginby"],
         "c": ["context", "context", "do_string"],
@@ -691,7 +691,7 @@ class Item:
             # @s but not @r
             self.item["rruleset"] = f"{self.rdstart_str}"
 
-        # Only build jobs if @j group exists
+        # Only build jobs if @~ group exists
         if self.collect_grouped_tokens({"~"}):
             # print("building jobs")
             jobset = self.build_jobs()
@@ -873,11 +873,11 @@ class Item:
 
         # First: itemtype
         itemtype = entry[0]
-        if itemtype not in {"*", "~", "^", "%", "!"}:
+        if itemtype not in {"*", "~", "^", "%", "!", "?"}:
             self.messages.append(
                 (
                     False,
-                    f"Invalid itemtype '{itemtype}' (expected *, ~, ^, %, or !)",
+                    f"Invalid itemtype '{itemtype}' (expected *, ~, ^, %, ! or ?)",
                     [],
                 )
             )
@@ -1537,7 +1537,7 @@ class Item:
                 v = " ".join(value)
                 job_params[k] = v
 
-            # Collect & tokens that follow @j
+            # Collect & tokens that follow @~
             sub_tokens = self._extract_sub_tokens(token, "&")
             self.job_tokens.append((token, job_params))
         return True, job_params, sub_tokens
@@ -2245,7 +2245,7 @@ class Item:
                 job["status"] = "finished"
 
             job["display_subject"] = (
-                f"{job['~']} [{task_subject_display} {num_available}/{num_waiting}/{num_finished}]"
+                f"{job['~']} ∊ {task_subject_display} {num_available}/{num_waiting}/{num_finished}"
             )
 
             final.append(job)

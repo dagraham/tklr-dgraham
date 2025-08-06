@@ -57,10 +57,10 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
 - A _project_ reminder, **^**: build a dog house, with component **@~** tasks.
 
-        ^ Build dog house @~ pick up materials &r 1  @~ cut pieces &r 2: 1
-          @~ assemble &r 3: 2 @~ sand &r 4: 3 @~ paint &r 5: 4
+        ^ Build dog house @~ pick up materials &r 1 &e 4h  @~ cut pieces &r 2: 1 &e 3h
+          @~ assemble &r 3: 2 &e 2h @~ sand &r 4: 3 &e 1h @~ paint &r 5: 4 &e 4h
 
-  The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite.
+  The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e _extent_" entries give estimates of the times required to complete the various tasks.
 
 - A _draft_ reminder, **!**: meet Alex for coffee Friday.
 
@@ -74,7 +74,7 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
         * dental exam and cleaning @s 2p feb 5 @e 45m @+ 9am Sep 3
 
-- A reminder (_task_) to fill the bird feeders starting Friday of the current week and repeat thereafter 4 days after the previous completion.
+- A reminder (_task_) to fill the bird feeders starting Friday of the current week and repeat (do over) thereafter 4 days after the previous completion.
 
        ~ fill bird feeders @s fri @o 4d
 
@@ -321,7 +321,7 @@ There are some situations in which a task will _not_ be displayed in the "urgenc
 
 There is one other circumstance in which urgency need not be computed. When the _pinned_ status of the task is toggled on in the user interface, the task is treated as if the computed urgency were equal to `1.0` without any actual computations.
 
-All other tasks will be displayed and ordered by their computed urgency scores. Many of these computations involve datetimes and/or intervals and it is necessary to understand both are represented by integer numbers of seconds - datetimes by the integer number of seconds _since the epoch_ (1970-01-01 00:00:00 UTC) and intervals by the integer numbers of seconds it spans. E.g., for the datetime "2025-01-01 00:00 UTC" this would be `1735689600` and for the interval "1w" this would be the number of seconds in 1 week, `7*24*60*60 = 604800` . This means that an interval can be subtracted from a datetime to obtain another datetime which is "interval" earlier or added to get a datetime "interval" later. One datetime can also be subtracted from another to get the "interval" between the two, with the sign indicating whether the first is later (positive) or earlier (negative). (Adding datetimes, on the other hand, is meaningless.)
+All other tasks will be displayed and ordered by their computed urgency scores. Many of these computations involve datetimes and/or intervals and it is necessary to understand both are represented by integer numbers of seconds - datetimes by the integer number of seconds _since the epoch_ (1970-01-01 00:00:00 UTC) and intervals by the integer numbers of seconds it spans. E.g., for the datetime "2025-01-01 00:00 UTC" this would be `1735689600` and for the interval "1w" this would be the number of seconds in 1 week, `7*24*60*60 = 604800`. This means that an interval can be subtracted from a datetime to obtain another datetime which is "interval" earlier or added to get a datetime "interval" later. One datetime can also be subtracted from another to get the "interval" between the two, with the sign indicating whether the first is later (positive) or earlier (negative). (Adding datetimes, on the other hand, is meaningless.)
 
 Briefly, here is the essence of this method used to compute the urgency scores using "due" as an example. Here is the relevant section from config.toml with the default values:
 
@@ -349,7 +349,7 @@ Other contributions of the task to urgency are computed similarly. Depending on 
 Once all the contributions of a task have been computed, they are aggregated into a single urgency value in the following way. The process begins by setting the initial values of variables `Wn = 1.0` and `Wp = 1.0`. Then for each of the urgency contributions, `v`, the value is added to `Wp` if `v > 0` or `abs(v)` is added to `Wn` if `v` negative. Thus either `Wp` or `Wn` is increased by each addition unless `v = 0`. When each contribution has been added, the urgency value of the task is computed as follows:
 
 ```python
-urgency = (Wp - Wn) / (Wn + Wp)
+urgency = (Wp - Wn) / (Wp + Wn)
 ```
 
 Equivalently, urgency can be regarded as a weighted average of `-1.0` and `1.0` with `Wn/(Wn + Wp)` and `Wp/(Wn + Wp)` as the weights:
@@ -388,8 +388,8 @@ ampm = false
 
 # dayfirst and yearfirst settings
 # These settings are used to resolve ambiguous date entries involving
-# 2-digit components. E.g., the interpretation of the date "12-10-11" 
-# with the various possible settings for dayfirst and yearfirst: 
+# 2-digit components. E.g., the interpretation of the date "12-10-11"
+# with the various possible settings for dayfirst and yearfirst:
 #
 # dayfirst  yearfirst    date     interpretation  standard
 # ========  =========  ========   ==============  ========
@@ -400,10 +400,10 @@ ampm = false
 #
 # The defaults:
 #   dayfirst = false
-#   yearfirst = true 
+#   yearfirst = true
 # correspond to the Y-M-D ISO 8601 standard.
 
-# dayfirst: bool = true | false 
+# dayfirst: bool = true | false
 dayfirst = false
 
 # yearfirst: bool = true | false
@@ -447,20 +447,20 @@ interval = "26w"
 max = 10.0
 
 [urgency.extent]
-# The "extent" urgency increases from 0.0 when extent = "0m" to "max"
+# The "@e extent" urgency increases from 0.0 when extent = "0m" to "max"
 # when extent >= interval.
 interval = "12h"
 max = 4.0
 
 [urgency.blocking]
 # The "blocking" urgency increases from 0.0 when blocked = 0 to "max"
-# when blocked >= count.
+# when blocked >= count. Blocked is the integer count of tasks in a project for which the given task is an unfinished prerequisite.
 count = 3
 max = 6.0
 
 [urgency.tags]
 # The "tags" urgency increases from 0.0 when tags = 0 to "max" when
-# when tags >= count.
+# when tags >= count. Tags is the count of "@t" entries given in the task.
 count = 3
 max = 3.0
 

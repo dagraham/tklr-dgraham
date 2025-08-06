@@ -246,13 +246,14 @@ items = [
     @~ sand &s 3d &e 1h &r 8: 7 
     @~ paint &s 2d &e 2h &r 9: 8
     """,
+    f"~ no due low priority @p 5"
     f"^ no prerequisites @s {in_two_weeks()} @b 1w @~ this &r 1 @~ that &r 2",
     "~ once more when complete @s fri 12a @o 4d",
-    "! draft reminder - no checks",
-    "~ someday @p 1",
-    f"~ one date with priority 3 @s {yesterday_date} @p 3",
-    f"~ one date with priority 4 @s {yesterday_date} @p 4",
-    f"~ multiple rdates with priority 5 @s {yesterday_date} @+ {today_date}, {tomorrow_date} @p 5",
+    "? draft reminder - no checks",
+    "~ someday @p 5",
+    f"~ one date with 3 priority @s {yesterday_date} @p 3",
+    f"~ one date with 2 priority @s {yesterday_date} @p 2",
+    f"~ multiple rdates with 1 priority @s {yesterday_date} @+ {today_date}, {tomorrow_date} @p 1",
 ]
 
 records = []

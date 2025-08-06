@@ -72,7 +72,9 @@ def display_messages(file_path: str = "log_msg.md"):
         print(f"Error: Log file '{file_path}' not found.")
 
 
-def format_time_range(start_time: int, end_time: int, mode: Literal["24", "12"]) -> str:
+def format_time_range(
+    start_time: int, end_time: int, mode: Literal["24", "12"] = "24"
+) -> str:
     """Format time range in 24-hour or 12-hour notation."""
     start_dt = (
         start_time
@@ -97,9 +99,7 @@ def format_time_range(start_time: int, end_time: int, mode: Literal["24", "12"])
         end_hour = end_dt.strftime("%H:%M").replace(":00", "")
         if end_hour.startswith("0"):
             end_hour = end_hour[1:]
-        return (
-            f"{start_hour}-{end_hour}h" if start_hour != end_hour else f"{start_hour}h"
-        )
+        return f"{start_hour}-{end_hour}" if start_hour != end_hour else f"{start_hour}"
     else:
         start_fmt = "%-I:%M%p" if start_dt.hour < 12 and end_dt.hour >= 12 else "%-I:%M"
         start_hour = start_dt.strftime(f"{start_fmt}").lower().replace(":00", "")

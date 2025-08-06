@@ -11,33 +11,23 @@ from tklr.model import DatabaseManager
 from tklr.view import DynamicViewApp
 from tklr.tklr_env import TklrEnvironment
 from pathlib import Path
+from tklr.view_agenda import run_agenda_view
+from tklr.common import get_version
 
-env = TklrEnvironment()
-DEFAULT_DB_PATH = env.db_path
-# urgency = env.config.urgency.model_dump()
-urgency = env.config.urgency
-print(f"{urgency = }")
-print(f"{urgency.priority = }")
+# env = TklrEnvironment()
+# DEFAULT_DB_PATH = env.db_path
 # urgency = env.config.urgency
-# print(f"{urgency = }\n{urgency.active_value = }\n{urgency.priority.high = }")
-# width = shutil.get_terminal_size()[0] - 2
-# width = 30
+# print(f"{urgency = }")
+# print(f"{urgency.priority = }")
 
-
-def ensure_database(db_path: str):
-    from tklr.model import DatabaseManager
-
-    if not Path(db_path).exists():
-        print(f"[yellow]⚠️ Database not found. Creating new database at {db_path}[/]")
-        dbm = DatabaseManager(db_path, env)
-        dbm.setup_database()
+VERSION = get_version()
 
 
 def format_tokens(tokens):
     return " ".join([f"{t['token'].strip()}" for t in tokens])
 
 
-def ensure_database(db_path: str):
+def ensure_database(db_path: str, env: TklrEnvironment):
     from tklr.model import DatabaseManager
 
     if not Path(db_path).exists():
@@ -48,11 +38,11 @@ def ensure_database(db_path: str):
 
 @click.group()
 @click.version_option(
-    importlib.metadata.version("tklr"),
+    # importlib.metadata.version("tklr"),
+    VERSION,
     prog_name="tklr",
     message="%(prog)s version %(version)s",
 )
-# @click.group()
 @click.option(
     "--home",
     help="Override the Tklr workspace directory (equivalent to setting $TKLR_HOME).",
@@ -65,14 +55,17 @@ def cli(ctx, home, verbose):
         os.environ["TKLR_HOME"] = home  # must be set before using TklrEnvironment
 
     env = TklrEnvironment()
-    env.ensure(init_db_fn=ensure_database)
-    print(f"using tklr home: {env.home}")
+    env.ensure(init_db_fn=lambda db_path: ensure_database(db_path, env))
+
     config = env.load_config()
 
     ctx.ensure_object(dict)
+    ctx.obj["ENV"] = env
     ctx.obj["DB"] = env.db_path
     ctx.obj["VERBOSE"] = verbose
     ctx.obj["CONFIG"] = config
+    ctx.obj["HOME"] = str(env.home)
+    print(f"{home =  }, {env.home = }, {env.db_path = }, {config = }")
 
 
 @cli.command()
@@ -151,10 +144,13 @@ def ui(ctx):
     """Launch the Tklr Textual interface."""
     db = ctx.obj["DB"]
     verbose = ctx.obj["VERBOSE"]
+
+    env = ctx.obj["ENV"]
+    home = ctx.obj["HOME"]
     controller = Controller(db, env)
 
     if verbose:
-        print(f"[blue]Launching UI with database:[/] {db}")
+        print(f"[blue]Launching UI with tklr home:[/] {home}")
     DynamicViewApp(controller).run()
 
 
@@ -190,3 +186,19 @@ def check(ctx, entry):
     except Exception as e:
         print(f"[red]✘ Unexpected error:[/] {e}")
         sys.exit(1)
+
+
+@cli.command()
+@click.pass_context
+def agenda(ctx):
+    """Launch the Tklr agenda split-screen view."""
+    env = ctx.obj["ENV"]
+    db = ctx.obj["DB"]
+    verbose = ctx.obj["VERBOSE"]
+    home = ctx.obj["HOME"]
+    controller = Controller(db, env)
+
+    if verbose:
+        print(f"[blue]Launching agenda view with tklr home:[/] {home}")
+
+    run_agenda_view(controller)

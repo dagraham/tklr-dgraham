@@ -21,7 +21,7 @@ These are the components that potentially contribute to the urgency of a task to
   - pastdue: how long since the task was due - the longer, the greater the urgency:
     - max = 10.0
     - interval = "2w"
-  - extent: how long is the expected completion time - the longer the greater the urgency:
+  - extent: how long is the expected completion time - the longer the greater the urgency: ou
     - max = 5.0
     - interval = "12h"
 - count components:

@@ -274,6 +274,15 @@ wheels = [
 ]
 
 [[package]]
+name = "readchar"
+version = "4.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/dd/f8/8657b8cbb4ebeabfbdf991ac40eca8a1d1bd012011bd44ad1ed10f5cb494/readchar-4.2.1.tar.gz", hash = "sha256:91ce3faf07688de14d800592951e5575e9c7a3213738ed01d394dcc949b79adb", size = 9685, upload-time = "2024-11-04T18:28:07.757Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a9/10/e4b1e0e5b6b6745c8098c275b69bc9d73e9542d5c7da4f137542b499ed44/readchar-4.2.1-py3-none-any.whl", hash = "sha256:a769305cd3994bb5fa2764aa4073452dc105a4ec39068ffe6efd3c20c60acc77", size = 9350, upload-time = "2024-11-04T18:28:02.859Z" },
+]
+
+[[package]]
 name = "rich"
 version = "14.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -312,7 +321,7 @@ wheels = [
 
 [[package]]
 name = "tklr"
-version = "0.0.0b15"
+version = "0.0.0b20"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -321,6 +330,7 @@ dependencies = [
     { name = "packaging" },
     { name = "pydantic" },
     { name = "python-dateutil" },
+    { name = "readchar" },
     { name = "textual" },
     { name = "tzlocal" },
 ]
@@ -345,6 +355,7 @@ requires-dist = [
     { name = "packaging", specifier = ">=25.0" },
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "python-dateutil", specifier = ">=2.8.2" },
+    { name = "readchar", specifier = ">=4.2.1" },
     { name = "textual", specifier = ">=0.42.0" },
     { name = "tomli-w", marker = "extra == 'dev'" },
     { name = "tzlocal", specifier = ">=5.3.1" },

@@ -11,6 +11,7 @@ from typing import List, Tuple
 from rich import print
 from tklr.tklr_env import TklrEnvironment
 
+
 from .shared import (
     HRS_MINS,
     ALERT_COMMANDS,
@@ -365,7 +366,7 @@ class DatabaseManager:
     def setup_database(self):
         """
         Set up the SQLite database schema.
-        # CHECK(itemtype IN ('*', '~', '^', '%', '!')) NOT NULL,
+        # CHECK(itemtype IN ('*', '~', '^', '%', '?')) NOT NULL,
         """
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Records (
@@ -397,6 +398,7 @@ class DatabaseManager:
                 subject TEXT NOT NULL,           -- Task name or "job name → task"
                 urgency FLOAT NOT NULL,          -- Final score
                 status TEXT NOT NULL,            -- "next", "waiting", "scheduled", etc.
+                weights TEXT,
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
             );
         """)
@@ -702,6 +704,7 @@ class DatabaseManager:
         )
 
         alerts = self.cursor.fetchall()
+        log_msg(f"{alerts = }")
 
         if not alerts:
             return []
@@ -1353,6 +1356,59 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
+    def get_beginby_for_events(self):
+        """
+        Retrieve (record_id, days_remaining, subject) from Beginby joined with Records
+        for events only (itemtype '*').
+
+        Returns:
+            List[Tuple[int, int, str]]: A list of (record_id, days_remaining, subject)
+        """
+        self.cursor.execute(
+            """
+            SELECT b.record_id, b.days_remaining, r.subject
+            FROM Beginby b
+            JOIN Records r ON b.record_id = r.id
+            WHERE r.itemtype = '*'
+            ORDER BY b.days_remaining
+            """
+        )
+        return self.cursor.fetchall()
+
+    def get_drafts(self):
+        """
+        Retrieve all draft records (itemtype '?') with their ID and subject.
+
+        Returns:
+            List[Tuple[int, str]]: A list of (id, subject)
+        """
+        self.cursor.execute(
+            """
+            SELECT id, subject
+            FROM Records
+            WHERE itemtype = '?'
+            ORDER BY id
+            """
+        )
+        return self.cursor.fetchall()
+
+    def get_urgency(self):
+        """
+        Retrieve urgency records with record_id, job_id, subject, and urgency,
+        ordered by urgency descending.
+
+        Returns:
+            List[Tuple[int, int, str, float]]: (record_id, job_id, subject, urgency)
+        """
+        self.cursor.execute(
+            """
+            SELECT record_id, job_id, subject, urgency
+            FROM Urgency
+            ORDER BY urgency DESC
+            """
+        )
+        return self.cursor.fetchall()
+
     def process_events(self, start_date, end_date):
         """
         Process events and split across days for display.
@@ -1612,6 +1668,7 @@ class DatabaseManager:
         now_seconds = utc_now_to_seconds()
         modified_seconds = dt_str_to_seconds(record["modified"])
         extent_seconds = td_str_to_seconds(record.get("extent", "0m"))
+        # beginby_seconds will be 0 in the absence of beginby
         beginby_seconds = td_str_to_seconds(record.get("beginby", "0m"))
         rruleset = record.get("rruleset", "")
         tags = len(json.loads(record.get("tags", "[]")))
@@ -1634,11 +1691,32 @@ class DatabaseManager:
                 due_seconds = round(dt.timestamp())
             except Exception as e:
                 log_msg(f"Invalid RDATE value: {due_str}\n{e}")
+        if due_seconds and not beginby_seconds:
+            # treat due_seconds as the default for a missing @b, i.e.,
+            # make the default to hide a task with an @s due entry before due - interval
+            beginby_seconds = due_seconds
 
         self.cursor.execute("DELETE FROM Urgency WHERE record_id = ?", (record_id,))
 
         # weights and calculator
         # weights = self.env.config.urgency.weights.model_dump()
+
+        # def compute_urgency(**kwargs):
+        #     weights = {
+        #         "due": urgency_due(kwargs.get("due"), kwargs["now"]),
+        #         "pastdue": urgency_pastdue(kwargs.get("due"), kwargs["now"]),
+        #         "age": urgency_age(kwargs["modified"], kwargs["now"]),
+        #         "recent": urgency_recent(kwargs["modified"], kwargs["now"]),
+        #         "priority": urgency_priority(kwargs.get("priority_level")),
+        #         "extent": urgency_extent(kwargs["extent"]),
+        #         "blocking": urgency_blocking(kwargs.get("blocking", 0.0)),
+        #         "tags": urgency_tags(kwargs.get("tags", 0)),
+        #         "description": 1.0 if bool("description") else 0.0,
+        #         "project": 1.0 if bool(jobs) else 0.0,
+        #     }
+        #     urgency = compute_partitioned_urgency(weights)
+        #     log_msg(f"{subject}:\n  {weights = }\n  returning {urgency = }")
+        #     return urgency
 
         def compute_urgency(**kwargs):
             weights = {
@@ -1655,7 +1733,7 @@ class DatabaseManager:
             }
             urgency = compute_partitioned_urgency(weights)
             log_msg(f"{subject}:\n  {weights = }\n  returning {urgency = }")
-            return urgency
+            return urgency, weights
 
         # Handle jobs if present
         if jobs:
@@ -1679,8 +1757,8 @@ class DatabaseManager:
                 job_extent = td_str_to_seconds(job.get("e", "0m"))
                 blocking = job.get("blocking")  # assume already computed elsewhere
 
-                urgency = (
-                    1.0
+                urgency, weights = (
+                    (1.0, {})
                     if pinned
                     else compute_urgency(
                         now=now_seconds,
@@ -1693,12 +1771,19 @@ class DatabaseManager:
                     )
                 )
 
+                # self.cursor.execute(
+                #     """
+                #     INSERT INTO Urgency (record_id, job_id, subject, urgency, status)
+                #     VALUES (?, ?, ?, ?, ?)
+                #     """,
+                #     (record_id, job_id, subject, urgency, status),
+                # )
                 self.cursor.execute(
                     """
-                    INSERT INTO Urgency (record_id, job_id, subject, urgency, status)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO Urgency (record_id, job_id, subject, urgency, status, weights)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                    (record_id, job_id, subject, urgency, status),
+                    (record_id, job_id, subject, urgency, status, json.dumps(weights)),
                 )
 
         else:
@@ -1708,7 +1793,7 @@ class DatabaseManager:
                 and due_seconds - beginby_seconds > now_seconds
             )
             if not hide:
-                urgency = compute_urgency(
+                urgency, weights = compute_urgency(
                     now=now_seconds,
                     modified=modified_seconds,
                     due=due_seconds,
@@ -1716,12 +1801,26 @@ class DatabaseManager:
                     priority_level=priority_level,
                     tags=tags,
                 )
+                # self.cursor.execute(
+                #     """
+                #     INSERT INTO Urgency (record_id, job_id, subject, urgency, status)
+                #     VALUES (?, ?, ?, ?, ?)
+                #     """,
+                #     (record_id, None, subject, urgency, record.get("status", "next")),
+                # )
                 self.cursor.execute(
                     """
-                    INSERT INTO Urgency (record_id, job_id, subject, urgency, status)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO Urgency (record_id, job_id, subject, urgency, status, weights)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                    (record_id, None, subject, urgency, record.get("status", "next")),
+                    (
+                        record_id,
+                        None,
+                        subject,
+                        urgency,
+                        record.get("status", "next"),
+                        json.dumps(weights),
+                    ),
                 )
 
         self.conn.commit()

@@ -1,324 +1,212 @@
 # For ChatGPT
 
-## 2025-07-23
+## 2025-08-04 goals and friends
 
-- When a task is completed, an action needs to be taken that will depend upon whether the task is a component task in a project, an instance of a repeating task and various other considerations. My question is, where should the logic for this go? In item.py, controller.py, model.py, ...?
+1. goals: `@o 3/w`
+2. chores: `@o ~11d`
+   arg again is timedelta string preceded by "~". Learn by experience.
+3. do-overs: `@o 11d`
+   arg is timedelta string, set start to now + timedelta on completion.
 
-Answer: controller.py
+If "/" then 1 elif "~" then 2 else 3
 
-## 2025-07-25
+### Goals
 
-```python
-def get_due(record:dict):
-  # called with available task or project
-  rruleset = record.get("rruleset", "")
-  if not rruleset:
-    # no due date or datetime
-    return None
-  jobs = json.loads(record.get("jobs", "[]"))
-  if jobs:
-  _ scheduled =
+config:
 
-```
+- `begin_hour = 8`
+- `end_hour = 20`
 
-```python
-def hide(record: dict, now:) -> bool:
-  rruleset = record.get("rruleset", "")
-  if not rruleset:
-    return False
-  beginby = record.get("beginby", "")
-  if not beginby:
-    return False
+With these defaults, 20 - 8 = 12 hours would be available each day for goal completions so that at 09:00, 1 available hour of 12 would have passed and at 20:00, all 12 available hours would have passed. The assumption is that these same hours will be available each day of the week and each month day of the month. E.g.,
 
-```
+`@o <freq: int>/<period>`
+Allowed periods:
 
-## 2025-07-24 Urgency calculation
+- `d`: day (current period is today)
+- `w`: week (current period is the current week: MO = 0, TU = 1, ..., SU = 6)
+- m: month (current period is the current month)
 
-I'm in a muddle trying to get a reasonably simple urgency computation. Here's what I have so far.
+Data:
 
-The urgency section from config.toml
+- `c`: completions this period
+- `f`: fraction of period currently passed, e.g.:
 
-```toml
-[urgency]
-# values for task urgency calculation
+  - for day:
+    - at 08:42, `f = (8-8)/12 = 0.0`
+    - at 14:37, `f = (14-8)/12 = 0.5`
+    - at 20:15, `f = (20-8)/12 = 1`
+  - for week, e.g, on WE (day 2) at 14:37, `f = (2 * 12 + 6) / (7 * 12) = 15/42 = 0.357`
+  - for month, e.g., on 3/27 at 14:37, `f = (26 * 12 + 6) / (31 * 12) = 318/372 = 0.855`
+  - More generally when `d` of `D` days have passed in the relevant period and `h` is the current hour:
+    `f = (d * (end_hour - begin_hour) + min(max(h - begin_hour, 0), end_hour - begin_hour) / (D * (end_hour - begin_hour))`
 
-# is this the active task or job?
-active = 10.0
+- `g`: completions goal for period
+- `h`: average of completions for previous periods
 
-# does this task or job have a description?
-description = 1.0
+## The path to successful goal completion
 
-# is this a job and thus part of a project?
-project = 2.0
+Since success requires satisfying the inequality `c >= f * g` as `f` reaches one, `gp = f * g` can be regarded as the path to success. Accordingly, `dev = 1 - c / (f * g)`, is a normalized measure of how bad things are, `dev = 1` when `c = 0` being the worst, `dev = 0` corresponding to being on the path when `c = f * g` and `dev < 0` to being above the path when `c > f \* g.
 
-# Each of the "max/interval" settings below involves a
-# max and an interval over which the contribution ranges
-# between the max value and 0.0. In each case, "now" refers
-# to the current datetime, "due" to the scheduled datetime
-# and "modified" to the last modified datetime. Note that
-# necessarily, "now" >= "modified". The returned value
-# varies linearly over the interval in each case.
+Using `dev` we can color goals in the same way as urgency where negative values get the same "cool" color and positive values get hotter colors approaching one.
 
-[urgency.due]
-# Return 0.0 when now <= due - interval and max when
-# now >= due.
+### Chores - learn from experience
 
-max = 8.0
-interval = "1w"
+From config, `old_history_weight = 3`
+From entry: `@s 2025-08-3 13h` and `@o ~11d4h`
 
-[urgency.pastdue]
-# Return 0.0 when now <= due and max when now >=
-# due + interval.
+- previous completion: `@s - @o`
 
-max = 10.0
-interval = "2w"
+From this completion at `done = 2025-08-03 22h`
 
-[urgency.recent]
-# The "recent" value is max when now = modified and
-# 0.0 when now >= modified + interval. The maximum of
-# this value and "age" (below) is returned. The returned
-# value thus decreases initially over the
+We get the new average interval to replace `@o`:
+`(weight * old_interval + new interval)/(weight + 1)`
+`@O = (3 * @o + (@o + done - @s)/4`
+`@O = @o + (done - @s)/4`
 
-max = 6.0
-interval = "2w"
+and the new due to replace `@s`
+`@S = done + @O`
 
-[urgency.age]
-# The "age" value is 0.0 when now = modified and max
-# when now >= modified + interval. The maximum of this
-# value and "recent" (above) is returned.
+From config, with `history_weight = 3`, `@o ~11d4h`, `@s 2025-07-23 09:00` and completion at `2025-08-03 22:00`, it follows that the last completion was at `completion - 11d4h = 2025-07-23 09:00`
+interval since the last completion is `11d4h +`:
 
-max = 9.0
-interval = "26w"
+- the most recent interval = completion - @s =
+  11d46800s
+- the new average interval = (3 \* 11d4h + 11d46800s)/4 =
+  11d22500s
+- new @s = 20
 
-[urgency.extent]
-# The "extent" value is 0.0 when extent = "0m" and max
-# when extent >= interval.
+11d4h + @s -
 
-max = 5.0
-interval = "12h"
+## 2025-08-03
 
-[urgency.blocking]
-# The "blocking" value is 0.0 when blocking = 0 and max
-# when blocking >= count.
+More thinking. What about an --agenda option for tklr that would display prepared output and then enter a loop waiting for further commands?
 
-max = 6.0
-count = 3
+The output would consist of two sections, one for events and the other for tasks listed by urgency. The events would come from a events list ordered by datetime and grouped by day starting from now and extending forward to include the next 14 days with events. The tasks would come from the list of urgency tasks ordered by urgency (desc).
 
-[urgency.tags]
-# The "tags" value is 0.0 when len(tags) = 0 and max
-# when len(tags) >= count.
+Illustrative content for the two sections:
 
-max = 4.0
-count = 2
+>
 
-[urgency.priority]
-# Priority levels used in urgency calculation.
-# These are mapped from user input `@p 1` through `@p 5`
-# so that entering "@p 1" entails the priority value for
-# "someday", "@p 2" the priority value for "low" and so forth.
-#
-#   @p 1 = someday  → least urgent
-#   @p 2 = low
-#   @p 3 = medium
-#   @p 4 = high
-#   @p 5 = next     → most urgent
-#
-# Set these values to tune the effect of each level. Note
-# that omitting @p in a task is equivalent to setting
-# priority = 0.0 for the task.
+    ```
+    Events (showing page n of N)
+    Wed July 30 (Today)
+      a  12-2p  Lunch with Burk
+      b   3-4p  Discussion group
+      c  +5 >   Front door refinish
+      d   !     Saturday ride
+    Thu July 31 (Tomorrow)
+      c  8a-5p   Sunroom power wash
+    ...
+    Tasks (showing page m of M)
+      a  91  multiple rdates with priority 5
+      b  89  create plan [dog house 1/8/0]
+      c  86  once more when complete
+      d  ❎ 𐄂 ☒
+      e  ✅ ✔ ☑
+      f  ⬜ ☐ ☐
+    ...
 
-someday = -5.0
-low     = 2.0
-weights = 5.0
-high    = 8.0
-next    = 10.0
+I ? Help
 
-[urgency.weights]
-# These weights give the relative importance of the various
-# components. The weights used to compute urgency correspond
-# to each of these weights divided by the sum of all of the
-# weights.
+````
 
-recent_age   = 1.0
-due_pastdue  = 1.0
-extent       = 1.0
-blocking     = 1.0
-tag          = 1.0
-active       = 1.0
-description  = 1.0
-priority     = 1.0
-project      = 1.0
-```
+If all events and tasks will fit in the available space then the "(showing page ...)" would not be displayed. Otherwise events and tasks would each be split into pages with the goal being to have the events and tasks sections to be roughly equal in length.
 
-At the beginning of model.py, I make the urgency values available using:
+The Help display, activated by pressing "?":
+
+- _tags_ are lower case letter(s) that begin each
+  record.
+- Press e (for events) or t (for tasks) and then
+  the key(s) corresponding to the tag to show
+  details for the item with further options.
+- Press e (for events) or t (for tasks) and then
+  > (next) or < (previous) to change pages.
+
+The tags are consecutive "base 26 numbers" using a, b, ... z for 0, ... When displaying details for an item, the entire terminal would be used.
+
+1. Create header for events and append to output
+2. get events for (first) 3 days
+3. get begins and drafts
+   if beings or drafts:
+   the first day is "today", append begins and drafts to today rows
+   in this case there will be no more than 3 days
+   else:
+   create "today", insert begins and drafts
+   in this case there will be no more than 4 days
+
+4. Append days (as many as 4) to output
+5. Create header for task urgency list and append to output
+6.
+
+7. Determine the number of lines available in the display and then count the lines required to:
+   a. Display a header plus the first two days from the events list including begins and drafts in "today"
+   b. Display a header plus as many lines from the task urgency
+
+I have this method to collect records for a relevant period. I would like another method that would limit the records to those with itemtype "\*" and, perhaps in separate method, group the results by date and, within date, by time.
 
 ```python
-env = TklrEnvironment()
-urgency = env.config.urgency
-```
+    def get_events_for_period(self, start_date, end_date):
+        """
+        Retrieve all events that occur or overlap within a specified period,
+        including the itemtype, subject, and ID of each event, ordered by start time.
 
-I then define these supporting computation methods, again in model.py:
+        Args:
+            start_date (datetime): The start of the period.
+            end_date (datetime): The end of the period.
 
-```python
-def urgency_due(due: datetime) -> float:
-    """
-    This function calculates the urgency contribution for a task based
-    on its due datetime relative to the current datetime and returns
-    a float value between 0.0 when (now <= due - interval) and due_max when
-    (now >= due).
-    """
-    now_seconds = utc_now_to_seconds()
-    due_seconds = dt_str_to_seconds(due)
-    value = urgency.due.max
-    interval = urgency.due.interval
-    if value and interval:
-        interval_seconds = td_str_to_seconds(interval)
-        return max(
-            0.0,
-            min(
-                value,
-                value * (1.0 - (now_seconds - due_seconds) / interval_seconds),
-            ),
+        Returns:
+            List[Tuple[int, int, str, str, int]]: A list of tuples containing
+            start and end timestamps, event type, event name, and event ID.
+        """
+        self.cursor.execute(
+            """
+        SELECT dt.start_datetime, dt.end_datetime, r.itemtype, r.subject, r.id
+        FROM DateTimes dt
+        JOIN Records r ON dt.record_id = r.id
+        WHERE dt.start_datetime < ? AND dt.end_datetime >= ?
+        ORDER BY dt.start_datetime
+        """,
+            (end_date.timestamp(), start_date.timestamp()),
         )
-    return 0.0
+        return self.cursor.fetchall()
 
+````
 
-def urgency_past_due(due: datetime) -> float:
-    """
-    This function calculates the urgency contribution for a task based
-    on its due datetime relative to the current datetime and returns
-    a float value between 0.0 when (now <= due) and past_max when
-    (now >= due + interval). Note: this adds to "due_max".
-    """
-    now_seconds = utc_now_to_seconds()
-    due_seconds = dt_str_to_seconds(due)
+## 2025-07-29 Agenda
 
-    value = urgency.pastdue.max
-    interval = urgency.pastdue.interval
-    if value and interval:
-        interval_seconds = td_str_to_seconds(interval)
-        return max(
-            0.0,
-            min(
-                value,
-                value * (now_seconds - due_seconds) / interval_seconds,
-            ),
-        )
-    return 0.0
+### UI view with scrolling
 
+#### how many rows?
 
-def urgency_age(modified: datetime) -> float:
-    """
-    This function calculates the urgency contribution for a task based
-    on the current datetime relative to the (last) modified datetime. It
-    represents a combination of a decreasing contribution from recent_max
-    based on how recently it was modified and an increasing contribution
-    from 0 based on how long ago it was modified. The maximum of the two
-    is the age contribution.
-    """
-    recent_contribution = age_contribution = 0
-    now_seconds = utc_now_to_seconds()
-    modified_seconds = dt_str_to_seconds(modified)
-    recent_max = urgency.recent.max
-    recent_interval = urgency.recent.interval
-    age_max = urgency.age.max
-    age_interval = urgency.age.interval
-    if recent_max and recent_interval:
-        recent_interval_seconds = td_str_to_seconds(recent_interval)
-        recent_contribution = max(
-            0.0,
-            min(
-                recent_max,
-                recent_max
-                * (1 - (now_seconds - modified_seconds) / recent_interval_seconds),
-            ),
-        )
+Maybe target 15 for scheduled (begins, drafts, events) and 15 for tasks:
 
-    if age_max and age_interval:
-        age_interval_seconds = td_str_to_seconds(age_interval)
-        age_contribution = max(
-            0.0,
-            min(
-                age_max,
-                age_max * (now_seconds - modified_seconds) / age_interval_seconds,
-            ),
-        )
-    return max(recent_contribution, age_contribution)
-```
+- scheduled: Use `get_events_for_period` with now and now + 14d to get events ending after now and starting before 21 days from now. Take the first "num_events" from list for display.
+  - Show 3 days at a time on a page with, say, 15 rows using scrolling if necessary to show all 3 days. This would allow for 3 day headings and 12 events, begins and drafts with out scrolling.
+  - And then as many as 6 subsequent pages to show the subsequent groups of days:
+    page 1: days 1-3, page 2: days 3-5, ..., page 6: days 11-14
+    so that pages always overlap by 1 day.
+  - Tags refresh for each page.
+  - To open event tag "a", press "e" and then "a"
+- tasks: Use new method to retrieve rows corresponding to urgency table records ordered by urgency (DESC). Details for task should show urgency computation (dict of weights?)
 
-The muddle comes in defining compute_task_urgency() and compute_job_urgency() for this:
+#### event rows
 
-```python
-    def populate_urgency_from_record(self, record: dict):
-        log_msg(f"{record = }")
-        record_id = record["id"]
-        subject = record["subject"]
-        created = record["created"]
-        modified = record["modified"]
-        priority = record.get("priority", "")
-        rruleset = record.get("rruleset", "") # due will come from this
-        extent = record.get("extent", "")
-        beginby = record.get("beginby", "")
-        jobs = json.loads(record.get("jobs", "[]"))
-        tags = json.loads(record.get("tags", "[]"))
-        status = record.get("status", "next")
-        # touched = record.get("touched")
-        now = datetime.utcnow()
-        print(f"{subject = }, {modified = }, {priority = }, {rruleset = }, {extent = }")
+- since only events, type character not necessary
+- maybe color begin, draft and all day items or put char in the time column?
+- maybe only show tags/allow selection when expanded?
 
-        priority_map = self.env.config.urgency.priority.model_dump()
+#### task rows
 
-        self.cursor.execute("DELETE FROM Urgency WHERE record_id = ?", (record_id,))
+### Events (press E to toggle expansion of this section)
 
-        def compute_task_urgency() -> float:
-            # if touched_str:
-            #     try:
-            #         touched_dt = datetime.fromisoformat(touched_str)
-            #         age_days = (now - touched_dt).total_seconds() / 86400
-            #         base += min(age_days, 30)
-            #     except Exception:
-            #         pass
-            return round(base, 2)
+- Tue July 29 (Today) like today in etm but with tags and only events
+  - all day events
+  - events for the _REST_ of today
+  - begin warnings
+  - drafts
+- Wed July 30 (Tomorrow) 2nd day with events
+- Thu July 31 3rd day with events
 
-        if jobs:
-            for job in jobs:
-                log_msg(f"{job = }")
-                job_id = job.get("i", "")
-                job_status = job.get("status", "")
-                subject = job.get("display_subject", "")
-                s = job.get("s", "")
-                e = job.get("e", "")
-                print(f"job {job_status = }, {subject = }, {s = }, {e = }")
-                if job_status == "available":
-                    urgency = compute_urgency(job_status)
-                    self.cursor.execute(
-                        """
-                        INSERT INTO Urgency (record_id, job_id, subject, urgency, status)
-                        VALUES (?, ?, ?, ?, ?)
-                        """,
-                        (
-                            record_id,
-                            job_id,
-                            subject,
-                            urgency,
-                            job_status,
-                        ),
-                    )
-        else:
-            urgency = compute_urgency()
-            self.cursor.execute(
-                """
-                INSERT INTO Urgency (record_id, job_id, subject, urgency, status)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    record_id,
-                    None,
-                    subject,
-                    urgency,
-                    status,
-                ),
-            )
+### Tasks (press T to toggle expansion of this section)
 
-        self.conn.commit()
-```
+- tasks ordered by urgency

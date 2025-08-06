@@ -64,9 +64,15 @@ class DescriptionConfig(BaseModel):
     max: float = 2.0
 
 
-class UrgencyConfig(BaseModel):
-    project: float = 2.0
+class ColorsConfig(BaseModel):
+    min_hex_color: str = "#6495ed"
+    max_hex_color: str = "#ffff00"
+    steps: int = 5
 
+
+class UrgencyConfig(BaseModel):
+    colors: ColorsConfig = ColorsConfig()
+    project: float = 2.0
     due: DueConfig = DueConfig()
     pastdue: PastdueConfig = PastdueConfig()
     recent: RecentConfig = RecentConfig()
@@ -79,11 +85,11 @@ class UrgencyConfig(BaseModel):
 
     priority: PriorityConfig = PriorityConfig(
         {
-            "1": -5.0,
-            "2": 2.0,
+            "1": 10.0,
+            "2": 8.0,
             "3": 5.0,
-            "4": 8.0,
-            "5": 10.0,
+            "4": 2.0,
+            "5": -5.0,
         }
     )
 
@@ -145,11 +151,21 @@ yearfirst = {{ ui.yearfirst | lower }}
 
 # ─── Urgency Configuration ─────────────────────────────────────
 
+[urgency.colors]
+# The hex color "min_hex_color" applies to urgencies in [-1.0, 0.0]. Hex
+# colors for the interval [0.0, 1.0] are broken into "steps" equal steps 
+# along the gradient from "min_hex_color" to "max_hex_color". These
+# colors are used for tasks in the urgency listing. 
+min_hex_color = "{{ urgency.colors.min_hex_color }}"
+max_hex_color = "{{ urgency.colors.max_hex_color }}"
+steps = {{ urgency.colors.steps }}
+
 [urgency.due]
 # The "due" urgency increases from 0.0 to "max" as now passes from
 # due - interval to due.
 interval = "{{ urgency.due.interval }}"
 max = {{ urgency.due.max }}
+
 
 [urgency.pastdue]
 # The "pastdue" urgency increases from 0.0 to "max" as now passes
@@ -195,7 +211,7 @@ max = {{ urgency.tags.max }}
 "{{ key }}" = {{ value }}
 {% endfor %}
 
-# In the default settings, a priority of "1" is the only one that yields
+# In the default settings, a priority of "5" is the only one that yields
 # a negative value, `-5`, and thus reduces the urgency of the task.
 
 [urgency.description]

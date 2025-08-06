@@ -21,32 +21,49 @@ from rich import box
 from typing import List, Tuple, Dict
 from bisect import bisect_left, bisect_right
 
-# from prompt_toolkit.key_binding import KeyBindings
-# from prompt_toolkit.keys import Keys
-# from prompt_toolkit.shortcuts import PromptSession
 import string
 import shutil
 import subprocess
 import shlex
 import textwrap
-import json
+
+# import json
 from typing import Literal
 
 from .model import DatabaseManager
+from .list_colors import css_named_colors
 
+from collections import defaultdict
 
-# from .common import truncate_string, format_extent
 from .shared import (
     log_msg,
     HRS_MINS,
-    ALERT_COMMANDS,
+    # ALERT_COMMANDS,
     format_time_range,
     format_timedelta,
     format_datetime,
     truncate_string,
 )
+from tklr.tklr_env import TklrEnvironment
 
-VERSION = version("tklr")
+from tklr.common import get_version
+
+VERSION = get_version()
+
+env = TklrEnvironment()
+# urgency = env.config.urgency
+MIN_HEX_COLOR = env.config.urgency.colors.min_hex_color
+MAX_HEX_COLOR = env.config.urgency.colors.max_hex_color
+AMPM = env.config.ui.ampm
+
+
+# details Colors
+
+# type_color = css_named_colors["palegoldenrod"]
+type_color = css_named_colors["khaki"]
+at_color = css_named_colors["khaki"]
+am_color = css_named_colors["darkkhaki"]
+label_color = css_named_colors["lightskyblue"]
 
 # The overall background color of the app is #2e2e2e - set in view_textual.css
 LEMON_CHIFFON = "#FFFACD"
@@ -114,25 +131,26 @@ TYPE_TO_COLOR = {
     "%": FINISHED_COLOR,  # finished task
     "<": PASTDUE_COLOR,  # past due task
     ">": BEGIN_COLOR,  # begin
-    "!": DRAFT_COLOR,  # draft
+    "!": GOAL_COLOR,  # draft
+    "?": DRAFT_COLOR,  # draft
 }
 
 
 def format_tokens(tokens, width):
     # tokens = json.loads(structured_tokens)
-    # output_lines = ["[cyan]entry:[/cyan]"]
     output_lines = []
     current_line = ""
 
     for i, t in enumerate(tokens):
         token = t["token"].rstrip()
         key = t.get("key", "")
+        log_msg(f"processing {key = } in {token = }, {token.startswith('@~')}")
 
         if t["t"] == "itemtype":
             current_line = ""
 
         if key == "@d":
-            # Handle @d block: always on its own, preserve and wrap content
+            # Handle @d and @~ blocks: always on their own, preserve and wrap content
             if current_line:
                 output_lines.append(current_line)
                 current_line = ""
@@ -145,6 +163,11 @@ def format_tokens(tokens, width):
             output_lines.extend(wrapped_lines)
             output_lines.append("")  # extra newline after @d
             continue
+
+        if token.startswith("@~"):
+            # Begin component tasks on a new line
+            output_lines.append(current_line)
+            current_line = " "
 
         # Calculate length if this token is added to current_line
         if len(current_line) + len(token) + 1 > width:
@@ -162,9 +185,15 @@ def format_tokens(tokens, width):
 
     def highlight(line):
         # Highlight @x and &x preceded by space or line start, followed by space
+        color = {
+            "@": f"{at_color}",
+            "&": f"{am_color}",
+        }
         return re.sub(
             r"(^|(?<=\s))([@&]\S\s)",
-            lambda m: m.group(1) + f"[yellow]{m.group(2)}[/yellow]",
+            # lambda m: m.group(1) + f"[yellow]{m.group(2)}[/yellow]",
+            lambda m: m.group(1)
+            + f"[{color[m.group(2)[0]]}]{m.group(2)}[/{color[m.group(2)[0]]}]",
             line,
         )
 
@@ -174,7 +203,7 @@ def format_tokens(tokens, width):
         and output_lines[0].startswith("entry: ")
     ):
         line = output_lines.pop(0)
-        line = f"[cyan]entry:[/cyan] [bold yellow]{line[8]}[/bold yellow]{line[9:]}"
+        line = f"[{label_color}]entry:[/label_color] [bold yellow]{line[8]}[/bold yellow]{line[9:]}"
         # line = f"[bold yellow]{line[4]}[/bold yellow]{line[5:]}"
         output_lines.insert(0, line)
     log_msg(f"{output_lines = }")
@@ -424,6 +453,9 @@ class Controller:
         self.start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
         self.list_tag_to_id = {}  # Maps tag numbers to event IDs
+
+        for view in ["next", "last", "find", "alerts"]:
+            self.list_tag_to_id.setdefault(view, {})
         self.width = shutil.get_terminal_size()[0] - 2
         self.afill = 1
         # print(f"{self.width = }")
@@ -468,69 +500,24 @@ class Controller:
         # log_msg(f"{result = }")
         rruleset = f"\n{10 * ' '}".join(rruleset.splitlines())
         log_msg(f"{entry = }, {rruleset = }, {created = }, {modified = }")
-        # # lines = ["details", f"[cyan]Id:[/cyan]{record_id}"]
         lines = []
+
         lines.extend(
             [
                 f"{entry}",
                 "",
-                f"[cyan]rruleset:[/cyan] {rruleset}",
-                f"[cyan]created:[/cyan]  {created}",
-                f"[cyan]modified:[/cyan] {modified}",
+                f"[{label_color}]rruleset:[/{label_color}] {rruleset}",
+                f"[{label_color}]created:[/{label_color}]  {created}",
+                f"[{label_color}]modified:[/{label_color}] {modified}",
             ]
         )
-        return lines
 
-    # def get_entry_as_string(self, record_id):
-    #     """
-    #     Retrieve and format the entry of a record as a string.
-    #
-    #     Args:
-    #         record_id (int): The ID of the record to retrieve.
-    #
-    #     Returns:
-    #         str: A formatted string with the record's entry.
-    #     """
-    #     # log_msg(f"Fetching description for record ID {record_id}")
-    #     self.db_manager.cursor.execute(
-    #         """
-    #         SELECT id, structured_tokens
-    #         FROM Records
-    #         WHERE id = ?
-    #         """,
-    #         (record_id,),
-    #     )
-    #     record = self.db_manager.cursor.fetchone()
-    #     # log_msg(f"Record: {record = }")
-    #
-    #     if not record:
-    #         return f"[red]No record found for ID {record_id}[/red]"
-    #
-    #     for record_id, structured_token
-    #
-    #
-    #     fields = ["Id", "structured_tokens"]
-    #
-    #     content = "\n".join(
-    #         f" [cyan]{field}:[/cyan] [white]{value if value is not None else '[dim]NULL[/dim]'}[/white]"
-    #         for field, value in zip(fields, record)
-    #     )
-    #
-    #     lines = []
-    #     for line in content.split("\n"):
-    #         lines.extend(
-    #             [
-    #                 f"\n{x}"
-    #                 for x in textwrap.wrap(
-    #                     value.strip(),
-    #                     width=self.width,
-    #                     initial_indent="",
-    #                     subsequent_indent="   ",
-    #                 )
-    #             ]
-    #         )
-    #     # log_msg(f"Content: {content}")
-    #     return "\n".join(lines)
+        first_line = lines.pop(0)
+        first_line = (
+            f"[bold {type_color}]{first_line[0]}[/bold {type_color}]{first_line[1:]}"
+        )
+        lines.insert(0, first_line)
+        return lines
 
     def get_record(self, record_id):
         return self.db_manager.get_record(record_id)
@@ -610,7 +597,7 @@ class Controller:
     def get_active_alerts(self, width: int = 70):
         # now_fmt = datetime.now().strftime("%A, %B %-d %H:%M:%S")
         alerts = self.db_manager.get_active_alerts()
-        header = "Remaining alerts for today"
+        header = "-- remaining alerts for today --"
         results = [header]
         if not alerts:
             results.append(f" [{HEADER_COLOR}]none scheduled[/{HEADER_COLOR}]")
@@ -742,7 +729,10 @@ class Controller:
         # description = [f"Tag [{SELECTED_COLOR}]{tag}[/{SELECTED_COLOR}] description"]
         if tag in tag_to_id:
             record_id = tag_to_id[tag]
-            description = ["details", f"[cyan]id:[/cyan] {record_id}"]
+            description = [
+                "-- details --",
+                f"[{label_color}]id:[/{label_color}] {record_id}",
+            ]
             # log_msg(f"Tag '{tag}' corresponds to record ID {record_id}")
             # description = self.get_record_details_as_string(record_id)
             # fields = self.get_record_details(record_id)
@@ -1159,3 +1149,94 @@ class Controller:
         # NOTE: maybe return list for scrollable view?
         # details_str = "\n".join(description)
         return description
+
+    def group_events_by_date_and_time(self, events):
+        """
+        Groups only scheduled '*' events by date and time.
+
+        Args:
+            events (List[Tuple[int, int, str, str, int]]):
+                List of (start_ts, end_ts, itemtype, subject, id)
+
+        Returns:
+            Dict[date, List[Tuple[time, Tuple]]]:
+                Dict mapping date to list of (start_time, event) tuples
+        """
+        grouped = defaultdict(list)
+
+        for start_ts, end_ts, itemtype, subject, record_id in events:
+            if itemtype != "*":
+                continue  # Only events
+
+            start_dt = datetime.fromtimestamp(start_ts)
+            grouped[start_dt.date()].append(
+                (start_dt.time(), (start_ts, end_ts, subject, record_id))
+            )
+
+        # Sort each day's events by time
+        for date in grouped:
+            grouped[date].sort(key=lambda x: x[0])
+
+        return dict(grouped)
+
+    def get_agenda_events(self):
+        """
+        Returns dict: date -> list of (label, subject, record_id)
+        """
+        mode = "12" if AMPM else "24"
+        log_msg(f"{AMPM = }, {mode = }")
+        begin_records = (
+            self.db_manager.get_beginby_for_events()
+        )  # (record_id, days_remaining, subject)
+        draft_records = self.db_manager.get_drafts()  # (record_id, subject)
+        now = datetime.now()
+        today = now.date()
+
+        events = self.db_manager.get_events_for_period(now, now + timedelta(days=14))
+        # events: (start_ts, end_ts, itemtype, subject, record_id)
+        grouped_by_date = self.group_events_by_date_and_time(events)
+
+        events_by_date = {}
+
+        for date, entries in grouped_by_date.items():
+            events_by_date.setdefault(date, [])
+            for time, (start_ts, end_ts, subject, record_id) in entries:
+                label = format_time_range(start_ts, end_ts, mode)
+                events_by_date[date].append((label, subject, record_id))
+
+        if today not in events_by_date:
+            events_by_date[today] = []
+
+        for record_id, days_remaining, subject in begin_records:
+            events_by_date[today].append(
+                (
+                    f"[{BEGIN_COLOR}]+{days_remaining}⮕ [/{BEGIN_COLOR}]",
+                    f"[{BEGIN_COLOR}]{subject}[/{BEGIN_COLOR}]",
+                    record_id,
+                )
+            )
+
+        for record_id, subject in draft_records:
+            events_by_date[today].append(
+                (
+                    f"[{DRAFT_COLOR}] ? [/{DRAFT_COLOR}]",
+                    f"[{DRAFT_COLOR}]{subject}[/{DRAFT_COLOR}]",
+                    record_id,
+                )
+            )
+
+        return events_by_date
+
+    def get_agenda_tasks(self):
+        """
+        Returns list of (urgency, subject, record_id, job_id)
+        """
+        tasks_by_urgency = []
+        urgency_records = (
+            self.db_manager.get_urgency()
+        )  # (record_id, job_id, subject, urgency)
+        for record_id, job_id, subject, urgency in urgency_records:
+            tasks_by_urgency.append((urgency, subject, record_id, job_id))
+
+        tasks_by_urgency.sort(reverse=True)  # Highest urgency first
+        return tasks_by_urgency
