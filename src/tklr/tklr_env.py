@@ -67,7 +67,8 @@ class DescriptionConfig(BaseModel):
 class ColorsConfig(BaseModel):
     min_hex_color: str = "#6495ed"
     max_hex_color: str = "#ffff00"
-    steps: int = 5
+    min_urgency: float = 0.5
+    steps: int = 10
 
 
 class UrgencyConfig(BaseModel):
@@ -152,12 +153,13 @@ yearfirst = {{ ui.yearfirst | lower }}
 # ─── Urgency Configuration ─────────────────────────────────────
 
 [urgency.colors]
-# The hex color "min_hex_color" applies to urgencies in [-1.0, 0.0]. Hex
-# colors for the interval [0.0, 1.0] are broken into "steps" equal steps 
-# along the gradient from "min_hex_color" to "max_hex_color". These
-# colors are used for tasks in the urgency listing. 
+# The hex color "min_hex_color" applies to urgencies in [-1.0, min_urgency]. 
+# Hex colors for the interval [min_urgency, 1.0] are broken into "steps" 
+# equal steps along the gradient from "min_hex_color" to "max_hex_color". 
+# These colors are used for tasks in the urgency listing. 
 min_hex_color = "{{ urgency.colors.min_hex_color }}"
 max_hex_color = "{{ urgency.colors.max_hex_color }}"
+min_urgency = {{ urgency.colors.min_urgency }}
 steps = {{ urgency.colors.steps }}
 
 [urgency.due]
@@ -357,6 +359,7 @@ class TklrEnvironment:
     def __init__(self):
         self._home = self._resolve_home()
         self._config: Optional[TklrConfig] = None
+        print(f"using {self._home = } and {self._config = }")
 
     @property
     def home(self) -> Path:

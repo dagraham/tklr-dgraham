@@ -30,7 +30,7 @@ import textwrap
 # import json
 from typing import Literal
 
-from .model import DatabaseManager
+from .model import DatabaseManager, UrgencyComputer
 from .list_colors import css_named_colors
 
 from collections import defaultdict
@@ -50,11 +50,10 @@ from tklr.common import get_version
 
 VERSION = get_version()
 
-env = TklrEnvironment()
+# env = TklrEnvironment()
 # urgency = env.config.urgency
-MIN_HEX_COLOR = env.config.urgency.colors.min_hex_color
-MAX_HEX_COLOR = env.config.urgency.colors.max_hex_color
-AMPM = env.config.ui.ampm
+# MIN_HEX_COLOR = env.config.urgency.colors.min_hex_color
+# MAX_HEX_COLOR = env.config.urgency.colors.max_hex_color
 
 
 # details Colors
@@ -444,7 +443,7 @@ def get_busy_bar(events):
 
 
 class Controller:
-    def __init__(self, database_path: str, env):
+    def __init__(self, database_path: str, env: TklrEnvironment):
         # Initialize the database manager
         self.db_manager = DatabaseManager(database_path, env)
         self.tag_to_id = {}  # Maps tag numbers to event IDs
@@ -453,6 +452,8 @@ class Controller:
         self.start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
         self.list_tag_to_id = {}  # Maps tag numbers to event IDs
+        self.env = env
+        self.AMPM = env.config.ui.ampm
 
         for view in ["next", "last", "find", "alerts"]:
             self.list_tag_to_id.setdefault(view, {})
@@ -1183,8 +1184,8 @@ class Controller:
         """
         Returns dict: date -> list of (label, subject, record_id)
         """
-        mode = "12" if AMPM else "24"
-        log_msg(f"{AMPM = }, {mode = }")
+        mode = "12" if self.AMPM else "24"
+        log_msg(f"{self.AMPM = }, {mode = }")
         begin_records = (
             self.db_manager.get_beginby_for_events()
         )  # (record_id, days_remaining, subject)
@@ -1235,8 +1236,8 @@ class Controller:
         urgency_records = (
             self.db_manager.get_urgency()
         )  # (record_id, job_id, subject, urgency)
-        for record_id, job_id, subject, urgency in urgency_records:
-            tasks_by_urgency.append((urgency, subject, record_id, job_id))
+        for record_id, job_id, subject, urgency, color in urgency_records:
+            tasks_by_urgency.append((urgency, color, subject, record_id, job_id))
 
         tasks_by_urgency.sort(reverse=True)  # Highest urgency first
         return tasks_by_urgency

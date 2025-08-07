@@ -4,8 +4,12 @@ import shutil
 from datetime import date, datetime, timedelta
 from typing import Literal, Tuple
 
-HRS_MINS = "12"  # 12 or 24 - make this the default
-# HRS_MINS = "24"  # 12 or 24 - make this the default
+from tklr.tklr_env import TklrEnvironment
+
+# env = TklrEnvironment()
+# AMPM = env.config.ui.ampm
+AMPM = True
+HRS_MINS = "12" if AMPM else "24"
 
 # TODO: these should be in a config file
 ALERT_COMMANDS = {
@@ -91,6 +95,9 @@ def format_time_range(
         else None
     )
     extent = start_dt != end_dt
+
+    if start_dt == end_dt and start_dt.hour == 0 and start_dt.minute == 0:
+        return ""
 
     if mode == "24":
         start_hour = start_dt.strftime("%H:%M").replace(":00", "")

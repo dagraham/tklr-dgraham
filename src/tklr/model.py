@@ -24,8 +24,8 @@ from .shared import (
 import re
 from tklr.item import Item
 
-env = TklrEnvironment()
-urgency = env.config.urgency
+# env = TklrEnvironment()
+# urgency = env.config.urgency
 
 
 def regexp(pattern, value):
@@ -169,172 +169,223 @@ def td_to_tdstr(td_obj: timedelta) -> str:
     return "".join(parts)
 
 
-def compute_partitioned_urgency(weights: dict[str, float]) -> float:
-    """
-    Compute urgency from signed weights:
-    - Positive weights push urgency up
-    - Negative weights pull urgency down
-    - Equal weights → urgency = 0
+class UrgencyComputer:
+    def __init__(self, env: TklrEnvironment):
+        self.env = env
+        self.urgency = env.config.urgency
 
-    Returns:
-        urgency ∈ [-1.0, 1.0]
-    """
-    Wp = 1 + sum(w for w in weights.values() if w > 0)
-    Wn = 1 + sum(abs(w) for w in weights.values() if w < 0)
+        self.MIN_URGENCY = self.urgency.colors.min_urgency
+        self.MIN_HEX_COLOR = self.urgency.colors.min_hex_color
+        self.MAX_HEX_COLOR = self.urgency.colors.max_hex_color
+        self.STEPS = self.urgency.colors.steps
+        self.BUCKETS = self.get_urgency_color_buckets()
 
-    return (Wp - Wn) / (Wn + Wp)
+    def hex_to_rgb(self, hex_color: str) -> Tuple[int, int, int]:
+        hex_color = hex_color.lstrip("#")
+        return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
+    def rgb_to_hex(self, rgb: Tuple[int, int, int]) -> str:
+        return "#{:02x}{:02x}{:02x}".format(*rgb)
 
-def urgency_due(due_seconds: int, now_seconds: int) -> float:
-    """
-    This function calculates the urgency contribution for a task based
-    on its due datetime relative to the current datetime and returns
-    a float value between 0.0 when (now <= due - interval) and max when
-    (now >= due).
-    """
-    due_max = urgency.due.max
-    interval = urgency.due.interval
-    if due_seconds and due_max and interval:
-        interval_seconds = td_str_to_seconds(interval)
-        log_msg(f"{due_max = }, {interval = }, {interval_seconds = }")
-        return max(
-            0.0,
-            min(
-                due_max,
-                due_max * (1.0 - (now_seconds - due_seconds) / interval_seconds),
-            ),
-        )
-    return 0.0
+    def get_urgency_color_buckets(self) -> List[str]:
+        neg_rgb = self.hex_to_rgb(self.MIN_HEX_COLOR)
+        max_rgb = self.hex_to_rgb(self.MAX_HEX_COLOR)
 
-
-def urgency_pastdue(due_seconds: int, now_seconds: int) -> float:
-    """
-    This function calculates the urgency contribution for a task based
-    on its due datetime relative to the current datetime and returns
-    a float value between 0.0 when (now <= due) and max when
-    (now >= due + interval).
-    """
-
-    pastdue_max = urgency.pastdue.max
-    interval = urgency.pastdue.interval
-    if due_seconds and pastdue_max and interval:
-        interval_seconds = td_str_to_seconds(interval)
-        return max(
-            0.0,
-            min(
-                pastdue_max,
-                pastdue_max * (now_seconds - due_seconds) / interval_seconds,
-            ),
-        )
-    return 0.0
-
-
-def urgency_recent(modified_seconds: int, now_seconds: int) -> float:
-    """
-    This function calculates the urgency contribution for a task based
-    on the current datetime relative to the (last) modified datetime. It
-    represents a combination of a decreasing contribution from recent_max
-    based on how recently it was modified and an increasing contribution
-    from 0 based on how long ago it was modified. The maximum of the two
-    is the age contribution.
-    """
-    recent_contribution = 0.0
-    recent_interval = urgency.recent.interval
-    recent_max = urgency.recent.max
-    log_msg(f"{recent_interval = }")
-    if recent_max and recent_interval:
-        recent_interval_seconds = td_str_to_seconds(recent_interval)
-        recent_contribution = max(
-            0.0,
-            min(
-                recent_max,
-                recent_max
-                * (1 - (now_seconds - modified_seconds) / recent_interval_seconds),
-            ),
-        )
-    log_msg(f"returning {recent_contribution = }")
-    return recent_contribution
-
-
-def urgency_age(modified_seconds: int, now_seconds: int) -> float:
-    """
-    This function calculates the urgency contribution for a task based
-    on the current datetime relative to the (last) modified datetime. It
-    represents a combination of a decreasing contribution from recent_max
-    based on how recently it was modified and an increasing contribution
-    from 0 based on how long ago it was modified. The maximum of the two
-    is the age contribution.
-    """
-    age_contribution = 0
-    age_interval = urgency.age.interval
-    age_max = urgency.age.max
-    log_msg(f"{age_interval = }")
-    if age_max and age_interval:
-        age_interval_seconds = td_str_to_seconds(age_interval)
-        age_contribution = max(
-            0.0,
-            min(
-                age_max,
-                age_max * (now_seconds - modified_seconds) / age_interval_seconds,
-            ),
-        )
-    log_msg(f"returning {age_contribution = }")
-    return age_contribution
-
-
-def urgency_priority(priority_level: int) -> float:
-    priority = urgency.priority.root.get(str(priority_level), 0.0)
-    log_msg(f"returning {priority = }")
-    return priority
-
-
-def urgency_extent(extent_seconds: int) -> float:
-    extent_max = 1.0
-    extent_interval = td_str_to_seconds(urgency.extent.interval)
-    extent = max(0.0, min(extent_max, extent_max * extent_seconds / extent_interval))
-    log_msg(f"{extent_seconds = }, {extent = }")
-    return extent
-
-
-def urgency_blocking(num_blocking: int) -> float:
-    blocking = 0.0
-    if num_blocking:
-        blocking_max = urgency.blocking.max
-        blocking_count = urgency.blocking.count
-        if blocking_max and blocking_count:
-            blocking = max(
-                0.0, min(blocking_max, blocking_max * num_blocking / blocking_count)
+        buckets = []
+        for i in range(self.STEPS):
+            t = i / (self.STEPS - 1)
+            rgb = tuple(
+                round(neg + t * (maxc - neg)) for neg, maxc in zip(neg_rgb, max_rgb)
             )
-    log_msg(f"returning {blocking = }")
-    return blocking
+            buckets.append(self.rgb_to_hex(rgb))
+        return buckets
 
+    def urgency_to_bucket_color(self, urgency: float) -> str:
+        if urgency <= self.MIN_URGENCY:
+            return self.MIN_HEX_COLOR
+        if urgency >= 1.0:
+            return self.MAX_HEX_COLOR
 
-def urgency_tags(num_tags: int) -> float:
-    tags = 0.0
-    tags_max = urgency.tags.max
-    tags_count = urgency.tags.count
-    if tags_max and tags_count:
-        tags = max(0.0, min(tags_max, tags_max * num_tags / tags_count))
-    log_msg(f"returning {tags = }")
-    return tags
+        i = min(
+            int((urgency - self.MIN_URGENCY) * len(self.BUCKETS)), len(self.BUCKETS) - 1
+        )
+        return self.BUCKETS[i]
 
+    def compute_partitioned_urgency(self, weights: dict[str, float]) -> float:
+        """
+        Compute urgency from signed weights:
+        - Positive weights push urgency up
+        - Negative weights pull urgency down
+        - Equal weights → urgency = 0
 
-def urgency_description(has_description: bool) -> float:
-    description_max = urgency.description.max
-    description = 0.0
-    if has_description and description_max:
-        description = description_max
-    log_msg(f"returning {description = }")
-    return description
+        Returns:
+            urgency ∈ [-1.0, 1.0]
+        """
+        Wp = 1 + sum(w for w in weights.values() if w > 0)
+        Wn = 1 + sum(abs(w) for w in weights.values() if w < 0)
 
+        return (Wp - Wn) / (Wn + Wp)
 
-def urgency_project(has_project: bool) -> float:
-    project_max = urgency.project.max
-    project = 0.0
-    if has_project and project_max:
-        project = project_max
-    log_msg(f"returning {project = }")
-    return project
+    def urgency_due(self, due_seconds: int, now_seconds: int) -> float:
+        """
+        This function calculates the urgency contribution for a task based
+        on its due datetime relative to the current datetime and returns
+        a float value between 0.0 when (now <= due - interval) and max when
+        (now >= due).
+        """
+        due_max = self.urgency.due.max
+        interval = self.urgency.due.interval
+        if due_seconds and due_max and interval:
+            interval_seconds = td_str_to_seconds(interval)
+            log_msg(f"{due_max = }, {interval = }, {interval_seconds = }")
+            return max(
+                0.0,
+                min(
+                    due_max,
+                    due_max * (1.0 - (now_seconds - due_seconds) / interval_seconds),
+                ),
+            )
+        return 0.0
+
+    def urgency_pastdue(self, due_seconds: int, now_seconds: int) -> float:
+        """
+        This function calculates the urgency contribution for a task based
+        on its due datetime relative to the current datetime and returns
+        a float value between 0.0 when (now <= due) and max when
+        (now >= due + interval).
+        """
+
+        pastdue_max = self.urgency.pastdue.max
+        interval = self.urgency.pastdue.interval
+        if due_seconds and pastdue_max and interval:
+            interval_seconds = td_str_to_seconds(interval)
+            return max(
+                0.0,
+                min(
+                    pastdue_max,
+                    pastdue_max * (now_seconds - due_seconds) / interval_seconds,
+                ),
+            )
+        return 0.0
+
+    def urgency_recent(self, modified_seconds: int, now_seconds: int) -> float:
+        """
+        This function calculates the urgency contribution for a task based
+        on the current datetime relative to the (last) modified datetime. It
+        represents a combination of a decreasing contribution from recent_max
+        based on how recently it was modified and an increasing contribution
+        from 0 based on how long ago it was modified. The maximum of the two
+        is the age contribution.
+        """
+        recent_contribution = 0.0
+        recent_interval = self.urgency.recent.interval
+        recent_max = self.urgency.recent.max
+        log_msg(f"{recent_interval = }")
+        if recent_max and recent_interval:
+            recent_interval_seconds = td_str_to_seconds(recent_interval)
+            recent_contribution = max(
+                0.0,
+                min(
+                    recent_max,
+                    recent_max
+                    * (1 - (now_seconds - modified_seconds) / recent_interval_seconds),
+                ),
+            )
+        log_msg(f"returning {recent_contribution = }")
+        return recent_contribution
+
+    def urgency_age(self, modified_seconds: int, now_seconds: int) -> float:
+        """
+        This function calculates the urgency contribution for a task based
+        on the current datetime relative to the (last) modified datetime. It
+        represents a combination of a decreasing contribution from recent_max
+        based on how recently it was modified and an increasing contribution
+        from 0 based on how long ago it was modified. The maximum of the two
+        is the age contribution.
+        """
+        age_contribution = 0
+        age_interval = self.urgency.age.interval
+        age_max = self.urgency.age.max
+        log_msg(f"{age_interval = }")
+        if age_max and age_interval:
+            age_interval_seconds = td_str_to_seconds(age_interval)
+            age_contribution = max(
+                0.0,
+                min(
+                    age_max,
+                    age_max * (now_seconds - modified_seconds) / age_interval_seconds,
+                ),
+            )
+        log_msg(f"returning {age_contribution = }")
+        return age_contribution
+
+    def urgency_priority(self, priority_level: int) -> float:
+        priority = self.urgency.priority.root.get(str(priority_level), 0.0)
+        log_msg(f"returning {priority = }")
+        return priority
+
+    def urgency_extent(self, extent_seconds: int) -> float:
+        extent_max = 1.0
+        extent_interval = td_str_to_seconds(self.urgency.extent.interval)
+        extent = max(
+            0.0, min(extent_max, extent_max * extent_seconds / extent_interval)
+        )
+        log_msg(f"{extent_seconds = }, {extent = }")
+        return extent
+
+    def urgency_blocking(self, num_blocking: int) -> float:
+        blocking = 0.0
+        if num_blocking:
+            blocking_max = self.urgency.blocking.max
+            blocking_count = self.urgency.blocking.count
+            if blocking_max and blocking_count:
+                blocking = max(
+                    0.0, min(blocking_max, blocking_max * num_blocking / blocking_count)
+                )
+        log_msg(f"returning {blocking = }")
+        return blocking
+
+    def urgency_tags(self, num_tags: int) -> float:
+        tags = 0.0
+        tags_max = self.urgency.tags.max
+        tags_count = self.urgency.tags.count
+        if tags_max and tags_count:
+            tags = max(0.0, min(tags_max, tags_max * num_tags / tags_count))
+        log_msg(f"returning {tags = }")
+        return tags
+
+    def urgency_description(self, has_description: bool) -> float:
+        description_max = self.urgency.description.max
+        description = 0.0
+        if has_description and description_max:
+            description = description_max
+        log_msg(f"returning {description = }")
+        return description
+
+    def urgency_project(self, has_project: bool) -> float:
+        project_max = self.urgency.project.max
+        project = 0.0
+        if has_project and project_max:
+            project = project_max
+        log_msg(f"returning {project = }")
+        return project
+
+    def from_args_and_weights(self, **kwargs):
+        weights = {
+            "due": self.urgency_due(kwargs.get("due"), kwargs["now"]),
+            "pastdue": self.urgency_pastdue(kwargs.get("due"), kwargs["now"]),
+            "age": self.urgency_age(kwargs["modified"], kwargs["now"]),
+            "recent": self.urgency_recent(kwargs["modified"], kwargs["now"]),
+            "priority": self.urgency_priority(kwargs.get("priority_level")),
+            "extent": self.urgency_extent(kwargs["extent"]),
+            "blocking": self.urgency_blocking(kwargs.get("blocking", 0.0)),
+            "tags": self.urgency_tags(kwargs.get("tags", 0)),
+            "description": self.urgency_description(kwargs.get("description", False)),
+            "project": 1.0 if bool(kwargs.get("jobs", False)) else 0.0,
+        }
+        urgency = self.compute_partitioned_urgency(weights)
+        log_msg(f"{weights = }\n  returning {urgency = }")
+        return urgency, self.urgency_to_bucket_color(urgency), weights
 
 
 class DatabaseManager:
@@ -350,6 +401,7 @@ class DatabaseManager:
         self.cursor = self.conn.cursor()
         self.conn.create_function("REGEXP", 2, regexp)
         self.setup_database()
+        self.compute_urgency = UrgencyComputer(env)
 
         yr, wk = datetime.now().isocalendar()[:2]
         log_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
@@ -397,6 +449,7 @@ class DatabaseManager:
                 job_id TEXT,                     -- NULL for standalone tasks
                 subject TEXT NOT NULL,           -- Task name or "job name → task"
                 urgency FLOAT NOT NULL,          -- Final score
+                color TEXT NOT NULL,             -- bucket hex color
                 status TEXT NOT NULL,            -- "next", "waiting", "scheduled", etc.
                 weights TEXT,
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
@@ -1162,12 +1215,14 @@ class DatabaseManager:
             if processed == 1 and is_finite:
                 continue
 
+            extent_td = td_str_to_td(extent) if extent else timedelta(seconds=0)
+
             try:
                 if is_finite:
                     # Handle RDATEs
                     rdate_occurrences = parse_rdates(rule_str)
                     for start_dt in rdate_occurrences:
-                        end_dt = start_dt  # or compute duration from extent
+                        end_dt = start_dt + extent_td
                         self.cursor.execute(
                             """
                             INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
@@ -1402,7 +1457,7 @@ class DatabaseManager:
         """
         self.cursor.execute(
             """
-            SELECT record_id, job_id, subject, urgency
+            SELECT record_id, job_id, subject, urgency, color
             FROM Urgency
             ORDER BY urgency DESC
             """
@@ -1676,7 +1731,8 @@ class DatabaseManager:
         subject = record["subject"]
         priority_map = self.env.config.urgency.priority.model_dump()
         priority_level = record.get("priority", None)
-        priority = priority_map.get(priority_level, 0)
+        # priority = priority_map.get(priority_level, 0)
+        description = True if record.get("description", "") else False
         pinned = self.is_pinned(record_id)
 
         # Try to parse due from first RDATE in rruleset
@@ -1697,43 +1753,6 @@ class DatabaseManager:
             beginby_seconds = due_seconds
 
         self.cursor.execute("DELETE FROM Urgency WHERE record_id = ?", (record_id,))
-
-        # weights and calculator
-        # weights = self.env.config.urgency.weights.model_dump()
-
-        # def compute_urgency(**kwargs):
-        #     weights = {
-        #         "due": urgency_due(kwargs.get("due"), kwargs["now"]),
-        #         "pastdue": urgency_pastdue(kwargs.get("due"), kwargs["now"]),
-        #         "age": urgency_age(kwargs["modified"], kwargs["now"]),
-        #         "recent": urgency_recent(kwargs["modified"], kwargs["now"]),
-        #         "priority": urgency_priority(kwargs.get("priority_level")),
-        #         "extent": urgency_extent(kwargs["extent"]),
-        #         "blocking": urgency_blocking(kwargs.get("blocking", 0.0)),
-        #         "tags": urgency_tags(kwargs.get("tags", 0)),
-        #         "description": 1.0 if bool("description") else 0.0,
-        #         "project": 1.0 if bool(jobs) else 0.0,
-        #     }
-        #     urgency = compute_partitioned_urgency(weights)
-        #     log_msg(f"{subject}:\n  {weights = }\n  returning {urgency = }")
-        #     return urgency
-
-        def compute_urgency(**kwargs):
-            weights = {
-                "due": urgency_due(kwargs.get("due"), kwargs["now"]),
-                "pastdue": urgency_pastdue(kwargs.get("due"), kwargs["now"]),
-                "age": urgency_age(kwargs["modified"], kwargs["now"]),
-                "recent": urgency_recent(kwargs["modified"], kwargs["now"]),
-                "priority": urgency_priority(kwargs.get("priority_level")),
-                "extent": urgency_extent(kwargs["extent"]),
-                "blocking": urgency_blocking(kwargs.get("blocking", 0.0)),
-                "tags": urgency_tags(kwargs.get("tags", 0)),
-                "description": 1.0 if bool("description") else 0.0,
-                "project": 1.0 if bool(jobs) else 0.0,
-            }
-            urgency = compute_partitioned_urgency(weights)
-            log_msg(f"{subject}:\n  {weights = }\n  returning {urgency = }")
-            return urgency, weights
 
         # Handle jobs if present
         if jobs:
@@ -1757,10 +1776,10 @@ class DatabaseManager:
                 job_extent = td_str_to_seconds(job.get("e", "0m"))
                 blocking = job.get("blocking")  # assume already computed elsewhere
 
-                urgency, weights = (
+                urgency, color, weights = (
                     (1.0, {})
                     if pinned
-                    else compute_urgency(
+                    else self.compute_urgency.from_args_and_weights(
                         now=now_seconds,
                         modified=modified_seconds,
                         due=job_due,
@@ -1768,22 +1787,25 @@ class DatabaseManager:
                         priority_level=priority_level,
                         blocking=blocking,
                         tags=tags,
+                        description=description,
+                        jobs=True,
                     )
                 )
 
-                # self.cursor.execute(
-                #     """
-                #     INSERT INTO Urgency (record_id, job_id, subject, urgency, status)
-                #     VALUES (?, ?, ?, ?, ?)
-                #     """,
-                #     (record_id, job_id, subject, urgency, status),
-                # )
                 self.cursor.execute(
                     """
-                    INSERT INTO Urgency (record_id, job_id, subject, urgency, status, weights)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO Urgency (record_id, job_id, subject, urgency, color, status, weights)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (record_id, job_id, subject, urgency, status, json.dumps(weights)),
+                    (
+                        record_id,
+                        job_id,
+                        subject,
+                        urgency,
+                        color,
+                        status,
+                        json.dumps(weights),
+                    ),
                 )
 
         else:
@@ -1793,13 +1815,15 @@ class DatabaseManager:
                 and due_seconds - beginby_seconds > now_seconds
             )
             if not hide:
-                urgency, weights = compute_urgency(
+                urgency, color, weights = self.compute_urgency.from_args_and_weights(
                     now=now_seconds,
                     modified=modified_seconds,
                     due=due_seconds,
                     extent=extent_seconds,
                     priority_level=priority_level,
                     tags=tags,
+                    description=description,
+                    jobs=False,
                 )
                 # self.cursor.execute(
                 #     """
@@ -1810,14 +1834,15 @@ class DatabaseManager:
                 # )
                 self.cursor.execute(
                     """
-                    INSERT INTO Urgency (record_id, job_id, subject, urgency, status, weights)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO Urgency (record_id, job_id, subject, urgency, color, status, weights)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         record_id,
                         None,
                         subject,
                         urgency,
+                        color,
                         record.get("status", "next"),
                         json.dumps(weights),
                     ),

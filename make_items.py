@@ -215,16 +215,16 @@ items = [
     f"* yesterday @d all day event @s {yesterday_date}",
     f"* today @d all day event @s {today_date}",
     f"* tomorrow @d all day event @s {tomorrow_date}",
-    f"~ end of yesterday @d all day task @p 1 @s {yesterday_date}T235959 @f {datetime.now().replace(second=0, microsecond=0)}",
-    f"~ end of today @d all day task @p 2 @s {today_date}T235959",
-    f"* end of tomorrow @d all day event @s {tomorrow_date}T235959",
+    f"~ all day yesterday @d all day task @p 2 @s {yesterday_date}",
+    f"~ all day today @d all day task @p 2 @s {today_date}",
+    f"~ all day tomorrow @d all day event @p 2 @s {tomorrow_date}",
     f"* zero extent float @s {tomorrow_date}T100000 @z none",
     f"* daily date @s {today_date} @d whatever @c wherever @p 5 @r d &i 3 &c 10 @z US/Pacific",
     f"* single date @s {today_date}",
     # f"~ every other date @s {today_date}T000000 @r d &i 2",
     f"* single datetime @s {in_five_days()} @e 2h30m @b 6d",
     f"~ with tags and description @p 3 @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
-    f"* multiple rdatetimes @s {in_ten_minutes()} @e {random.choice(duration)}  @+ {in_one_hour()}, {in_one_day()}",
+    f"* three datetimes @s {in_ten_minutes()} @e 45m  @+ {in_one_hour()}, {in_one_day()}",
     # f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
     # f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
     f"* daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",  # ***
@@ -246,14 +246,18 @@ items = [
     @~ sand &s 3d &e 1h &r 8: 7 
     @~ paint &s 2d &e 2h &r 9: 8
     """,
-    f"~ no due low priority @p 5"
+    "~ no due date and priority one @p 1",
+    "~ no due date and priority two @p 2",
+    "~ no due date and priority three @p 3",
+    "~ no due date and priority four @p 4",
+    "~ no due date and no priority",
+    "~ no due date and priority five @p 5",
     f"^ no prerequisites @s {in_two_weeks()} @b 1w @~ this &r 1 @~ that &r 2",
-    "~ once more when complete @s fri 12a @o 4d",
+    "~ do over when complete @s fri 12a @o 4d",
     "? draft reminder - no checks",
-    "~ someday @p 5",
-    f"~ one date with 3 priority @s {yesterday_date} @p 3",
-    f"~ one date with 2 priority @s {yesterday_date} @p 2",
-    f"~ multiple rdates with 1 priority @s {yesterday_date} @+ {today_date}, {tomorrow_date} @p 1",
+    f"~ one date with priority three @s {yesterday_date} @p 3",
+    f"~ one date with priority two @s {yesterday_date} @p 2",
+    f"~ three dates with priority one @s {yesterday_date} @+ {today_date}, {tomorrow_date} @p 1",
 ]
 
 records = []
