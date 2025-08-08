@@ -223,7 +223,7 @@ items = [
     f"* single date @s {today_date}",
     # f"~ every other date @s {today_date}T000000 @r d &i 2",
     f"* single datetime @s {in_five_days()} @e 2h30m @b 6d",
-    f"~ with tags and description @p 3 @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
+    f"~ due, tags, description, priority one @p 1 @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
     f"* three datetimes @s {in_ten_minutes()} @e 45m  @+ {in_one_hour()}, {in_one_day()}",
     # f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
     # f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***

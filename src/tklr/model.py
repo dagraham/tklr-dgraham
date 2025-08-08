@@ -221,10 +221,13 @@ class UrgencyComputer:
         Returns:
             urgency ∈ [-1.0, 1.0]
         """
-        Wp = 1 + sum(w for w in weights.values() if w > 0)
-        Wn = 1 + sum(abs(w) for w in weights.values() if w < 0)
+        Wp = 0.0 + sum(w for w in weights.values() if w > 0)
 
-        return (Wp - Wn) / (Wn + Wp)
+        Wn = 0.0 + sum(abs(w) for w in weights.values() if w < 0)
+
+        urgency = (Wp - Wn) / (2 + Wn + Wp)
+        log_msg(f"{Wp = }, {Wn = }, {Wp - Wn = }, {Wp + Wn = }, {urgency = }")
+        return urgency
 
     def urgency_due(self, due_seconds: int, now_seconds: int) -> float:
         """
@@ -291,8 +294,9 @@ class UrgencyComputer:
                     * (1 - (now_seconds - modified_seconds) / recent_interval_seconds),
                 ),
             )
-        log_msg(f"returning {recent_contribution = }")
+        log_msg(f"computed {recent_contribution = }")
         return recent_contribution
+        # return 0.0  # FIXME!
 
     def urgency_age(self, modified_seconds: int, now_seconds: int) -> float:
         """
@@ -316,12 +320,12 @@ class UrgencyComputer:
                     age_max * (now_seconds - modified_seconds) / age_interval_seconds,
                 ),
             )
-        log_msg(f"returning {age_contribution = }")
+        log_msg(f"computed {age_contribution = }")
         return age_contribution
 
     def urgency_priority(self, priority_level: int) -> float:
         priority = self.urgency.priority.root.get(str(priority_level), 0.0)
-        log_msg(f"returning {priority = }")
+        log_msg(f"computed {priority = }")
         return priority
 
     def urgency_extent(self, extent_seconds: int) -> float:
@@ -342,7 +346,7 @@ class UrgencyComputer:
                 blocking = max(
                     0.0, min(blocking_max, blocking_max * num_blocking / blocking_count)
                 )
-        log_msg(f"returning {blocking = }")
+        log_msg(f"computed {blocking = }")
         return blocking
 
     def urgency_tags(self, num_tags: int) -> float:
@@ -351,7 +355,7 @@ class UrgencyComputer:
         tags_count = self.urgency.tags.count
         if tags_max and tags_count:
             tags = max(0.0, min(tags_max, tags_max * num_tags / tags_count))
-        log_msg(f"returning {tags = }")
+        log_msg(f"computed {tags = }")
         return tags
 
     def urgency_description(self, has_description: bool) -> float:
@@ -359,7 +363,7 @@ class UrgencyComputer:
         description = 0.0
         if has_description and description_max:
             description = description_max
-        log_msg(f"returning {description = }")
+        log_msg(f"computed {description = }")
         return description
 
     def urgency_project(self, has_project: bool) -> float:
@@ -367,7 +371,7 @@ class UrgencyComputer:
         project = 0.0
         if has_project and project_max:
             project = project_max
-        log_msg(f"returning {project = }")
+        log_msg(f"computed {project = }")
         return project
 
     def from_args_and_weights(self, **kwargs):
