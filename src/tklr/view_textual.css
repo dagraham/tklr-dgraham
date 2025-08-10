@@ -1,14 +1,59 @@
+/* Original screen background */
 Screen {
-    background: #2e2e2e; /* Dark grey  near perfect */
-}
-#table_title, #week_title, #scroll_title, #details_title, #list_title {
-    color: #fff8dc;
-    text-style: bold; /* Make the text bold */
-    text-align: center; /* Center align the text */
-}
-ScrollView {
-    border: none; /* Remove any border or frame */
-    padding: 0; /* Remove padding */
-    margin: 0; /* Remove margin */
+  background: #2e2e2e; /* Dark grey near perfect */
 }
 
+/* Titles */
+#table_title,
+#week_title,
+#scroll_title,
+#details_title,
+#list_title,
+#events_title,
+#tasks_title {
+  color: #cdcdcd;
+  background: #4b4b4b; /* Slightly lighter grey for contrast */
+  text-style: bold; /* Make the text bold */
+  text-align: center; /* Center align the text */
+}
+
+/* Subtle highlight for the active pane's title */
+#events_title.active,
+#tasks_title.active {
+  background: #c3c3c3; /* Slightly lighter grey for contrast */
+  color: #2d2d2d; /* Keep existing text color */
+  text-style: bold;
+}
+
+#agenda-layout {
+  height: 1fr;
+} /* take remaining space, not the whole screen */
+#agenda-layout > #events-pane,
+#agenda-layout > #tasks-pane {
+  height: 1fr;
+} /* split evenly */
+
+/* ScrollableList inherits from ScrollView */
+ScrollView {
+  border: none; /* Remove border/frame */
+  padding: 0; /* Remove padding */
+  margin: 0; /* Remove margin */
+}
+/* Your existing rules… */
+
+.hidden {
+  display: none;
+}
+
+#agenda-search-bar {
+  padding: 0 1;
+}
+#agenda-search-label {
+  min-width: 10;
+  text-style: dim;
+}
+/* CSS backup (not strictly needed when you set styles in code) */
+#agenda-search-input {
+  height: 1;
+  width: 1fr;
+}

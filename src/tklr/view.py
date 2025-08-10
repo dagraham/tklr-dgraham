@@ -2,7 +2,7 @@ import tklr
 
 from importlib.metadata import version
 from .shared import log_msg, display_messages
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from logging import log
 from packaging.version import parse as parse_version
 from rich import box
@@ -28,6 +28,17 @@ import string
 import shutil
 import asyncio
 from tklr.common import get_version
+
+from rich.panel import Panel
+from textual.containers import Container
+from textual.containers import Horizontal
+
+from typing import List, Optional
+from textual.widgets import Button
+
+
+from textual.events import Key
+
 
 # tklr_version = version("tklr")
 tklr_version = get_version()
@@ -171,16 +182,18 @@ def calculate_4_week_start():
 HelpText = f"""\
 [bold][{TITLE_COLOR}]TKLR {VERSION}[/{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
-  [bold]Q[/bold]        Quit etm       [bold]S[/bold]    Take Screenshot
+ [bold]^Q[/bold]       Quit           [bold]^S[/bold]   Screenshot
 [bold][{HEADER_COLOR}]View[/{HEADER_COLOR}][/bold]
-  [bold]W[/bold]        Weeks view     [bold]N[/bold]    Next occurrences 
-  [bold]F[/bold]        Find in items  [bold]L[/bold]    Last occurrences 
+  [bold]A[/bold]        Agenda         [bold]C[/bold]    Completions 
+  [bold]G[/bold]        Goals          [bold]F[/bold]    Find 
+  [bold]N[/bold]        Notes          [bold]P[/bold]    Prior 
+  [bold]W[/bold]        Scheduled      [bold]U[/bold]    Upcoming 
 [bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
-  [bold]/[/bold]        Set search     Empty search clears
+  [bold]/[/bold]        Set search     empty search clears
   [bold]>[/bold]        Next match     [bold]<[/bold]    Previous match
-[bold][{HEADER_COLOR}]Navigation[/{HEADER_COLOR}][/bold]
-  [bold]Left[/bold]     previous week  [bold]up[/bold]   up in the list
-  [bold]Right[/bold]    next week      [bold]down[/bold] down in the list
+[bold][{HEADER_COLOR}]Weeks Navigation[/{HEADER_COLOR}][/bold]
+  [bold]Left[/bold]     previous week  [bold]Up[/bold]   up in the list
+  [bold]Right[/bold]    next week      [bold]Down[/bold] down in the list
   [bold]S+Left[/bold]   prior 4-weeks  [bold]"."[/bold]  center week
   [bold]S+Right[/bold]  next 4-weeks   [bold]" "[/bold]  current 4-weeks 
 
@@ -264,58 +277,281 @@ class SearchableScreen(Screen):
             scrollable_list.refresh()
 
 
-MATCH_COLOR = "yellow"
+# MATCH_COLOR = "yellow"
+
+
+# class ScrollableList(ScrollView):
+#     """A scrollable list widget with a fixed title and search functionality."""
+#
+#     def __init__(self, lines: list[str], **kwargs) -> None:
+#         super().__init__(**kwargs)
+#         width = shutil.get_terminal_size().columns - 3
+#         self.lines = [Text.from_markup(line) for line in lines]
+#         self.virtual_size = Size(width, len(self.lines))
+#         self.console = Console()
+#         self.search_term = None
+#         self.matches = []
+#
+#     def set_search_term(self, search_term: str):
+#         self.clear_search()
+#         self.search_term = search_term.lower() if search_term else None
+#         self.matches = [
+#             i
+#             for i, line in enumerate(self.lines)
+#             if self.search_term and self.search_term in line.plain.lower()
+#         ]
+#         if self.matches:
+#             self.scroll_to(0, self.matches[0])
+#             self.refresh()
+#
+#     def clear_search(self):
+#         self.search_term = None
+#         self.matches = []
+#         self.refresh()
+#
+#     def render_line(self, y: int) -> Strip:
+#         scroll_x, scroll_y = self.scroll_offset
+#         y += scroll_y
+#         if y < 0 or y >= len(self.lines):
+#             return Strip.blank(self.size.width)
+#         line_text = self.lines[y].copy()
+#         if self.search_term and y in self.matches:
+#             line_text.stylize(f"bold {MATCH_COLOR}")
+#         segments = list(line_text.render(self.console))
+#         cropped_segments = Segment.adjust_line_length(
+#             segments, self.size.width, style=None
+#         )
+#         return Strip(cropped_segments, self.size.width)
+#
+#     def update_list(self, new_lines: list[str]) -> None:
+#         self.lines = [Text.from_markup(line) for line in new_lines]
+#         self.virtual_size = Size(
+#             shutil.get_terminal_size().columns - 3, len(self.lines)
+#         )
+#         self.refresh()
+
+
+MATCH_COLOR = "yellow"  # highlight color for matched lines
 
 
 class ScrollableList(ScrollView):
-    """A scrollable list widget with a fixed title and search functionality."""
+    """A scrollable list widget with title-friendly rendering and search.
 
-    def __init__(self, lines: list[str], **kwargs) -> None:
+    Features:
+      - Efficient virtualized rendering (line-by-line).
+      - Simple search with highlight.
+      - Jump to next/previous match.
+      - Easy list updating via `update_list`.
+    """
+
+    def __init__(
+        self, lines: List[str], *, match_color: str = MATCH_COLOR, **kwargs
+    ) -> None:
         super().__init__(**kwargs)
-        width = shutil.get_terminal_size().columns - 3
-        self.lines = [Text.from_markup(line) for line in lines]
-        self.virtual_size = Size(width, len(self.lines))
         self.console = Console()
-        self.search_term = None
-        self.matches = []
+        self.match_color = match_color
 
-    def set_search_term(self, search_term: str):
+        # Backing store
+        self.lines: List[Text] = [Text.from_markup(line) for line in lines]
+
+        # Virtual size: width is terminal width minus small gutter; height = #lines
+        width = shutil.get_terminal_size().columns - 3
+        self.virtual_size = Size(width, len(self.lines))
+
+        # Search state
+        self.search_term: Optional[str] = None
+        self.matches: List[int] = []
+        self.current_match_idx: int = -1
+
+    # ---------- Public API ----------
+
+    def update_list(self, new_lines: List[str]) -> None:
+        """Replace the list content and refresh."""
+        self.lines = [Text.from_markup(line) for line in new_lines]
+        width = shutil.get_terminal_size().columns - 3
+        self.virtual_size = Size(width, len(self.lines))
+        # Clear any existing search (content likely changed)
         self.clear_search()
-        self.search_term = search_term.lower() if search_term else None
-        self.matches = [
-            i
-            for i, line in enumerate(self.lines)
-            if self.search_term and self.search_term in line.plain.lower()
-        ]
-        if self.matches:
-            self.scroll_to(0, self.matches[0])
-            self.refresh()
-
-    def clear_search(self):
-        self.search_term = None
-        self.matches = []
         self.refresh()
 
+    def set_search_term(self, search_term: Optional[str]) -> None:
+        """Apply a new search term, highlight all matches, and jump to the first."""
+        self.clear_search()  # resets matches and index
+        term = (search_term or "").strip().lower()
+        if not term:
+            self.refresh()
+            return
+
+        self.search_term = term
+        self.matches = [
+            i for i, line in enumerate(self.lines) if term in line.plain.lower()
+        ]
+        if self.matches:
+            self.current_match_idx = 0
+            self.scroll_to(0, self.matches[0])
+        self.refresh()
+
+    def clear_search(self) -> None:
+        """Clear current search term and highlights."""
+        self.search_term = None
+        self.matches = []
+        self.current_match_idx = -1
+        self.refresh()
+
+    def jump_next_match(self) -> None:
+        """Jump to the next match (wraps)."""
+        if not self.matches:
+            return
+        self.current_match_idx = (self.current_match_idx + 1) % len(self.matches)
+        self.scroll_to(0, self.matches[self.current_match_idx])
+        self.refresh()
+
+    def jump_prev_match(self) -> None:
+        """Jump to the previous match (wraps)."""
+        if not self.matches:
+            return
+        self.current_match_idx = (self.current_match_idx - 1) % len(self.matches)
+        self.scroll_to(0, self.matches[self.current_match_idx])
+        self.refresh()
+
+    # ---------- Rendering ----------
+
     def render_line(self, y: int) -> Strip:
+        """Render a single virtual line at viewport row y."""
         scroll_x, scroll_y = self.scroll_offset
         y += scroll_y
+
+        # Out of bounds -> blank
         if y < 0 or y >= len(self.lines):
             return Strip.blank(self.size.width)
+
+        # Copy so we can stylize without mutating the source
         line_text = self.lines[y].copy()
+
+        # Highlight if this line is a match
         if self.search_term and y in self.matches:
-            line_text.stylize(f"bold {MATCH_COLOR}")
+            line_text.stylize(f"bold {self.match_color}")
+
         segments = list(line_text.render(self.console))
+        # Fit to width
         cropped_segments = Segment.adjust_line_length(
             segments, self.size.width, style=None
         )
         return Strip(cropped_segments, self.size.width)
 
-    def update_list(self, new_lines: list[str]) -> None:
-        self.lines = [Text.from_markup(line) for line in new_lines]
-        self.virtual_size = Size(
-            shutil.get_terminal_size().columns - 3, len(self.lines)
-        )
-        self.refresh()
+
+class SearchableScreen(Screen):
+    """Base class for screens that support search on a list widget."""
+
+    def get_search_target(self) -> ScrollableList:
+        """Return the ScrollableList to search.
+        Default: a list with id '#list' (keeps WeeksScreen working).
+        Override in subclasses (e.g. AgendaScreen) to choose dynamically.
+        """
+        return self.query_one("#list", ScrollableList)
+
+    def perform_search(self, term: str):
+        """Perform search within the current target list."""
+        try:
+            target = self.get_search_target()
+            target.set_search_term(term)
+            target.refresh()
+        except NoMatches:
+            # Graceful fallback if the list isn't present
+            pass
+        except Exception as e:
+            # Optional: your log_msg(...) here
+            pass
+
+    def clear_search(self):
+        """Clear search highlights from the current target list."""
+        try:
+            target = self.get_search_target()
+            target.clear_search()
+            target.refresh()
+        except NoMatches:
+            pass
+        except Exception:
+            pass
+
+    def scroll_to_next_match(self):
+        """Scroll to the next match in the current target list."""
+        try:
+            target = self.get_search_target()
+            current_y = target.scroll_offset.y
+            next_match = next((i for i in target.matches if i > current_y), None)
+            if next_match is not None:
+                target.scroll_to(0, next_match)
+                target.refresh()
+        except NoMatches:
+            pass
+
+    def scroll_to_previous_match(self):
+        """Scroll to the previous match in the current target list."""
+        try:
+            target = self.get_search_target()
+            current_y = target.scroll_offset.y
+            prev_match = next(
+                (i for i in reversed(target.matches) if i < current_y), None
+            )
+            if prev_match is not None:
+                target.scroll_to(0, prev_match)
+                target.refresh()
+        except NoMatches:
+            pass
+
+
+#
+# SearchableScreen.py (replace your class with this adjusted version)
+
+
+class SearchableScreen(Screen):
+    """Base class for screens that support search on a list widget."""
+
+    def get_search_target(self) -> ScrollableList:
+        """Return the ScrollableList to search.
+        Default: the '#list' widget, so WeeksScreen keeps working.
+        AgendaScreen will override this to point at its active pane.
+        """
+        return self.query_one("#list", ScrollableList)
+
+    def perform_search(self, term: str):
+        try:
+            target = self.get_search_target()
+            target.set_search_term(term)
+            target.refresh()
+        except NoMatches:
+            pass
+
+    def clear_search(self):
+        try:
+            target = self.get_search_target()
+            target.clear_search()
+            target.refresh()
+        except NoMatches:
+            pass
+
+    def scroll_to_next_match(self):
+        try:
+            target = self.get_search_target()
+            y = target.scroll_offset.y
+            nxt = next((i for i in target.matches if i > y), None)
+            if nxt is not None:
+                target.scroll_to(0, nxt)
+                target.refresh()
+        except NoMatches:
+            pass
+
+    def scroll_to_previous_match(self):
+        try:
+            target = self.get_search_target()
+            y = target.scroll_offset.y
+            prv = next((i for i in reversed(target.matches) if i < y), None)
+            if prv is not None:
+                target.scroll_to(0, prv)
+                target.refresh()
+        except NoMatches:
+            pass
 
 
 class WeeksScreen(SearchableScreen):  # instead of Screen
@@ -354,6 +590,95 @@ class WeeksScreen(SearchableScreen):  # instead of Screen
         self.query_one("#table", expect_type=Static).update(table)
         self.query_one("#list_title", expect_type=Static).update(details[0])
         self.query_one("#list", expect_type=ScrollableList).update_list(details[1:])
+
+
+class AgendaScreen(SearchableScreen):  # ← inherit your base
+    BINDINGS = [
+        ("tab", "toggle_pane", "Switch Pane"),
+        ("r", "refresh", "Refresh"),
+        ("A", "refresh", "Agenda"),
+        # Do NOT bind "/" here if your App already handles it globally.
+        # Same for n/N/Esc if the App routes those to the current screen.
+    ]
+
+    def __init__(self, controller, footer: str = ""):
+        super().__init__()
+        self.controller = controller
+        self.footer_text = (
+            footer
+            or "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
+        )
+        self.active_pane = "events"
+        self.events_list: ScrollableList | None = None
+        self.tasks_list: ScrollableList | None = None
+        self.events = {}
+        self.tasks = []
+
+    # ← This is the only thing SearchableScreen needs to work with panes
+    def get_search_target(self) -> ScrollableList:
+        return self.events_list if self.active_pane == "events" else self.tasks_list
+
+    def compose(self) -> ComposeResult:
+        self.events_list = ScrollableList([], id="events")
+        self.tasks_list = ScrollableList([], id="tasks")
+        yield Vertical(
+            Container(
+                Static("Events", id="events_title"), self.events_list, id="events-pane"
+            ),
+            Container(
+                Static("Tasks", id="tasks_title"), self.tasks_list, id="tasks-pane"
+            ),
+            Static(self.footer_text, id="agenda-footer"),
+            id="agenda-layout",
+        )
+
+    def on_mount(self):
+        self.refresh_data()
+        self._activate_pane("events")
+
+    def _activate_pane(self, which: str):
+        self.active_pane = which
+        self.set_focus(self.get_search_target())
+        self.app.view = which  # if you use this for tag→id routing
+        ev = self.query_one("#events_title", Static)
+        tk = self.query_one("#tasks_title", Static)
+        if which == "events":
+            ev.add_class("active")
+            tk.remove_class("active")
+        else:
+            tk.add_class("active")
+            ev.remove_class("active")
+
+    def action_toggle_pane(self):
+        self._activate_pane("tasks" if self.active_pane == "events" else "events")
+
+    def action_refresh(self):
+        self.refresh_data()
+
+    def refresh_data(self):
+        try:
+            self.events = self.controller.get_agenda_events(datetime.now())
+        except TypeError:
+            self.events = self.controller.get_agenda_events()
+        self.tasks = self.controller.get_agenda_tasks()
+        self.update_display()
+
+    def update_display(self):
+        event_lines = []
+        for d, entries in self.events.items():
+            event_lines.append(f"[bold]{d.strftime('%a %b %-d')}[/bold]")
+            for tag, label, subject in entries:
+                entry = f"{label} {subject}" if label and label.strip() else subject
+                event_lines.append(f"{tag} {entry}".rstrip())
+
+        task_lines = []
+        for urgency, color, tag, subject in self.tasks:
+            task_lines.append(
+                f"{tag} [not bold][{color}]{str(round(urgency * 100)):>2}[/{color}] {subject}"
+            )
+
+        self.events_list.update_list(event_lines)
+        self.tasks_list.update_list(task_lines)
 
 
 class FullScreenList(SearchableScreen):
@@ -410,6 +735,7 @@ class DynamicViewApp(App):
         ("right", "next_week", ""),
         ("S", "take_screenshot", "Take Screenshot"),
         ("A", "show_alerts", "Show Alerts"),
+        ("G", "show_agenda", "Show Agenda"),
         ("L", "show_last", "Show Last"),
         ("N", "show_next", "Show Next"),
         ("F", "show_find", "Find"),
@@ -444,12 +770,13 @@ class DynamicViewApp(App):
                 return ["Invalid week"]
 
             # tag_to_id = self.controller.tag_to_id.get(self.selected_week, None)
-        elif self.view in ["next", "last", "find"]:
+        elif self.view in ["next", "last", "find", "events", "tasks"]:
             tag_to_id = self.controller.list_tag_to_id[self.view]
         elif self.view == "alerts":
             tag_to_id = self.controller.list_tag_to_id["alerts"]
         else:
-            return ["Invalid view."]
+            log_msg(f"Invalid view: {self.view}")
+            return [f"Invalid view: {self.view}"]
         num_tags = len(tag_to_id.keys())
         new_afill = 1 if num_tags <= 26 else 2 if num_tags <= 676 else 3
         if new_afill != self.afill:
@@ -502,6 +829,12 @@ class DynamicViewApp(App):
         self.set_afill(details, "action_show_weeks")
         footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
         self.push_screen(WeeksScreen(title, table, list_title, details, footer))
+
+    def action_show_agenda(self):
+        self.view = "events"
+        details = self.controller.get_agenda_events()
+        log_msg(f"opening agenda view, {self.view = }")
+        self.push_screen(AgendaScreen(self.controller))
 
     def action_show_last(self):
         self.view = "last"
@@ -638,6 +971,7 @@ class DynamicViewApp(App):
         self.push_screen(DetailsScreen(HelpText))
 
     def action_show_details(self, tag: str):
+        log_msg(f"{self.view = }")
         details = self.controller.process_tag(tag, self.view, self.selected_week)
         self.push_screen(DetailsScreen(details))
 

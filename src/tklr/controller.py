@@ -70,6 +70,9 @@ KHAKI = "#F0E68C"
 LIGHT_SKY_BLUE = "#87CEFA"
 DARK_GRAY = "#A9A9A9"
 LIME_GREEN = "#32CD32"
+SEA_GREEN = "#2E8B57"
+DARK_OLIVEGREEN = "#556B2F"
+LAWN_GREEN = "#7CFC00"
 SLATE_GREY = "#708090"
 DARK_GREY = "#A9A9A9"  # same as DARK_GRAY
 GOLDENROD = "#DAA520"
@@ -85,6 +88,9 @@ FRAME_COLOR = KHAKI
 HEADER_COLOR = LIGHT_SKY_BLUE
 DIM_COLOR = DARK_GRAY
 EVENT_COLOR = LIME_GREEN
+PASSED_EVENT = DARK_OLIVEGREEN
+ACTIVE_EVENT = LAWN_GREEN
+TASK_COLOR = LIGHT_SKY_BLUE
 AVAILABLE_COLOR = LIGHT_SKY_BLUE
 WAITING_COLOR = SLATE_GREY
 FINISHED_COLOR = DARK_GREY
@@ -455,7 +461,7 @@ class Controller:
         self.env = env
         self.AMPM = env.config.ui.ampm
 
-        for view in ["next", "last", "find", "alerts"]:
+        for view in ["next", "last", "find", "events", "tasks", "alerts"]:
             self.list_tag_to_id.setdefault(view, {})
         self.width = shutil.get_terminal_size()[0] - 2
         self.afill = 1
@@ -469,6 +475,16 @@ class Controller:
             log_msg(
                 f"controller reset afill in {method} from {old_afill} -> {self.afill}"
             )
+
+    def add_tag(self, view: str, indx: int, record_id: int) -> tuple[str, int]:
+        """
+        Using list_tag_to_id,
+        """
+        tag = indx_to_tag(indx, self.afill)
+        # tag_fmt = f"  [dim]{tag} {indx} {record_id} {view}[/dim]  "
+        tag_fmt = f" [dim]{tag}[/dim] "
+        self.list_tag_to_id.setdefault(view, {})[tag] = record_id
+        return tag_fmt, indx + 1
 
         # def get_structured_tokens(self, record_id: int) -> list[str]:
         #     """
@@ -717,7 +733,7 @@ class Controller:
         if view == "week":
             log_msg(f"{self.selected_week = }")
             tag_to_id = self.tag_to_id[selected_week]
-        elif view in ["next", "last", "find"]:
+        elif view in ["next", "last", "find", "events", "tasks"]:
             tag_to_id = self.list_tag_to_id[view]
         elif view == "alerts":
             tag_to_id = self.list_tag_to_id["alerts"]
@@ -1180,7 +1196,7 @@ class Controller:
 
         return dict(grouped)
 
-    def get_agenda_events(self):
+    def get_agenda_events(self, now: datetime = datetime.now()):
         """
         Returns dict: date -> list of (label, subject, record_id)
         """
@@ -1190,43 +1206,78 @@ class Controller:
             self.db_manager.get_beginby_for_events()
         )  # (record_id, days_remaining, subject)
         draft_records = self.db_manager.get_drafts()  # (record_id, subject)
-        now = datetime.now()
+        # now = datetime.now()
         today = now.date()
-
-        events = self.db_manager.get_events_for_period(now, now + timedelta(days=14))
+        now_ts = now.timestamp()
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        events = self.db_manager.get_events_for_period(
+            start, start + timedelta(days=14)
+        )
         # events: (start_ts, end_ts, itemtype, subject, record_id)
         grouped_by_date = self.group_events_by_date_and_time(events)
 
         events_by_date = {}
 
+        indx = 0
+        self.set_afill(events, "get_agenda_events")
+        self.list_tag_to_id.setdefault("events", {})
+
         for date, entries in grouped_by_date.items():
             events_by_date.setdefault(date, [])
             for time, (start_ts, end_ts, subject, record_id) in entries:
+                # tag_fmt, indx = self.add_tag("events", indx, record_id)
                 label = format_time_range(start_ts, end_ts, mode)
-                events_by_date[date].append((label, subject, record_id))
+                if end_ts <= now_ts:
+                    color = PASSED_EVENT
+                elif start_ts <= now_ts:
+                    color = ACTIVE_EVENT
+                else:
+                    color = EVENT_COLOR
+                events_by_date[date].append(
+                    (
+                        record_id,
+                        f"[{color}]{label}[/{color}]" if label.strip() else "",
+                        f"[{color}]{subject}[/{color}]",
+                    )
+                )
 
         if today not in events_by_date:
             events_by_date[today] = []
 
         for record_id, days_remaining, subject in begin_records:
+            # tag_fmt, indx = self.add_tag("events", indx, record_id)
             events_by_date[today].append(
                 (
+                    record_id,
                     f"[{BEGIN_COLOR}]+{days_remaining}⮕ [/{BEGIN_COLOR}]",
                     f"[{BEGIN_COLOR}]{subject}[/{BEGIN_COLOR}]",
-                    record_id,
                 )
             )
 
         for record_id, subject in draft_records:
+            # tag_fmt, indx = self.add_tag("events", indx, record_id)
             events_by_date[today].append(
                 (
+                    record_id,
                     f"[{DRAFT_COLOR}] ? [/{DRAFT_COLOR}]",
                     f"[{DRAFT_COLOR}]{subject}[/{DRAFT_COLOR}]",
-                    record_id,
                 )
             )
 
-        return events_by_date
+        indx = 0
+        indexed_events_by_date = {}
+        for date, records in events_by_date.items():
+            for record_id, label, subject in records:
+                tag_fmt, indx = self.add_tag("events", indx, record_id)
+                indexed_events_by_date.setdefault(date, []).append(
+                    (
+                        tag_fmt,
+                        label,
+                        subject,
+                    )
+                )
+        log_msg(f"{self.list_tag_to_id['events'] = }")
+        return indexed_events_by_date
 
     def get_agenda_tasks(self):
         """
@@ -1236,8 +1287,22 @@ class Controller:
         urgency_records = (
             self.db_manager.get_urgency()
         )  # (record_id, job_id, subject, urgency)
-        for record_id, job_id, subject, urgency, color in urgency_records:
-            tasks_by_urgency.append((urgency, color, subject, record_id, job_id))
 
-        tasks_by_urgency.sort(reverse=True)  # Highest urgency first
+        indx = 0
+        self.set_afill(urgency_records, "get_agenda_tasks")
+        self.list_tag_to_id.setdefault("tasks", {})
+
+        for record_id, job_id, subject, urgency, color in urgency_records:
+            tag_fmt, indx = self.add_tag("tasks", indx, record_id)
+            tasks_by_urgency.append(
+                (
+                    urgency,
+                    color,
+                    tag_fmt,
+                    f"[{TASK_COLOR}]{subject}[/{TASK_COLOR}]",
+                )
+            )
+
+        # tasks_by_urgency.sort(reverse=True)  # Highest urgency first
+        print(f"{self.list_tag_to_id['tasks']}")
         return tasks_by_urgency
