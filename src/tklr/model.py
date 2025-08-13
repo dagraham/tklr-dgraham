@@ -407,6 +407,7 @@ class DatabaseManager:
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
         self.conn.create_function("REGEXP", 2, regexp)
+        self.conn.create_function("REGEXP", 2, regexp)
         self.setup_database()
         self.compute_urgency = UrgencyComputer(env)
 
@@ -491,6 +492,16 @@ class DatabaseManager:
             CREATE TABLE IF NOT EXISTS Tags (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE
+            );
+        """)
+
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS RecordTags (
+                record_id INTEGER NOT NULL,
+                tag_id INTEGER NOT NULL,
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES Tags(id) ON DELETE CASCADE,
+                PRIMARY KEY (record_id, tag_id)
             );
         """)
 

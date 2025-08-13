@@ -207,9 +207,12 @@ details of the item and access related commands.
 
 
 class DetailsHelpScreen(ModalScreen[None]):
-    BINDINGS = [("escape", "app.pop_screen", "Close")]
+    BINDINGS = [
+        ("escape", "app.pop_screen", "Close"),
+        ("ctrl+q", "app.quit", "Quit"),
+    ]
 
-    def __init__(self, text: str, title: str = "Details – Help"):
+    def __init__(self, text: str, title: str = "Item Commands"):
         super().__init__()
         self._title = title
         self._text = text
@@ -274,7 +277,7 @@ class DetailsScreen(ModalScreen[None]):
         if showing_help:
             self.footer_content = f"[bold {FOOTER}]esc[/bold {FOOTER}] Back"
         else:
-            self.footer_content = f"[bold {FOOTER}]esc[/bold {FOOTER}] Back  [bold {FOOTER}]?[/bold {FOOTER}] Help"
+            self.footer_content = f"[bold {FOOTER}]esc[/bold {FOOTER}] Back  [bold {FOOTER}]?[/bold {FOOTER}] Item Commands"
 
         # meta / flags (populated on_mount)
         self.record_id: Optional[int] = None
@@ -386,8 +389,7 @@ class DetailsScreen(ModalScreen[None]):
     def _finish_task(self) -> None:
         if not self.is_task or self.record_id is None:
             return
-        # e.g. self.app.controller.finish_task(self.record_id)
-        pass
+        self.app.controller.finish_current_instance(self.record_id)
 
     def _toggle_pinned(self) -> None:
         if not self.is_task or self.record_id is None:
@@ -454,6 +456,7 @@ class DetailsScreen(ModalScreen[None]):
         right += [""] * (m - len(right))
 
         lines = [
+            f"[bold {GOLD}]{self.title_text}[/bold {GOLD}]",
             "",
         ]
         for l, r in zip(left, right):

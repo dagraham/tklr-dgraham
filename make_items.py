@@ -29,6 +29,13 @@ def in_ten_minutes():
     return next.strftime("%Y%m%dT%H%M%S")
 
 
+def one_hour_ago():
+    now = datetime.now().replace(second=0, microsecond=0)
+    delta_minutes = 60 + (15 - now.minute % 15)
+    next = now - timedelta(minutes=delta_minutes)
+    return next.strftime("%Y%m%dT%H%M%S")
+
+
 def in_one_hour():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
@@ -227,7 +234,7 @@ items = [
     f"* three datetimes @s {in_ten_minutes()} @e 45m  @+ {in_one_hour()}, {in_one_day()}",
     # f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
     # f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
-    f"* daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",  # ***
+    f"~ daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",  # ***
     f"""% long formatted description @s {yesterday_date} 
     @d Title 
     1. This 
@@ -252,6 +259,7 @@ items = [
     "~ no due date and priority four @p 4",
     "~ no due date and no priority",
     "~ no due date and priority five @p 5",
+    f"~ finished one hour ago @s {in_one_hour()} @f {one_hour_ago()}",
     f"^ no prerequisites @s {in_two_weeks()} @b 1w @~ this &r 1 @~ that &r 2",
     "~ do over when complete @s fri 12a @o 4d",
     "? draft reminder - no checks",

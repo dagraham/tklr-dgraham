@@ -1,3 +1,4 @@
+from __future__ import annotations
 from packaging.version import parse as parse_version
 from importlib.metadata import version
 
@@ -18,7 +19,7 @@ import re
 import inspect
 from rich.theme import Theme
 from rich import box
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Optional, Dict, Any
 from bisect import bisect_left, bisect_right
 
 import string
@@ -27,9 +28,10 @@ import subprocess
 import shlex
 import textwrap
 
-# import json
-from typing import Literal
 
+import json
+from typing import Literal
+from .item import Item
 from .model import DatabaseManager, UrgencyComputer
 from .list_colors import css_named_colors
 
@@ -141,6 +143,20 @@ TYPE_TO_COLOR = {
     "!": GOAL_COLOR,  # draft
     "?": DRAFT_COLOR,  # draft
 }
+
+
+def _ensure_tokens_list(value):
+    """Return a list[dict] for structured_tokens whether DB returned JSON str or already-parsed list."""
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    if isinstance(value, (bytes, bytearray)):
+        value = value.decode("utf-8")
+    if isinstance(value, str):
+        return json.loads(value)
+    # last resort: try to coerce
+    return list(value)
 
 
 def format_tokens(tokens, width):
@@ -448,6 +464,9 @@ def get_busy_bar(events):
     aday_str = f"[{BUSY_COLOR}]{ADAY}[/{BUSY_COLOR}]" if allday > 0 else ""
 
     return aday_str, busy_str
+
+
+##
 
 
 class Controller:
@@ -1330,47 +1349,6 @@ class Controller:
 
     def get_agenda_tasks(self):
         """
-        Returns list of (urgency, subject, record_id, job_id)
-        """
-        tasks_by_urgency = []
-        urgency_records = (
-            self.db_manager.get_urgency()
-        )  # (record_id, job_id, subject, urgency)
-
-        indx = 0
-        self.set_afill(urgency_records, "get_agenda_tasks")
-        self.list_tag_to_id.setdefault("tasks", {})
-
-        for (
-            record_id,
-            job_id,
-            subject,
-            urgency,
-            color,
-            status,
-            weights,
-            pinned,
-        ) in urgency_records:
-            tag_fmt, indx = self.add_tag("tasks", indx, record_id)
-            if pinned:
-                urgency_str = "📌"
-            else:
-                urgency_str = f"[{color}]{str(round(urgency * 100)):>2}[/{color}]"
-            tasks_by_urgency.append(
-                (
-                    urgency_str,
-                    color,
-                    tag_fmt,
-                    f"[{TASK_COLOR}]{subject}[/{TASK_COLOR}]",
-                )
-            )
-
-        # tasks_by_urgency.sort(reverse=True)  # Highest urgency first
-        print(f"{self.list_tag_to_id['tasks']}")
-        return tasks_by_urgency
-
-    def get_agenda_tasks(self):
-        """
         Returns list of (urgency_str_or_pin, color, tag_fmt, colored_subject)
         Suitable for the Agenda Tasks pane.
         """
@@ -1408,3 +1386,74 @@ class Controller:
             )
 
         return tasks_by_urgency
+
+    def finish_current_instance(
+        self,
+        record_id: int,
+        completed_dt: datetime | None = None,
+        *,
+        history_weight: int | None = None,
+    ) -> dict:
+        """
+        Finish the current occurrence of a task and advance its schedule (if any).
+
+        - Rebuilds Item from stored structured_tokens.
+        - Calls Item.finish(...) to adjust @s/@r/@+/@- (and rruleset/jobs).
+        - Persists the mutated Item via db_manager.update_item(...).
+        - Inserts a row in Completions (due_ts from Item.finish, completed_ts from now/provided).
+        - Refreshes derived tables (urgency, alerts, etc.).
+        """
+        completed_dt = completed_dt or datetime.utcnow()
+
+        row = self.db_manager.get_record(record_id)
+        if not row:
+            raise ValueError(f"No record found for id {record_id}")
+
+        # Records row layout (adjust indexes if yours differ):
+        # 0 id, 1 itemtype, 2 subject, 3 description, 4 rruleset,
+        # 5 timezone, 6 extent, 7 alerts, 8 beginby, 9 context,
+        # 10 jobs, 11 tags, 12 priority, 13 structured_tokens, 14 processed,
+        # 15 created, 16 modified
+        structured_tokens_value = row[13]
+
+        tokens = _ensure_tokens_list(structured_tokens_value)
+
+        # Rebuild input line for Item and parse
+        entry_str = "".join(tok.get("token", "") for tok in tokens).strip()
+        item = Item(entry_str)
+        if not item.parse_ok:
+            raise ValueError(
+                f"Item.parse failed for record {record_id}: {item.parse_message}"
+            )
+
+        # Let Item.finish do all the schedule/token updates
+        if history_weight is None:
+            # fall back to config if present, else a small default
+            history_weight = getattr(self.env.config.ui, "history_weight", 3)
+
+        fin = item.finish(completed_dt, history_weight=history_weight)
+        # fin.due_ts (int|None), fin.final (bool), and item now mutated
+
+        # Persist the mutated Item (tokens, rruleset, jobs, etc.)
+        self.db_manager.update_item(record_id, item)
+
+        # Record completion (even if due_ts is None for one-shot tasks)
+        self.db_manager.insert_completion(
+            record_id=record_id,
+            due_ts=fin.due_ts,
+            completed_ts=int(completed_dt.timestamp()),
+        )
+
+        # Refresh derived tables so UI re-sorts immediately
+        try:
+            self.db_manager.populate_dependent_tables()
+        except AttributeError:
+            pass
+
+        return {
+            "record_id": record_id,
+            "final": fin.final,
+            "due_ts": fin.due_ts,  # may be None
+            "completed_ts": int(completed_dt.timestamp()),
+            "new_rruleset": item.rruleset or "",
+        }
