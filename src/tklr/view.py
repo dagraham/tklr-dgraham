@@ -180,7 +180,7 @@ def calculate_4_week_start():
 HelpText = f"""\
 [bold][{TITLE_COLOR}]TKLR {VERSION}[/{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
-[bold]^Q[/bold]       Quit            [bold]^S[/bold]    Screenshot
+[bold]^Q[/bold]        Quit           [bold]^S[/bold]    Screenshot
 [bold][{HEADER_COLOR}]View[/{HEADER_COLOR}][/bold]
  [bold]A[/bold]        Agenda          [bold]R[/bold]    Remaining Alerts 
  [bold]G[/bold]        Goals           [bold]F[/bold]    Find 
@@ -196,16 +196,13 @@ HelpText = f"""\
  [bold]S+Right[/bold]  next 4-weeks    [bold]" "[/bold]  current 4-weeks 
 [bold][{HEADER_COLOR}]Agenda Navigation[/{HEADER_COLOR}][/bold]
  [bold]tab[/bold]      switch between events and tasks 
-[bold][{HEADER_COLOR}]Tags[/{HEADER_COLOR}][/bold] 
-Each of the main views displays a list of items,
-with each item beginning with an alphabetic tag
-that can be used to display the details of the 
-item. E.g., to see the details of the item 
-tagged 'a', simply press 'a' on the keyboard. 
-These tags are sequentially generated from 'a', 
-'b', ..., 'z', 'ba', 'bb', and so forth. Just 
-press the corresponding key for each character
-in the tag.
+[bold][{HEADER_COLOR}]Tags and Item Details[/{HEADER_COLOR}][/bold] 
+Each of the views listed above displays a list 
+of items. In these listings, each item begins 
+with a tag sequentially generated from 'a', 'b',
+..., 'z', 'ba', 'bb' and so forth. Press the 
+keys of the tag on your keyboard to see the
+details of the item and access related commands. 
 """.splitlines()
 
 
