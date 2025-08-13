@@ -1,3 +1,4 @@
+from __future__ import annotations
 import tklr
 
 from importlib.metadata import version
@@ -33,7 +34,7 @@ from rich.panel import Panel
 from textual.containers import Container
 from textual.containers import Horizontal
 
-from typing import List, Optional
+from typing import List, Optional, Any, Iterable
 from textual.widgets import Button
 
 
@@ -42,7 +43,6 @@ from textual.events import Key
 
 # tklr_version = version("tklr")
 tklr_version = get_version()
-# from textual.errors import NoMatches
 
 # Color hex values for readability (formerly from prompt_toolkit.styles.named_colors)
 LEMON_CHIFFON = "#FFFACD"
@@ -58,6 +58,7 @@ GOLD = "#FFD700"
 ORANGE_RED = "#FF4500"
 TOMATO = "#FF6347"
 CORNSILK = "#FFF8DC"
+FOOTER = "#FF8C00"
 
 # App version
 VERSION = parse_version(tklr_version)
@@ -77,8 +78,9 @@ PASTDUE_COLOR = DARK_ORANGE
 BEGIN_COLOR = GOLD
 DRAFT_COLOR = ORANGE_RED
 TODAY_COLOR = TOMATO
-SELECTED_BACKGROUND = "#566573"
-MATCH_COLOR = TOMATO
+# SELECTED_BACKGROUND = "#566573"
+SELECTED_BACKGROUND = "#dcdcdc"
+MATCH_COLOR = GOLD
 TITLE_COLOR = CORNSILK
 
 # This one appears to be a Rich/Textual style string
@@ -107,7 +109,6 @@ def format_date_range(start_dt: datetime, end_dt: datetime):
     """
     same_year = start_dt.year == end_dt.year
     same_month = start_dt.month == end_dt.month
-    # same_day = start_dt.day == end_dt.day
     if same_year and same_month:
         return f"{start_dt.strftime('%B %-d')} - {end_dt.strftime('%-d, %Y')}"
     elif same_year and not same_month:
@@ -171,9 +172,6 @@ def calculate_4_week_start():
     """
     today = datetime.now()
     iso_year, iso_week, iso_weekday = today.isocalendar()
-    # start_of_week = datetime.strptime(
-    #     " ".join(map(str, [iso_year, iso_week, 1])), "%G %V %u"
-    # )
     start_of_week = today - timedelta(days=iso_weekday - 1)
     weeks_into_cycle = (iso_week - 1) % 4
     return start_of_week - timedelta(weeks=weeks_into_cycle)
@@ -182,156 +180,307 @@ def calculate_4_week_start():
 HelpText = f"""\
 [bold][{TITLE_COLOR}]TKLR {VERSION}[/{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
- [bold]^Q[/bold]       Quit           [bold]^S[/bold]   Screenshot
+[bold]^Q[/bold]       Quit            [bold]^S[/bold]    Screenshot
 [bold][{HEADER_COLOR}]View[/{HEADER_COLOR}][/bold]
-  [bold]A[/bold]        Agenda         [bold]C[/bold]    Completions 
-  [bold]G[/bold]        Goals          [bold]F[/bold]    Find 
-  [bold]N[/bold]        Notes          [bold]P[/bold]    Prior 
-  [bold]W[/bold]        Scheduled      [bold]U[/bold]    Upcoming 
+ [bold]A[/bold]        Agenda          [bold]C[/bold]    Completions 
+ [bold]G[/bold]        Goals           [bold]F[/bold]    Find 
+ [bold]N[/bold]        Notes           [bold]P[/bold]    Prior 
+ [bold]W[/bold]        Scheduled       [bold]U[/bold]    Upcoming 
 [bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
-  [bold]/[/bold]        Set search     empty search clears
-  [bold]>[/bold]        Next match     [bold]<[/bold]    Previous match
+ [bold]/[/bold]        Set search      empty search clears
+ [bold]>[/bold]        Next match      [bold]<[/bold]    Previous match
 [bold][{HEADER_COLOR}]Weeks Navigation[/{HEADER_COLOR}][/bold]
-  [bold]Left[/bold]     previous week  [bold]Up[/bold]   up in the list
-  [bold]Right[/bold]    next week      [bold]Down[/bold] down in the list
-  [bold]S+Left[/bold]   prior 4-weeks  [bold]"."[/bold]  center week
-  [bold]S+Right[/bold]  next 4-weeks   [bold]" "[/bold]  current 4-weeks 
-
-[bold][{HEADER_COLOR}]Tags[/{HEADER_COLOR}][/bold] \ 
-Each of the main views displays a list of items, with each item \
-beginning with an alphabetic tag that can be used to display the \
-details of the item. E.g., to see the details of the item tagged \
-'a', simply press 'a' on the keyboard. These tags are sequentially \
-generated from 'a', 'b', ..., 'z', 'ba', 'bb', and so forth. Just \
-press the corresponding key for each character in the tag. 
+ [bold]Left[/bold]     previous week   [bold]Up[/bold]   up in the list
+ [bold]Right[/bold]    next week       [bold]Down[/bold] down in the list
+ [bold]S+Left[/bold]   prior 4-weeks   [bold]"."[/bold]  center week
+ [bold]S+Right[/bold]  next 4-weeks    [bold]" "[/bold]  current 4-weeks 
+[bold][{HEADER_COLOR}]Agenda Navigation[/{HEADER_COLOR}][/bold]
+ [bold]tab[/bold]      switch between events and tasks 
+[bold][{HEADER_COLOR}]Tags[/{HEADER_COLOR}][/bold] 
+Each of the main views displays a list of items,
+with each item beginning with an alphabetic tag
+that can be used to display the details of the 
+item. E.g., to see the details of the item 
+tagged 'a', simply press 'a' on the keyboard. 
+These tags are sequentially generated from 'a', 
+'b', ..., 'z', 'ba', 'bb', and so forth. Just 
+press the corresponding key for each character
+in the tag.
 """.splitlines()
 
 
-class DetailsScreen(Screen):
-    """A temporary details screen."""
+class DetailsHelpScreen(ModalScreen[None]):
+    BINDINGS = [("escape", "app.pop_screen", "Close")]
 
-    # log_msg(f"DetailsScreen: {HelpText = }")
-
-    def __init__(self, details: str):
+    def __init__(self, text: str, title: str = "Details – Help"):
         super().__init__()
-        self.title = details[0]
-        self.lines = details[1:]
-        self.footer = [
-            "",
-            "[bold yellow]ESC[/bold yellow] return to previous screen",
-        ]
+        self._title = title
+        self._text = text
 
     def compose(self) -> ComposeResult:
-        yield Static(self.title, id="details_title", classes="title-class")
-        yield Static("\n".join(self.lines), expand=True, id="details_text")
-        yield Static("\n".join(self.footer), id="custom_footer")
-
-    def on_key(self, event):
-        if event.key == "escape":
-            self.app.pop_screen()
-
-
-class SearchableScreen(Screen):
-    """Base class for screens that support search."""
-
-    def perform_search(self, term: str):
-        """Perform search within the screen if it has a ScrollableList with id 'list'."""
-        try:
-            scrollable_list = self.query_one("#list", ScrollableList)
-            scrollable_list.set_search_term(term)
-            scrollable_list.refresh()
-        except NoMatches:
-            log_msg(
-                f"[SearchableScreen] No #list found in {self.id or self.__class__.__name__}"
-            )
-        except Exception as e:
-            log_msg(f"[SearchableScreen] Error during search: {e}")
-
-    def clear_search(self):
-        """Clear search highlights from the ScrollableList if it exists."""
-        try:
-            scrollable_list = self.query_one("#list", ScrollableList)
-            scrollable_list.clear_search()
-            scrollable_list.refresh()
-        except NoMatches:
-            log_msg(f"[SearchableScreen] No #list found to clear.")
-        except Exception as e:
-            log_msg(f"[SearchableScreen] Error clearing search: {e}")
-
-    def scroll_to_next_match(self):
-        scrollable_list = self.query_one("#list", ScrollableList)
-        current_y = scrollable_list.scroll_offset.y
-        next_match = next((i for i in scrollable_list.matches if i > current_y), None)
-        if next_match is not None:
-            scrollable_list.scroll_to(0, next_match)
-            scrollable_list.refresh()
-
-    def scroll_to_previous_match(self):
-        scrollable_list = self.query_one("#list", ScrollableList)
-        current_y = scrollable_list.scroll_offset.y
-        prev_match = next(
-            (i for i in reversed(scrollable_list.matches) if i < current_y), None
+        yield Vertical(
+            Static(self._title, id="details_title", classes="title-class"),
+            Static(self._text, expand=True, id="details_text"),
         )
-        if prev_match is not None:
-            scrollable_list.scroll_to(0, prev_match)
-            scrollable_list.refresh()
+        yield Footer()
 
 
-# MATCH_COLOR = "yellow"
+class HelpModal(ModalScreen[None]):
+    """Scrollable help overlay."""
+
+    BINDINGS = [
+        ("escape", "dismiss", "Close"),
+        ("q", "dismiss", "Close"),
+    ]
+
+    def __init__(self, title: str, lines: list[str] | str):
+        super().__init__()
+        self._title = title
+        self._body = lines if isinstance(lines, str) else "\n".join(lines)
+
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Static(self._title, id="details_title", classes="title-class"),
+            ScrollView(
+                Static(Text.from_markup(self._body), id="help_body"), id="help_scroll"
+            ),
+            Footer(),  # your normal footer style
+            id="help_layout",
+        )
+
+    def on_mount(self) -> None:
+        self.set_focus(self.query_one("#help_scroll", ScrollView))
+
+    def action_dismiss(self) -> None:
+        self.app.pop_screen()
 
 
-# class ScrollableList(ScrollView):
-#     """A scrollable list widget with a fixed title and search functionality."""
-#
-#     def __init__(self, lines: list[str], **kwargs) -> None:
-#         super().__init__(**kwargs)
-#         width = shutil.get_terminal_size().columns - 3
-#         self.lines = [Text.from_markup(line) for line in lines]
-#         self.virtual_size = Size(width, len(self.lines))
-#         self.console = Console()
-#         self.search_term = None
-#         self.matches = []
-#
-#     def set_search_term(self, search_term: str):
-#         self.clear_search()
-#         self.search_term = search_term.lower() if search_term else None
-#         self.matches = [
-#             i
-#             for i, line in enumerate(self.lines)
-#             if self.search_term and self.search_term in line.plain.lower()
-#         ]
-#         if self.matches:
-#             self.scroll_to(0, self.matches[0])
-#             self.refresh()
-#
-#     def clear_search(self):
-#         self.search_term = None
-#         self.matches = []
-#         self.refresh()
-#
-#     def render_line(self, y: int) -> Strip:
-#         scroll_x, scroll_y = self.scroll_offset
-#         y += scroll_y
-#         if y < 0 or y >= len(self.lines):
-#             return Strip.blank(self.size.width)
-#         line_text = self.lines[y].copy()
-#         if self.search_term and y in self.matches:
-#             line_text.stylize(f"bold {MATCH_COLOR}")
-#         segments = list(line_text.render(self.console))
-#         cropped_segments = Segment.adjust_line_length(
-#             segments, self.size.width, style=None
-#         )
-#         return Strip(cropped_segments, self.size.width)
-#
-#     def update_list(self, new_lines: list[str]) -> None:
-#         self.lines = [Text.from_markup(line) for line in new_lines]
-#         self.virtual_size = Size(
-#             shutil.get_terminal_size().columns - 3, len(self.lines)
-#         )
-#         self.refresh()
+class DetailsScreen(ModalScreen[None]):
+    """
+    Context-aware details viewer (tuple-based meta).
+    - `details`: list[str] from controller.process_tag(); details[0] is the title.
+    - Meta is pulled from controller.get_last_details_meta() on mount.
+    """
+
+    BINDINGS = [
+        ("escape", "close", "Back"),
+        ("?", "show_help", "Help"),
+        # (all your other bindings with show=False if you want the Footer to only show "? Help")
+    ]
+
+    def __init__(self, details: Iterable[str], showing_help: bool = False):
+        super().__init__()
+        dl = list(details)
+        self.title_text: str = dl[0] if dl else "<Details>"
+        self.lines: list[str] = dl[1:] if len(dl) > 1 else []
+        if showing_help:
+            self.footer_content = f"[bold {FOOTER}]esc[/bold {FOOTER}] Back"
+        else:
+            self.footer_content = f"[bold {FOOTER}]esc[/bold {FOOTER}] Back  [bold {FOOTER}]?[/bold {FOOTER}] Help"
+
+        # meta / flags (populated on_mount)
+        self.record_id: Optional[int] = None
+        self.itemtype: str = ""  # "~" task, "*" event, etc.
+        self.is_task: bool = False
+        self.is_event: bool = False
+        self.is_recurring: bool = False  # from rruleset truthiness
+        self.is_pinned: bool = False  # task-only
+        self.record: Any = None  # original tuple if you need it
+
+    # ---------- helpers ---------
+    def _base_title(self) -> str:
+        # Strip any existing pin and return the plain title
+        return self.title_text.removeprefix("📌 ").strip()
+
+    def _apply_pin_glyph(self) -> None:
+        base = self._base_title()
+        if self.is_task and self.is_pinned:
+            self.title_text = f"📌 {base}"
+        else:
+            self.title_text = base
+        self.query_one("#details_title", Static).update(self.title_text)
+
+    # ---------- layout ----------
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Static(self.title_text, id="details_title", classes="title-class"),
+            Static("\n".join(self.lines), expand=True, id="details_text"),
+            # Static(self.footer_content),
+        )
+        yield (Static(self.footer_content))
+        # yield Footer()
+
+    # ---------- lifecycle ----------
+    def on_mount(self) -> None:
+        meta = self.app.controller.get_last_details_meta() or {}
+        log_msg(f"{meta = }")
+        self.record_id = meta.get("record_id")
+        self.itemtype = meta.get("itemtype") or ""
+        self.is_task = self.itemtype == "~"
+        self.is_event = self.itemtype == "*"
+        self.is_recurring = bool(meta.get("rruleset"))
+        self.is_pinned = bool(meta.get("pinned")) if self.is_task else False
+        self.record = meta.get("record")
+        self._apply_pin_glyph()  # ← show 📌 if needed
+
+    # ---------- actions (footer bindings) ----------
+    def action_close(self) -> None:
+        self.app.pop_screen()
+
+    def action_show_help(self) -> None:
+        self.app.push_screen(DetailsHelpScreen(self._build_help_text()))
+
+    # ---------- key handling for detail commands ----------
+    def on_key(self, event) -> None:
+        k = (event.key or "").lower()
+
+        if k == "e":  # Edit
+            self._edit_item()
+            return
+        if k == "c":  # Edit Copy
+            self._copy_item()
+            return
+        if k == "d":  # Delete (scope depends on recurrence)
+            self._delete_item()
+            return
+        if k == "f" and self.is_task:  # Finish task
+            self._finish_task()
+            return
+        if k == "p":  # Toggle pinned (task-only; no-op otherwise)
+            self._toggle_pinned()
+            return
+        if k == "s":  # Schedule new
+            self._schedule_new()
+            return
+        if k == "r":  # Reschedule
+            self._reschedule()
+            return
+        if k == "t":  # Touch (update modified)
+            self._touch_item()
+            return
+
+        # ctrl bindings
+        if event.key == "ctrl+r" and self.is_recurring:
+            self._show_repetitions()
+            return
+        # if event.key == "ctrl+c" and self.is_task:
+        #     self._show_completions()
+        #     return
+
+    # ---------- wire these to your controller ----------
+    def _edit_item(self) -> None:
+        # e.g. self.app.controller.edit_record(self.record_id)
+        pass
+
+    def _copy_item(self) -> None:
+        # e.g. self.app.controller.copy_record(self.record_id)
+        pass
+
+    def _delete_item(self) -> None:
+        # e.g. self.app.controller.delete_record(self.record_id, scope=...)
+        pass
+
+    def _finish_task(self) -> None:
+        if not self.is_task or self.record_id is None:
+            return
+        # e.g. self.app.controller.finish_task(self.record_id)
+        pass
+
+    def _toggle_pinned(self) -> None:
+        if not self.is_task or self.record_id is None:
+            return
+        new_state = self.app.controller.toggle_pin(self.record_id)
+        self.is_pinned = bool(new_state)
+        self.app.notify("Pinned" if self.is_pinned else "Unpinned", timeout=1.2)
+
+        self._apply_pin_glyph()  # ← update title immediately
+
+        # Optional: refresh Agenda if present so list order updates
+        for scr in getattr(self.app, "screen_stack", []):
+            if scr.__class__.__name__ == "AgendaScreen" and hasattr(
+                scr, "refresh_data"
+            ):
+                scr.refresh_data()
+                break
+
+    def _schedule_new(self) -> None:
+        # e.g. self.app.controller.schedule_new(self.record_id)
+        pass
+
+    def _reschedule(self) -> None:
+        # e.g. self.app.controller.reschedule(self.record_id)
+        pass
+
+    def _touch_item(self) -> None:
+        # e.g. self.app.controller.touch_record(self.record_id)
+        pass
+
+    def _show_repetitions(self) -> None:
+        if not self.is_recurring or self.record_id is None:
+            return
+        # e.g. rows = self.app.controller.list_repetitions(self.record_id)
+        pass
+
+    # def _show_completions(self) -> None:
+    #     if not self.is_task or self.record_id is None:
+    #         return
+    #     # e.g. rows = self.app.controller.list_completions(self.record_id)
+    #     pass
+
+    # ---------- contextual help ----------
+    def _build_help_text(self) -> str:
+        left, right = [], []
+
+        left.append("[bold] E[/bold] Edit")
+        left.append("[bold] C[/bold] Edit Copy")
+        left.append("[bold] D[/bold] Delete")
+
+        right.append("[bold] R[/bold] Reschedule")
+        right.append("[bold] S[/bold] Schedule New")
+        right.append("[bold] T[/bold] Touch")
+
+        if self.is_task:
+            left.append("[bold] F[/bold] Finish")
+            right.append("[bold] P[/bold] Toggle Pinned ")
+        if self.is_recurring:
+            left.append("[bold]^R[/bold] Repetitions")
+
+        # balance columns
+        m = max(len(left), len(right))
+        left += [""] * (m - len(left))
+        right += [""] * (m - len(right))
+
+        lines = [
+            "",
+        ]
+        for l, r in zip(left, right):
+            lines.append(f"{l:<32} {r}" if r else l)
+        return "\n".join(lines)
 
 
-MATCH_COLOR = "yellow"  # highlight color for matched lines
+class HelpScreen(Screen):
+    BINDINGS = [("escape", "app.pop_screen", "Back")]
+
+    def __init__(self, lines: list[str], footer: str = ""):
+        super().__init__()
+        self._title = lines[0]
+        self._lines = lines[1:]
+        self._footer = footer or f"[bold {FOOTER}]esc[/bold {FOOTER}] Back"
+
+    def compose(self):
+        yield Vertical(
+            Static(self._title, id="details_title", classes="title-class"),
+            ScrollableList(self._lines, id="help_list"),
+            Static(self._footer, id="custom_footer"),
+            id="help_layout",
+        )
+
+    def on_mount(self):
+        # Make sure it fills the screen; no popup sizing/margins.
+        self.styles.width = "100%"
+        self.styles.height = "100%"
+        self.query_one("#help_layout").styles.height = "100%"
+        self.query_one("#help_list", ScrollableList).styles.height = "1fr"
 
 
 class ScrollableList(ScrollView):
@@ -445,71 +594,6 @@ class SearchableScreen(Screen):
 
     def get_search_target(self) -> ScrollableList:
         """Return the ScrollableList to search.
-        Default: a list with id '#list' (keeps WeeksScreen working).
-        Override in subclasses (e.g. AgendaScreen) to choose dynamically.
-        """
-        return self.query_one("#list", ScrollableList)
-
-    def perform_search(self, term: str):
-        """Perform search within the current target list."""
-        try:
-            target = self.get_search_target()
-            target.set_search_term(term)
-            target.refresh()
-        except NoMatches:
-            # Graceful fallback if the list isn't present
-            pass
-        except Exception as e:
-            # Optional: your log_msg(...) here
-            pass
-
-    def clear_search(self):
-        """Clear search highlights from the current target list."""
-        try:
-            target = self.get_search_target()
-            target.clear_search()
-            target.refresh()
-        except NoMatches:
-            pass
-        except Exception:
-            pass
-
-    def scroll_to_next_match(self):
-        """Scroll to the next match in the current target list."""
-        try:
-            target = self.get_search_target()
-            current_y = target.scroll_offset.y
-            next_match = next((i for i in target.matches if i > current_y), None)
-            if next_match is not None:
-                target.scroll_to(0, next_match)
-                target.refresh()
-        except NoMatches:
-            pass
-
-    def scroll_to_previous_match(self):
-        """Scroll to the previous match in the current target list."""
-        try:
-            target = self.get_search_target()
-            current_y = target.scroll_offset.y
-            prev_match = next(
-                (i for i in reversed(target.matches) if i < current_y), None
-            )
-            if prev_match is not None:
-                target.scroll_to(0, prev_match)
-                target.refresh()
-        except NoMatches:
-            pass
-
-
-#
-# SearchableScreen.py (replace your class with this adjusted version)
-
-
-class SearchableScreen(Screen):
-    """Base class for screens that support search on a list widget."""
-
-    def get_search_target(self) -> ScrollableList:
-        """Return the ScrollableList to search.
         Default: the '#list' widget, so WeeksScreen keeps working.
         AgendaScreen will override this to point at its active pane.
         """
@@ -561,14 +645,14 @@ class WeeksScreen(SearchableScreen):  # instead of Screen
         table: str,
         list_title: str,
         details: list[str],
-        footer_content: str = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search",
+        footer_content: str,
     ):
         super().__init__()
         self.table_title = title
         self.table = table
         self.list_title = list_title
         self.details = details
-        self.footer_content = footer_content
+        self.footer_content = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
 
     async def on_mount(self) -> None:
         self.update_table_and_list()
@@ -580,7 +664,8 @@ class WeeksScreen(SearchableScreen):  # instead of Screen
         yield Static(self.table or "[i]No data[/i]", id="table", classes="weeks-table")
         yield Static(self.list_title, id="list_title", classes="title-class")
         yield ScrollableList(self.details, id="list")
-        yield Static(self.footer_content, id="custom_footer")
+        # yield Static(self.footer_content, id="details_footer")
+        yield Static(self.footer_content)
 
     def update_table_and_list(self):
         title, table, details = self.app.controller.get_table_and_list(
@@ -604,15 +689,17 @@ class AgendaScreen(SearchableScreen):  # ← inherit your base
     def __init__(self, controller, footer: str = ""):
         super().__init__()
         self.controller = controller
-        self.footer_text = (
-            footer
-            or "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
-        )
+        self.footer_text = f"[{FOOTER}]?[/{FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search  [bold {FOOTER}]tab[/bold {FOOTER}] Switch panes"
         self.active_pane = "events"
         self.events_list: ScrollableList | None = None
         self.tasks_list: ScrollableList | None = None
         self.events = {}
         self.tasks = []
+
+    def on_screen_resume(self) -> None:
+        if self.app.controller.consume_agenda_dirty():
+            log_msg("refreshing")
+            self.refresh_data()
 
     # ← This is the only thing SearchableScreen needs to work with panes
     def get_search_target(self) -> ScrollableList:
@@ -628,7 +715,8 @@ class AgendaScreen(SearchableScreen):  # ← inherit your base
             Container(
                 Static("Tasks", id="tasks_title"), self.tasks_list, id="tasks-pane"
             ),
-            Static(self.footer_text, id="agenda-footer"),
+            Static(self.footer_text),
+            # Footer(),
             id="agenda-layout",
         )
 
@@ -643,11 +731,11 @@ class AgendaScreen(SearchableScreen):  # ← inherit your base
         ev = self.query_one("#events_title", Static)
         tk = self.query_one("#tasks_title", Static)
         if which == "events":
-            ev.add_class("active")
-            tk.remove_class("active")
+            tk.add_class("inactive")
+            ev.remove_class("inactive")
         else:
-            tk.add_class("active")
-            ev.remove_class("active")
+            ev.add_class("inactive")
+            tk.remove_class("inactive")
 
     def action_toggle_pane(self):
         self._activate_pane("tasks" if self.active_pane == "events" else "events")
@@ -661,6 +749,7 @@ class AgendaScreen(SearchableScreen):  # ← inherit your base
         except TypeError:
             self.events = self.controller.get_agenda_events()
         self.tasks = self.controller.get_agenda_tasks()
+        log_msg(f"{self.tasks = }")
         self.update_display()
 
     def update_display(self):
@@ -673,9 +762,11 @@ class AgendaScreen(SearchableScreen):  # ← inherit your base
 
         task_lines = []
         for urgency, color, tag, subject in self.tasks:
-            task_lines.append(
-                f"{tag} [not bold][{color}]{str(round(urgency * 100)):>2}[/{color}] {subject}"
-            )
+            # if urgency == 1.0:
+            #     urgency_str = "📌"
+            # else:
+            #     urgency_str = f"[{color}]{str(round(urgency * 100)):>2}[/{color}]"
+            task_lines.append(f"{tag} {urgency} {subject}")
 
         self.events_list.update_list(event_lines)
         self.tasks_list.update_list(task_lines)
@@ -697,7 +788,8 @@ class FullScreenList(SearchableScreen):
         else:
             self.title = "Untitled"
             self.lines = []
-        self.footer_content = footer_content
+        # self.footer_content = footer_content
+        self.footer_content = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         log_msg(f"FullScreenList: {details[:3] = }")
 
     def compose(self) -> ComposeResult:
@@ -710,9 +802,9 @@ class FullScreenList(SearchableScreen):
         yield Static(
             self.header, id="scroll_header", expand=True, classes="header-class"
         )
-        yield Static(
-            Rule("", style="#fff8dc"), id="separator"
-        )  # Add a horizontal line separator
+        # yield Static(
+        #     Rule("", style="#fff8dc"), id="separator"
+        # )  # Add a horizontal line separator
         yield ScrollableList(self.lines, id="list")  # Using "list" as the ID
         yield Static(self.footer_content, id="custom_footer")
 
@@ -815,7 +907,9 @@ class DynamicViewApp(App):
         if now.hour == 0 and now.minute == 0 and 0 <= now.second < 6:
             self.controller.populate_alerts()
         if now.minute % 10 == 0 and now.second == 0:
-            self.notify("Checking for scheduled alerts...", severity="info")
+            self.notify(
+                "Checking for scheduled alerts...", severity="info", timeout=1.2
+            )
         self.controller.execute_due_alerts()
 
     def action_show_weeks(self):
@@ -840,9 +934,7 @@ class DynamicViewApp(App):
         self.view = "last"
         details = self.controller.get_last()
         self.set_afill(details, "action_show_last")
-        footer = (
-            "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] ESC Back"
-        )
+        footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
         self.push_screen(FullScreenList(details, footer))
 
     def action_show_next(self):
@@ -850,9 +942,7 @@ class DynamicViewApp(App):
         details = self.controller.get_next()
         self.set_afill(details, "action_show_next")
 
-        footer = (
-            "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] ESC Back"
-        )
+        footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
         self.push_screen(FullScreenList(details, footer))
 
     def action_show_find(self):
@@ -967,8 +1057,17 @@ class DynamicViewApp(App):
     def action_quit(self):
         self.exit()
 
+    # def action_show_help(self):
+    #     footer = f"[bold {FOOTER}]esc[/bold {FOOTER}] Back"
+    #     self.push_screen(DetailsScreen(HelpText, True))
+    #     # self.push_screen(FullScreenList(HelpText, footer))
+
+    # def action_show_help(self):
+    #     # self.app.push_screen(DetailsScreen(HelpText, True))
+    #     self.push_screen(DetailsScreen(HelpText, True))
+
     def action_show_help(self):
-        self.push_screen(DetailsScreen(HelpText))
+        self.push_screen(HelpScreen(HelpText))
 
     def action_show_details(self, tag: str):
         log_msg(f"{self.view = }")

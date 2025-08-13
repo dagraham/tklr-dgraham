@@ -24,9 +24,6 @@ from .shared import (
 import re
 from tklr.item import Item
 
-# env = TklrEnvironment()
-# urgency = env.config.urgency
-
 
 def regexp(pattern, value):
     try:
@@ -375,6 +372,8 @@ class UrgencyComputer:
         return project
 
     def from_args_and_weights(self, **kwargs):
+        if bool(kwargs.get("pinned", False)):
+            return 1.0, self.urgency_to_bucket_color(1.0), {}
         weights = {
             "due": self.urgency_due(kwargs.get("due"), kwargs["now"]),
             "pastdue": self.urgency_pastdue(kwargs.get("due"), kwargs["now"]),
@@ -387,8 +386,12 @@ class UrgencyComputer:
             "description": self.urgency_description(kwargs.get("description", False)),
             "project": 1.0 if bool(kwargs.get("jobs", False)) else 0.0,
         }
-        urgency = self.compute_partitioned_urgency(weights)
-        log_msg(f"{weights = }\n  returning {urgency = }")
+        if bool(kwargs.get("pinned", False)):
+            urgency = 1.0
+            log_msg("pinned, ignoring weights, returning urgency 1.0")
+        else:
+            urgency = self.compute_partitioned_urgency(weights)
+            log_msg(f"{weights = }\n  returning {urgency = }")
         return urgency, self.urgency_to_bucket_color(urgency), weights
 
 
@@ -447,28 +450,41 @@ class DatabaseManager:
         """)
 
         self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Urgency (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id INTEGER NOT NULL,      -- Link to Records
-                job_id TEXT,                     -- NULL for standalone tasks
-                subject TEXT NOT NULL,           -- Task name or "job name → task"
-                urgency FLOAT NOT NULL,          -- Final score
-                color TEXT NOT NULL,             -- bucket hex color
-                status TEXT NOT NULL,            -- "next", "waiting", "scheduled", etc.
-                weights TEXT,
-                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-            );
-        """)
-
-        self.cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_urgency ON Urgency(urgency)
-        """)
-
-        self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Pinned (
                 record_id INTEGER PRIMARY KEY,
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
             )
+        """)
+
+        # Optional explicit index (PK already indexed, but harmless)
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pinned_record
+            ON Pinned(record_id)
+        """)
+
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS Urgency (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id INTEGER NOT NULL,
+                job_id    INTEGER,                 -- NULL if not part of a project
+                subject   TEXT    NOT NULL,
+                urgency   REAL    NOT NULL,
+                color     TEXT,                    -- if you store a precomputed color
+                status TEXT NOT NULL,            -- "next", "waiting", "scheduled", etc.
+                weights TEXT,
+                pinned    INTEGER NOT NULL DEFAULT 0
+            );
+            """
+        )
+        # Indexes for faster lookup/sorting
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_urgency_record
+            ON Urgency(record_id)
+        """)
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_urgency_urgency
+            ON Urgency(urgency DESC)
         """)
 
         self.cursor.execute("""
@@ -528,17 +544,7 @@ class DatabaseManager:
             )
             """
         )
-        self.cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS Urgency (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id INTEGER NOT NULL,
-                job_id INTEGER,                   -- NULL for tasks without jobs
-                urgency REAL NOT NULL,
-                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-            )
-            """
-        )
+
         self.conn.commit()
 
     def populate_dependent_tables(self):
@@ -716,22 +722,38 @@ class DatabaseManager:
         )
         self.conn.commit()
 
+    # def toggle_pinned(self, record_id: int) -> None:
+    #     self.cursor.execute("SELECT 1 FROM Pinned WHERE record_id = ?", (record_id,))
+    #     if self.cursor.fetchone():
+    #         self.cursor.execute("DELETE FROM Pinned WHERE record_id = ?", (record_id,))
+    #     else:
+    #         self.cursor.execute(
+    #             "INSERT INTO Pinned (record_id) VALUES (?)", (record_id,)
+    #         )
+    #     self.conn.commit()
+
+    # def get_pinned_record_ids(self) -> list[int]:
+    #     self.cursor.execute("SELECT record_id FROM Pinned")
+    #     return [row[0] for row in self.cursor.fetchall()]
+
+    # def is_pinned(self, record_id: int) -> bool:
+    #     self.cursor.execute("SELECT 1 FROM Pinned WHERE record_id = ?", (record_id,))
+    #     return self.cursor.fetchone() is not None
+
     def toggle_pinned(self, record_id: int) -> None:
-        self.cursor.execute("SELECT 1 FROM Pinned WHERE record_id = ?", (record_id,))
+        self.cursor.execute("SELECT 1 FROM Pinned WHERE record_id=?", (record_id,))
         if self.cursor.fetchone():
-            self.cursor.execute("DELETE FROM Pinned WHERE record_id = ?", (record_id,))
+            self.cursor.execute("DELETE FROM Pinned WHERE record_id=?", (record_id,))
         else:
             self.cursor.execute(
-                "INSERT INTO Pinned (record_id) VALUES (?)", (record_id,)
+                "INSERT INTO Pinned(record_id) VALUES (?)", (record_id,)
             )
         self.conn.commit()
 
-    def get_pinned_record_ids(self) -> list[int]:
-        self.cursor.execute("SELECT record_id FROM Pinned")
-        return [row[0] for row in self.cursor.fetchall()]
-
     def is_pinned(self, record_id: int) -> bool:
-        self.cursor.execute("SELECT 1 FROM Pinned WHERE record_id = ?", (record_id,))
+        self.cursor.execute(
+            "SELECT 1 FROM Pinned WHERE record_id=? LIMIT 1", (record_id,)
+        )
         return self.cursor.fetchone() is not None
 
     def get_due_alerts(self):
@@ -1453,17 +1475,25 @@ class DatabaseManager:
 
     def get_urgency(self):
         """
-        Retrieve urgency records with record_id, job_id, subject, and urgency,
-        ordered by urgency descending.
+        Return tasks for the Agenda view, with pinned-first ordering.
 
-        Returns:
-            List[Tuple[int, int, str, float]]: (record_id, job_id, subject, urgency)
+        Rows:
+        (record_id, job_id, subject, urgency, color, status, weights, pinned_int)
         """
         self.cursor.execute(
             """
-            SELECT record_id, job_id, subject, urgency, color
-            FROM Urgency
-            ORDER BY urgency DESC
+            SELECT
+            u.record_id,
+            u.job_id,
+            u.subject,
+            u.urgency,
+            u.color,
+            u.status,
+            u.weights,
+            CASE WHEN p.record_id IS NULL THEN 0 ELSE 1 END AS pinned
+            FROM Urgency AS u
+            LEFT JOIN Pinned AS p ON p.record_id = u.record_id
+            ORDER BY pinned DESC, u.urgency DESC, u.id ASC
             """
         )
         return self.cursor.fetchall()
@@ -1722,8 +1752,9 @@ class DatabaseManager:
         return [row[0] for row in cur.fetchall()]
 
     def populate_urgency_from_record(self, record: dict):
-        log_msg(f"{record = }")
         record_id = record["id"]
+        pinned = self.is_pinned(record_id)
+        log_msg(f"{record_id = }, {pinned = }, {record = }")
         now_seconds = utc_now_to_seconds()
         modified_seconds = dt_str_to_seconds(record["modified"])
         extent_seconds = td_str_to_seconds(record.get("extent", "0m"))
@@ -1737,7 +1768,6 @@ class DatabaseManager:
         priority_level = record.get("priority", None)
         # priority = priority_map.get(priority_level, 0)
         description = True if record.get("description", "") else False
-        pinned = self.is_pinned(record_id)
 
         # Try to parse due from first RDATE in rruleset
         due_seconds = None
@@ -1780,20 +1810,17 @@ class DatabaseManager:
                 job_extent = td_str_to_seconds(job.get("e", "0m"))
                 blocking = job.get("blocking")  # assume already computed elsewhere
 
-                urgency, color, weights = (
-                    (1.0, {})
-                    if pinned
-                    else self.compute_urgency.from_args_and_weights(
-                        now=now_seconds,
-                        modified=modified_seconds,
-                        due=job_due,
-                        extent=job_extent,
-                        priority_level=priority_level,
-                        blocking=blocking,
-                        tags=tags,
-                        description=description,
-                        jobs=True,
-                    )
+                urgency, color, weights = self.compute_urgency.from_args_and_weights(
+                    now=now_seconds,
+                    modified=modified_seconds,
+                    due=job_due,
+                    extent=job_extent,
+                    priority_level=priority_level,
+                    blocking=blocking,
+                    tags=tags,
+                    description=description,
+                    jobs=True,
+                    pinned=pinned,
                 )
 
                 self.cursor.execute(
@@ -1828,14 +1855,9 @@ class DatabaseManager:
                     tags=tags,
                     description=description,
                     jobs=False,
+                    pinned=pinned,
                 )
-                # self.cursor.execute(
-                #     """
-                #     INSERT INTO Urgency (record_id, job_id, subject, urgency, status)
-                #     VALUES (?, ?, ?, ?, ?)
-                #     """,
-                #     (record_id, None, subject, urgency, record.get("status", "next")),
-                # )
+
                 self.cursor.execute(
                     """
                     INSERT INTO Urgency (record_id, job_id, subject, urgency, color, status, weights)

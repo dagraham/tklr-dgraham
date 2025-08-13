@@ -59,9 +59,11 @@ VERSION = get_version()
 # details Colors
 
 # type_color = css_named_colors["palegoldenrod"]
-type_color = css_named_colors["khaki"]
-at_color = css_named_colors["khaki"]
-am_color = css_named_colors["darkkhaki"]
+type_color = css_named_colors["tomato"]
+# at_color = css_named_colors["khaki"]
+# am_color = css_named_colors["darkkhaki"]
+at_color = css_named_colors["palegreen"]
+am_color = css_named_colors["lightgreen"]
 label_color = css_named_colors["lightskyblue"]
 
 # The overall background color of the app is #2e2e2e - set in view_textual.css
@@ -460,12 +462,29 @@ class Controller:
         self.list_tag_to_id = {}  # Maps tag numbers to event IDs
         self.env = env
         self.AMPM = env.config.ui.ampm
+        self._last_details_meta = None
 
         for view in ["next", "last", "find", "events", "tasks", "alerts"]:
             self.list_tag_to_id.setdefault(view, {})
         self.width = shutil.get_terminal_size()[0] - 2
         self.afill = 1
-        # print(f"{self.width = }")
+        self._agenda_dirty = False
+
+    def mark_agenda_dirty(self) -> None:
+        self._agenda_dirty = True
+
+    def consume_agenda_dirty(self) -> bool:
+        was_dirty = self._agenda_dirty
+        self._agenda_dirty = False
+        return was_dirty
+
+    def toggle_pin(self, record_id: int) -> bool:
+        self.db_manager.toggle_pinned(record_id)
+        self.mark_agenda_dirty()  # ← mark dirty every time
+        return self.db_manager.is_pinned(record_id)
+
+    def get_last_details_meta(self):
+        return self._last_details_meta
 
     def set_afill(self, details: list, method: str):
         new_afill = 1 if len(details) <= 26 else 2 if len(details) <= 676 else 3
@@ -475,6 +494,11 @@ class Controller:
             log_msg(
                 f"controller reset afill in {method} from {old_afill} -> {self.afill}"
             )
+
+    def toggle_pinned(self, record_id: int):
+        self.db_manager.toggle_pinned(record_id)
+        log_msg(f"{record_id = }, {self.db_manager.is_pinned(record_id) = }")
+        return self.db_manager.is_pinned(record_id)
 
     def add_tag(self, view: str, indx: int, record_id: int) -> tuple[str, int]:
         """
@@ -486,27 +510,6 @@ class Controller:
         self.list_tag_to_id.setdefault(view, {})[tag] = record_id
         return tag_fmt, indx + 1
 
-        # def get_structured_tokens(self, record_id: int) -> list[str]:
-        #     """
-        #     Retrieve the structured_tokens field from a record and return it as a list of dictionaries.
-        #     Returns an empty list if the field is null, empty, or if the record is not found.
-        #     """
-        #     self.db_manager.cursor.execute(
-        #         "SELECT structured_tokens, created, modified FROM Records WHERE id = ?",
-        #         (record_id,),
-        #     )
-        #     return [
-        #         (structured_tokens, created, modified)
-        #         for (structured_tokens, created, modified) in self.cursor.fetchall()
-        #     ]
-
-        # result = self.db_manager.cursor.fetchone()
-        #
-        # if result and result[0]:
-        #     try:
-        #         return json.loads(result[0]), created, modified
-        #     except json.JSONDecodeError:
-        #         log_msg(f"⚠️ Could not decode structured_tokens for record {record_id}")
         return []
 
     def get_entry(self, record_id):
@@ -535,6 +538,25 @@ class Controller:
         )
         lines.insert(0, first_line)
         return lines
+
+    def get_record_core(self, record_id: int) -> dict:
+        row = self.db_manager.get_record(record_id)
+        if not row:
+            return {
+                "id": record_id,
+                "itemtype": "",
+                "subject": "",
+                "rruleset": None,
+                "record": None,
+            }
+        # tuple layout per your schema
+        return {
+            "id": record_id,
+            "itemtype": row[1],
+            "subject": row[2],
+            "rruleset": row[4],
+            "record": row,
+        }
 
     def get_record(self, record_id):
         return self.db_manager.get_record(record_id)
@@ -723,40 +745,66 @@ class Controller:
 
         return lines
 
-    def process_tag(self, tag, view: str, selected_week: Tuple[int, int]):
+    def process_tag(self, tag: str, view: str, selected_week: tuple[int, int]):
         """
-        Process the base26 tag entered by the user.
+        Resolve the base-26 `tag` to a record_id for the given `view`,
+        build the details lines, and stash fresh meta for DetailsScreen.
 
-        Args:
-            tag (str): The tag corresponding to a record.
+        Returns: list[str] where the FIRST element is the Details title,
+                followed by the content lines (unchanged call-site contract).
         """
+        # 1) Pick the correct tag -> id map for this view
         if view == "week":
-            log_msg(f"{self.selected_week = }")
             tag_to_id = self.tag_to_id[selected_week]
-        elif view in ["next", "last", "find", "events", "tasks"]:
+        elif view in [
+            "next",
+            "last",
+            "find",
+            "events",
+            "tasks",
+            "agenda-events",
+            "agenda-tasks",
+        ]:
             tag_to_id = self.list_tag_to_id[view]
         elif view == "alerts":
             tag_to_id = self.list_tag_to_id["alerts"]
         else:
-            return [
-                "Invalid view.",
-            ]
-        self.num_tags = len(tag_to_id.keys())
+            return ["Invalid view."]
 
-        # description = [f"Tag [{SELECTED_COLOR}]{tag}[/{SELECTED_COLOR}] description"]
-        if tag in tag_to_id:
-            record_id = tag_to_id[tag]
-            description = [
-                "-- details --",
-                f"[{label_color}]id:[/{label_color}] {record_id}",
-            ]
-            # log_msg(f"Tag '{tag}' corresponds to record ID {record_id}")
-            # description = self.get_record_details_as_string(record_id)
-            # fields = self.get_record_details(record_id)
-            fields = self.get_entry(record_id)
-            return description + fields
+        self.num_tags = len(tag_to_id)
 
-        return [f"There is no item corresponding to tag '{tag}'."]
+        if tag not in tag_to_id:
+            return [f"There is no item corresponding to tag '{tag}'."]
+
+        record_id = tag_to_id[tag]
+
+        # 2) Core info for the title + meta (unchanged helpers)
+        core = self.get_record_core(record_id)  # itemtype, subject, rrulestr, record
+        subject = core.get("subject") or "(untitled)"
+
+        # 3) Fresh pinned state from the Pinned table
+        pinned_now = self.db_manager.is_pinned(record_id)
+
+        # 4) Your existing details body
+        fields = self.get_entry(record_id)  # returns list[str], first line is entry
+
+        # 5) Title (DetailsScreen will add 📌 if needed)
+        title = f"{subject}  [dim]# {record_id}[/dim]"
+
+        # 6) Stash meta for DetailsScreen (so it can enable actions + show pin glyph)
+        rruleset = core.get("rruleset")
+        repeating = "," in rruleset or "RRULE" in rruleset
+        log_msg(f"{rruleset = }, {repeating = }")
+        self._last_details_meta = {
+            "record_id": record_id,
+            "itemtype": core.get("itemtype"),  # "~" for task, "*" for event, etc.
+            "rruleset": repeating,
+            "pinned": bool(pinned_now),  # ← fresh every time
+            "record": core.get("record"),
+        }
+
+        # 7) Return title + details (keeps your call-site unchanged)
+        return [title] + fields
 
     def generate_table(self, start_date, selected_week, grouped_events):
         """
@@ -1292,11 +1340,24 @@ class Controller:
         self.set_afill(urgency_records, "get_agenda_tasks")
         self.list_tag_to_id.setdefault("tasks", {})
 
-        for record_id, job_id, subject, urgency, color in urgency_records:
+        for (
+            record_id,
+            job_id,
+            subject,
+            urgency,
+            color,
+            status,
+            weights,
+            pinned,
+        ) in urgency_records:
             tag_fmt, indx = self.add_tag("tasks", indx, record_id)
+            if pinned:
+                urgency_str = "📌"
+            else:
+                urgency_str = f"[{color}]{str(round(urgency * 100)):>2}[/{color}]"
             tasks_by_urgency.append(
                 (
-                    urgency,
+                    urgency_str,
                     color,
                     tag_fmt,
                     f"[{TASK_COLOR}]{subject}[/{TASK_COLOR}]",
@@ -1305,4 +1366,44 @@ class Controller:
 
         # tasks_by_urgency.sort(reverse=True)  # Highest urgency first
         print(f"{self.list_tag_to_id['tasks']}")
+        return tasks_by_urgency
+
+    def get_agenda_tasks(self):
+        """
+        Returns list of (urgency_str_or_pin, color, tag_fmt, colored_subject)
+        Suitable for the Agenda Tasks pane.
+        """
+        tasks_by_urgency = []
+
+        # Use the JOIN with Pinned so pins persist across restarts
+        urgency_records = self.db_manager.get_urgency()
+        # rows: (record_id, job_id, subject, urgency, color, status, weights, pinned_int)
+
+        self.set_afill(urgency_records, "get_agenda_tasks")
+        self.list_tag_to_id.setdefault("tasks", {})
+
+        idx = 0
+        for (
+            record_id,
+            job_id,
+            subject,
+            urgency,
+            color,
+            status,
+            weights,
+            pinned,
+        ) in urgency_records:
+            tag_fmt, idx = self.add_tag("tasks", idx, record_id)
+            urgency_str = (
+                "📌" if pinned else f"[{color}]{int(round(urgency * 100)):>2}[/{color}]"
+            )
+            tasks_by_urgency.append(
+                (
+                    urgency_str,
+                    color,
+                    tag_fmt,
+                    f"[{TASK_COLOR}]{subject}[/{TASK_COLOR}]",
+                )
+            )
+
         return tasks_by_urgency

@@ -1,5 +1,129 @@
 # For ChatGPT
 
+## 25-08-12 Finish
+
+### Goals
+
+```
+[+-]M/Np N: int frequency, Mp M int, p in d, w, m, y
+```
+
+E.g., +3/2w => 3 or more (+) completions every 2 weeks
+
+Use beg_hour and end_hour from config to set period available in each day. Given the @s scheduled datetime, the relevant period begins at the beginning of the current period. E.g., for the `+3/2w` example, the first period would begin at scheduled datetime and extend
+until end_hour on the Sunday of the following week. Subsequent periods would begin at beg_hour on Monday and end at end_hour on the Sunday of the 2nd week.
+
+## 2025-08-10 Details
+
+- Add Completions table: id, record_id, completion (int timestamp)
+- Commands for detail view:
+  - E Edit
+  - C Edit Copy
+  - D Delete (instance/remaining/item if repeating)
+  - F Finish (tasks only)
+  - P Toggle Pinned
+  - S Schedule new
+  - R Reschedule
+  - T Touch (modified timestamp)
+  - ^R Show repetitions
+  - ^C Show Completions (tasks only)
+
+## 2025-08-08
+
+It remains to add tags to the events and tasks which, in both cases, link the tag to the relevant record id.
+
+Here is the setup in controller for tag indexing
+
+```python
+  def set_afill(self, details: list, method: str):
+      new_afill = 1 if len(details) <= 26 else 2 if len(details) <= 676 else 3
+      if new_afill != self.afill:
+          old_afill = self.afill
+          self.afill = new_afill
+```
+
+```python
+def decimal_to_base26(decimal_num):
+    """
+    Convert a decimal number to its equivalent base-26 string.
+
+    Args:
+        decimal_num (int): The decimal number to convert.
+
+    Returns:
+        str: The base-26 representation where 'a' = 0, 'b' = 1, ..., 'z' = 25.
+    """
+    if decimal_num < 0:
+        raise ValueError("Decimal number must be non-negative.")
+
+    if decimal_num == 0:
+        return "a"  # Special case for zero
+
+    base26 = ""
+    while decimal_num > 0:
+        digit = decimal_num % 26
+        base26 = chr(digit + ord("a")) + base26  # Map digit to 'a'-'z'
+        decimal_num //= 26
+
+    return base26
+```
+
+```python
+def indx_to_tag(indx: int, fill: int = 1):
+    """
+    Convert an index to a base-26 tag.
+    """
+    return decimal_to_base26(indx).rjust(fill, "a")
+```
+
+Then in, e.g., get_next (one of the views), this setup:
+
+```python
+...
+    events = self.db_manager.get_next_instances()
+...
+    self.set_afill(events, "get_next")
+    self.list_tag_to_id.setdefault("next", {})
+...
+    index = 0
+    tag = indx_to_tag(indx, self.afill)
+```
+
+and then repeatedly as records are added:
+
+```python
+...
+    tag = indx_to_tag(indx, self.afill)
+    self.list_tag_to_id["next"][tag] = event_id
+    display.append(f"  [dim]{tag}[/dim]  {event_str}")
+    indx += 1
+```
+
+Is there a good way to encapsulate the last, recurrent bit, in a method?
+
+```python
+def add_tag(self, view: str, indx: int, id: int) -> Tuple[str, indx]:
+    tag = indx_to_tag(indx, self.afill)
+    tag_fmt = f"[dim]{tag}[/dim]"
+    self.list_tag_to_id[view][tag] = id
+    indx += 1
+    return tag_fmt, indx
+```
+
+Then, for example,
+
+```python
+        for record_id, days_remaining, subject in begin_records:
+            tag_fmt, indx = add_tag("event", indx)
+            events_by_date[today].append(
+                (   "f{tag_fmt}",
+                    f"[{BEGIN_COLOR}]+{days_remaining}⮕ [/{BEGIN_COLOR}]",
+                    f"[{BEGIN_COLOR}]{subject}[/{BEGIN_COLOR}]",
+                    record_id,
+                )
+            )
+```
+
 ## 2025-08-04 goals and friends
 
 1. goals: `@o 3/w`
