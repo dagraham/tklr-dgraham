@@ -10,8 +10,31 @@
 
 E.g., +3/2w => 3 or more (+) completions every 2 weeks
 
-Use beg_hour and end_hour from config to set period available in each day. Given the @s scheduled datetime, the relevant period begins at the beginning of the current period. E.g., for the `+3/2w` example, the first period would begin at scheduled datetime and extend
-until end_hour on the Sunday of the following week. Subsequent periods would begin at beg_hour on Monday and end at end_hour on the Sunday of the 2nd week.
+Use beg_hour and end_hour from config to set period available in each day. Given the @s scheduled datetime, the relevant period begins at the beginning of the current period. E.g., for the `+3/2w` example, the first period would begin at scheduled datetime and extend until end_hour on the Sunday of the following week. Subsequent periods would start at beg_hour on Monday and end at end_hour on the Sunday of the 2nd week.
+
+### record completion
+
+- Record completions in a completions table
+- Work out @o or @r - not both
+-
+- finished: urgency status -> finished
+
+- get datetime, default now with prompt to modify
+
+- if goal, record completion
+
+  - get goal for period, num completions and num remaining
+  - get seconds in period
+  - get goal for period
+  - compare goal / period seconds to
+    - remaining / remaining seconds
+    - or done / seconds used
+
+- neither @r nor @o: add completion, status finished
+- @r: add completion (work out @+ issues)
+  - if this is the last instance, status -> finished, return
+  - set @s to next instance
+-
 
 ## 2025-08-10 Details
 

@@ -59,7 +59,7 @@ VERSION = get_version()
 # details Colors
 
 # type_color = css_named_colors["palegoldenrod"]
-type_color = css_named_colors["tomato"]
+type_color = css_named_colors["limegreen"]
 # at_color = css_named_colors["khaki"]
 # am_color = css_named_colors["darkkhaki"]
 at_color = css_named_colors["palegreen"]
@@ -255,11 +255,11 @@ def format_date_range(start_dt: datetime, end_dt: datetime):
     same_month = start_dt.month == end_dt.month
     # same_day = start_dt.day == end_dt.day
     if same_year and same_month:
-        return f"{start_dt.strftime('%B %-d')} - {end_dt.strftime('%-d, %Y')}"
+        return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%-d, %Y')}"
     elif same_year and not same_month:
-        return f"{start_dt.strftime('%B %-d')} - {end_dt.strftime('%B %-d, %Y')}"
+        return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%b %-d, %Y')}"
     else:
-        return f"{start_dt.strftime('%B %-d, %Y')} - {end_dt.strftime('%B %-d, %Y')}"
+        return f"{start_dt.strftime('%b %-d, %Y')} - {end_dt.strftime('%b %-d, %Y')}"
 
 
 def get_previous_yrwk(year, week):
@@ -636,7 +636,7 @@ class Controller:
     def get_active_alerts(self, width: int = 70):
         # now_fmt = datetime.now().strftime("%A, %B %-d %H:%M:%S")
         alerts = self.db_manager.get_active_alerts()
-        header = "-- remaining alerts for today --"
+        header = "Remaining alerts for today"
         results = [header]
         if not alerts:
             results.append(f" [{HEADER_COLOR}]none scheduled[/{HEADER_COLOR}]")
@@ -818,7 +818,8 @@ class Controller:
         tomorrow_year, tomorrow_week, tomorrow_day = (
             datetime.now() + ONEDAY
         ).isocalendar()
-        title = format_date_range(start_date, end_date)
+        title = f"Schedule for {format_date_range(start_date, end_date)}"
+        # title = "Scheduled"
 
         table = Table(
             show_header=True,

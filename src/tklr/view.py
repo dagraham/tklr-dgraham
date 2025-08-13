@@ -182,10 +182,10 @@ HelpText = f"""\
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
 [bold]^Q[/bold]       Quit            [bold]^S[/bold]    Screenshot
 [bold][{HEADER_COLOR}]View[/{HEADER_COLOR}][/bold]
- [bold]A[/bold]        Agenda          [bold]C[/bold]    Completions 
+ [bold]A[/bold]        Agenda          [bold]R[/bold]    Remaining Alerts 
  [bold]G[/bold]        Goals           [bold]F[/bold]    Find 
  [bold]N[/bold]        Notes           [bold]P[/bold]    Prior 
- [bold]W[/bold]        Scheduled       [bold]U[/bold]    Upcoming 
+ [bold]S[/bold]        Scheduled       [bold]U[/bold]    Upcoming 
 [bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
  [bold]/[/bold]        Set search      empty search clears
  [bold]>[/bold]        Next match      [bold]<[/bold]    Previous match
@@ -265,6 +265,7 @@ class DetailsScreen(ModalScreen[None]):
     BINDINGS = [
         ("escape", "close", "Back"),
         ("?", "show_help", "Help"),
+        ("ctrl+q", "quit", "Quit"),
         # (all your other bindings with show=False if you want the Footer to only show "? Help")
     ]
 
@@ -283,6 +284,7 @@ class DetailsScreen(ModalScreen[None]):
         self.itemtype: str = ""  # "~" task, "*" event, etc.
         self.is_task: bool = False
         self.is_event: bool = False
+        self.is_goal: bool = False
         self.is_recurring: bool = False  # from rruleset truthiness
         self.is_pinned: bool = False  # task-only
         self.record: Any = None  # original tuple if you need it
@@ -318,12 +320,16 @@ class DetailsScreen(ModalScreen[None]):
         self.itemtype = meta.get("itemtype") or ""
         self.is_task = self.itemtype == "~"
         self.is_event = self.itemtype == "*"
+        self.is_goal = self.itemtype == "+"
         self.is_recurring = bool(meta.get("rruleset"))
         self.is_pinned = bool(meta.get("pinned")) if self.is_task else False
         self.record = meta.get("record")
         self._apply_pin_glyph()  # ← show 📌 if needed
 
     # ---------- actions (footer bindings) ----------
+    def action_quit(self) -> None:
+        self.app.action_quit()
+
     def action_close(self) -> None:
         self.app.pop_screen()
 
@@ -825,15 +831,15 @@ class DynamicViewApp(App):
         ("shift+right", "next_period", ""),
         ("left", "previous_week", ""),
         ("right", "next_week", ""),
-        ("S", "take_screenshot", "Take Screenshot"),
-        ("A", "show_alerts", "Show Alerts"),
-        ("G", "show_agenda", "Show Agenda"),
+        ("ctrl+s", "take_screenshot", "Take Screenshot"),
+        ("R", "show_alerts", "Show Alerts"),
+        ("A", "show_agenda", "Show Agenda"),
         ("L", "show_last", "Show Last"),
         ("N", "show_next", "Show Next"),
         ("F", "show_find", "Find"),
-        ("W", "show_weeks", "Show Weeks"),
+        ("S", "show_weeks", "Scheduled"),
         ("?", "show_help", "Help"),
-        ("Q", "quit", "Quit"),
+        ("ctrl+q", "quit", "Quit"),
         ("/", "start_search", "Search"),
         (">", "next_match", "Next Match"),
         ("<", "previous_match", "Previous Match"),

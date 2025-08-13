@@ -2,7 +2,7 @@
   <tr>
     <td>
   <h1>tklr</h1>
-      The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates the same purpose - discovering what's relevant <b>now</b> quickly and easily. It supports the entry format and project support of <strong>etm</strong>, the datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line (Click) and graphical user interfaces (Textual).</p>
+      The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates the same purpose - discovering what's relevant <b>now</b> quickly and easily. It supports the entry format and projects of <strong>etm</strong>, the datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line (Click) and graphical user interfaces (Textual).</p>
   <p>Make the most of your time!</p>
       <p></p>
     <td style="width: 25%; vertical-align: middle;">

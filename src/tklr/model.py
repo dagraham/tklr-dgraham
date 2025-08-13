@@ -425,7 +425,7 @@ class DatabaseManager:
     def setup_database(self):
         """
         Set up the SQLite database schema.
-        # CHECK(itemtype IN ('*', '~', '^', '%', '?')) NOT NULL,
+        # CHECK(itemtype IN ('*', '~', '^', '%', '?', '+')) NOT NULL,
         """
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Records (
@@ -471,7 +471,7 @@ class DatabaseManager:
                 subject   TEXT    NOT NULL,
                 urgency   REAL    NOT NULL,
                 color     TEXT,                    -- if you store a precomputed color
-                status TEXT NOT NULL,            -- "next", "waiting", "scheduled", etc.
+                status TEXT NOT NULL,              -- "next", "waiting", "scheduled", etc.
                 weights TEXT,
                 pinned    INTEGER NOT NULL DEFAULT 0
             );

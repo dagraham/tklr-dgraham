@@ -276,7 +276,7 @@ type_keys = {
     "~": "task",
     "^": "project",
     "%": "note",
-    "!": "goal",
+    "+": "goal",
     "?": "draft",
     # "+": "track",
     # '✓': 'finished',  # more a property of a task than an item type
@@ -301,7 +301,7 @@ repeating_methods = list("o") + [
 
 datetime_methods = list("abe+-")
 
-task_methods = list("p")
+task_methods = list("op")
 
 job_methods = list("efhp") + [
     "~",
@@ -343,14 +343,14 @@ multiple_allowed = [
 
 wrap_methods = ["w"]
 
-required = {"*": ["s"], "~": [], "^": ["~"], "%": [], "?": [], "!": []}
+required = {"*": ["s"], "~": [], "^": ["~"], "%": [], "?": [], "+": []}
 
 all_keys = common_methods + datetime_methods + job_methods + repeating_methods
 
 allowed = {
     "*": common_methods + datetime_methods + repeating_methods + wrap_methods,
     "~": common_methods + datetime_methods + task_methods + repeating_methods,
-    "!": common_methods + datetime_methods + task_methods + repeating_methods,
+    "+": common_methods + datetime_methods + task_methods,
     "^": common_methods + datetime_methods + job_methods + repeating_methods,
     "%": common_methods,
     "?": all_keys,
