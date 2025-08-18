@@ -29,6 +29,13 @@ def in_ten_minutes():
     return next.strftime("%Y%m%dT%H%M%S")
 
 
+def one_hour_ago():
+    now = datetime.now().replace(second=0, microsecond=0)
+    delta_minutes = 60 + (15 - now.minute % 15)
+    next = now - timedelta(minutes=delta_minutes)
+    return next.strftime("%Y%m%dT%H%M%S")
+
+
 def in_one_hour():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
@@ -227,7 +234,7 @@ items = [
     f"* three datetimes @s {in_ten_minutes()} @e 45m  @+ {in_one_hour()}, {in_one_day()}",
     # f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
     # f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
-    f"* daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",  # ***
+    f"~ daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",  # ***
     f"""% long formatted description @s {yesterday_date} 
     @d Title 
     1. This 
@@ -236,7 +243,7 @@ items = [
     2. And finally this. @t test @l label @t red 
     """,
     f"""^ dog house @s {in_five_days()} @e 3h @b 2w @p 3
-    @~ create plan &s 1w &e 1h &r 1 
+    @~ create plan &s 1w &e 1h &r 1 &f {today_date} 
     @~ go to Lowes &s 1w &e 2h &r 2: 1 
     @~ buy lumber &s 1w &r 3: 2
     @~ buy hardware &s 1w &r 4: 2
@@ -246,14 +253,18 @@ items = [
     @~ sand &s 3d &e 1h &r 8: 7 
     @~ paint &s 2d &e 2h &r 9: 8
     """,
-    "~ no due date and priority one @p 1",
+    "~ no due date or datetime and priority one @p 1",
+    f"~ one due date and priority one @s {today_date} @p 1",
+    f"~ one due datetime and priority one @s {in_one_hour()} @p 1",
     "~ no due date and priority two @p 2",
     "~ no due date and priority three @p 3",
     "~ no due date and priority four @p 4",
     "~ no due date and no priority",
     "~ no due date and priority five @p 5",
-    f"^ no prerequisites @s {in_two_weeks()} @b 1w @~ this &r 1 @~ that &r 2",
-    "~ do over when complete @s fri 12a @o 4d",
+    f"~ finished one hour ago @s {in_one_hour()} @f {one_hour_ago()}",
+    f"^ no prerequisites @s {today_date} @b 1w @~ this &r 1 &f {today_date}  @~ that &r 2 &f {today_date}",
+    "~ do over after 4 days when complete @s 22 12a @o 4d",
+    "~ add another after 4 days when complete @s fri 12a @+ 26 12a",
     "? draft reminder - no checks",
     f"~ one date with priority three @s {yesterday_date} @p 3",
     f"~ one date with priority two @s {yesterday_date} @p 2",

@@ -34,8 +34,9 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 | event   | \*   |
 | task    | ~    |
 | project | ^    |
+| goal    | +    |
 | note    | %    |
-| draft   | !    |
+| draft   | ?    |
 
 ### examples
 

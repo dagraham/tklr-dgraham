@@ -1,7 +1,8 @@
 import re
 import shutil
 import json
-from dateutil.parser import parse as duparse
+
+# from dateutil.parser import parse as duparse
 from dateutil.rrule import rruleset, rrulestr
 from datetime import date, datetime, timedelta
 
@@ -16,8 +17,13 @@ from math import ceil
 
 from typing import Iterable, List
 
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
 from zoneinfo import ZoneInfo
+
+# item.py
+from dataclasses import dataclass
+from dateutil.parser import parse as parse_dt
+
 
 # from tklr.model import dt_to_dtstr
 
@@ -26,7 +32,6 @@ from .common import timedelta_str_to_seconds
 from tzlocal import get_localzone_name
 
 local_timezone = get_localzone_name()  # e.g., "America/New_York"
-# print(f"using {local_timezone = }")
 
 JOB_PATTERN = re.compile(r"^@~ ( *)([^&]*)(?:(&.*))?")
 LETTER_SET = set("abcdefghijklmnopqrstuvwxyz")  # Define once
@@ -46,7 +51,7 @@ def is_date(obj):
 
 
 def parse(dt_str: str) -> Union[date, datetime, str]:
-    obj = duparse(dt_str)
+    obj = parse_dt(dt_str)
     if isinstance(obj, date) and not isinstance(obj, datetime):
         return obj
     if (
@@ -139,11 +144,6 @@ def enforce_date(dt: datetime) -> datetime:
     - 23:59:59 for tasks (-)
     """
     return dt.date()
-    # if self.itemtype == "-":
-    #     return dt.replace(hour=23, minute=59, second=59, microsecond=0)
-    # else:
-    #     return dt.replace(hour=0, minute=0, second=1, microsecond=0)
-    #
 
 
 def localize_rule_instances(
@@ -278,7 +278,7 @@ type_keys = {
     "%": "note",
     "+": "goal",
     "?": "draft",
-    # "+": "track",
+    "x": "finished",
     # '✓': 'finished',  # more a property of a task than an item type
 }
 common_methods = list("cdgilmnstuxz")
@@ -301,7 +301,7 @@ repeating_methods = list("o") + [
 
 datetime_methods = list("abe+-")
 
-task_methods = list("op")
+task_methods = list("ofp")
 
 job_methods = list("efhp") + [
     "~",
@@ -436,7 +436,7 @@ class Paragraph:
 
             # Determine subsequent_indent based on the first non-whitespace character
             stripped_para = para.lstrip()
-            if stripped_para.startswith(("^", "~", "*", "%", "?", "!")):
+            if stripped_para.startswith(("^", "~", "*", "%", "?", "+")):
                 subsequent_indent = initial_indent + " " * 2
             elif stripped_para.startswith(("@", "&")):
                 subsequent_indent = initial_indent + " " * 3
@@ -472,6 +472,14 @@ class Paragraph:
         unwrapped_text = "\n".join(unwrapped_paragraphs)
 
         return unwrapped_text
+
+
+@dataclass
+class FinishResult:
+    new_structured_tokens: list  # tokens to persist
+    new_rruleset: str | None  # possibly None/"" if no more repeats
+    due_ts_used: int | None  # the occurrence this finish applies to
+    finished_final: bool  # True -> no more occurrences
 
 
 class Item:
@@ -651,9 +659,65 @@ class Item:
         self.timezone = gettz("local")
         self.tz_str = local_timezone
         self.enforce_dates = False
+        self.completions = []  # list[datetime] from @f tokens (task-level)
         if raw:
             self.entry = raw
             self.parse_input(raw)
+
+    # --- tiny ts helpers ---
+    def _fmt_compact(self, dt: datetime) -> str:
+        return dt.strftime("%Y%m%dT%H%M%S")
+
+    def _parse_any_dt(self, s: str) -> datetime:
+        return parse(s)  # dateutil.parser.parse
+
+    # --- token helpers ---
+    def _find_token(self, t: str, k: str | None = None):
+        for tok in self.structured_tokens:
+            if tok.get("t") == t and (k is None or tok.get("k") == k):
+                return tok
+        return None
+
+    def _find_all(self, t: str, k: str | None = None):
+        return [
+            tok
+            for tok in self.structured_tokens
+            if tok.get("t") == t and (k is None or tok.get("k") == k)
+        ]
+
+    def _remove_tokens(self, t: str, k: str | None = None):
+        self.structured_tokens = [
+            tok
+            for tok in self.structured_tokens
+            if not (tok.get("t") == t and (k is None or tok.get("k") == k))
+        ]
+
+    def _ensure_start_token(self, new_dt: datetime):
+        s_tok = self._find_token("@", "s")
+        if s_tok is None:
+            # append, keep a trailing space like your other tokens
+            self.structured_tokens.append(
+                {"token": f"@s {self._fmt_compact(new_dt)} ", "t": "@", "k": "s"}
+            )
+        else:
+            s_tok["token"] = f"@s {self._fmt_compact(new_dt)} "
+
+    def _get_count_token_value(self) -> int | None:
+        c_tok = self._find_token("&", "c")
+        if not c_tok:
+            return None
+        parts = c_tok.get("token", "").split()
+        if len(parts) >= 2 and parts[0] == "&c":
+            try:
+                return int(parts[1])
+            except ValueError:
+                return None
+        return None
+
+    def _set_count_token_value(self, value: int):
+        c_tok = self._find_token("&", "c")
+        if c_tok:
+            c_tok["token"] = f"&c {value}"
 
     def parse_input(self, entry: str):
         """
@@ -873,11 +937,11 @@ class Item:
 
         # First: itemtype
         itemtype = entry[0]
-        if itemtype not in {"*", "~", "^", "%", "!", "?"}:
+        if itemtype not in {"*", "~", "^", "%", "+", "?"}:
             self.messages.append(
                 (
                     False,
-                    f"Invalid itemtype '{itemtype}' (expected *, ~, ^, %, ! or ?)",
+                    f"Invalid itemtype '{itemtype}' (expected *, ~, ^, %, + or ?)",
                     [],
                 )
             )
@@ -1035,7 +1099,7 @@ class Item:
                 self._dispatch_token(token, start_pos, end_pos, "itemtype")
             elif start_pos == 2:
                 self._dispatch_token(token, start_pos, end_pos, "subject")
-            else:
+            elif "k" in token:
                 token_type = token["k"]
                 self._dispatch_token(token, start_pos, end_pos, token_type)
 
@@ -1126,10 +1190,6 @@ class Item:
                     self.parse_ok = False
                     log_msg(f"No handler for sub-token: {token_type}")
                     return False, f"Invalid sub-token: {token_type}", []
-
-    def _validate(self):
-        # Overall validation logic if needed
-        pass
 
     def _extract_job_node_and_summary(self, text):
         match = JOB_PATTERN.match(text)
@@ -1850,11 +1910,377 @@ class Item:
             return integer_part, string_part
         return None, None  # Default case if no match is found
 
-    # def do_plus(self, token: str):
-    #     log_msg(f"processing {token = }")
-    #
-    # def do_minus(self, token: str):
-    #     log_msg(f"processing {token = }")
+    def finish(
+        self,
+        completed_dt: datetime,
+        *,
+        history_weight: int = 3,  # for @o ~TD learning
+        now: Optional[datetime] = None,
+    ) -> FinishResult:
+        """
+        Finish the 'current' occurrence of this task and advance schedule if needed.
+        Returns updated tokens/rruleset + which due_ts was completed + final flag.
+        """
+        now = now or completed_dt
+
+        # 1) Resolve due_ts (the occurrence we are finishing)
+        # Prefer @s if present; otherwise read from rruleset / @+ / RRULE.
+        due_ts, second_ts = self._get_first_two_occurrences(now)
+
+        # If no due_ts and no schedule at all, treat as single-shot.
+        if due_ts is None:
+            # No schedule: record completion with due=None and mark final.
+            return FinishResult(
+                new_structured_tokens=self.structured_tokens,
+                new_rruleset=self.rruleset or "",
+                due_ts_used=None,
+                finished_final=True,
+            )
+
+        # 2) Handle @o first (fixed or learn)
+        o_interval = (
+            self._get_o_interval()
+        )  # returns (td: timedelta, learn: bool) or None
+        if o_interval:
+            td, learn = o_interval
+            # The “due” we finished is the current @s:
+            current_s = self._get_start_dt()  # from @s token → datetime
+            if not current_s:
+                # Safety: if @o exists but @s is missing, treat as single-shot.
+                return FinishResult(
+                    self.structured_tokens, self.rruleset or "", due_ts, True
+                )
+
+            if learn:
+                # new_interval = completed - prev_completion_start
+                # prev_completion_start is inferred as current_s - old_estimate (your spec)
+                prev_start = current_s - td
+                new_interval = completed_dt - prev_start
+                # Smooth with history_weight
+                new_td = self._smooth_interval(
+                    old=td, new=new_interval, weight=history_weight
+                )
+                # Update tokens: replace @o ~TD with @o new_td; move @s to completed_dt + new_td
+                self._set_o_interval(new_td, learn=True)
+                self._set_start_dt(completed_dt + new_td)
+            else:
+                # Fixed interval: just bump @s by td
+                self._set_start_dt(current_s + td)
+
+            return FinishResult(
+                new_structured_tokens=self.structured_tokens,
+                new_rruleset=self.rruleset or "",
+                due_ts_used=int(due_ts.timestamp()),
+                finished_final=False,
+            )
+
+        # 3) Handle rruleset flavors
+        #    (a) RDATE-only; (b) RDATE list with EXDATE; (c) DTSTART+RRULE[;COUNT|UNTIL]
+        if self._is_rdate_only():
+            # Drop the first RDATE; if none left → final
+            left = self._drop_first_rdate(due_ts)
+            return FinishResult(
+                new_structured_tokens=self._sync_tokens_from_rruleset(),
+                new_rruleset=self.rruleset if left else "",
+                due_ts_used=int(due_ts.timestamp()),
+                finished_final=(not left),
+            )
+
+        if self._has_rrule():
+            # Your earlier spec: advance DTSTART to the next occurrence; adjust COUNT if present.
+            if second_ts is None:
+                # No next → clear rruleset, final
+                self._clear_schedule()
+                return FinishResult(
+                    new_structured_tokens=self.structured_tokens,
+                    new_rruleset="",
+                    due_ts_used=int(due_ts.timestamp()),
+                    finished_final=True,
+                )
+            else:
+                self._advance_dtstart_and_decrement_count(second_ts)
+                return FinishResult(
+                    new_structured_tokens=self.structured_tokens,
+                    new_rruleset=self.rruleset,
+                    due_ts_used=int(due_ts.timestamp()),
+                    finished_final=False,
+                )
+
+        # 4) Fallback: schedule present but not recognized → mark as single-shot
+        return FinishResult(
+            new_structured_tokens=self.structured_tokens,
+            new_rruleset=self.rruleset or "",
+            due_ts_used=int(due_ts.timestamp()),
+            finished_final=True,
+        )
+
+    # ---- helpers you implement with your existing token machinery ----
+
+    def _get_first_two_occurrences(
+        self, now: datetime
+    ) -> Tuple[datetime | None, datetime | None]:
+        """
+        Return (first, second) occurrences to drive finish & advance logic.
+        Use @s if present; else parse rruleset via rrulestr (respect RDATE/EXDATE/DTSTART/COUNT).
+        IMPORTANT per your spec: if the first is past due, *still* return it as first,
+        and the second (even if also past) as second.
+        """
+        # If @s present, first := @s; second := next per @o or rruleset; if neither → None
+        s = self._get_start_dt()
+        if s:
+            # Derive a “second” by checking @o, or from rruleset if it exists, otherwise None
+            # This keeps @s-based tasks consistent with your behavior.
+            rs = rrulestr(self.rruleset) if (self.rruleset or "").strip() else None
+            second = None
+            if rs:
+                # iterate sorted until you find > s; if exists, that's second
+                gen = list(rs)  # your strings are typically small; OK to list
+                gen = [d for d in gen if d > s]
+                second = gen[0] if gen else None
+            return s, second
+
+        if self.rruleset and self.rruleset.strip():
+            rs = rrulestr(self.rruleset)
+            # We want first & second regardless of 'now' (per your last message)
+            # Easiest is to enumerate 2 values from the generator:
+            seq = list(rs)
+            if not seq:
+                return None, None
+            if len(seq) == 1:
+                return seq[0], None
+            return seq[0], seq[1]
+
+        return None, None
+
+    def _reparse_from_tokens(self) -> None:
+        """Rebuild entry string from structured_tokens and re-parse to refresh rruleset/jobs."""
+        entry = "".join(t.get("token", "") for t in self.structured_tokens).strip()
+        # Re-parse in-place to recompute dtstart_str / rruleset / jobset, etc.
+        self.parse_input(entry)
+
+    def _get_o_interval(self):
+        """
+        Return (timedelta, learn_bool) if @o present, else None.
+        Expects self.over to hold the *original* @o string (e.g. '4d' or '~4d').
+        """
+        s = (self.over or "").strip()
+        if not s:
+            return None
+        # FIXME: what about projects?
+        learn = s.startswith("~")
+        base = s[1:].strip() if learn else s
+        ok, seconds = timedelta_str_to_seconds(base)
+        if not ok:
+            return None
+        from datetime import timedelta
+
+        return (timedelta(seconds=seconds), learn)
+
+    def _set_o_interval(self, td, learn: bool):
+        """Write @o token back (e.g., '@o 4d3h ' or '@o ~4d3h ')."""
+        # convert timedelta -> your TD string; use your existing helper if you have it
+        seconds = int(td.total_seconds())
+        # simple example: only days/hours; replace with your own formatter
+        days, rem = divmod(seconds, 86400)
+        hours, rem = divmod(rem, 3600)
+        minutes = rem // 60
+        parts = []
+        if days:
+            parts.append(f"{days}d")
+        if hours:
+            parts.append(f"{hours}h")
+        if minutes:
+            parts.append(f"{minutes}m")
+        td_str = "".join(parts) or "0m"
+
+        prefix = "~" if learn else ""
+        new_token_text = f"@o {prefix}{td_str} "
+
+        tok = next(
+            (
+                t
+                for t in self.structured_tokens
+                if t.get("t") == "@" and t.get("k") == "o"
+            ),
+            None,
+        )
+        if tok:
+            tok["token"] = new_token_text
+        else:
+            self.structured_tokens.append({"token": new_token_text, "t": "@", "k": "o"})
+        # keep original string field too, if you use it elsewhere
+        self.over = f"{prefix}{td_str}"
+
+    def _smooth_interval(
+        self, old: timedelta, new: timedelta, weight: int
+    ) -> timedelta:
+        # (w*old + new)/(w+1)
+        total = old * weight + new
+        secs = total.total_seconds() / (weight + 1)
+        return timedelta(seconds=secs)
+
+    def _get_start_dt(self):
+        """Parse the @s token to datetime (UTC naive or local—match your parser)."""
+        tok = next(
+            (
+                t
+                for t in self.structured_tokens
+                if t.get("t") == "@" and t.get("k") == "s"
+            ),
+            None,
+        )
+        if not tok:
+            return None
+        s = tok["token"][2:].strip()  # after '@s'
+        from dateutil.parser import parse
+
+        return parse(s)
+
+    def _set_start_dt(self, dt):
+        """Replace or add an @s token; keep your formatting with trailing space."""
+        ts = dt.strftime("%Y%m%dT%H%M%S")
+        tok = next(
+            (
+                t
+                for t in self.structured_tokens
+                if t.get("t") == "@" and t.get("k") == "s"
+            ),
+            None,
+        )
+        if tok:
+            tok["token"] = f"@s {ts} "
+        else:
+            self.structured_tokens.append({"token": f"@s {ts} ", "t": "@", "k": "s"})
+
+    def _is_rdate_only(self) -> bool:
+        """True if rruleset is only RDATE(+optional EXDATE), i.e. no RRULE."""
+        if not self.rruleset:
+            return False
+        lines = [ln.strip() for ln in self.rruleset.splitlines() if ln.strip()]
+        if not lines:
+            return False
+        # No RRULE anywhere
+        if any(ln.upper().startswith("RRULE") for ln in lines):
+            return False
+        # At least one RDATE (either plain RDATE:... or RDATE;VALUE=DATE:...)
+        has_rdate = any(ln.upper().startswith("RDATE") for ln in lines)
+        return has_rdate
+
+    def _drop_first_rdate(self, first_dt: datetime) -> bool:
+        """
+        Mark the first RDATE occurrence as completed by appending an @- EXDATE token,
+        then re-parse so rruleset reflects it. Return True if more RDATEs remain.
+        """
+        # 1) append @- token in the same textual style your parser already understands
+        if first_dt.hour == 0 and first_dt.minute == 0 and first_dt.second == 0:
+            ex_str = first_dt.strftime("%Y%m%d")  # date-only
+        else:
+            ex_str = first_dt.strftime("%Y%m%dT%H%M%S")  # datetime
+
+        self.structured_tokens.append({"token": f"@- {ex_str} ", "t": "@", "k": "-"})
+
+        # 2) re-parse to regenerate rruleset/derived fields consistently
+        self._reparse_from_tokens()
+
+        # 3) decide if anything remains (any RDATE not excluded)
+        #    Quick check: do we still have any @+ token with a date/datetime != ex_str?
+        remaining = False
+        for tok in self.structured_tokens:
+            if tok.get("t") == "@" and tok.get("k") == "+":
+                body = tok["token"][2:].strip()
+                for piece in (p.strip() for p in body.split(",") if p.strip()):
+                    if piece != ex_str:
+                        remaining = True
+                        break
+            if remaining:
+                break
+
+        return remaining
+
+    def _has_rrule(self) -> bool:
+        """True if rruleset contains an RRULE line."""
+        if not self.rruleset:
+            return False
+        return any(
+            ln.strip().upper().startswith("RRULE") for ln in self.rruleset.splitlines()
+        )
+
+    def _advance_dtstart_and_decrement_count(self, new_dtstart: datetime) -> None:
+        # bump @s (or create)
+        for tok in self.structured_tokens:
+            if tok.get("t") == "@" and tok.get("k") == "s":
+                tok["token"] = f"@s {new_dtstart.strftime('%Y%m%dT%H%M%S')} "
+                break
+        else:
+            self.structured_tokens.append(
+                {
+                    "token": f"@s {new_dtstart.strftime('%Y%m%dT%H%M%S')} ",
+                    "t": "@",
+                    "k": "s",
+                }
+            )
+
+        # decrement &c if present
+        for tok in list(self.structured_tokens):
+            if tok.get("t") == "&" and tok.get("k") == "c":
+                try:
+                    parts = tok["token"].split()
+                    if len(parts) >= 2 and parts[0] == "&c":
+                        cnt = int(parts[1]) - 1
+                        if cnt > 0:
+                            tok["token"] = f"&c {cnt}"
+                        else:
+                            self.structured_tokens.remove(tok)  # drop when it hits 0
+                except Exception:
+                    pass
+                break
+
+        # rebuild rruleset / derived fields from tokens
+        self._reparse_from_tokens()
+
+    def _clear_schedule(self) -> None:
+        """
+        Clear *all* scheduling: @s, @r and its &-params, @+, @- and rruleset.
+        Leaves non-scheduling tokens (subject, etc.) intact.
+        """
+        new_tokens = []
+        dropping_group_r = False
+
+        for tok in self.structured_tokens:
+            t = tok.get("t")
+            k = tok.get("k")
+
+            # drop @s
+            if t == "@" and k == "s":
+                continue
+
+            # drop @+ / @-
+            if t == "@" and k in {"+", "-"}:
+                continue
+
+            # drop @r and all following & (r-params) until next non-& token
+            if t == "@" and k == "r":
+                dropping_group_r = True
+                continue
+
+            if dropping_group_r:
+                if t == "&":  # r-parameter
+                    continue
+                else:
+                    dropping_group_r = False
+                    # fall through to append this non-& token
+
+            new_tokens.append(tok)
+
+        self.structured_tokens = new_tokens
+        self.rruleset = ""  # remove compiled schedule string
+
+    def _sync_tokens_from_rruleset(self) -> list:
+        """
+        If you source tokens (@s/@r/@+/@-) from rruleset, re-sync here;
+        otherwise this can just return self.structured_tokens.
+        """
+        return self.structured_tokens
 
     def do_rdate(self, token: str):
         """
@@ -1863,52 +2289,28 @@ class Item:
         them using TZID (even for UTC).
         """
         # log_msg(f"processing rdate {token = }")
-        # print(f"starting {self.rdstart_str = }")
         try:
             # Remove the "@+" prefix and extra whitespace
             # token_body = token.strip()[2:].strip()
             token_body = token["token"][2:].strip()
 
             # Split on commas to get individual date strings
-            # print(f"{token_body = }")
             dt_strs = [s.strip() for s in token_body.split(",") if s.strip()]
-            # print(f"{dt_strs = }")
 
             # Process each entry
             rdates = []
             for dt_str in dt_strs:
-                # print(f"parsing {dt_str = }")
                 dt = parse(dt_str)
-                # print(f"got {dt = }")
-                # if isinstance(dt, datetime) and dt.hour == 0 and dt.minute == 0:
-                #     dt = dt.date()
-                # print(f"formtting {dt = }")
                 dt_fmt = dt_to_dtstr(dt)
-                # print(f"dt formatted {dt_fmt = }")
-                # if self.enforce_dates:
-                #     dt = self.enforce_date(dt)
-                # print(f"{dt = }")
-                # If dt is naive and a global timezone is available, use it
-                # if dt.tzinfo is None and self.timezone and not self.enforce_dates:
-                #     print(f"replacing tzinfo with {self.timezone} in {dt = }")
-                #     dt.replace(tzinfo=self.timezone)
-                #     print(f"replaced {dt = }")
-                # Promote a date to a datetime if necessary (using your helper)
-                # dt = self.promote_date_to_datetime(dt)
-                # print(f"for {dt = }, adding {dt_fmt = } to rdates")
+
                 if dt_fmt not in self.rdates:
                     # print(f"added {dt_fmt = } to rdates")
                     rdates.append(dt_fmt)
-            # print(f"{rdates = }")
             self.rdstart_str = f"{self.rdstart_str},{','.join(rdates)}"
-            # print(f"ending {self.rdstart_str = }")
             self.rdates = rdates
             # Prepend RDATE in finalize_rruleset after possible insertion of DTSTART
-            # fmt_str = ";VALUE=DATE:%Y%m%d" if self.enforce_dates else "%Y%m%dT%H%M%S"
-            # self.rdate_str = ",".join([dt.strftime(f"{fmt_str}") for dt in rdates])
             return True, rdates, []
         except Exception as e:
-            # print(f"error processing {token = }: {e}")
             return False, f"Invalid @+ value: {e}", []
 
     def do_exdate(self, token):
@@ -1920,7 +2322,6 @@ class Item:
             # Remove the "@-" prefix and extra whitespace
             token_body = token.strip()[2:].strip()
             # Split on commas to get individual date strings
-            # print(f"{token_body = }")
             dt_strs = [s.strip() for s in token_body.split(",") if s.strip()]
             exdates = []
             for dt_str in dt_strs:
@@ -1945,21 +2346,15 @@ class Item:
             return False, f"Invalid @- token: {token}. Error: {e}", []
 
     def finalize_rruleset(self):
+        log_msg("in finalize_rruleset")
         if self.rrule_tokens:
-            # print("finalizing rruleset with tokens")
             components = []
             rruleset_str = ""
-            # print(
-            #     f"finalizing rruleset using {self.parse_ok = }, {len(self.rrule_tokens) = }; {len(components) = }; {len(rruleset_str) = }"
-            # )
             for token in self.rrule_tokens:
                 print(f"{self.rrule_tokens = }")
                 rule_parts = []
                 _, rrule_params = token
-                # print(
-                #     f"finalizing rrule {token = }:  {_ = } with {rrule_params = }; {self.dtstart_str = }"
-                # )
-                dtstart = rrule_params.pop("DTSTART", None)
+                # dtstart = rrule_params.pop("DTSTART", None)
                 # if dtstart:
                 #     components.append(f"DTSTART:{dtstart}")
                 if self.dtstart_str:
@@ -1979,9 +2374,6 @@ class Item:
                 components.append(rule)
 
             if self.rdate_str:
-                # rdates = ",".join([x.strftime("%Y%m%dT%H%M%S") for x in self.rdates])
-                # print(f"appending {rdates = }")
-
                 components.append(f"RDATE:{self.rdate_str}")
 
             if self.exdate_str:
@@ -1997,16 +2389,11 @@ class Item:
             return True, rruleset_str
 
         elif self.rdstart_str:
-            # print("finalizing rruleset with rdate only")
             components = [self.rdstart_str]
             if self.rdate_str:
                 components.append(f"RDATE:{self.rdate_str}")
             rruleset_str = "\n".join(components)
             self.item["rruleset"] = rruleset_str
-            # must reset these to avoid duplicates
-            # self.rrule_tokens = []
-            # self.rdates = []
-            # self.exdates = []
             return True, rruleset_str
         return False, "No rrule tokens or rdate to finalize"
 
@@ -2203,22 +2590,6 @@ class Item:
             blocking[i] = len(waiting) / len(available)
             # blocking[i] = sum(1 for j in waiting if i in all_prereqs.get(j, set()))
 
-        # # finalize
-        # final = []
-        # for job in jobs:
-        #     if "i" not in job:
-        #         continue
-        #     i = job["i"]
-        #     job["prereqs"] = sorted(all_prereqs.get(i, []))
-        #     if i in available:
-        #         job["status"] = "available"
-        #         job["blocking"] = blocking[i]
-        #     elif i in waiting:
-        #         job["status"] = "waiting"
-        #     elif i in finished:
-        #         job["status"] = "finished"
-        #     final.append(job)
-
         num_available = len(available)
         num_waiting = len(waiting)
         num_finished = len(finished)
@@ -2257,9 +2628,158 @@ class Item:
         return True, final
 
     def do_completion(self, token):
-        """ "process completion command"""
-        print("TODO: do_completion() -> implement")
-        return False, token, []
+        """
+        Handle both:
+        - @f <datetime>  (task-level)  -> store in self.completions and normalize token text
+        - &f <datetime>  (job-level)   -> return integer timestamp for job metadata
+        """
+        # --- @f path: dispatcher passes a structured token dict ---
+        if isinstance(token, dict):
+            # token["token"] looks like "@f 2025-08-14 16:00"
+            try:
+                body = token["token"][2:].strip()
+                dt = parse(body)
+                normalized = f"@f {dt.strftime('%Y%m%dT%H%M%S')} "
+                token["token"] = normalized
+                token["t"] = "@"
+                token["k"] = "f"
+                # keep a record so finalize_completions() can advance schedules
+                if not hasattr(self, "completions"):
+                    self.completions = []
+                self.completions.append(dt)
+                return True, normalized, []
+            except Exception as e:
+                return False, f"invalid @f datetime: {e}", []
+
+        # --- &f path: dispatcher passes the *string* after "&f " ---
+        try:
+            dt = parse(str(token).strip())
+            # For job metadata we return an int timestamp; your build_jobs/finalize_jobs
+            # will carry it through as job["f"] = <epoch-seconds>
+            return True, round(dt.timestamp()), []
+        except Exception as e:
+            return False, f"invalid &f datetime: {e}", []
+
+    def finalize_completions(self):
+        """
+        Apply the effect of the most recent completion(s) to scheduling tokens:
+        - If @o is present: bump @s by interval; (optional) smoothing not shown here.
+        - Else if RRULE present:
+            - bump @s to next occurrence,
+            - decrement &c if present (remove if it hits zero).
+        - Else if only RDATE/EXDATE: append an @- for the completed dt.
+        Removes processed @f tokens from structured_tokens.
+        Leaves &f (job completions) in place (they drive job status).
+        Recomputes rruleset afterwards via your existing finalize_rruleset().
+        """
+        if not self.completions and not self.jobs:  # FIXME: why skip other tasks?
+            return  # nothing to do
+
+        # We use the *latest* @f as the completion timestamp to apply.
+        completed_dt = max(self.completions) if self.completions else None
+
+        # Figure out what schedule we have
+        has_rrule = any(
+            tok.get("t") == "@" and tok.get("k") == "r"
+            for tok in self.structured_tokens
+        )
+        has_s = self._find_token("@", "s") is not None
+        # Treat "RDATE-only" if no @r, but we either have @+/@- or an rruleset string with only RDATE/EXDATE/DTSTART
+        has_rdate_tokens = bool(self._find_all("@", "+") or self._find_all("@", "-"))
+
+        # 1) If @o present, bump @s = completion + interval
+        o_seconds = self.item.get(
+            "o"
+        )  # do_over returned seconds; you also keep self.over text
+        if completed_dt and o_seconds is not None:
+            self._ensure_start_token(completed_dt + timedelta(seconds=o_seconds))
+            # (Optional: learning "~" smoothing could adjust o_seconds here.)
+            # Remove @f tokens; completion has been applied
+            self._remove_tokens("@", "f")
+            # Rebuild strings from tokens
+            self.finalize_rruleset()
+            if self.collect_grouped_tokens({"~"}):  # project jobs present
+                self.finalize_jobs(self.jobs)
+            return
+
+        # Build a temporary rruleset object from current tokens/strings to compute due/next.
+        # Prefer the authoritative self.item['rruleset'] if already set, else try to build it.
+        rule_str = self.item.get("rruleset", "")
+        if not rule_str:
+            ok, rs = self.finalize_rruleset()
+            if ok:
+                rule_str = rs
+
+        due_dt = None
+        next_dt = None
+        if rule_str:
+            try:
+                rs = rrulestr(rule_str)
+                # We want the first TWO occurrences in *sequence order* (even if past-due).
+                # Safest: iterate a little; for bounded rules it's cheap.
+                it = iter(rs)
+                try:
+                    due_dt = next(it)
+                    next_dt = next(it, None)
+                except StopIteration:
+                    due_dt = None
+                    next_dt = None
+            except Exception:
+                pass
+
+        # 2) RRULE path
+        if has_rrule:
+            # No explicit completion time? Nothing to apply
+            if not completed_dt:
+                return
+            # Advance DTSTART to the next occurrence (if any)
+            if next_dt is not None:
+                self._ensure_start_token(next_dt)
+            else:
+                # no more repeats: optional to remove @s
+                s_tok = self._find_token("@", "s")
+                if s_tok:
+                    self.structured_tokens.remove(s_tok)
+
+            # Decrement &c (if present)
+            c_val = self._get_count_token_value()
+            if c_val is not None:
+                new_val = max(c_val - 1, 0)
+                if new_val > 0:
+                    self._set_count_token_value(new_val)
+                else:
+                    # remove &c when it hits zero
+                    self._remove_tokens("&", "c")
+
+            # Remove applied @f tokens
+            self._remove_tokens("@", "f")
+
+            # Rebuild
+            self.finalize_rruleset()
+            if self.collect_grouped_tokens({"~"}):
+                self.finalize_jobs(self.jobs)
+            return
+
+        # 3) RDATE-only path (or no @r but @+/@- present)
+        if completed_dt and (
+            has_rdate_tokens
+            or (rule_str and "RDATE" in rule_str and "RRULE" not in rule_str)
+        ):
+            # Append @- <completed> so this instance won’t reappear
+            self.structured_tokens.append(
+                {"token": f"@- {self._fmt_compact(completed_dt)} ", "t": "@", "k": "-"}
+            )
+            # Remove @f tokens
+            self._remove_tokens("@", "f")
+            # Rebuild
+            self.finalize_rruleset()
+            if self.collect_grouped_tokens({"~"}):
+                self.finalize_jobs(self.jobs)
+            return
+
+        # 4) No schedule: single-shot — just clear @f (recording to Completions happens in DB layer)
+        if completed_dt:
+            self._remove_tokens("@", "f")
 
     def list_rrule(
         self,
@@ -2281,26 +2801,17 @@ class Item:
         rule_string = self.item.get("rruleset")
         if not rule_string:
             return []
-        # print(f"list_rrule: {rule_string = }")
         is_date = "VALUE=DATE" in rule_string
-        # print(f"{is_date = }")
-        fmt_str = "    %a %Y-%m-%d" if is_date else "    %a %Y-%m-%d %H:%M:%S %Z %z"
-        # rule = rrulestr(rule_string, ignoretz=True), ignoretz=True
+        # fmt_str = "    %a %Y-%m-%d" if is_date else "    %a %Y-%m-%d %H:%M:%S %Z %z"
         print(f"list_rrule: {rule_string = }")
         rule = rrulestr(rule_string)
 
         timezone = (
             None if is_date else self.timezone
         )  # assuming you store ZoneInfo in self.timezone
-        # to_localtime = to_localtime and not self.enforce_dates
-        # print(
-        #     f"Using localize_rule_instances with {to_localtime = }, {timezone = }, {count = }, {after = }"
-        # )
-        # timezone = None
 
         if after is None and count is None:
             # Default: return full localized list
-            # print("after and count are None, returning full list")
             return localize_rule_instances(
                 list(rule),
                 timezone,
@@ -2308,9 +2819,6 @@ class Item:
             )
 
         # Use the preview function for controlled output
-        # print(
-        #     f"Using preview_rule_instances with {count = }, {after = }, {timezone = }, {rule = }"
-        # )
         return preview_rule_instances(
             rule,
             timezone,
@@ -2318,69 +2826,3 @@ class Item:
             after=after,
             to_localtime=to_localtime,
         )
-
-
-# class ItemManager:
-#     def __init__(self):
-#         self.doc_view_data = {}  # Primary structure: dict[doc_id, dict[view, list[row]]]
-#         self.view_doc_data = defaultdict(
-#             lambda: defaultdict(list)
-#         )  # Secondary index: dict[view, dict[doc_id, list[row]])
-#         self.view_cache = {}  # Cache for views
-#         self.doc_view_contribution = defaultdict(
-#             set
-#         )  # Tracks views each doc_id contributes to
-#
-#     def add_or_update_item(self, item):
-#         doc_id = item.doc_id
-#         new_views_and_rows = item.get_weekly_rows()
-#
-#         # Invalidate cache for views that will be affected by this doc_id
-#         self.invalidate_cache_for_doc(doc_id)
-#
-#         # Update the primary structure
-#         self.doc_view_data[doc_id] = new_views_and_rows
-#
-#         # Update the secondary index
-#         for view, rows in new_views_and_rows.items():
-#             self.view_doc_data[view][doc_id] = rows
-#             self.doc_view_contribution[doc_id].add(view)
-#
-#     def get_view_data(self, view):
-#         # Check if the view is in the cache
-#         if view in self.view_cache:
-#             return self.view_cache[view]
-#
-#         # Retrieve data for a specific view
-#         view_data = dict(self.view_doc_data[view])
-#
-#         # Cache the view data
-#         self.view_cache[view] = view_data
-#         return view_data
-#
-#     def get_reminder_data(self, doc_id):
-#         # Retrieve data for a specific reminder
-#         return self.doc_view_data.get(doc_id, {})
-#
-#     def remove_item(self, doc_id):
-#         # Invalidate cache for views that will be affected by this doc_id
-#         self.invalidate_cache_for_doc(doc_id)
-#
-#         # Remove reminder from primary structure
-#         if doc_id in self.doc_view_data:
-#             views_and_rows = self.doc_view_data.pop(doc_id)
-#             # Remove from secondary index
-#             for view in views_and_rows:
-#                 if doc_id in self.view_doc_data[view]:
-#                     del self.view_doc_data[view][doc_id]
-#
-#             # Remove doc_id from contribution tracking
-#             if doc_id in self.doc_view_contribution:
-#                 del self.doc_view_contribution[doc_id]
-#
-#     def invalidate_cache_for_doc(self, doc_id):
-#         # Invalidate cache entries for views affected by this doc_id
-#         if doc_id in self.doc_view_contribution:
-#             for view in self.doc_view_contribution[doc_id]:
-#                 if view in self.view_cache:
-#                     del self.view_cache[view]

@@ -19,6 +19,7 @@ class UIConfig(BaseModel):
     ampm: bool = False
     dayfirst: bool = False
     yearfirst: bool = True
+    history_weight: int = 3
 
 
 class DueConfig(BaseModel):
@@ -113,6 +114,11 @@ theme = "{{ ui.theme }}"
 # ampm: bool = true | false
 # Use 12 hour AM/PM when true else 24 hour
 ampm = {{ ui.ampm | lower }}
+
+# history_weight: int 
+# Apply this weight to the prior history when computing
+# the next offset for a task
+history_weight = {{ ui.history_weight }}
 
 # dayfirst and yearfirst settings
 # These settings are used to resolve ambiguous date entries involving
