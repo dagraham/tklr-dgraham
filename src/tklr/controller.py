@@ -52,14 +52,6 @@ from tklr.common import get_version
 
 VERSION = get_version()
 
-# env = TklrEnvironment()
-# urgency = env.config.urgency
-# MIN_HEX_COLOR = env.config.urgency.colors.min_hex_color
-# MAX_HEX_COLOR = env.config.urgency.colors.max_hex_color
-
-
-# details Colors
-
 # type_color = css_named_colors["palegoldenrod"]
 type_color = css_named_colors["limegreen"]
 # at_color = css_named_colors["khaki"]
@@ -85,6 +77,7 @@ GOLD = "#FFD700"
 ORANGE_RED = "#FF4500"
 TOMATO = "#FF6347"
 CORNSILK = "#FFF8DC"
+DARK_SALMON = "#E9967A"
 
 # Colors for UI elements
 DAY_COLOR = LEMON_CHIFFON
@@ -92,6 +85,7 @@ FRAME_COLOR = KHAKI
 HEADER_COLOR = LIGHT_SKY_BLUE
 DIM_COLOR = DARK_GRAY
 EVENT_COLOR = LIME_GREEN
+NOTE_COLOR = DARK_SALMON
 PASSED_EVENT = DARK_OLIVEGREEN
 ACTIVE_EVENT = LAWN_GREEN
 TASK_COLOR = LIGHT_SKY_BLUE
@@ -135,9 +129,10 @@ alpha = [x for x in string.ascii_lowercase]
 TYPE_TO_COLOR = {
     "*": EVENT_COLOR,  # event
     "~": AVAILABLE_COLOR,  # available task
+    "x": FINISHED_COLOR,  # finished task
     "^": AVAILABLE_COLOR,  # available task
     "+": WAITING_COLOR,  # waiting task
-    "%": FINISHED_COLOR,  # finished task
+    "%": NOTE_COLOR,  # note
     "<": PASTDUE_COLOR,  # past due task
     ">": BEGIN_COLOR,  # begin
     "!": GOAL_COLOR,  # draft
@@ -308,9 +303,6 @@ def calculate_4_week_start():
     """
     today = datetime.now()
     iso_year, iso_week, iso_weekday = today.isocalendar()
-    # start_of_week = datetime.strptime(
-    #     " ".join(map(str, [iso_year, iso_week, 1])), "%G %V %u"
-    # )
     start_of_week = today - timedelta(days=iso_weekday - 1)
     weeks_into_cycle = (iso_week - 1) % 4
     return start_of_week - timedelta(weeks=weeks_into_cycle)
@@ -341,28 +333,12 @@ def decimal_to_base26(decimal_num):
     return base26
 
 
-def base26_to_decimal(base26_num):
-    """
-    Convert a 2-digit base-26 number to its decimal equivalent.
-
-    Args:
-        base26_num (str): A 2-character string in base-26 using 'a' as 0 and 'z' as 25.
-
-    Returns:
-        int: The decimal equivalent of the base-26 number.
-    """
-    # Ensure the input is exactly 2 characters
-    if len(base26_num) != 2:
-        raise ValueError("Input must be a 2-character base-26 number.")
-
-    # Map each character to its base-26 value
-    digit1 = ord(base26_num[0]) - ord("a")  # First character
-    digit2 = ord(base26_num[1]) - ord("a")  # Second character
-
-    # Compute the decimal value
-    decimal_value = digit1 * 26**1 + digit2 * 26**0
-
-    return decimal_value
+def base26_to_decimal(tag: str) -> int:
+    """Decode 'a'..'z' (a=0) for any length."""
+    total = 0
+    for ch in tag:
+        total = total * 26 + (ord(ch) - ord("a"))
+    return total
 
 
 def indx_to_tag(indx: int, fill: int = 1):
@@ -466,28 +442,49 @@ def get_busy_bar(events):
     return aday_str, busy_str
 
 
-##
-
-
 class Controller:
     def __init__(self, database_path: str, env: TklrEnvironment):
         # Initialize the database manager
         self.db_manager = DatabaseManager(database_path, env)
+
         self.tag_to_id = {}  # Maps tag numbers to event IDs
+        self.list_tag_to_id: dict[str, dict[str, object]] = {}
+
         self.yrwk_to_details = {}  # Maps (iso_year, iso_week) to week description
         self.rownum_to_yrwk = {}  # Maps row numbers to (iso_year, iso_week)
         self.start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
-        self.list_tag_to_id = {}  # Maps tag numbers to event IDs
         self.env = env
         self.AMPM = env.config.ui.ampm
         self._last_details_meta = None
+        self.afill_by_view: dict[str, int] = {}  # e.g. {"events": 1, "tasks": 2}
+        # self.list_afill: dict[str, int] = {}
 
         for view in ["next", "last", "find", "events", "tasks", "alerts"]:
             self.list_tag_to_id.setdefault(view, {})
         self.width = shutil.get_terminal_size()[0] - 2
         self.afill = 1
         self._agenda_dirty = False
+
+    # --- replace your set_afill with this per-view version ---
+    def set_afill(self, details: list, view: str):
+        n = len(details)
+        fill = 1 if n <= 26 else 2 if n <= 26 * 26 else 3
+        log_msg(f"{view = }, {n = }, {fill = }, {details = }")
+        self.afill_by_view[view] = fill
+
+    def add_tag(
+        self, view: str, indx: int, record_id: int, *, job_id: int | None = None
+    ):
+        """Produce the next tag (with the pre-chosen width) and register it."""
+        fill = self.afill_by_view[view]
+        tag = indx_to_tag(indx, fill)  # uses your existing function
+        tag_fmt = f" [dim]{tag}[/dim] "
+        self.list_tag_to_id.setdefault(view, {})[tag] = {
+            "record_id": record_id,
+            "job_id": job_id,
+        }
+        return tag_fmt, indx + 1
 
     def mark_agenda_dirty(self) -> None:
         self._agenda_dirty = True
@@ -505,38 +502,15 @@ class Controller:
     def get_last_details_meta(self):
         return self._last_details_meta
 
-    def set_afill(self, details: list, method: str):
-        new_afill = 1 if len(details) <= 26 else 2 if len(details) <= 676 else 3
-        if new_afill != self.afill:
-            old_afill = self.afill
-            self.afill = new_afill
-            log_msg(
-                f"controller reset afill in {method} from {old_afill} -> {self.afill}"
-            )
-
     def toggle_pinned(self, record_id: int):
         self.db_manager.toggle_pinned(record_id)
         log_msg(f"{record_id = }, {self.db_manager.is_pinned(record_id) = }")
         return self.db_manager.is_pinned(record_id)
 
-    def add_tag(self, view: str, indx: int, record_id: int) -> tuple[str, int]:
-        """
-        Using list_tag_to_id,
-        """
-        tag = indx_to_tag(indx, self.afill)
-        # tag_fmt = f"  [dim]{tag} {indx} {record_id} {view}[/dim]  "
-        tag_fmt = f" [dim]{tag}[/dim] "
-        self.list_tag_to_id.setdefault(view, {})[tag] = record_id
-        return tag_fmt, indx + 1
-
-        return []
-
     def get_entry(self, record_id):
         result = self.db_manager.get_structured_tokens(record_id)
         tokens, rruleset, created, modified = result[0]
         entry = format_tokens(tokens, self.width)
-        # entry = f"\n{2 * ' '}".join(entry.splitlines())
-        # log_msg(f"{result = }")
         rruleset = f"\n{10 * ' '}".join(rruleset.splitlines())
         log_msg(f"{entry = }, {rruleset = }, {created = }, {modified = }")
         lines = []
@@ -765,16 +739,14 @@ class Controller:
         return lines
 
     def process_tag(self, tag: str, view: str, selected_week: tuple[int, int]):
-        """
-        Resolve the base-26 `tag` to a record_id for the given `view`,
-        build the details lines, and stash fresh meta for DetailsScreen.
-
-        Returns: list[str] where the FIRST element is the Details title,
-                followed by the content lines (unchanged call-site contract).
-        """
-        # 1) Pick the correct tag -> id map for this view
         if view == "week":
             tag_to_id = self.tag_to_id[selected_week]
+            payload = tag_to_id.get(tag)
+            if payload is None:
+                return [f"There is no item corresponding to tag '{tag}'."]
+            # week view never had job_id
+            record_id, job_id = payload, None
+
         elif view in [
             "next",
             "last",
@@ -783,46 +755,47 @@ class Controller:
             "tasks",
             "agenda-events",
             "agenda-tasks",
+            "alerts",
         ]:
-            tag_to_id = self.list_tag_to_id[view]
-        elif view == "alerts":
-            tag_to_id = self.list_tag_to_id["alerts"]
+            payload = self.list_tag_to_id.get(view, {}).get(tag)
+            if payload is None:
+                return [f"There is no item corresponding to tag '{tag}'."]
+            if isinstance(payload, dict):
+                record_id = payload.get("record_id")
+                job_id = payload.get("job_id")
+            else:
+                # backward compatibility (old mapping was tag -> record_id)
+                record_id, job_id = payload, None
         else:
             return ["Invalid view."]
 
-        self.num_tags = len(tag_to_id)
-
-        if tag not in tag_to_id:
-            return [f"There is no item corresponding to tag '{tag}'."]
-
-        record_id = tag_to_id[tag]
-
-        # 2) Core info for the title + meta (unchanged helpers)
-        core = self.get_record_core(record_id)  # itemtype, subject, rrulestr, record
+        core = self.get_record_core(record_id) or {}
         subject = core.get("subject") or "(untitled)"
+        itemtype = core.get("itemtype") or ""
+        rruleset = core.get("rrulestr") or ""
 
-        # 3) Fresh pinned state from the Pinned table
-        pinned_now = self.db_manager.is_pinned(record_id)
+        try:
+            pinned_now = (
+                self.db_manager.is_task_pinned(record_id) if itemtype == "~" else False
+            )
+        except Exception:
+            pinned_now = False
 
-        # 4) Your existing details body
-        fields = self.get_entry(record_id)  # returns list[str], first line is entry
+        fields = self.get_entry(record_id)
+        title = f"{subject}  [dim]id {record_id}[/dim]"
+        if job_id is not None:
+            fields = [f"[{label_color}]job_id:[/{label_color}] {job_id}"] + fields
 
-        # 5) Title (DetailsScreen will add 📌 if needed)
-        title = f"{subject}  [dim]# {record_id}[/dim]"
-
-        # 6) Stash meta for DetailsScreen (so it can enable actions + show pin glyph)
-        rruleset = core.get("rruleset")
-        repeating = "," in rruleset or "RRULE" in rruleset
-        log_msg(f"{rruleset = }, {repeating = }")
+        # <-- this is your existing single source of truth for DetailsScreen
         self._last_details_meta = {
             "record_id": record_id,
-            "itemtype": core.get("itemtype"),  # "~" for task, "*" for event, etc.
-            "rruleset": repeating,
-            "pinned": bool(pinned_now),  # ← fresh every time
-            "record": core.get("record"),
+            "job_id": job_id,
+            "itemtype": itemtype,  # "~" task, "*" event, etc.
+            "rruleset": rruleset,
+            "pinned": bool(pinned_now),
+            "record": self.db_manager.get_record(record_id),
         }
 
-        # 7) Return title + details (keeps your call-site unchanged)
         return [title] + fields
 
     def generate_table(self, start_date, selected_week, grouped_events):
@@ -1200,14 +1173,13 @@ class Controller:
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
         # self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
-        self.set_afill(events, "find_records")
+        self.set_afill(events, "find")
 
         self.list_tag_to_id.setdefault("find", {})
 
         indx = 0
 
-        tag = indx_to_tag(indx, self.afill)
-        for id, subject, _, itemtype, last_ts, next_ts in events:
+        for record_id, subject, _, itemtype, last_ts, next_ts in events:
             subject = f"{truncate_string(subject, 30):<30}"
             last_dt = (
                 datetime.fromtimestamp(last_ts).strftime("%y-%m-%d %H:%M")
@@ -1221,18 +1193,12 @@ class Controller:
                 else "~"
             )
             next_fmt = f"{next_dt:^14}"
-            # yy-mm-dd hh:mm
-            # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_last = f"[not bold]{last_fmt}[/not bold]"
             escaped_next = f"[not bold]{next_fmt}[/not bold]"
             row = f"[{type_color}]{itemtype} {subject} {escaped_last} {escaped_next}[/{type_color}]"
-            tag = indx_to_tag(indx, self.afill)
-            self.list_tag_to_id["find"][tag] = id
-            description.append(f"  [dim]{tag}[/dim]  {row}")
-            indx += 1
-        # NOTE: maybe return list for scrollable view?
-        # details_str = "\n".join(description)
+            tag_fmt, indx = self.add_tag("find", indx, record_id)
+            description.append(f"{tag_fmt} {row}")
         return description
 
     def group_events_by_date_and_time(self, events):
@@ -1287,8 +1253,8 @@ class Controller:
         events_by_date = {}
 
         indx = 0
-        self.set_afill(events, "get_agenda_events")
-        self.list_tag_to_id.setdefault("events", {})
+        # self.set_afill(events, "events")
+        # self.list_tag_to_id.setdefault("events", {})
 
         for date, entries in grouped_by_date.items():
             events_by_date.setdefault(date, [])
@@ -1334,6 +1300,11 @@ class Controller:
 
         indx = 0
         indexed_events_by_date = {}
+        event_count = sum(len(entries) for _, entries in events_by_date.items())
+        self.set_afill(range(event_count), "events")
+
+        self.afill_by_view["events"] = self.afill
+        self.list_tag_to_id.setdefault("events", {})
         for date, records in events_by_date.items():
             for record_id, label, subject in records:
                 tag_fmt, indx = self.add_tag("events", indx, record_id)
@@ -1358,10 +1329,11 @@ class Controller:
         urgency_records = self.db_manager.get_urgency()
         # rows: (record_id, job_id, subject, urgency, color, status, weights, pinned_int)
 
-        self.set_afill(urgency_records, "get_agenda_tasks")
+        self.set_afill(urgency_records, "tasks")
+        indx = 0
         self.list_tag_to_id.setdefault("tasks", {})
 
-        idx = 0
+        # Agenda tasks (has job_id)
         for (
             record_id,
             job_id,
@@ -1372,7 +1344,8 @@ class Controller:
             weights,
             pinned,
         ) in urgency_records:
-            tag_fmt, idx = self.add_tag("tasks", idx, record_id)
+            log_msg(f"collecting tasks {record_id = }, {job_id = }, {subject = }")
+            tag_fmt, indx = self.add_tag("tasks", indx, record_id, job_id=job_id)
             urgency_str = (
                 "📌" if pinned else f"[{color}]{int(round(urgency * 100)):>2}[/{color}]"
             )
@@ -1387,6 +1360,67 @@ class Controller:
 
         return tasks_by_urgency
 
+    # def finish_current_instance(
+    #     self,
+    #     record_id: int,
+    #     completed_dt: datetime | None = None,
+    #     *,
+    #     history_weight: int | None = None,
+    # ) -> dict:
+    #     """
+    #     Finish the current occurrence of a task and advance its schedule (if any).
+    #
+    #     - Rebuilds Item from stored structured_tokens.
+    #     - Calls Item.finish(...) to adjust @s/@r/@+/@- (and rruleset/jobs).
+    #     - Persists the mutated Item via db_manager.update_item(...).
+    #     - Inserts a row in Completions (due_ts from Item.finish, completed_ts from now/provided).
+    #     - Refreshes derived tables (urgency, alerts, etc.).
+    #     """
+    #     completed_dt = completed_dt or datetime.utcnow()
+    #
+    #     row = self.db_manager.get_record(record_id)
+    #     if not row:
+    #         raise ValueError(f"No record found for id {record_id}")
+    #
+    #     structured_tokens_value = row[13]
+    #     tokens = _ensure_tokens_list(structured_tokens_value)
+    #
+    #     entry_str = "".join(tok.get("token", "") for tok in tokens).strip()
+    #     item = Item(entry_str)
+    #     if not item.parse_ok:
+    #         raise ValueError(
+    #             f"Item.parse failed for record {record_id}: {item.parse_message}"
+    #         )
+    #
+    #     if history_weight is None:
+    #         history_weight = getattr(self.env.config.ui, "history_weight", 3)
+    #
+    #     fin = item.finish(completed_dt, history_weight=history_weight)
+    #
+    #     # Persist the mutated Item
+    #     self.db_manager.update_item(record_id, item)
+    #
+    #     # Record completion
+    #     self.db_manager.insert_completion(
+    #         record_id=record_id,
+    #         due_ts=fin.due_ts_used,
+    #         completed_ts=int(completed_dt.timestamp()),
+    #     )
+    #
+    #     try:
+    #         self.db_manager.populate_dependent_tables()
+    #     except AttributeError:
+    #         pass
+    #
+    #     return {
+    #         "record_id": record_id,
+    #         "due_ts_used": fin.due_ts_used,  # mirror dataclass
+    #         "completed_ts": int(completed_dt.timestamp()),
+    #         "new_structured_tokens": fin.new_structured_tokens,
+    #         "new_rruleset": fin.new_rruleset or "",
+    #         "finished_final": fin.finished_final,  # mirror dataclass
+    #     }
+
     def finish_current_instance(
         self,
         record_id: int,
@@ -1400,7 +1434,8 @@ class Controller:
         - Rebuilds Item from stored structured_tokens.
         - Calls Item.finish(...) to adjust @s/@r/@+/@- (and rruleset/jobs).
         - Persists the mutated Item via db_manager.update_item(...).
-        - Inserts a row in Completions (due_ts from Item.finish, completed_ts from now/provided).
+        - Inserts a row in Completions (due_ts_used from Item.finish, completed_ts from now/provided).
+        - Removes rows from Urgency/DateTimes if the item is now fully finished (itemtype 'x').
         - Refreshes derived tables (urgency, alerts, etc.).
         """
         completed_dt = completed_dt or datetime.utcnow()
@@ -1409,16 +1444,18 @@ class Controller:
         if not row:
             raise ValueError(f"No record found for id {record_id}")
 
-        # Records row layout (adjust indexes if yours differ):
+        # Records row layout:
         # 0 id, 1 itemtype, 2 subject, 3 description, 4 rruleset,
         # 5 timezone, 6 extent, 7 alerts, 8 beginby, 9 context,
         # 10 jobs, 11 tags, 12 priority, 13 structured_tokens, 14 processed,
         # 15 created, 16 modified
         structured_tokens_value = row[13]
+        existing_subject = row[2]  # fallback to avoid nulling subject
 
+        # Normalize tokens to list[dict]
         tokens = _ensure_tokens_list(structured_tokens_value)
 
-        # Rebuild input line for Item and parse
+        # Rebuild input for Item and parse
         entry_str = "".join(tok.get("token", "") for tok in tokens).strip()
         item = Item(entry_str)
         if not item.parse_ok:
@@ -1426,23 +1463,66 @@ class Controller:
                 f"Item.parse failed for record {record_id}: {item.parse_message}"
             )
 
-        # Let Item.finish do all the schedule/token updates
+        # Make sure subject can’t become empty on update
+        if not item.subject:
+            item.subject = existing_subject
+
+        # Finish via Item
         if history_weight is None:
-            # fall back to config if present, else a small default
             history_weight = getattr(self.env.config.ui, "history_weight", 3)
 
         fin = item.finish(completed_dt, history_weight=history_weight)
-        # fin.due_ts (int|None), fin.final (bool), and item now mutated
+        # Support either dataclass field name
+        due_ts_used = getattr(fin, "due_ts_used", getattr(fin, "due_ts", None))
+        finished_final = getattr(fin, "finished_final", getattr(fin, "final", False))
+
+        # Helper: does this item still have @o (offset) behavior?
+        def _has_o_token(toks: list[dict]) -> bool:
+            return any(t.get("t") == "@" and t.get("k") == "o" for t in toks)
+
+        # Flip to 'x' ONLY if final, no @o, and no schedule left (neither RRULE nor RDATE)
+        if finished_final and not _has_o_token(item.structured_tokens):
+            has_rrule = getattr(item, "_has_rrule", None)
+            is_rdate_only = getattr(item, "_is_rdate_only", None)
+            # If helper methods exist (as we added), use them to confirm nothing remains
+            nothing_left = True
+            if callable(has_rrule) and has_rrule():
+                nothing_left = False
+            if callable(is_rdate_only) and is_rdate_only():
+                nothing_left = False
+
+            if nothing_left:
+                item.itemtype = "x"
+                item.rruleset = ""  # clear rruleset when fully done
+                # also reflect itemtype in the first structured token
+                if (
+                    item.structured_tokens
+                    and item.structured_tokens[0].get("t") == "itemtype"
+                ):
+                    item.structured_tokens[0]["token"] = "x"
 
         # Persist the mutated Item (tokens, rruleset, jobs, etc.)
         self.db_manager.update_item(record_id, item)
 
-        # Record completion (even if due_ts is None for one-shot tasks)
+        # Record completion (even if due_ts_used is None for one-shots)
         self.db_manager.insert_completion(
             record_id=record_id,
-            due_ts=fin.due_ts,
+            due_ts=due_ts_used,
             completed_ts=int(completed_dt.timestamp()),
         )
+
+        # If fully finished, remove from derived tables so it disappears from lists
+        if finished_final:
+            try:
+                self.db_manager.cursor.execute(
+                    "DELETE FROM Urgency WHERE record_id=?", (record_id,)
+                )
+                self.db_manager.cursor.execute(
+                    "DELETE FROM DateTimes WHERE record_id=?", (record_id,)
+                )
+                self.db_manager.conn.commit()
+            except Exception:
+                pass  # best-effort
 
         # Refresh derived tables so UI re-sorts immediately
         try:
@@ -1452,8 +1532,8 @@ class Controller:
 
         return {
             "record_id": record_id,
-            "final": fin.final,
-            "due_ts": fin.due_ts,  # may be None
+            "final": finished_final,
+            "due_ts": due_ts_used,  # may be None
             "completed_ts": int(completed_dt.timestamp()),
             "new_rruleset": item.rruleset or "",
         }

@@ -293,7 +293,6 @@ class UrgencyComputer:
             )
         log_msg(f"computed {recent_contribution = }")
         return recent_contribution
-        # return 0.0  # FIXME!
 
     def urgency_age(self, modified_seconds: int, now_seconds: int) -> float:
         """
@@ -425,136 +424,153 @@ class DatabaseManager:
 
     def setup_database(self):
         """
-        Set up the SQLite database schema.
-        # CHECK(itemtype IN ('*', '~', '^', '%', '?', '+')) NOT NULL,
+        Create (if missing) all tables and indexes for tklr.
+
+        Notes:
+        - Pinned state is stored ONLY in the `Pinned` table.
+        - Urgency has NO `pinned` column; compute it via LEFT JOIN Pinned when reading.
+        - Timestamps are stored as UTC epoch seconds (INTEGER) unless noted otherwise.
         """
+        # ---------------- Records ----------------
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Records (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                itemtype TEXT,
-                subject TEXT,
-                description TEXT,
-                rruleset TEXT,
-                timezone TEXT,
-                extent TEXT,
-                alerts TEXT,
-                beginby TEXT,
-                context TEXT,
-                jobs TEXT,
-                tags TEXT,
-                priority INTEGER CHECK (priority IN (1, 2, 3, 4, 5)),
-                structured_tokens TEXT,
-                processed INTEGER,
-                created TEXT,     -- UTC timestamp in 'YYYYMMDDTHHMMSS'
-                modified TEXT     -- UTC timestamp in 'YYYYMMDDTHHMMSS'
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                itemtype          TEXT,                         -- '*','~','^','%','?','+', 'x'
+                subject           TEXT,
+                description       TEXT,
+                rruleset          TEXT,
+                timezone          TEXT,
+                extent            TEXT,
+                alerts            TEXT,
+                beginby           TEXT,
+                context           TEXT,
+                jobs              TEXT,
+                tags              TEXT,
+                priority          INTEGER CHECK (priority IN (1,2,3,4,5)),
+                structured_tokens TEXT,                         -- JSON text
+                processed         INTEGER,
+                created           TEXT,                         -- 'YYYYMMDDTHHMMSS' UTC
+                modified          TEXT                          -- 'YYYYMMDDTHHMMSS' UTC
             );
         """)
 
+        # ---------------- Pinned ----------------
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Pinned (
                 record_id INTEGER PRIMARY KEY,
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-            )
+            );
         """)
-
-        # Optional explicit index (PK already indexed, but harmless)
         self.cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_pinned_record
-            ON Pinned(record_id)
+            ON Pinned(record_id);
         """)
 
-        self.cursor.execute(
-            """
+        # ---------------- Urgency (NO pinned column) ----------------
+        self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Urgency (
                 id        INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id INTEGER NOT NULL,
-                job_id    INTEGER,                 -- NULL if not part of a project
+                record_id INTEGER NOT NULL,                     -- References Records.id
+                job_id    INTEGER,                              -- NULL if not part of a project
                 subject   TEXT    NOT NULL,
                 urgency   REAL    NOT NULL,
-                color     TEXT,                    -- if you store a precomputed color
-                status TEXT NOT NULL,              -- "next", "waiting", "scheduled", etc.
-                weights TEXT,
-                pinned    INTEGER NOT NULL DEFAULT 0
+                color     TEXT,                                 -- optional precomputed color
+                status    TEXT    NOT NULL,                     -- "next","waiting","scheduled",…
+                weights   TEXT                                  -- JSON of component weights, optional
             );
-            """
-        )
-        # Indexes for faster lookup/sorting
+        """)
         self.cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_urgency_record
-            ON Urgency(record_id)
+            ON Urgency(record_id);
         """)
         self.cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_urgency_urgency
-            ON Urgency(urgency DESC)
+            ON Urgency(urgency DESC);
         """)
 
+        # ---------------- Tags & RecordTags ----------------
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Tags (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id   INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE
             );
         """)
-
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS RecordTags (
                 record_id INTEGER NOT NULL,
-                tag_id INTEGER NOT NULL,
+                tag_id    INTEGER NOT NULL,
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE,
-                FOREIGN KEY (tag_id) REFERENCES Tags(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id)    REFERENCES Tags(id)    ON DELETE CASCADE,
                 PRIMARY KEY (record_id, tag_id)
             );
         """)
 
+        # ---------------- Completions ----------------
         self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS RecordTags (
-                record_id INTEGER NOT NULL,
-                tag_id INTEGER NOT NULL,
-                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE,
-                FOREIGN KEY (tag_id) REFERENCES Tags(id) ON DELETE CASCADE,
-                PRIMARY KEY (record_id, tag_id)
+            CREATE TABLE IF NOT EXISTS Completions (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id     INTEGER NOT NULL,
+                due_ts        INTEGER,          -- epoch seconds (nullable for one-shots)
+                completed_ts  INTEGER NOT NULL, -- epoch seconds
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+            );
+        """)
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_completions_record_id
+            ON Completions(record_id);
+        """)
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_completions_completed_ts
+            ON Completions(completed_ts);
+        """)
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_completions_record_due
+            ON Completions(record_id, due_ts);
+        """)
+
+        # ---------------- DateTimes (for expanded instances) ----------------
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS DateTimes (
+                record_id      INTEGER,
+                start_datetime INTEGER,          -- epoch seconds
+                end_datetime   INTEGER,          -- epoch seconds
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
             );
         """)
 
+        # ---------------- GeneratedWeeks (cache of week ranges) ----------------
         self.cursor.execute("""
-        CREATE TABLE IF NOT EXISTS DateTimes (
-            record_id INTEGER,
-            start_datetime INTEGER,
-            end_datetime INTEGER,
-            FOREIGN KEY (record_id) REFERENCES Records (id)
-        )
+            CREATE TABLE IF NOT EXISTS GeneratedWeeks (
+                start_year INTEGER,
+                start_week INTEGER,
+                end_year   INTEGER,
+                end_week   INTEGER
+            );
         """)
 
-        self.cursor.execute("""
-        CREATE TABLE IF NOT EXISTS GeneratedWeeks (
-            start_year INTEGER,
-            start_week INTEGER, 
-            end_year INTEGER, 
-            end_week INTEGER
-        )
-        """)
-
+        # ---------------- Alerts ----------------
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Alerts (
-                alert_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id INTEGER NOT NULL,
-                record_name TEXT NOT NULL,
-                trigger_datetime INTEGER NOT NULL,
-                start_datetime INTEGER NOT NULL,
-                alert_name TEXT NOT NULL,
-                alert_command TEXT NOT NULL,
+                alert_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id       INTEGER NOT NULL,
+                record_name     TEXT    NOT NULL,
+                trigger_datetime INTEGER NOT NULL,  -- epoch seconds
+                start_datetime   INTEGER NOT NULL,  -- epoch seconds
+                alert_name      TEXT    NOT NULL,
+                alert_command   TEXT    NOT NULL,
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-            )
+            );
         """)
-        self.cursor.execute(
-            """
+
+        # ---------------- Beginby (days remaining notices) ----------------
+        self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Beginby (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id INTEGER NOT NULL,
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id     INTEGER NOT NULL,
                 days_remaining INTEGER NOT NULL,
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-            )
-            """
-        )
+            );
+        """)
 
         self.conn.commit()
 
@@ -720,6 +736,21 @@ class DatabaseManager:
         if item.itemtype in ["~", "^"]:
             self.populate_urgency_from_record(record_id)
 
+    def insert_completion(
+        self,
+        record_id: int,
+        due_ts: int | None,
+        completed_ts: int,
+    ) -> None:
+        self.cursor.execute(
+            """
+            INSERT INTO Completions (record_id, due_ts, completed_ts)
+            VALUES (?, ?, ?)
+            """,
+            (record_id, due_ts, completed_ts),
+        )
+        self.conn.commit()
+
     def touch_record(self, record_id: int):
         """
         Update the 'modified' timestamp for the given record to the current UTC time.
@@ -732,24 +763,6 @@ class DatabaseManager:
             (now, record_id),
         )
         self.conn.commit()
-
-    # def toggle_pinned(self, record_id: int) -> None:
-    #     self.cursor.execute("SELECT 1 FROM Pinned WHERE record_id = ?", (record_id,))
-    #     if self.cursor.fetchone():
-    #         self.cursor.execute("DELETE FROM Pinned WHERE record_id = ?", (record_id,))
-    #     else:
-    #         self.cursor.execute(
-    #             "INSERT INTO Pinned (record_id) VALUES (?)", (record_id,)
-    #         )
-    #     self.conn.commit()
-
-    # def get_pinned_record_ids(self) -> list[int]:
-    #     self.cursor.execute("SELECT record_id FROM Pinned")
-    #     return [row[0] for row in self.cursor.fetchall()]
-
-    # def is_pinned(self, record_id: int) -> bool:
-    #     self.cursor.execute("SELECT 1 FROM Pinned WHERE record_id = ?", (record_id,))
-    #     return self.cursor.fetchone() is not None
 
     def toggle_pinned(self, record_id: int) -> None:
         self.cursor.execute("SELECT 1 FROM Pinned WHERE record_id=?", (record_id,))
@@ -1546,9 +1559,6 @@ class DatabaseManager:
             # Process and split events across day boundaries
             while start_dt.date() <= end_dt.date():
                 # Compute the end time for the current day
-                # zero_duration = start_dt == end_dt
-                # if zero_duration:
-                #     log_msg(f"zero_duration item: {name}")
                 day_end = min(
                     end_dt,
                     datetime.combine(
@@ -1562,9 +1572,6 @@ class DatabaseManager:
                 grouped_events[iso_year][iso_week][iso_weekday].append(
                     (start_dt, day_end)
                 )
-                # if zero_duration:
-                #     log_msg(f"zero_duration appended: {name} {start_dt} {day_end}")
-
                 # Move to the start of the next day
                 start_dt = datetime.combine(
                     start_dt.date() + timedelta(days=1), datetime.min.time()
@@ -1775,7 +1782,7 @@ class DatabaseManager:
         tags = len(json.loads(record.get("tags", "[]")))
         jobs = json.loads(record.get("jobs", "[]"))
         subject = record["subject"]
-        priority_map = self.env.config.urgency.priority.model_dump()
+        # priority_map = self.env.config.urgency.priority.model_dump()
         priority_level = record.get("priority", None)
         # priority = priority_map.get(priority_level, 0)
         description = True if record.get("description", "") else False

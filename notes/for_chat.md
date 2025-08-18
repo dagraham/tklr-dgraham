@@ -1,5 +1,9 @@
 # For ChatGPT
 
+## 2025-08-15 more finished
+
+I had thought that "do_complete()" in Item would simply add an "&f datetime" entry to a job (task in a project) or an "@f datetime" entry to a task and then, when the entry is complete, there would be a new "finalize_completions()" method, also in Item, similar to finalize_rruleset() or finalize_jobs() that would, based on @f and &f entries, do the requisite updates for @s, @r, @+, @-, @r and @o before finalize_rruleset and finalize_jobs are called. The resulting instance of Item would then be ready to be submitted to update_item.
+
 ## 25-08-12 Finish
 
 ### Goals
@@ -8,6 +12,7 @@
 [+-]M/Np N: int frequency, Mp M int, p in d, w, m, y
 ```
 
+b
 E.g., +3/2w => 3 or more (+) completions every 2 weeks
 
 Use beg_hour and end_hour from config to set period available in each day. Given the @s scheduled datetime, the relevant period begins at the beginning of the current period. E.g., for the `+3/2w` example, the first period would begin at scheduled datetime and extend until end_hour on the Sunday of the following week. Subsequent periods would start at beg_hour on Monday and end at end_hour on the Sunday of the 2nd week.

@@ -32,7 +32,6 @@ from .common import timedelta_str_to_seconds
 from tzlocal import get_localzone_name
 
 local_timezone = get_localzone_name()  # e.g., "America/New_York"
-# print(f"using {local_timezone = }")
 
 JOB_PATTERN = re.compile(r"^@~ ( *)([^&]*)(?:(&.*))?")
 LETTER_SET = set("abcdefghijklmnopqrstuvwxyz")  # Define once
@@ -145,11 +144,6 @@ def enforce_date(dt: datetime) -> datetime:
     - 23:59:59 for tasks (-)
     """
     return dt.date()
-    # if self.itemtype == "-":
-    #     return dt.replace(hour=23, minute=59, second=59, microsecond=0)
-    # else:
-    #     return dt.replace(hour=0, minute=0, second=1, microsecond=0)
-    #
 
 
 def localize_rule_instances(
@@ -478,9 +472,6 @@ class Paragraph:
         unwrapped_text = "\n".join(unwrapped_paragraphs)
 
         return unwrapped_text
-
-
-#
 
 
 @dataclass
@@ -2298,52 +2289,28 @@ class Item:
         them using TZID (even for UTC).
         """
         # log_msg(f"processing rdate {token = }")
-        # print(f"starting {self.rdstart_str = }")
         try:
             # Remove the "@+" prefix and extra whitespace
             # token_body = token.strip()[2:].strip()
             token_body = token["token"][2:].strip()
 
             # Split on commas to get individual date strings
-            # print(f"{token_body = }")
             dt_strs = [s.strip() for s in token_body.split(",") if s.strip()]
-            # print(f"{dt_strs = }")
 
             # Process each entry
             rdates = []
             for dt_str in dt_strs:
-                # print(f"parsing {dt_str = }")
                 dt = parse(dt_str)
-                # print(f"got {dt = }")
-                # if isinstance(dt, datetime) and dt.hour == 0 and dt.minute == 0:
-                #     dt = dt.date()
-                # print(f"formtting {dt = }")
                 dt_fmt = dt_to_dtstr(dt)
-                # print(f"dt formatted {dt_fmt = }")
-                # if self.enforce_dates:
-                #     dt = self.enforce_date(dt)
-                # print(f"{dt = }")
-                # If dt is naive and a global timezone is available, use it
-                # if dt.tzinfo is None and self.timezone and not self.enforce_dates:
-                #     print(f"replacing tzinfo with {self.timezone} in {dt = }")
-                #     dt.replace(tzinfo=self.timezone)
-                #     print(f"replaced {dt = }")
-                # Promote a date to a datetime if necessary (using your helper)
-                # dt = self.promote_date_to_datetime(dt)
-                # print(f"for {dt = }, adding {dt_fmt = } to rdates")
+
                 if dt_fmt not in self.rdates:
                     # print(f"added {dt_fmt = } to rdates")
                     rdates.append(dt_fmt)
-            # print(f"{rdates = }")
             self.rdstart_str = f"{self.rdstart_str},{','.join(rdates)}"
-            # print(f"ending {self.rdstart_str = }")
             self.rdates = rdates
             # Prepend RDATE in finalize_rruleset after possible insertion of DTSTART
-            # fmt_str = ";VALUE=DATE:%Y%m%d" if self.enforce_dates else "%Y%m%dT%H%M%S"
-            # self.rdate_str = ",".join([dt.strftime(f"{fmt_str}") for dt in rdates])
             return True, rdates, []
         except Exception as e:
-            # print(f"error processing {token = }: {e}")
             return False, f"Invalid @+ value: {e}", []
 
     def do_exdate(self, token):
@@ -2355,7 +2322,6 @@ class Item:
             # Remove the "@-" prefix and extra whitespace
             token_body = token.strip()[2:].strip()
             # Split on commas to get individual date strings
-            # print(f"{token_body = }")
             dt_strs = [s.strip() for s in token_body.split(",") if s.strip()]
             exdates = []
             for dt_str in dt_strs:
@@ -2382,20 +2348,13 @@ class Item:
     def finalize_rruleset(self):
         log_msg("in finalize_rruleset")
         if self.rrule_tokens:
-            # print("finalizing rruleset with tokens")
             components = []
             rruleset_str = ""
-            # print(
-            #     f"finalizing rruleset using {self.parse_ok = }, {len(self.rrule_tokens) = }; {len(components) = }; {len(rruleset_str) = }"
-            # )
             for token in self.rrule_tokens:
                 print(f"{self.rrule_tokens = }")
                 rule_parts = []
                 _, rrule_params = token
-                # print(
-                #     f"finalizing rrule {token = }:  {_ = } with {rrule_params = }; {self.dtstart_str = }"
-                # )
-                dtstart = rrule_params.pop("DTSTART", None)
+                # dtstart = rrule_params.pop("DTSTART", None)
                 # if dtstart:
                 #     components.append(f"DTSTART:{dtstart}")
                 if self.dtstart_str:
@@ -2415,9 +2374,6 @@ class Item:
                 components.append(rule)
 
             if self.rdate_str:
-                # rdates = ",".join([x.strftime("%Y%m%dT%H%M%S") for x in self.rdates])
-                # print(f"appending {rdates = }")
-
                 components.append(f"RDATE:{self.rdate_str}")
 
             if self.exdate_str:
@@ -2433,16 +2389,11 @@ class Item:
             return True, rruleset_str
 
         elif self.rdstart_str:
-            # print("finalizing rruleset with rdate only")
             components = [self.rdstart_str]
             if self.rdate_str:
                 components.append(f"RDATE:{self.rdate_str}")
             rruleset_str = "\n".join(components)
             self.item["rruleset"] = rruleset_str
-            # must reset these to avoid duplicates
-            # self.rrule_tokens = []
-            # self.rdates = []
-            # self.exdates = []
             return True, rruleset_str
         return False, "No rrule tokens or rdate to finalize"
 
@@ -2639,22 +2590,6 @@ class Item:
             blocking[i] = len(waiting) / len(available)
             # blocking[i] = sum(1 for j in waiting if i in all_prereqs.get(j, set()))
 
-        # # finalize
-        # final = []
-        # for job in jobs:
-        #     if "i" not in job:
-        #         continue
-        #     i = job["i"]
-        #     job["prereqs"] = sorted(all_prereqs.get(i, []))
-        #     if i in available:
-        #         job["status"] = "available"
-        #         job["blocking"] = blocking[i]
-        #     elif i in waiting:
-        #         job["status"] = "waiting"
-        #     elif i in finished:
-        #         job["status"] = "finished"
-        #     final.append(job)
-
         num_available = len(available)
         num_waiting = len(waiting)
         num_finished = len(finished)
@@ -2737,7 +2672,7 @@ class Item:
         Leaves &f (job completions) in place (they drive job status).
         Recomputes rruleset afterwards via your existing finalize_rruleset().
         """
-        if not self.completions and not self.jobs:
+        if not self.completions and not self.jobs:  # FIXME: why skip other tasks?
             return  # nothing to do
 
         # We use the *latest* @f as the completion timestamp to apply.
@@ -2866,26 +2801,17 @@ class Item:
         rule_string = self.item.get("rruleset")
         if not rule_string:
             return []
-        # print(f"list_rrule: {rule_string = }")
         is_date = "VALUE=DATE" in rule_string
-        # print(f"{is_date = }")
-        fmt_str = "    %a %Y-%m-%d" if is_date else "    %a %Y-%m-%d %H:%M:%S %Z %z"
-        # rule = rrulestr(rule_string, ignoretz=True), ignoretz=True
+        # fmt_str = "    %a %Y-%m-%d" if is_date else "    %a %Y-%m-%d %H:%M:%S %Z %z"
         print(f"list_rrule: {rule_string = }")
         rule = rrulestr(rule_string)
 
         timezone = (
             None if is_date else self.timezone
         )  # assuming you store ZoneInfo in self.timezone
-        # to_localtime = to_localtime and not self.enforce_dates
-        # print(
-        #     f"Using localize_rule_instances with {to_localtime = }, {timezone = }, {count = }, {after = }"
-        # )
-        # timezone = None
 
         if after is None and count is None:
             # Default: return full localized list
-            # print("after and count are None, returning full list")
             return localize_rule_instances(
                 list(rule),
                 timezone,
@@ -2893,9 +2819,6 @@ class Item:
             )
 
         # Use the preview function for controlled output
-        # print(
-        #     f"Using preview_rule_instances with {count = }, {after = }, {timezone = }, {rule = }"
-        # )
         return preview_rule_instances(
             rule,
             timezone,

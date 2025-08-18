@@ -369,6 +369,7 @@ class DetailsScreen(ModalScreen[None]):
         if event.key == "ctrl+r" and self.is_recurring:
             self._show_repetitions()
             return
+
         # if event.key == "ctrl+c" and self.is_task:
         #     self._show_completions()
         #     return
@@ -389,7 +390,31 @@ class DetailsScreen(ModalScreen[None]):
     def _finish_task(self) -> None:
         if not self.is_task or self.record_id is None:
             return
-        self.app.controller.finish_current_instance(self.record_id)
+
+        try:
+            res = self.app.controller.finish_current_instance(self.record_id)
+            # Nice little confirmation
+            title = self._base_title()
+            self.app.notify(f"Finished: {title}", timeout=1.5)
+
+            # If it's now fully finished, update the title glyph too
+            # (optional; your finish may flip to itemtype 'x')
+            self._apply_pin_glyph()
+
+            # ★ Refresh any open screen that knows how to reload itself (Agenda, etc.)
+
+            for scr in list(getattr(self.app, "screen_stack", [])):
+                if scr.__class__.__name__ == "AgendaScreen" and getattr(
+                    scr, "refresh_data", None
+                ):
+                    scr.refresh_data()
+                    break
+
+            # Optionally auto-close the details modal
+            self.app.pop_screen()
+
+        except Exception as e:
+            self.app.notify(f"Finish failed: {e}", severity="error", timeout=3)
 
     def _toggle_pinned(self) -> None:
         if not self.is_task or self.record_id is None:
@@ -426,29 +451,29 @@ class DetailsScreen(ModalScreen[None]):
         # e.g. rows = self.app.controller.list_repetitions(self.record_id)
         pass
 
-    # def _show_completions(self) -> None:
-    #     if not self.is_task or self.record_id is None:
-    #         return
-    #     # e.g. rows = self.app.controller.list_completions(self.record_id)
-    #     pass
+    def _show_completions(self) -> None:
+        if not self.is_task or self.record_id is None:
+            return
+        # e.g. rows = self.app.controller.list_completions(self.record_id)
+        pass
 
     # ---------- contextual help ----------
     def _build_help_text(self) -> str:
         left, right = [], []
 
-        left.append("[bold] E[/bold] Edit")
-        left.append("[bold] C[/bold] Edit Copy")
-        left.append("[bold] D[/bold] Delete")
+        left.append("[bold] e[/bold] Edit")
+        left.append("[bold] c[/bold] Edit Copy")
+        left.append("[bold] d[/bold] Delete")
 
-        right.append("[bold] R[/bold] Reschedule")
-        right.append("[bold] S[/bold] Schedule New")
-        right.append("[bold] T[/bold] Touch")
+        right.append("[bold] r[/bold] Reschedule")
+        right.append("[bold] s[/bold] Schedule New")
+        right.append("[bold] t[/bold] Touch")
 
         if self.is_task:
-            left.append("[bold] F[/bold] Finish")
-            right.append("[bold] P[/bold] Toggle Pinned ")
+            left.append("[bold] f[/bold] Finish")
+            right.append("[bold] p[/bold] Toggle Pinned ")
         if self.is_recurring:
-            left.append("[bold]^R[/bold] Repetitions")
+            left.append("[bold]^r[/bold] Repetitions")
 
         # balance columns
         m = max(len(left), len(right))
@@ -800,17 +825,11 @@ class FullScreenList(SearchableScreen):
 
     def compose(self) -> ComposeResult:
         """Compose the layout."""
-        # yield Static(self.title, id="scroll_title", classes="title-class")
-        # yield ScrollableList(self.lines, id="list")  # Using "list" as the ID
-        # yield Static(self.footer_content, id="custom_footer")
 
         yield Static(self.title, id="scroll_title", expand=True, classes="title-class")
         yield Static(
             self.header, id="scroll_header", expand=True, classes="header-class"
         )
-        # yield Static(
-        #     Rule("", style="#fff8dc"), id="separator"
-        # )  # Add a horizontal line separator
         yield ScrollableList(self.lines, id="list")  # Using "list" as the ID
         yield Static(self.footer_content, id="custom_footer")
 
@@ -857,30 +876,17 @@ class DynamicViewApp(App):
         self.afill = 1
         # log_msg(f"{self.afill = }")
 
-    def set_afill(self, details: list, method: str):
-        if self.view == "week":
-            log_msg(f"{self.selected_week = }")
-            week = self.controller.tag_to_id.get(self.selected_week, None)
-            if week:
-                tag_to_id = week
-            else:
-                log_msg(f"invalid week: {self.selected_week = }")
-                return ["Invalid week"]
-
-            # tag_to_id = self.controller.tag_to_id.get(self.selected_week, None)
-        elif self.view in ["next", "last", "find", "events", "tasks"]:
-            tag_to_id = self.controller.list_tag_to_id[self.view]
-        elif self.view == "alerts":
-            tag_to_id = self.controller.list_tag_to_id["alerts"]
-        else:
-            log_msg(f"Invalid view: {self.view}")
-            return [f"Invalid view: {self.view}"]
-        num_tags = len(tag_to_id.keys())
-        new_afill = 1 if num_tags <= 26 else 2 if num_tags <= 676 else 3
-        if new_afill != self.afill:
-            old_afill = self.afill
-            self.afill = new_afill
-            log_msg(f"view reset afill in {method} from {old_afill} -> {self.afill}")
+    def set_afill(self, *_args, **_kwargs):
+        # Prefer controller’s chosen width, fallback to infer from existing tags
+        fill = self.controller.afill_by_view.get(self.view)
+        if fill:
+            self.afill = fill
+            log_msg(f"using {self.afill = } from controller for {self.view = }")
+            return
+        mapping = self.controller.list_tag_to_id.get(self.view, {})
+        if mapping:
+            self.afill = len(next(iter(mapping.keys())))  # infer from first key
+            log_msg(f"using {self.afill = } from keys for {self.view = }")
 
     async def on_mount(self):
         self.action_show_weeks()
@@ -909,13 +915,17 @@ class DynamicViewApp(App):
         log_msg(f"Screenshot saved to: {screenshot_path}")
 
     async def check_alerts(self):
+        # called every 6 seconds
         now = datetime.now()
         if now.hour == 0 and now.minute == 0 and 0 <= now.second < 6:
+            # populate alerts hourly
             self.controller.populate_alerts()
         if now.minute % 10 == 0 and now.second == 0:
+            # check alerts every 10 minutes
             self.notify(
                 "Checking for scheduled alerts...", severity="info", timeout=1.2
             )
+        # execute due alerts
         self.controller.execute_due_alerts()
 
     def action_show_weeks(self):
@@ -1062,15 +1072,6 @@ class DynamicViewApp(App):
 
     def action_quit(self):
         self.exit()
-
-    # def action_show_help(self):
-    #     footer = f"[bold {FOOTER}]esc[/bold {FOOTER}] Back"
-    #     self.push_screen(DetailsScreen(HelpText, True))
-    #     # self.push_screen(FullScreenList(HelpText, footer))
-
-    # def action_show_help(self):
-    #     # self.app.push_screen(DetailsScreen(HelpText, True))
-    #     self.push_screen(DetailsScreen(HelpText, True))
 
     def action_show_help(self):
         self.push_screen(HelpScreen(HelpText))
