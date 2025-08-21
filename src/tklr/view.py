@@ -878,11 +878,14 @@ class DynamicViewApp(App):
 
     def set_afill(self, *_args, **_kwargs):
         # Prefer controller’s chosen width, fallback to infer from existing tags
-        fill = self.controller.afill_by_view.get(self.view)
+        if self.view == "week":
+            fill = self.controller.afill_by_week.get(self.selected_week)
+        else:
+            fill = self.controller.afill_by_view.get(self.view)
         if fill:
             self.afill = fill
             log_msg(f"using {self.afill = } from controller for {self.view = }")
-            return
+            return fill
         mapping = self.controller.list_tag_to_id.get(self.view, {})
         if mapping:
             self.afill = len(next(iter(mapping.keys())))  # infer from first key
@@ -936,18 +939,22 @@ class DynamicViewApp(App):
         list_title = details[0] if details else "Untitled"
         details = details[1:] if details else []
         log_msg(f"{len(details) = }")
-        self.set_afill(details, "action_show_weeks")
+        # self.set_afill(details, "action_show_weeks")
+        # self.set_afill("week")
+        self.set_afill(self.view)
         footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
         self.push_screen(WeeksScreen(title, table, list_title, details, footer))
 
     def action_show_agenda(self):
         self.view = "events"
         details = self.controller.get_agenda_events()
+        self.set_afill(self.view)
         log_msg(f"opening agenda view, {self.view = }")
         self.push_screen(AgendaScreen(self.controller))
 
     def action_show_last(self):
         self.view = "last"
+        self.set_afill(self.view)
         details = self.controller.get_last()
         self.set_afill(details, "action_show_last")
         footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
@@ -955,6 +962,7 @@ class DynamicViewApp(App):
 
     def action_show_next(self):
         self.view = "next"
+        self.set_afill(self.view)
         details = self.controller.get_next()
         self.set_afill(details, "action_show_next")
 
@@ -963,12 +971,14 @@ class DynamicViewApp(App):
 
     def action_show_find(self):
         self.view = "find"
+        self.set_afill(self.view)
         search_input = Input(placeholder="Enter search term...", id="find_input")
         self.mount(search_input)
         self.set_focus(search_input)
 
     def action_show_alerts(self):
         self.view = "alerts"
+        self.set_afill(self.view)
         details = self.controller.get_active_alerts()
         log_msg(f"{details = }")
         self.set_afill(details, "action_show_alerts")
@@ -1038,16 +1048,19 @@ class DynamicViewApp(App):
     def action_current_period(self):
         self.current_start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
+        self.set_afill("week")
         self.update_table_and_list()
 
     def action_next_period(self):
         self.current_start_date += timedelta(weeks=4)
         self.selected_week = tuple(self.current_start_date.isocalendar()[:2])
+        self.set_afill("week")
         self.update_table_and_list()
 
     def action_previous_period(self):
         self.current_start_date -= timedelta(weeks=4)
         self.selected_week = tuple(self.current_start_date.isocalendar()[:2])
+        self.set_afill("week")
         self.update_table_and_list()
 
     def action_next_week(self):
@@ -1056,12 +1069,14 @@ class DynamicViewApp(App):
             (self.current_start_date + timedelta(weeks=4) - ONEDAY).isocalendar()[:2]
         ):
             self.current_start_date += timedelta(weeks=1)
+        self.set_afill("week")
         self.update_table_and_list()
 
     def action_previous_week(self):
         self.selected_week = get_previous_yrwk(*self.selected_week)
         if self.selected_week < tuple((self.current_start_date).isocalendar()[:2]):
             self.current_start_date -= timedelta(weeks=1)
+        self.set_afill("week")
         self.update_table_and_list()
 
     def action_center_week(self):
@@ -1077,7 +1092,8 @@ class DynamicViewApp(App):
         self.push_screen(HelpScreen(HelpText))
 
     def action_show_details(self, tag: str):
-        log_msg(f"{self.view = }")
+        log_msg(f"{self.view = }, {self.selected_week = }, {tag = }")
+        self.fill = self.controller.afill_by_week[self.selected_week]
         details = self.controller.process_tag(tag, self.view, self.selected_week)
         self.push_screen(DetailsScreen(details))
 

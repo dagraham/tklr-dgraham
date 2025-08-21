@@ -458,10 +458,11 @@ class Controller:
         self.AMPM = env.config.ui.ampm
         self._last_details_meta = None
         self.afill_by_view: dict[str, int] = {}  # e.g. {"events": 1, "tasks": 2}
-        # self.list_afill: dict[str, int] = {}
+        self.afill_by_week: dict[Tuple[int, int], int] = {}
 
         for view in ["next", "last", "find", "events", "tasks", "alerts"]:
             self.list_tag_to_id.setdefault(view, {})
+        self.week_tag_to_id: dict[Tuple[int, int], dict[str, object]] = {}
         self.width = shutil.get_terminal_size()[0] - 2
         self.afill = 1
         self._agenda_dirty = False
@@ -481,6 +482,30 @@ class Controller:
         tag = indx_to_tag(indx, fill)  # uses your existing function
         tag_fmt = f" [dim]{tag}[/dim] "
         self.list_tag_to_id.setdefault(view, {})[tag] = {
+            "record_id": record_id,
+            "job_id": job_id,
+        }
+        return tag_fmt, indx + 1
+
+    def set_week_afill(self, details: list, yr_wk: Tuple[int, int]):
+        n = len(details)
+        fill = 1 if n <= 26 else 2 if n <= 26 * 26 else 3
+        log_msg(f"{yr_wk = }, {n = }, {fill = }, {details = }")
+        self.afill_by_week[yr_wk] = fill
+
+    def add_week_tag(
+        self,
+        yr_wk: Tuple[int, int],
+        indx: int,
+        record_id: int,
+        *,
+        job_id: int | None = None,
+    ):
+        """Produce the next tag (with the pre-chosen width) and register it."""
+        fill = self.afill_by_week[yr_wk]
+        tag = indx_to_tag(indx, fill)  # uses your existing function
+        tag_fmt = f" [dim]{tag}[/dim] "
+        self.week_tag_to_id.setdefault(yr_wk, {})[tag] = {
             "record_id": record_id,
             "job_id": job_id,
         }
@@ -740,12 +765,18 @@ class Controller:
 
     def process_tag(self, tag: str, view: str, selected_week: tuple[int, int]):
         if view == "week":
-            tag_to_id = self.tag_to_id[selected_week]
-            payload = tag_to_id.get(tag)
+            log_msg(
+                f"{selected_week = }, {tag = }, {self.week_tag_to_id[selected_week] = }"
+            )
+            payload = self.week_tag_to_id[selected_week].get(tag)
             if payload is None:
                 return [f"There is no item corresponding to tag '{tag}'."]
-            # week view never had job_id
-            record_id, job_id = payload, None
+            if isinstance(payload, dict):
+                record_id = payload.get("record_id")
+                job_id = payload.get("job_id")
+            else:
+                # backward compatibility (old mapping was tag -> record_id)
+                record_id, job_id = payload, None
 
         elif view in [
             "next",
@@ -769,6 +800,7 @@ class Controller:
         else:
             return ["Invalid view."]
 
+        log_msg(f"got {record_id = } for {tag = }")
         core = self.get_record_core(record_id) or {}
         subject = core.get("subject") or "(untitled)"
         itemtype = core.get("itemtype") or ""
@@ -802,7 +834,6 @@ class Controller:
         """
         Generate a Rich table displaying events for the specified 4-week period.
         """
-        # self.selected_week = selected_week
         selected_week = self.selected_week
         end_date = start_date + timedelta(weeks=4) - ONEDAY  # End on a Sunday
         start_date = start_date
@@ -811,7 +842,6 @@ class Controller:
             datetime.now() + ONEDAY
         ).isocalendar()
         title = f"Schedule for {format_date_range(start_date, end_date)}"
-        # title = "Scheduled"
 
         table = Table(
             show_header=True,
@@ -825,7 +855,6 @@ class Controller:
         )
 
         weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        # table.add_column(f"[{DIM_COLOR}]Wk[/{DIM_COLOR}]", justify="center", width=3)
         for day in weekdays:
             table.add_column(
                 day,
@@ -849,12 +878,6 @@ class Controller:
             self.rownum_to_yrwk[row_num] = yr_wk
             # row = [f"[{DIM_COLOR}]{row_num}[{DIM_COLOR}]\n"]
             SELECTED = yr_wk == selected_week
-            # row = (
-            #     [f"[{SELECTED_COLOR}]{row_num}[/{SELECTED_COLOR}]\n"]
-            #     if SELECTED
-            #     else [f"[{DIM_COLOR}]{row_num}[{DIM_COLOR}]\n"]
-            # )
-            # row = [f"[{DIM_COLOR}]{row_num}[{DIM_COLOR}]\n"]
             row = []
 
             for weekday in range(1, 8):  # ISO weekdays: 1 = Monday, 7 = Sunday
@@ -899,9 +922,7 @@ class Controller:
                         f"[{SELECTED_COLOR}]{cell}[/{SELECTED_COLOR}]" for cell in row
                     ]
             if SELECTED:
-                # table.add_row(*row)
                 table.add_row(*row, style=f"on {SELECTED_BACKGROUND}")
-                # table.add_row(Panel.fit(row))
 
             else:
                 table.add_row(*row)
@@ -931,7 +952,6 @@ class Controller:
             start_date, start_date + timedelta(weeks=4)
         )
 
-        # terminal_width = shutil.get_terminal_size().columns
         # Generate the table
         title, table = self.generate_table(start_date, selected_week, grouped_events)
         log_msg(f"Generated table for {title}, {selected_week = }")
@@ -970,12 +990,8 @@ class Controller:
             # return "\n".join(description)
             return description
 
-        # use a, ..., z if len(events) <= 26 else use aa, ..., zz
-        # self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
-        # log_msg(f"{len(events) = }, {self.afill = }")
-        self.set_afill(events, "get_week_details")
+        self.set_week_afill(events, yr_wk)
 
-        self.tag_to_id.setdefault(yr_wk, {})
         weekday_to_events = {}
         for i in range(7):
             this_day = (start_datetime + timedelta(days=i)).date()
@@ -995,7 +1011,6 @@ class Controller:
                     and start_dt.minute == 59
                     and start_dt.second == 59
                 ):
-                    # start_end = f"{str('~'):^11}"
                     start_end = ""
                 else:
                     start_end = f"{format_time_range(start_dt, end_dt, HRS_MINS)}"
@@ -1014,8 +1029,6 @@ class Controller:
             weekday_to_events.setdefault(start_dt.date(), []).append(row)
 
         indx = 0
-
-        tag = indx_to_tag(indx, self.afill)
 
         for day, events in weekday_to_events.items():
             # TODO: today, tomorrow here
@@ -1040,10 +1053,13 @@ class Controller:
                 for event in events:
                     event_id, event_str = event
                     # log_msg(f"{event_str = }")
-                    tag = indx_to_tag(indx, self.afill)
-                    self.tag_to_id[yr_wk][tag] = event_id
-                    description.append(f" [dim]{tag}[/dim]   {event_str}")
-                    indx += 1
+                    # tag_fmt, indx = self.add_tag(yr_wk, indx, event_id)
+                    # tag = indx_to_tag(indx, self.afill)
+                    # self.tag_to_id[yr_wk][tag] = event_id
+                    # description.append(f" [dim]{tag}[/dim]   {event_str}")
+                    tag_fmt, indx = self.add_week_tag(yr_wk, indx, event_id)
+                    description.append(f"{tag_fmt} {event_str}")
+                    # indx += 1
         # NOTE: maybe return list for scrollable view?
         # details_str = "\n".join(description)
         self.yrwk_to_details[yr_wk] = description
@@ -1060,11 +1076,9 @@ class Controller:
 
         if not events:
             display.append(f" [{HEADER_COLOR}]nothing found[/{HEADER_COLOR}]")
-            # return "\n".join(description)
             return display
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
-        # self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
         self.set_afill(events, "get_next")
 
         self.list_tag_to_id.setdefault("next", {})
@@ -1075,7 +1089,6 @@ class Controller:
             start_dt = datetime.fromtimestamp(start_ts)
             # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
             monthday = start_dt.strftime("%d")
-            # start_end = f"{start_dt.strftime('%-d %H:%M'):>8}"
             start_end = f"{format_hours_mins(start_dt, HRS_MINS):>8}"
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = f"[not bold]{start_end}[/not bold]"
@@ -1119,7 +1132,6 @@ class Controller:
             return display
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
-        # self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
         self.set_afill(events, "get_last")
 
         self.list_tag_to_id.setdefault("last", {})
@@ -1129,7 +1141,6 @@ class Controller:
             start_dt = datetime.fromtimestamp(start_ts)
             # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
             monthday = start_dt.strftime("%d")
-            # start_end = f"{start_dt.strftime('%-d %H:%M'):>8}"
             start_end = f"{format_hours_mins(start_dt, HRS_MINS):>8}"
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = f"[not bold]{start_end}[/not bold]"
@@ -1172,7 +1183,6 @@ class Controller:
             return description
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
-        # self.afill = 1 if len(events) <= 26 else 2 if len(events) <= 676 else 3
         self.set_afill(events, "find")
 
         self.list_tag_to_id.setdefault("find", {})
@@ -1253,13 +1263,10 @@ class Controller:
         events_by_date = {}
 
         indx = 0
-        # self.set_afill(events, "events")
-        # self.list_tag_to_id.setdefault("events", {})
 
         for date, entries in grouped_by_date.items():
             events_by_date.setdefault(date, [])
             for time, (start_ts, end_ts, subject, record_id) in entries:
-                # tag_fmt, indx = self.add_tag("events", indx, record_id)
                 label = format_time_range(start_ts, end_ts, mode)
                 if end_ts <= now_ts:
                     color = PASSED_EVENT
@@ -1279,7 +1286,6 @@ class Controller:
             events_by_date[today] = []
 
         for record_id, days_remaining, subject in begin_records:
-            # tag_fmt, indx = self.add_tag("events", indx, record_id)
             events_by_date[today].append(
                 (
                     record_id,
@@ -1289,7 +1295,6 @@ class Controller:
             )
 
         for record_id, subject in draft_records:
-            # tag_fmt, indx = self.add_tag("events", indx, record_id)
             events_by_date[today].append(
                 (
                     record_id,
@@ -1373,7 +1378,8 @@ class Controller:
     #     - Rebuilds Item from stored structured_tokens.
     #     - Calls Item.finish(...) to adjust @s/@r/@+/@- (and rruleset/jobs).
     #     - Persists the mutated Item via db_manager.update_item(...).
-    #     - Inserts a row in Completions (due_ts from Item.finish, completed_ts from now/provided).
+    #     - Inserts a row in Completions (due_ts_used from Item.finish, completed_ts from now/provided).
+    #     - Removes rows from Urgency/DateTimes if the item is now fully finished (itemtype 'x').
     #     - Refreshes derived tables (urgency, alerts, etc.).
     #     """
     #     completed_dt = completed_dt or datetime.utcnow()
@@ -1382,9 +1388,18 @@ class Controller:
     #     if not row:
     #         raise ValueError(f"No record found for id {record_id}")
     #
+    #     # Records row layout:
+    #     # 0 id, 1 itemtype, 2 subject, 3 description, 4 rruleset,
+    #     # 5 timezone, 6 extent, 7 alerts, 8 beginby, 9 context,
+    #     # 10 jobs, 11 tags, 12 priority, 13 structured_tokens, 14 processed,
+    #     # 15 created, 16 modified
     #     structured_tokens_value = row[13]
+    #     existing_subject = row[2]  # fallback to avoid nulling subject
+    #
+    #     # Normalize tokens to list[dict]
     #     tokens = _ensure_tokens_list(structured_tokens_value)
     #
+    #     # Rebuild input for Item and parse
     #     entry_str = "".join(tok.get("token", "") for tok in tokens).strip()
     #     item = Item(entry_str)
     #     if not item.parse_ok:
@@ -1392,21 +1407,68 @@ class Controller:
     #             f"Item.parse failed for record {record_id}: {item.parse_message}"
     #         )
     #
+    #     # Make sure subject can’t become empty on update
+    #     if not item.subject:
+    #         item.subject = existing_subject
+    #
+    #     # Finish via Item
     #     if history_weight is None:
     #         history_weight = getattr(self.env.config.ui, "history_weight", 3)
     #
     #     fin = item.finish(completed_dt, history_weight=history_weight)
+    #     # Support either dataclass field name
+    #     due_ts_used = getattr(fin, "due_ts_used", getattr(fin, "due_ts", None))
+    #     finished_final = getattr(fin, "finished_final", getattr(fin, "final", False))
     #
-    #     # Persist the mutated Item
+    #     # Helper: does this item still have @o (offset) behavior?
+    #     def _has_o_token(toks: list[dict]) -> bool:
+    #         return any(t.get("t") == "@" and t.get("k") == "o" for t in toks)
+    #
+    #     # Flip to 'x' ONLY if final, no @o, and no schedule left (neither RRULE nor RDATE)
+    #     if finished_final and not _has_o_token(item.structured_tokens):
+    #         has_rrule = getattr(item, "_has_rrule", None)
+    #         is_rdate_only = getattr(item, "_is_rdate_only", None)
+    #         # If helper methods exist (as we added), use them to confirm nothing remains
+    #         nothing_left = True
+    #         if callable(has_rrule) and has_rrule():
+    #             nothing_left = False
+    #         if callable(is_rdate_only) and is_rdate_only():
+    #             nothing_left = False
+    #
+    #         if nothing_left:
+    #             item.itemtype = "x"
+    #             item.rruleset = ""  # clear rruleset when fully done
+    #             # also reflect itemtype in the first structured token
+    #             if (
+    #                 item.structured_tokens
+    #                 and item.structured_tokens[0].get("t") == "itemtype"
+    #             ):
+    #                 item.structured_tokens[0]["token"] = "x"
+    #
+    #     # Persist the mutated Item (tokens, rruleset, jobs, etc.)
     #     self.db_manager.update_item(record_id, item)
     #
-    #     # Record completion
+    #     # Record completion (even if due_ts_used is None for one-shots)
     #     self.db_manager.insert_completion(
     #         record_id=record_id,
-    #         due_ts=fin.due_ts_used,
+    #         due_ts=due_ts_used,
     #         completed_ts=int(completed_dt.timestamp()),
     #     )
     #
+    #     # If fully finished, remove from derived tables so it disappears from lists
+    #     if finished_final:
+    #         try:
+    #             self.db_manager.cursor.execute(
+    #                 "DELETE FROM Urgency WHERE record_id=?", (record_id,)
+    #             )
+    #             self.db_manager.cursor.execute(
+    #                 "DELETE FROM DateTimes WHERE record_id=?", (record_id,)
+    #             )
+    #             self.db_manager.conn.commit()
+    #         except Exception:
+    #             pass  # best-effort
+    #
+    #     # Refresh derived tables so UI re-sorts immediately
     #     try:
     #         self.db_manager.populate_dependent_tables()
     #     except AttributeError:
@@ -1414,126 +1476,8 @@ class Controller:
     #
     #     return {
     #         "record_id": record_id,
-    #         "due_ts_used": fin.due_ts_used,  # mirror dataclass
+    #         "final": finished_final,
+    #         "due_ts": due_ts_used,  # may be None
     #         "completed_ts": int(completed_dt.timestamp()),
-    #         "new_structured_tokens": fin.new_structured_tokens,
-    #         "new_rruleset": fin.new_rruleset or "",
-    #         "finished_final": fin.finished_final,  # mirror dataclass
+    #         "new_rruleset": item.rruleset or "",
     #     }
-
-    def finish_current_instance(
-        self,
-        record_id: int,
-        completed_dt: datetime | None = None,
-        *,
-        history_weight: int | None = None,
-    ) -> dict:
-        """
-        Finish the current occurrence of a task and advance its schedule (if any).
-
-        - Rebuilds Item from stored structured_tokens.
-        - Calls Item.finish(...) to adjust @s/@r/@+/@- (and rruleset/jobs).
-        - Persists the mutated Item via db_manager.update_item(...).
-        - Inserts a row in Completions (due_ts_used from Item.finish, completed_ts from now/provided).
-        - Removes rows from Urgency/DateTimes if the item is now fully finished (itemtype 'x').
-        - Refreshes derived tables (urgency, alerts, etc.).
-        """
-        completed_dt = completed_dt or datetime.utcnow()
-
-        row = self.db_manager.get_record(record_id)
-        if not row:
-            raise ValueError(f"No record found for id {record_id}")
-
-        # Records row layout:
-        # 0 id, 1 itemtype, 2 subject, 3 description, 4 rruleset,
-        # 5 timezone, 6 extent, 7 alerts, 8 beginby, 9 context,
-        # 10 jobs, 11 tags, 12 priority, 13 structured_tokens, 14 processed,
-        # 15 created, 16 modified
-        structured_tokens_value = row[13]
-        existing_subject = row[2]  # fallback to avoid nulling subject
-
-        # Normalize tokens to list[dict]
-        tokens = _ensure_tokens_list(structured_tokens_value)
-
-        # Rebuild input for Item and parse
-        entry_str = "".join(tok.get("token", "") for tok in tokens).strip()
-        item = Item(entry_str)
-        if not item.parse_ok:
-            raise ValueError(
-                f"Item.parse failed for record {record_id}: {item.parse_message}"
-            )
-
-        # Make sure subject can’t become empty on update
-        if not item.subject:
-            item.subject = existing_subject
-
-        # Finish via Item
-        if history_weight is None:
-            history_weight = getattr(self.env.config.ui, "history_weight", 3)
-
-        fin = item.finish(completed_dt, history_weight=history_weight)
-        # Support either dataclass field name
-        due_ts_used = getattr(fin, "due_ts_used", getattr(fin, "due_ts", None))
-        finished_final = getattr(fin, "finished_final", getattr(fin, "final", False))
-
-        # Helper: does this item still have @o (offset) behavior?
-        def _has_o_token(toks: list[dict]) -> bool:
-            return any(t.get("t") == "@" and t.get("k") == "o" for t in toks)
-
-        # Flip to 'x' ONLY if final, no @o, and no schedule left (neither RRULE nor RDATE)
-        if finished_final and not _has_o_token(item.structured_tokens):
-            has_rrule = getattr(item, "_has_rrule", None)
-            is_rdate_only = getattr(item, "_is_rdate_only", None)
-            # If helper methods exist (as we added), use them to confirm nothing remains
-            nothing_left = True
-            if callable(has_rrule) and has_rrule():
-                nothing_left = False
-            if callable(is_rdate_only) and is_rdate_only():
-                nothing_left = False
-
-            if nothing_left:
-                item.itemtype = "x"
-                item.rruleset = ""  # clear rruleset when fully done
-                # also reflect itemtype in the first structured token
-                if (
-                    item.structured_tokens
-                    and item.structured_tokens[0].get("t") == "itemtype"
-                ):
-                    item.structured_tokens[0]["token"] = "x"
-
-        # Persist the mutated Item (tokens, rruleset, jobs, etc.)
-        self.db_manager.update_item(record_id, item)
-
-        # Record completion (even if due_ts_used is None for one-shots)
-        self.db_manager.insert_completion(
-            record_id=record_id,
-            due_ts=due_ts_used,
-            completed_ts=int(completed_dt.timestamp()),
-        )
-
-        # If fully finished, remove from derived tables so it disappears from lists
-        if finished_final:
-            try:
-                self.db_manager.cursor.execute(
-                    "DELETE FROM Urgency WHERE record_id=?", (record_id,)
-                )
-                self.db_manager.cursor.execute(
-                    "DELETE FROM DateTimes WHERE record_id=?", (record_id,)
-                )
-                self.db_manager.conn.commit()
-            except Exception:
-                pass  # best-effort
-
-        # Refresh derived tables so UI re-sorts immediately
-        try:
-            self.db_manager.populate_dependent_tables()
-        except AttributeError:
-            pass
-
-        return {
-            "record_id": record_id,
-            "final": finished_final,
-            "due_ts": due_ts_used,  # may be None
-            "completed_ts": int(completed_dt.timestamp()),
-            "new_rruleset": item.rruleset or "",
-        }
