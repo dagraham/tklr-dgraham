@@ -721,7 +721,7 @@ class AgendaScreen(SearchableScreen):  # ← inherit your base
         super().__init__()
         self.controller = controller
         self.footer_text = f"[{FOOTER}]?[/{FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search  [bold {FOOTER}]tab[/bold {FOOTER}] Switch panes"
-        self.active_pane = "events"
+        self.active_pane = "tasks"
         self.events_list: ScrollableList | None = None
         self.tasks_list: ScrollableList | None = None
         self.events = {}
@@ -734,7 +734,7 @@ class AgendaScreen(SearchableScreen):  # ← inherit your base
 
     # ← This is the only thing SearchableScreen needs to work with panes
     def get_search_target(self) -> ScrollableList:
-        return self.events_list if self.active_pane == "events" else self.tasks_list
+        return self.tasks_list if self.active_pane == "tasks" else self.events_list
 
     def compose(self) -> ComposeResult:
         self.events_list = ScrollableList([], id="events")
@@ -753,7 +753,7 @@ class AgendaScreen(SearchableScreen):  # ← inherit your base
 
     def on_mount(self):
         self.refresh_data()
-        self._activate_pane("events")
+        self._activate_pane("tasks")
 
     def _activate_pane(self, which: str):
         self.active_pane = which
@@ -769,7 +769,8 @@ class AgendaScreen(SearchableScreen):  # ← inherit your base
             tk.remove_class("inactive")
 
     def action_toggle_pane(self):
-        self._activate_pane("tasks" if self.active_pane == "events" else "events")
+        # self._activate_pane("tasks" if self.active_pane == "events" else "events")
+        self._activate_pane("events" if self.active_pane == "tasks" else "tasks")
 
     def action_refresh(self):
         self.refresh_data()

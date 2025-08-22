@@ -86,12 +86,6 @@ def log_msg(msg: str, file_path: str = "log_msg.md"):
         file_path (str, optional): Path to the log file. Defaults to "log_msg.txt".
     """
     caller_name = inspect.stack()[1].function
-    # wrapped_lines = textwrap.wrap(
-    #     fmt_msg,
-    #     initial_indent="",
-    #     subsequent_indent="  ",
-    #     width=shutil.get_terminal_size()[0] - 3,
-    # )
     lines = [
         f"- {datetime.now().strftime('%y-%m-%d %H:%M')} " + rf"({caller_name}):  ",
     ]
