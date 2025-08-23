@@ -95,7 +95,7 @@ def get_local_zoneinfo():
 def dt_to_dtstr(dt_obj: Union[datetime, date]) -> str:
     """Convert a datetime object to 'YYYYMMDDTHHMMSS' format."""
     if isinstance(dt_obj, date) and not isinstance(dt_obj, datetime):
-        return dt_obj.strftime("%Y%m%d")
+        return dt_obj.strftime("%Y%m%dT000000")
     return dt_obj.strftime("%Y%m%dT%H%M%S")
 
 
@@ -121,29 +121,29 @@ def do_datetime(datetime_str):
         return False, f"Invalid datetime: {datetime_str}. Error: {e}"
 
 
-def promote_date_to_datetime(dt: datetime, itemtype: str) -> datetime | date:
-    """
-    If dt is exactly midnight (00:00:00), adjust:
-    - For events (*): move to 00:00:01
-    - For tasks (~): move to 23:59:59
-    """
-    if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
-        # return dt.date()
-        if itemtype == "~":
-            return dt.replace(hour=23, minute=59, second=59)
-        else:
-            return dt.replace(second=1)
-    return dt
+# def promote_date_to_datetime(dt: datetime, itemtype: str) -> datetime | date:
+#     """
+#     If dt is exactly midnight (00:00:00), adjust:
+#     - For events (*): move to 00:00:01
+#     - For tasks (~): move to 23:59:59
+#     """
+#     if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
+#         # return dt.date()
+#         if itemtype == "~":
+#             return dt.replace(hour=23, minute=59, second=59)
+#         else:
+#             return dt.replace(second=1)
+#     return dt
 
 
-def enforce_date(dt: datetime) -> datetime:
-    """
-    Force dt to behave like a date (no meaningful time component).
-    Always promote time to:
-    - 00:00:01 for events (*)
-    - 23:59:59 for tasks (-)
-    """
-    return dt.date()
+# def enforce_date(dt: datetime) -> datetime:
+#     """
+#     Force dt to behave like a date (no meaningful time component).
+#     Always promote time to:
+#     - 00:00:01 for events (*)
+#     - 23:59:59 for tasks (-)
+#     """
+#     return dt.date()
 
 
 def localize_rule_instances(
@@ -1506,7 +1506,7 @@ class Item:
         # elif isinstance(dt, date) and not isinstance(dt, datetime):
         #     is_date = True
         if is_date(dt):
-            # self.enforce_dates = True
+            # convert to datetime 00:00:00
             self.dtstart = dt.strftime("%Y%m%dT0000")
             self.dtstart_str = f"DTSTART;VALUE=DATE:{dt.strftime('%Y%m%dT000000')}"
             # self.rdstart_str = f"RDATE;VALUE=DATE:{dt.strftime('%Y%m%d')}"
