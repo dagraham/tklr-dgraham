@@ -258,9 +258,9 @@ class HelpModal(ModalScreen[None]):
 
 class EditorScreen(Screen):
     BINDINGS = [
-        ("escape", "close", "Back"),
+        ("shift+enter", "commit", "Commit"),
         ("ctrl+s", "save", "Save"),
-        ("ctrl+enter", "commit", "Commit"),
+        ("escape", "close", "Back"),
     ]
 
     # live entry buffer
@@ -280,8 +280,8 @@ class EditorScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Vertical(
             Static("", id="ctx_line", classes="title-class"),
-            Static("", id="prompt_panel"),  # errors/help go here
-            Input(self.entry_text, id="entry_area"),  # the editor
+            Static("", id="prompt_panel"),
+            TextArea(self.entry_text, id="entry_area"),  # ← Enter inserts newlines
             id="editor_layout",
         )
 
@@ -518,34 +518,48 @@ class DetailsScreen(ModalScreen[None]):
         # e.g. self.app.controller.delete_record(self.record_id, scope=...)
         pass
 
+    # def _finish_task(self) -> None:
+    #     if not self.is_task or self.record_id is None:
+    #         return
+    #
+    #     try:
+    #         res = self.app.controller.finish_current_instance(self.record_id)
+    #         # Nice little confirmation
+    #         title = self._base_title()
+    #         self.app.notify(f"Finished: {title}", timeout=1.5)
+    #
+    #         # If it's now fully finished, update the title glyph too
+    #         # (optional; your finish may flip to itemtype 'x')
+    #         self._apply_pin_glyph()
+    #
+    #         # ★ Refresh any open screen that knows how to reload itself (Agenda, etc.)
+    #
+    #         for scr in list(getattr(self.app, "screen_stack", [])):
+    #             if scr.__class__.__name__ == "AgendaScreen" and getattr(
+    #                 scr, "refresh_data", None
+    #             ):
+    #                 scr.refresh_data()
+    #                 break
+    #
+    #         # Optionally auto-close the details modal
+    #         self.app.pop_screen()
+    #
+    #     except Exception as e:
+    #         self.app.notify(f"Finish failed: {e}", severity="error", timeout=3)
+
     def _finish_task(self) -> None:
         if not self.is_task or self.record_id is None:
             return
-
         try:
             res = self.app.controller.finish_current_instance(self.record_id)
-            # Nice little confirmation
-            title = self._base_title()
-            self.app.notify(f"Finished: {title}", timeout=1.5)
-
-            # If it's now fully finished, update the title glyph too
-            # (optional; your finish may flip to itemtype 'x')
-            self._apply_pin_glyph()
-
-            # ★ Refresh any open screen that knows how to reload itself (Agenda, etc.)
-
-            for scr in list(getattr(self.app, "screen_stack", [])):
-                if scr.__class__.__name__ == "AgendaScreen" and getattr(
-                    scr, "refresh_data", None
-                ):
+            note = "Finished" + (" (final)" if res.get("final") else "")
+            self.app.notify(note, timeout=1.2)
+            # Refresh Agenda immediately
+            for scr in getattr(self.app, "screen_stack", []):
+                if hasattr(scr, "refresh_data"):
                     scr.refresh_data()
-                    break
-
-            # Optionally auto-close the details modal
-            self.app.pop_screen()
-
         except Exception as e:
-            self.app.notify(f"Finish failed: {e}", severity="error", timeout=3)
+            self.app.notify(f"Finish failed: {e}", severity="error")
 
     def _toggle_pinned(self) -> None:
         if not self.is_task or self.record_id is None:

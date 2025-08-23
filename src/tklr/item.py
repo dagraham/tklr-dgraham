@@ -658,7 +658,7 @@ class Item:
         self.exdate_str = ""
         self.timezone = gettz("local")
         self.tz_str = local_timezone
-        self.enforce_dates = False
+        # self.enforce_dates = False
         self.completions = []  # list[datetime] from @f tokens (task-level)
         if raw:
             self.entry = raw
@@ -1506,11 +1506,11 @@ class Item:
         # elif isinstance(dt, date) and not isinstance(dt, datetime):
         #     is_date = True
         if is_date(dt):
-            self.enforce_dates = True
-            self.dtstart = dt.strftime("%Y%m%d")
-            self.dtstart_str = f"DTSTART;VALUE=DATE:{dt.strftime('%Y%m%d')}"
+            # self.enforce_dates = True
+            self.dtstart = dt.strftime("%Y%m%dT0000")
+            self.dtstart_str = f"DTSTART;VALUE=DATE:{dt.strftime('%Y%m%dT000000')}"
             # self.rdstart_str = f"RDATE;VALUE=DATE:{dt.strftime('%Y%m%d')}"
-            self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%d')}"
+            self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT000000')}"
             # self.rdstart_str = f"{self.dtstart_str}\nRDATE:{dt.strftime('%Y%m%d')}"
         else:
             self.dtstart = dt.strftime("%Y%m%dT%H%M")
@@ -2327,8 +2327,8 @@ class Item:
             for dt_str in dt_strs:
                 dt = parse(dt_str)
                 dt_fmt = dt_to_dtstr(dt)
-                if self.enforce_dates:
-                    dt = dt.date()
+                # if self.enforce_dates:
+                #     dt = dt.date()
                 # # remove dt from rdates if possible, if not, add to exdates
                 removed_it = False
                 self.rdates = [rd for rd in self.rdates if rd != dt_fmt]
@@ -2338,7 +2338,7 @@ class Item:
                 if not removed_it and dt_fmt not in self.exdates:
                     exdates.append(dt_fmt)
             self.exdates = exdates
-            self.exdate_str = "EXDATE;VALUE=DATE:" if self.enforce_dates else "EXDATE:"
+            self.exdate_str = "EXDATE:"
             self.exdate_str = f"{self.exdate_str}{','.join([dt for dt in exdates])}"
             return True, exdates, []
 
