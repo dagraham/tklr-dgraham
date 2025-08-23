@@ -305,7 +305,7 @@ for entry in items:
     id += 1
     print(f"{entry = }")
     item = Item(entry)  # .to_dict()
-    print(f"{item = }")
+    print(f"{item.item = }")
 
     dbm.add_item(item)
 dbm.populate_dependent_tables()

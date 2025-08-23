@@ -40,6 +40,7 @@ from textual.widgets import Button
 
 from textual.events import Key
 
+from textual import events
 
 # tklr_version = version("tklr")
 tklr_version = get_version()
@@ -253,6 +254,136 @@ class HelpModal(ModalScreen[None]):
 
     def action_dismiss(self) -> None:
         self.app.pop_screen()
+
+
+class EditorScreen(Screen):
+    BINDINGS = [
+        ("escape", "close", "Back"),
+        ("ctrl+s", "save", "Save"),
+        ("ctrl+enter", "commit", "Commit"),
+    ]
+
+    # live entry buffer
+    entry_text: reactive[str] = reactive("")
+
+    def __init__(
+        self, controller, record_id: int | None = None, *, seed_text: str = ""
+    ):
+        super().__init__()
+        self.controller = controller
+        self.record_id = record_id
+        self.entry_text = seed_text
+        self.item = None  # working Item
+        self.last_ok_parse = None  # snapshot for commit
+        self.error_lines = []  # display in prompt area
+
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Static("", id="ctx_line", classes="title-class"),
+            Static("", id="prompt_panel"),  # errors/help go here
+            Input(self.entry_text, id="entry_area"),  # the editor
+            id="editor_layout",
+        )
+
+    async def on_mount(self) -> None:
+        # context line
+        ctx = self._build_context()
+        self.query_one("#ctx_line", Static).update(ctx)
+        # focus the editor
+        self.query_one("#entry_area", Input).focus()
+        # do an initial parse
+        self._parse_live(self.entry_text)
+
+    def _build_context(self) -> str:
+        if self.record_id is None:
+            return "New item — type first character (* ~ ^ % + ?), then subject…"
+        row = self.controller.db_manager.get_record(self.record_id)
+        subj = row[2] or "(untitled)"
+        return f"Editing id {self.record_id} — {subj}"
+
+    async def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id != "entry_area":
+            return
+        self.entry_text = event.value
+        # live, tolerant parse (don’t finalize/normalize here)
+        self._parse_live(self.entry_text)
+
+    def _parse_live(self, text: str) -> None:
+        from item import Item  # your class
+
+        self.item = Item(text)
+        self.error_lines = []
+        if not self.item.parse_ok:
+            # item.parse_message may be list[str] from your validator; normalize to lines
+            msg = self.item.parse_message
+            if isinstance(msg, (list, tuple)):
+                self.error_lines = [str(x) for x in msg]
+            elif msg:
+                self.error_lines = [str(msg)]
+        # update prompt with either errors or quick help
+        prompt = "\n".join(self.error_lines or self._help_lines())
+        self.query_one("#prompt_panel", Static).update(prompt)
+        # remember last good parse for Commit
+        if self.item.parse_ok:
+            self.last_ok_parse = self.item
+
+    def _help_lines(self) -> list[str]:
+        return [
+            "[dim]/? show help  •  Ctrl+S save  •  Ctrl+Enter commit[/dim]",
+            "[dim]Type tokens like: @s 2025-08-20 9:00  @r d &i 2  @+ 2025-08-22[/dim]",
+        ]
+
+    # Actions
+    def action_close(self) -> None:
+        self.app.pop_screen()
+
+    def action_save(self) -> None:
+        # Save without schedule normalization (draft save)
+        if not self.item or not self.item.parse_ok:
+            self.app.notify("Cannot save: fix errors first.", severity="warning")
+            return
+        self._persist(self.item, finalize=False)
+        self.app.notify("Saved.", timeout=1.0)
+
+    def action_commit(self) -> None:
+        # Normalize schedule (@s/@r/@+/@-) & jobs, then persist
+        src = (
+            self.last_ok_parse
+            if (self.last_ok_parse and self.last_ok_parse.parse_ok)
+            else self.item
+        )
+        if not src or not src.parse_ok:
+            self.app.notify("Cannot commit: fix errors first.", severity="warning")
+            return
+        # IMPORTANT: finalize only on commit
+        try:
+            src.finalize_rruleset()
+            if hasattr(src, "finalize_jobs"):
+                src.finalize_jobs(src.jobs)
+            # if you keep finalize_completions(), call it here too
+        except Exception as e:
+            self.app.notify(f"Finalize failed: {e}", severity="error")
+            return
+        self._persist(src, finalize=True)
+        self.app.notify("Committed.", timeout=1.0)
+        # Optional: auto-refresh calling view
+        self._try_refresh_calling_view()
+
+    def _persist(self, item, *, finalize: bool) -> None:
+        if self.record_id is None:
+            # create new
+            rid = self.controller.db_manager.insert_item(item)  # implement in DB layer
+            self.record_id = rid
+        else:
+            self.controller.db_manager.update_item(self.record_id, item)
+
+    def _try_refresh_calling_view(self) -> None:
+        for scr in getattr(self.app, "screen_stack", []):
+            if hasattr(scr, "refresh_data"):
+                try:
+                    scr.refresh_data()
+                except Exception:
+                    pass
 
 
 class DetailsScreen(ModalScreen[None]):
@@ -720,7 +851,7 @@ class AgendaScreen(SearchableScreen):  # ← inherit your base
     def __init__(self, controller, footer: str = ""):
         super().__init__()
         self.controller = controller
-        self.footer_text = f"[{FOOTER}]?[/{FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search  [bold {FOOTER}]tab[/bold {FOOTER}] Switch panes"
+        self.footer_text = f"[{FOOTER}]?[/{FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search  [bold {FOOTER}]tab[/bold {FOOTER}] events <-> tasks"
         self.active_pane = "tasks"
         self.events_list: ScrollableList | None = None
         self.tasks_list: ScrollableList | None = None

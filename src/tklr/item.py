@@ -2826,3 +2826,268 @@ class Item:
             after=after,
             to_localtime=to_localtime,
         )
+
+    # --- these need attention - they don't take advantage of what's already in Item ---
+
+    def _has_o(self) -> bool:
+        # @o present?
+        # return bool(self.item.get("o", False))
+        return any(
+            tok.get("t") == "@" and tok.get("k") == "o"
+            for tok in self.structured_tokens
+        )
+
+    def _has_s(self) -> bool:
+        # return bool(self.item.get("s", False))
+        return any(
+            tok.get("t") == "@" and tok.get("k") == "s"
+            for tok in self.structured_tokens
+        )
+
+    def _get_start_dt(self) -> datetime | None:
+        # return self.dtstart
+        tok = next(
+            (
+                t
+                for t in self.structured_tokens
+                if t.get("t") == "@" and t.get("k") == "s"
+            ),
+            None,
+        )
+        if not tok:
+            return None
+        val = tok["token"][2:].strip()  # strip "@s "
+        try:
+            return parse(val)
+        except Exception:
+            return None
+
+    def _set_start_dt(self, dt: datetime) -> None:
+        dt_str = dt.strftime("%Y%m%dT%H%M%S")
+        tok = next(
+            (
+                t
+                for t in self.structured_tokens
+                if t.get("t") == "@" and t.get("k") == "s"
+            ),
+            None,
+        )
+        if tok:
+            tok["token"] = f"@s {dt_str} "
+        else:
+            self.structured_tokens.append(
+                {"token": f"@s {dt_str} ", "t": "@", "k": "s"}
+            )
+        self.dtstart = dt_str
+
+    def _has_r(self) -> bool:
+        # return bool(self.item.get("r", False))
+        return any(
+            t.get("t") == "@" and t.get("k") == "r" for t in self.structured_tokens
+        )
+
+    def _get_count_token(self):
+        # &c N under the @r group
+        for t in self.structured_tokens:
+            if t.get("t") == "&" and t.get("k") == "c":
+                return t
+        return None
+
+    def _decrement_count_if_present(self) -> None:
+        tok = self._get_count_token()
+        if not tok:
+            return
+        parts = tok["token"].split()
+        if len(parts) == 2 and parts[0] == "&c":
+            try:
+                n = int(parts[1])
+                n2 = max(0, n - 1)
+                if n2 > 0:
+                    tok["token"] = f"&c {n2}"
+                else:
+                    # remove &c 0 entirely
+                    self.structured_tokens.remove(tok)
+            except ValueError:
+                pass
+
+    def _get_rdate_token(self):
+        # @+ token (comma list)
+        return next(
+            (
+                t
+                for t in self.structured_tokens
+                if t.get("t") == "@" and t.get("k") == "+"
+            ),
+            None,
+        )
+
+    def _parse_rdate_list(self) -> list[str]:
+        """Return list of compact dt strings (e.g. '20250819T110000') from @+."""
+        tok = self._get_rdate_token()
+        if not tok:
+            return []
+        body = tok["token"][2:].strip()  # strip '@+ '
+        parts = [p.strip() for p in body.split(",") if p.strip()]
+        return parts
+
+    def _write_rdate_list(self, items: list[str]) -> None:
+        tok = self._get_rdate_token()
+        if items:
+            joined = ", ".join(items)
+            if tok:
+                tok["token"] = f"@+ {joined}"
+            else:
+                self.structured_tokens.append(
+                    {"token": f"@+ {joined}", "t": "@", "k": "+"}
+                )
+        else:
+            if tok:
+                self.structured_tokens.remove(tok)
+
+    def _remove_rdate_exact(self, dt_compact: str) -> None:
+        lst = self._parse_rdate_list()
+        lst2 = [x for x in lst if x != dt_compact]
+        self._write_rdate_list(lst2)
+
+    # --- for finish trial ---
+
+    def _unfinished_jobs(self) -> list[dict]:
+        return [j for j in self.jobs if "f" not in j]
+
+    def _mark_job_finished(self, job_id: int, completed_dt: datetime) -> bool:
+        """
+        Add &f to the job (in jobs JSON) and also mutate the @~ token group if you keep that as text.
+        Returns True if the job was found and marked.
+        """
+        if not job_id:
+            return False
+        found = False
+        # Annotate JSON jobs
+        for j in self.jobs:
+            if j.get("i") == job_id and "f" not in j:
+                j["f"] = round(completed_dt.timestamp())
+                found = True
+                break
+
+        # (Optional) If you also keep textual @~… &f … tokens in structured_tokens,
+        # you can append/update them here. Otherwise, finalize_jobs() will rebuild jobs JSON.
+        if found:
+            self.finalize_jobs(self.jobs)  # keeps statuses consistent
+        return found
+
+    def finish_without_exdate(
+        self,
+        *,
+        completed_dt: datetime,
+        record_id: int | None = None,
+        job_id: int | None = None,
+    ) -> FinishResult:
+        """
+        Finish inside Item, *without* EXDATE, and *disallowing* @o.
+        Implements:
+        1) If job and >1 unfinished -> add &f to that job, submit (due=None).
+        2) If last unfinished job -> treat as whole project task and continue.
+        3) If no @s -> itemtype='x', submit (due=None).
+        4) If only one instance -> itemtype='x', submit (due=that one).
+        5) Else two+ instances:
+            - if due comes from @+ -> remove it from @+.
+            - set @s = next.
+            - if &c exists -> decrement it.
+            - finalize_rruleset().
+        """
+        # --- disallow @o tasks
+        # if self._has_o():
+        #     raise ValueError("Offset (@o) tasks are handled elsewhere and cannot be finished here.")
+
+        # --- 1) Job case
+        # If job_id is provided and more than one job is unfinished, only mark this job finished.
+        if job_id is not None and self.jobs:
+            unfinished = self._unfinished_jobs()
+            if len(unfinished) > 1:
+                if self._mark_job_finished(job_id, completed_dt):
+                    # No 'due' concept at the project level for job-only finish
+                    self.finalize_jobs(self.jobs)
+                    self.finalize_rruleset()  # harmless; keeps mirror consistent
+                    return FinishResult(
+                        new_structured_tokens=self.structured_tokens,
+                        new_rruleset=self.rruleset or "",
+                        due_ts_used=None,
+                        finished_final=False,
+                    )
+            # else fall through to treat project as a single task
+
+        # --- 3) No @s at all → single-shot
+        if not self._has_s():
+            self.itemtype = "x"
+            # mirror the itemtype token if present
+            if (
+                self.structured_tokens
+                and self.structured_tokens[0].get("t") == "itemtype"
+            ):
+                self.structured_tokens[0]["token"] = "x"
+            # rrset likely empty already; keep consistent
+            self.finalize_rruleset()
+            return FinishResult(
+                new_structured_tokens=self.structured_tokens,
+                new_rruleset=self.rruleset or "",
+                due_ts_used=None,
+                finished_final=True,
+            )
+
+        # --- 4) Compute first two instances
+        due_dt, next_dt = self._first_two_instances()
+        if due_dt is None:
+            # Nothing upcoming -> treat as single-shot finished
+            self.itemtype = "x"
+            if (
+                self.structured_tokens
+                and self.structured_tokens[0].get("t") == "itemtype"
+            ):
+                self.structured_tokens[0]["token"] = "x"
+            self.finalize_rruleset()
+            return FinishResult(
+                new_structured_tokens=self.structured_tokens,
+                new_rruleset=self.rruleset or "",
+                due_ts_used=None,
+                finished_final=True,
+            )
+
+        if next_dt is None:
+            # Exactly one instance -> finishing it ends the task
+            self.itemtype = "x"
+            if (
+                self.structured_tokens
+                and self.structured_tokens[0].get("t") == "itemtype"
+            ):
+                self.structured_tokens[0]["token"] = "x"
+            self.finalize_rruleset()
+            return FinishResult(
+                new_structured_tokens=self.structured_tokens,
+                new_rruleset=self.rruleset or "",
+                due_ts_used=int(due_dt.timestamp()),
+                finished_final=True,
+            )
+
+        # --- 5) We have due + next
+        # If due was contributed by @+ (RDATE list), remove that specific dt from @+.
+        # We detect by comparing compact strings.
+        due_compact = due_dt.strftime("%Y%m%dT%H%M%S")
+        rdates = set(self._parse_rdate_list())
+        if due_compact in rdates:
+            self._remove_rdate_exact(due_compact)
+
+        # Move @s to next
+        self._set_start_dt(next_dt)
+
+        # If &c exists, decrement it
+        self._decrement_count_if_present()
+
+        # Rebuild rruleset to reflect the new @s and any count changes
+        self.finalize_rruleset()
+
+        return FinishResult(
+            new_structured_tokens=self.structured_tokens,
+            new_rruleset=self.rruleset or "",
+            due_ts_used=int(due_dt.timestamp()),
+            finished_final=False,
+        )
