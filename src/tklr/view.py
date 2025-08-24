@@ -469,6 +469,7 @@ class DetailsScreen(ModalScreen[None]):
 
     # ---------- key handling for detail commands ----------
     def on_key(self, event) -> None:
+        log_msg(f"{event.key = }")
         k = (event.key or "").lower()
 
         if k == "e":  # Edit
@@ -547,19 +548,89 @@ class DetailsScreen(ModalScreen[None]):
     #     except Exception as e:
     #         self.app.notify(f"Finish failed: {e}", severity="error", timeout=3)
 
-    def _finish_task(self) -> None:
-        if not self.is_task or self.record_id is None:
-            return
+    # def _finish_task(self) -> None:
+    #     if not self.is_task or self.record_id is None:
+    #         return
+    #     try:
+    #         res = self.app.controller.finish_current_instance(self.record_id)
+    #         note = "Finished" + (" (final)" if res.get("final") else "")
+    #         self.app.notify(note, timeout=1.2)
+    #         # Refresh Agenda immediately
+    #         for scr in getattr(self.app, "screen_stack", []):
+    #             if hasattr(scr, "refresh_data"):
+    #                 scr.refresh_data()
+    #     except Exception as e:
+    #         self.app.notify(f"Finish failed: {e}", severity="error")
+
+    def _prompt_finish_datetime(self) -> datetime | None:
+        """
+        Tiny blocking prompt:
+        - Enter -> accept default (now)
+        - Esc/empty -> cancel
+        - Otherwise parse with dateutil
+        Replace with your real prompt widget if you have one.
+        """
+        default = datetime.utcnow()
+        default_str = default.strftime("%Y-%m-%d %H:%M")
         try:
-            res = self.app.controller.finish_current_instance(self.record_id)
-            note = "Finished" + (" (final)" if res.get("final") else "")
-            self.app.notify(note, timeout=1.2)
-            # Refresh Agenda immediately
-            for scr in getattr(self.app, "screen_stack", []):
-                if hasattr(scr, "refresh_data"):
-                    scr.refresh_data()
+            # If you have a modal/prompt helper, use it; otherwise, Python input() works in a pinch.
+            user = self.app.prompt(  # <— replace with your TUI prompt helper if you have one
+                f"Finish when? (Enter = {default_str}, Esc = cancel): "
+            )
+        except Exception:
+            # Fallback to stdin
+            user = input(
+                f"Finish when? (Enter = {default_str}, type 'esc' to cancel): "
+            ).strip()
+
+        if user is None:
+            return None
+        s = str(user).strip()
+        if not s:
+            return default
+        if s.lower() in {"esc", "cancel", "c"}:
+            return None
+        try:
+            return parse_dt(s)
         except Exception as e:
-            self.app.notify(f"Finish failed: {e}", severity="error")
+            self.app.notify(f"Couldn’t parse that date/time ({e.__class__.__name__}).")
+            return None
+
+    def _finish_task(self) -> None:
+        """
+        Called on 'f' from DetailsScreen.
+        Gathers record/job context, prompts for completion time, calls controller.
+        """
+        meta = self.app.controller.get_last_details_meta() or {}
+        record_id = meta.get("record_id")
+        job_id = meta.get("job_id")  # may be None for non-project tasks
+
+        if not record_id:
+            self.app.notify("No record selected.")
+            return
+
+        dt = datetime.now()
+        # dt = self._prompt_finish_datetime()
+        if dt is None:
+            self.app.notify("Finish cancelled.")
+            return
+
+        try:
+            res = self.app.controller.finish_from_details(record_id, job_id, dt)
+            # res is a dict: {record_id, final, due_ts, completed_ts, new_rruleset}
+            if res.get("final"):
+                self.app.notify("Finished ✅ (no more occurrences).")
+            else:
+                self.app.notify("Finished this occurrence ✅.")
+            # refresh the list(s) so the item disappears/moves immediately
+            if hasattr(self.app.controller, "populate_dependent_tables"):
+                self.app.controller.populate_dependent_tables()
+            if hasattr(self.app, "refresh_current_view"):
+                self.app.refresh_current_view()
+            elif hasattr(self.app, "switch_to_same_view"):
+                self.app.switch_to_same_view()
+        except Exception as e:
+            self.app.notify(f"Finish failed: {e}")
 
     def _toggle_pinned(self) -> None:
         if not self.is_task or self.record_id is None:

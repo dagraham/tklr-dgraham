@@ -40,12 +40,10 @@ LETTER_SET = set("abcdefghijklmnopqrstuvwxyz")  # Define once
 def is_date(obj):
     if isinstance(obj, date) and not isinstance(obj, datetime):
         return True
-    if (
-        isinstance(obj, datetime)
-        and obj.hour == 0
-        and obj.minute == 0
-        and obj.second == 0
-    ):
+    return False
+
+def is datetime(obj):
+    if isinstance(obj, date) and isinstance(obj, datetime):
         return True
     return False
 
@@ -136,14 +134,16 @@ def do_datetime(datetime_str):
 #     return dt
 
 
-# def enforce_date(dt: datetime) -> datetime:
-#     """
-#     Force dt to behave like a date (no meaningful time component).
-#     Always promote time to:
-#     - 00:00:01 for events (*)
-#     - 23:59:59 for tasks (-)
-#     """
-#     return dt.date()
+def enforce_date(dt: datetime) -> datetime:
+    """
+    Force dt to behave like a date (no meaningful time component).
+    """
+    if is_datetime(dt):
+        return dt.date()
+    if is_date:
+        return dt 
+    raise ValueError(f"{dt = } cannot be converted to a date")
+    
 
 
 def localize_rule_instances(

@@ -1365,6 +1365,92 @@ class Controller:
 
         return tasks_by_urgency
 
+    def finish_from_details(
+        self, record_id: int, job_id: int | None, completed_dt: datetime
+    ) -> dict:
+        """
+        1) Load record -> Item
+        2) Call item.finish_without_exdate(...)
+        3) Persist Item
+        4) Insert Completions row
+        5) If fully finished, remove from Urgency/DateTimes
+        6) Return summary dict
+        """
+        row = self.db_manager.get_record(record_id)
+        if not row:
+            raise ValueError(f"No record found for id {record_id}")
+
+        # 0..16 schema like you described; 13 = structured_tokens
+        structured_tokens_value = row[13]
+        tokens = structured_tokens_value
+        if isinstance(structured_tokens_value, str):
+            try:
+                tokens = json.loads(structured_tokens_value)
+            except Exception:
+                # already a list or malformed — best effort
+                pass
+        if not isinstance(tokens, list):
+            raise ValueError("Structured tokens not available/invalid for this record.")
+
+        entry_str = "".join(tok.get("token", "") for tok in tokens).strip()
+
+        # Build/parse the Item
+        item = Item(entry_str)
+        if not getattr(item, "parse_ok", True):
+            # Some Item versions set parse_ok/parse_message; if not, skip this guard.
+            raise ValueError(getattr(item, "parse_message", "Item.parse failed"))
+
+        # Remember subject fallback so we never null it on update
+        existing_subject = row[2]
+        if not item.subject:
+            item.subject = existing_subject
+
+        # 2) Let Item do all the schedule math (no EXDATE path as requested)
+        fin = item.finish_without_exdate(
+            completed_dt=completed_dt,
+            record_id=record_id,
+            job_id=job_id,
+        )
+        due_ts_used = getattr(fin, "due_ts_used", None)
+        finished_final = getattr(fin, "finished_final", False)
+
+        # 3) Persist the mutated Item
+        self.db_manager.update_item(record_id, item)
+
+        # 4) Insert completion (NULL due is allowed for one-shots)
+        self.db_manager.insert_completion(
+            record_id=record_id,
+            due_ts=due_ts_used,
+            completed_ts=int(completed_dt.timestamp()),
+        )
+
+        # 5) If final, purge from derived tables so it vanishes from lists
+        if finished_final:
+            try:
+                self.db_manager.cursor.execute(
+                    "DELETE FROM Urgency   WHERE record_id=?", (record_id,)
+                )
+                self.db_manager.cursor.execute(
+                    "DELETE FROM DateTimes WHERE record_id=?", (record_id,)
+                )
+                self.db_manager.conn.commit()
+            except Exception:
+                pass
+
+        # Optional: recompute derivations; DetailsScreen also calls refresh, but safe here
+        try:
+            self.db_manager.populate_dependent_tables()
+        except Exception:
+            pass
+
+        return {
+            "record_id": record_id,
+            "final": finished_final,
+            "due_ts": due_ts_used,
+            "completed_ts": int(completed_dt.timestamp()),
+            "new_rruleset": item.rruleset or "",
+        }
+
     # def finish_current_instance(
     #     self,
     #     record_id: int,
