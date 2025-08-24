@@ -307,7 +307,7 @@ for entry in items:
     item = Item(entry)  # .to_dict()
     print(f"{item.item = }")
 
-    dbm.add_item(item)
+    # dbm.add_item(item)
 dbm.populate_dependent_tables()
 
 print(f"Inserted {count} records into the database, last_id {id}.")
