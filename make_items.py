@@ -269,8 +269,8 @@ items = [
     f"~ one date with priority three @s {yesterday_date} @p 3",
     "~ three datetimes @s 9am @+ 10am, 11am",
     "* multiday event @s 3p fri @e 2d2h30m",
-    f"* single date @s {today_date}",
     "* daily datetime @s 3p @e 30m @r d",
+    "* gour Tiki Roundtable Meeting @s 8/1 14:00 z UTC @e 1h30m @r m &w +3TH &c 10",
 ]
 
 records = []
