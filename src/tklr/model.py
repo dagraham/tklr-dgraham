@@ -1,15 +1,15 @@
-from math import log
 import os
 import sqlite3
 import json
 from typing import Optional
-
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, time, timedelta
 from dateutil.rrule import rrulestr
 from dateutil.parser import parse
 from typing import List, Tuple
 from rich import print
 from tklr.tklr_env import TklrEnvironment
+from dateutil import tz
+from dateutil.tz import gettz
 
 
 from .shared import (
@@ -17,6 +17,7 @@ from .shared import (
     ALERT_COMMANDS,
     log_msg,
     format_datetime,
+    datetime_from_timestamp,
     duration_in_words,
     datetime_in_words,
 )
@@ -45,27 +46,61 @@ def is_date(obj):
     return isinstance(obj, date) and not isinstance(obj, datetime)
 
 
-def parse_rdates(rule_str):
+DATE_FMT = "%Y%m%d"
+DT_FMT = "%Y%m%dT%H%M%S"
+
+
+def _fmt_date(d: date) -> str:
+    return d.strftime(DATE_FMT)
+
+
+def _fmt_naive(dt: datetime) -> str:
+    return dt.strftime(DT_FMT)
+
+
+def _fmt_utc(dt_aware_utc: datetime) -> str:
+    # aware in UTC -> 'YYYYMMDDTHHMMSSZ'
+    return dt_aware_utc.astimezone(tz.UTC).strftime(DT_FMT) + "Z"
+
+
+def _to_local_naive(dt: datetime) -> datetime:
     """
-    Extract RDATE lines and parse them into datetime objects.
-    Supports multiple RDATEs separated by commas.
+    Convert aware -> local-naive; leave naive unchanged.
+    Assumes dt is datetime (not date).
     """
-    rdates = []
-    for line in rule_str.splitlines():
-        if line.startswith("RDATE:"):
-            _, value = line.split(":", 1)
-            for date_str in value.split(","):
-                try:
-                    # Try parsing with time first, fall back to date only
-                    if "T" in date_str:
-                        dt = datetime.strptime(date_str.strip(), "%Y%m%dT%H%M%S")
-                    else:
-                        dt = datetime.strptime(date_str.strip(), "%Y%m%d")
-                    rdates.append(dt)
-                except Exception as e:
-                    log_msg(f"Invalid RDATE value: {date_str} — {e}")
-    log_msg(f"{rdates = }")
-    return rdates
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
+    return dt
+
+
+def _to_key(dt: datetime) -> str:
+    """Naive-local datetime -> 'YYYYMMDDTHHMMSS' string key."""
+    return dt.strftime("%Y%m%dT%H%M%S")
+
+
+def _split_span_local_days(
+    start_local: datetime, end_local: datetime
+) -> list[tuple[datetime, datetime]]:
+    """
+    Split a local-naive span into same-day segments.
+    Inclusive start, inclusive end per segment.
+    """
+    if end_local <= start_local:
+        return [(start_local, end_local)]
+
+    segs: list[tuple[datetime, datetime]] = []
+    cur_start = start_local
+
+    while cur_start.date() < end_local.date():
+        day_end = datetime.combine(cur_start.date(), time(23, 59, 59))
+        segs.append((cur_start, day_end))
+        next_day_start = datetime.combine(
+            cur_start.date() + timedelta(days=1), time(0, 0, 0)
+        )
+        cur_start = next_day_start
+
+    segs.append((cur_start, end_local))
+    return segs
 
 
 def td_str_to_td(duration_str: str) -> timedelta:
@@ -398,6 +433,7 @@ class DatabaseManager:
     def __init__(self, db_path: str, env: TklrEnvironment, reset: bool = False):
         self.db_path = db_path
         self.env = env
+        self.AMPM = env.config.ui.ampm
         self.urgency = self.env.config.urgency
 
         if reset and os.path.exists(self.db_path):
@@ -421,6 +457,12 @@ class DatabaseManager:
         self.populate_all_urgency()
 
         log_msg("back from beginby")
+
+    def format_datetime(self, fmt_dt: str) -> str:
+        return format_datetime(fmt_dt, self.ampm)
+
+    def datetime_in_words(self, fmt_dt: str) -> str:
+        return datetime_in_words(fmt_dt, self.ampm)
 
     def setup_database(self):
         """
@@ -529,13 +571,34 @@ class DatabaseManager:
         """)
 
         # ---------------- DateTimes (for expanded instances) ----------------
+        # self.cursor.execute("""
+        #     CREATE TABLE IF NOT EXISTS DateTimes (
+        #         record_id      INTEGER,
+        #         start_datetime INTEGER,          -- epoch seconds
+        #         end_datetime   INTEGER,          -- epoch seconds
+        #         FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+        #     );
+        # """)
+
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS DateTimes (
-                record_id      INTEGER,
-                start_datetime INTEGER,          -- epoch seconds
-                end_datetime   INTEGER,          -- epoch seconds
+                record_id INTEGER NOT NULL,
+                start_datetime TEXT NOT NULL,  -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
+                end_datetime   TEXT,           -- NULL if instantaneous; same formats as start
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-            );
+            )
+        """)
+
+        # enforce uniqueness across the triple, treating NULL end as ''
+        self.cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_datetimes_unique
+            ON DateTimes(record_id, start_datetime, COALESCE(end_datetime, ''))
+        """)
+
+        # (optional) range query helper
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_datetimes_start
+            ON DateTimes(start_datetime)
         """)
 
         # ---------------- GeneratedWeeks (cache of week ranges) ----------------
@@ -548,18 +611,30 @@ class DatabaseManager:
             );
         """)
 
-        # ---------------- Alerts ----------------
+        # Alerts table: store local-naive datetimes as TEXT
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Alerts (
-                alert_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id       INTEGER NOT NULL,
-                record_name     TEXT    NOT NULL,
-                trigger_datetime INTEGER NOT NULL,  -- epoch seconds
-                start_datetime   INTEGER NOT NULL,  -- epoch seconds
-                alert_name      TEXT    NOT NULL,
-                alert_command   TEXT    NOT NULL,
+                alert_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id        INTEGER NOT NULL,
+                record_name      TEXT    NOT NULL,
+                trigger_datetime TEXT    NOT NULL,  -- 'YYYYMMDDTHHMMSS' (local-naive)
+                start_datetime   TEXT    NOT NULL,  -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
+                alert_name       TEXT    NOT NULL,
+                alert_command    TEXT    NOT NULL,
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-            );
+            )
+        """)
+
+        # Prevent duplicates: one alert per (record, start, name, trigger)
+        self.cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_unique
+            ON Alerts(record_id, start_datetime, alert_name, COALESCE(trigger_datetime,''))
+        """)
+
+        # Helpful for “what’s due now”
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_alerts_trigger
+            ON Alerts(trigger_datetime)
         """)
 
         # ---------------- Beginby (days remaining notices) ----------------
@@ -874,7 +949,7 @@ class DatabaseManager:
         for alert in alerts:
             alert_id, record_id, record_name, start_dt, td, command = alert
             execution_time = start_dt - td  # When the alert is scheduled to run
-            formatted_time = datetime.fromtimestamp(execution_time).strftime(
+            formatted_time = datetime_from_timestamp(execution_time).strftime(
                 "%Y-%m-%d %H:%M:%S"
             )
 
@@ -1055,7 +1130,7 @@ class DatabaseManager:
             start_datetime,
         ) in records:
             log_msg(f"processing {alerts = }")
-            start_dt = datetime.fromtimestamp(
+            start_dt = datetime_from_timestamp(
                 start_datetime
             )  # Convert timestamp to datetime
             today = date.today()
@@ -1106,6 +1181,176 @@ class DatabaseManager:
                                 )
         self.conn.commit()
         log_msg("✅ Alerts table updated with today's relevant alerts.")
+
+    def populate_alerts(self):
+        """
+        Populate the Alerts table for all records that have alerts defined.
+        Inserts alerts that will trigger between now and local end-of-day.
+        Uses TEXT datetimes ('YYYYMMDD' or 'YYYYMMDDTHHMMSS', local-naive).
+        """
+
+        # --- small helpers for TEXT <-> datetime (local-naive) ---
+        from datetime import datetime, timedelta
+
+        def _parse_local_text_dt(s: str) -> datetime:
+            """Parse 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive) into datetime."""
+            s = (s or "").strip()
+            if not s:
+                raise ValueError("empty datetime text")
+            if "T" in s:
+                # datetime
+                return datetime.strptime(s, "%Y%m%dT%H%M%S")
+            else:
+                # date-only -> treat as midnight local
+                return datetime.strptime(s, "%Y%m%d")
+
+        def _to_text_dt(dt: datetime, is_date_only: bool = False) -> str:
+            """
+            Render datetime back to TEXT storage.
+            If is_date_only=True, keep 'YYYYMMDD'; else use 'YYYYMMDDTHHMMSS'.
+            """
+            if is_date_only:
+                return dt.strftime("%Y%m%d")
+            return dt.strftime("%Y%m%dT%H%M%S")
+
+        def _is_date_only_text(s: str) -> bool:
+            return "T" not in (s or "")
+
+        # --- time window (local-naive) ---
+        now = datetime.now()
+        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
+
+        # You *can* clear today's alerts only, but a full clear is OK if you prefer.
+        # Safer approach: clear only alerts that trigger today or later and will be re-generated.
+        # If you *really* want a full reset, uncomment the next two lines and remove the targeted delete.
+        # self.cursor.execute("DELETE FROM Alerts;")
+        # self.conn.commit()
+
+        # Targeted delete: remove alerts in [now, end_of_day] so we can repopulate without duplicates.
+        self.cursor.execute(
+            """
+            DELETE FROM Alerts
+            WHERE trigger_datetime >= ?
+            AND trigger_datetime <= ?
+            """,
+            (now.strftime("%Y%m%dT%H%M%S"), end_of_day.strftime("%Y%m%dT%H%M%S")),
+        )
+        self.conn.commit()
+
+        # Find records that have alerts and at least one DateTimes row
+        self.cursor.execute(
+            """
+            SELECT R.id, R.subject, R.description, R.context, R.alerts, D.start_datetime
+            FROM Records R
+            JOIN DateTimes D ON R.id = D.record_id
+            WHERE R.alerts IS NOT NULL AND R.alerts != ''
+            """
+        )
+        records = self.cursor.fetchall()
+        if not records:
+            print("🔔 No records with alerts found.")
+            return
+
+        for (
+            record_id,
+            record_name,
+            record_description,
+            record_location,
+            alerts_json,
+            start_text,
+        ) in records:
+            # start_text is local-naive TEXT ('YYYYMMDD' or 'YYYYMMDDTHHMMSS')
+            try:
+                start_dt = _parse_local_text_dt(start_text)
+            except Exception as e:
+                # bad/malformed DateTimes row; skip gracefully
+                print(
+                    f"⚠️ Skipping record {record_id}: invalid start_datetime {start_text!r}: {e}"
+                )
+                continue
+
+            is_date_only = _is_date_only_text(start_text)
+
+            try:
+                alert_list = json.loads(alerts_json)
+                if not isinstance(alert_list, list):
+                    continue
+            except Exception:
+                continue
+
+            for alert in alert_list:
+                if ":" not in alert:
+                    continue  # ignore malformed alerts like "10m" with no command
+                time_part, command_part = alert.split(":", 1)
+
+                # support multiple lead times and multiple commands per line
+                try:
+                    lead_secs_list = [
+                        td_str_to_seconds(t.strip()) for t in time_part.split(",")
+                    ]
+                except Exception:
+                    continue
+                commands = [
+                    cmd.strip() for cmd in command_part.split(",") if cmd.strip()
+                ]
+                if not commands:
+                    continue
+
+                # For date-only starts, we alert relative to midnight (00:00:00) of that day
+                if is_date_only:
+                    effective_start_dt = start_dt.replace(
+                        hour=0, minute=0, second=0, microsecond=0
+                    )
+                else:
+                    effective_start_dt = start_dt
+
+                for lead_secs in lead_secs_list:
+                    trigger_dt = effective_start_dt - timedelta(seconds=lead_secs)
+
+                    # only alerts that trigger today between now and end_of_day
+                    if not (now <= trigger_dt <= end_of_day):
+                        continue
+
+                    trigger_text = _to_text_dt(trigger_dt)  # always 'YYYYMMDDTHHMMSS'
+                    start_store_text = _to_text_dt(
+                        effective_start_dt, is_date_only=is_date_only
+                    )
+
+                    for alert_name in commands:
+                        # If you have a helper that *builds* the command string, call it;
+                        # otherwise keep your existing create_alert signature but pass TEXTs.
+                        alert_command = self.create_alert(
+                            alert_name,
+                            lead_secs,
+                            start_store_text,  # now TEXT, not epoch
+                            record_id,
+                            record_name,
+                            record_description,
+                            record_location,
+                        )
+
+                        if not alert_command:
+                            continue
+
+                        # Unique index will prevent duplicates; OR IGNORE keeps this idempotent.
+                        self.cursor.execute(
+                            """
+                            INSERT OR IGNORE INTO Alerts
+                                (record_id, record_name, trigger_datetime, start_datetime, alert_name, alert_command)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                record_id,
+                                record_name,
+                                trigger_text,
+                                start_store_text,
+                                alert_name,
+                                alert_command,
+                            ),
+                        )
+
+        self.conn.commit()
+        print("✅ Alerts table updated with today's relevant alerts.")
 
     def populate_alerts_for_record(self, record_id: int):
         """Regenerate alerts for a specific record, but only if any are scheduled for today."""
@@ -1238,102 +1483,6 @@ class DatabaseManager:
 
         self.conn.commit()
 
-    def generate_datetimes_for_period(self, start_date, end_date):
-        """
-        Populate the DateTimes table with datetimes for all records within the specified range.
-        For finite recurrences (e.g., COUNT, UNTIL, or RDATE), generate all datetimes and mark as processed.
-
-        Args:
-            start_date (datetime): The start of the period.
-            end_date (datetime): The end of the period.
-        """
-        # Fetch all records with their rrule strings, extents, and processed state
-        log_msg(f"generating datetimes for {start_date = } through {end_date = }")
-        self.cursor.execute("SELECT id, rruleset, extent, processed FROM Records")
-        records = self.cursor.fetchall()
-
-        for record_id, rruleset, extent, processed in records:
-            # Replace any escaped newline characters in rruleset
-            rule_str = rruleset.replace("\\N", "\n").replace("\\n", "\n")
-
-            # Determine if the recurrence is finite
-            is_finite = (
-                "RRULE" not in rule_str or "COUNT=" in rule_str or "UNTIL=" in rule_str
-            )
-
-            # Skip already-processed finite recurrences
-            if processed == 1 and is_finite:
-                continue
-
-            extent_td = td_str_to_td(extent) if extent else timedelta(seconds=0)
-
-            try:
-                if is_finite:
-                    # Handle RDATEs
-                    rdate_occurrences = parse_rdates(rule_str)
-                    for start_dt in rdate_occurrences:
-                        end_dt = start_dt + extent_td
-                        self.cursor.execute(
-                            """
-                            INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
-                            VALUES (?, ?, ?)
-                            """,
-                            (
-                                record_id,
-                                int(start_dt.timestamp()),
-                                int(end_dt.timestamp()),
-                            ),
-                        )
-                    # Handle RRULEs if present
-                    if "RRULE" in rule_str:
-                        full_occurrences = self.generate_datetimes(
-                            rule_str, extent, datetime.min, datetime.max
-                        )
-                        for start_dt, end_dt in full_occurrences:
-                            self.cursor.execute(
-                                """
-                                INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
-                                VALUES (?, ?, ?)
-                                """,
-                                (
-                                    record_id,
-                                    int(start_dt.timestamp()),
-                                    int(end_dt.timestamp()),
-                                ),
-                            )
-
-                    self.cursor.execute(
-                        "UPDATE Records SET processed = 1 WHERE id = ?", (record_id,)
-                    )
-                else:
-                    # Generate occurrences for the specified range for infinite rules
-                    occurrences = self.generate_datetimes(
-                        # rule_str, extent, start_date, end_date
-                        rule_str,
-                        extent,
-                        datetime.min,
-                        end_date,
-                    )
-                    for start_dt, end_dt in occurrences:
-                        self.cursor.execute(
-                            """
-                            INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
-                            VALUES (?, ?, ?)
-                            """,
-                            (
-                                record_id,
-                                int(start_dt.timestamp()),
-                                int(end_dt.timestamp()),
-                            ),
-                        )
-
-            except Exception as e:
-                log_msg(
-                    f"Error processing\n{rruleset = }\n{rule_str = } for {record_id = }:\n  {e}"
-                )
-
-        self.conn.commit()
-
     def generate_datetimes(self, rule_str, extent, start_date, end_date):
         """
         Generate occurrences for a given rruleset within the specified date range.
@@ -1353,6 +1502,7 @@ class DatabaseManager:
         )
         rule = rrulestr(rule_str, dtstart=start_date)
         occurrences = list(rule.between(start_date, end_date, inc=True))
+        print(f"{rule_str = }\n{occurrences = }")
         extent = td_str_to_td(extent) if isinstance(extent, str) else extent
         log_msg(
             f"Generating for {len(occurrences) = } between {start_date = } and {end_date = } with {extent = } for {rule_str = }."
@@ -1362,16 +1512,411 @@ class DatabaseManager:
         results = []
         for start_dt in occurrences:
             end_dt = start_dt + extent if extent else start_dt
-            while start_dt.date() != end_dt.date():
-                day_end = datetime.combine(start_dt.date(), datetime.max.time())
-                results.append((start_dt, day_end))
-                start_dt = datetime.combine(
-                    start_dt.date() + timedelta(days=1), datetime.min.time()
-                )
+            # while start_dt.date() != end_dt.date():
+            #     day_end = datetime.combine(start_dt.date(), datetime.max.time())
+            #     results.append((start_dt, day_end))
+            #     start_dt = datetime.combine(
+            #         start_dt.date() + timedelta(days=1), datetime.min.time()
+            #     )
             results.append((start_dt, end_dt))
 
         return results
 
+    # def generate_datetimes_for_period(self, start_date, end_date):
+    #     """
+    #     Populate the DateTimes table with datetimes for all records within the specified range.
+    #
+    #     Strategy:
+    #     • Build a dateutil rruleset via rrulestr(rule_str) for each record.
+    #     • If finite (RDATE-only OR RRULE with COUNT/UNTIL), iterate all occurrences via .after(...)
+    #         and set processed=1. Otherwise (infinite RRULE), only insert those between start_date and end_date.
+    #     • Handle aware/naive mismatch by retrying with UTC-aware bounds when needed.
+    #     """
+    #     self.cursor.execute("SELECT id, rruleset, extent, processed FROM Records")
+    #     records = self.cursor.fetchall()
+    #
+    #     for record_id, rruleset, extent, processed in records:
+    #         if not rruleset:
+    #             # Nothing to generate
+    #             continue
+    #
+    #         # Unescape any serialized '\n's
+    #         rule_str = (rruleset or "").replace("\\N", "\n").replace("\\n", "\n")
+    #
+    #         # Finite if no RRULE at all (RDATE-only), or RRULE has COUNT/UNTIL
+    #         has_rrule = "RRULE" in rule_str
+    #         is_finite = (not has_rrule) or (
+    #             "COUNT=" in rule_str or "UNTIL=" in rule_str
+    #         )
+    #
+    #         # Skip already-processed finite recurrences
+    #         if processed == 1 and is_finite:
+    #             continue
+    #
+    #         # Parse extent duration
+    #         extent_td = td_str_to_td(extent) if extent else timedelta(seconds=0)
+    #
+    #         try:
+    #             rule = rrulestr(rule_str)
+    #         except Exception as e:
+    #             log_msg(
+    #                 f"rrulestr failed for record {record_id}: {e}\n---\n{rule_str}\n---"
+    #             )
+    #             continue
+    #
+    #         try:
+    #             if is_finite:
+    #                 # Iterate all occurrences using .after(...).
+    #                 # Choose an anchor compatible with rule's awareness.
+    #                 anchor = datetime.min
+    #                 try:
+    #                     next_dt = rule.after(anchor, inc=True)
+    #                 except TypeError:
+    #                     # Mismatch (aware vs naive): try UTC-aware anchor
+    #                     anchor = datetime.min.replace(tzinfo=tz.UTC)
+    #                     next_dt = rule.after(anchor, inc=True)
+    #
+    #                 # Optional: to avoid duplicates on repeated runs where processed wasn't set,
+    #                 # you can clear DateTimes for this record before inserting finite sets:
+    #                 # self.cursor.execute("DELETE FROM DateTimes WHERE record_id=?", (record_id,))
+    #
+    #                 while next_dt is not None:
+    #                     end_dt = next_dt + extent_td
+    #                     self.cursor.execute(
+    #                         """
+    #                         INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
+    #                         VALUES (?, ?, ?)
+    #                         """,
+    #                         (
+    #                             record_id,
+    #                             int(next_dt.timestamp()),
+    #                             int(end_dt.timestamp()),
+    #                         ),
+    #                     )
+    #                     # get the next occurrence strictly after current
+    #                     next_dt = rule.after(next_dt, inc=False)
+    #
+    #                 # Mark as processed to avoid re-inserting the same finite set next time
+    #                 self.cursor.execute(
+    #                     "UPDATE Records SET processed = 1 WHERE id = ?", (record_id,)
+    #                 )
+    #                 self.conn.commit()
+    #
+    #             else:
+    #                 # Infinite rule: fetch occurrences between start_date and end_date (inclusive)
+    #                 lo, hi = start_date, end_date
+    #                 try:
+    #                     occs = rule.between(lo, hi, inc=True)
+    #                 except TypeError:
+    #                     # Bounds timezone mismatch → try UTC-aware bounds
+    #                     if lo.tzinfo is None:
+    #                         lo = lo.replace(tzinfo=tz.UTC)
+    #                     if hi.tzinfo is None:
+    #                         hi = hi.replace(tzinfo=tz.UTC)
+    #                     occs = rule.between(lo, hi, inc=True)
+    #
+    #                 for start_dt in occs:
+    #                     end_dt = start_dt + extent_td
+    #                     self.cursor.execute(
+    #                         """
+    #                         INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
+    #                         VALUES (?, ?, ?)
+    #                         """,
+    #                         (
+    #                             record_id,
+    #                             int(start_dt.timestamp()),
+    #                             int(end_dt.timestamp()),
+    #                         ),
+    #                     )
+    #
+    #                 self.conn.commit()
+    #
+    #         except Exception as e:
+    #             log_msg(
+    #                 "Error generating datetimes for record_id={}: {}\n"
+    #                 "--- rruleset ---\n{}\n---------------".format(
+    #                     record_id, e, rule_str
+    #                 )
+    #             )
+    #
+    # def generate_datetimes_for_period(self, start_date, end_date):
+    #     """
+    #     Populate DateTimes with occurrences from each record's rruleset,
+    #     using dateutil.rrule.rrulestr directly.
+    #     """
+    #     log_msg(f"generating datetimes for {start_date = } through {end_date = }")
+    #     self.cursor.execute("SELECT id, rruleset, extent, processed FROM Records")
+    #     records = self.cursor.fetchall()
+    #
+    #     for record_id, rruleset, extent, processed in records:
+    #         try:
+    #             if not rruleset:
+    #                 continue
+    #
+    #             # Replace escaped newlines
+    #             rule_str = rruleset.replace("\\N", "\n").replace("\\n", "\n")
+    #
+    #             # Build rruleset object directly
+    #             rule = rrulestr(rule_str)
+    #
+    #             # Normalize bounds: if rule produces aware datetimes, make bounds UTC-aware too
+    #             first_occ = next(iter(rule), None)
+    #             if first_occ is None:
+    #                 continue
+    #
+    #             if first_occ.tzinfo:
+    #                 if start_date.tzinfo is None:
+    #                     start_date = start_date.replace(tzinfo=tz.UTC)
+    #                 if end_date.tzinfo is None:
+    #                     end_date = end_date.replace(tzinfo=tz.UTC)
+    #
+    #             extent_td = td_str_to_td(extent) if extent else timedelta(seconds=0)
+    #
+    #             # Get all occurrences in the range
+    #             occurrences = rule.between(start_date, end_date, inc=True)
+    #
+    #             for start_dt in occurrences:
+    #                 end_dt = start_dt + extent_td
+    #                 self.cursor.execute(
+    #                     """
+    #                     INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
+    #                     VALUES (?, ?, ?)
+    #                     """,
+    #                     (
+    #                         record_id,
+    #                         int(start_dt.timestamp()),
+    #                         int(end_dt.timestamp()),
+    #                     ),
+    #                 )
+    #
+    #         except Exception as e:
+    #             log_msg(f"Error processing {record_id = } {rruleset = }:\n  {e}")
+    #
+    #     self.conn.commit()
+
+    # def generate_datetimes_for_period(self, start_date, end_date):
+    #     """
+    #     Populate DateTimes with occurrences from each record's rruleset,
+    #     using dateutil.rrule.rrulestr directly.
+    #     """
+    #     log_msg(f"generating datetimes for {start_date = } through {end_date = }")
+    #     self.cursor.execute("SELECT id, rruleset, extent, processed FROM Records")
+    #     records = self.cursor.fetchall()
+    #
+    #     for record_id, rruleset, extent, processed in records:
+    #         try:
+    #             if not rruleset:
+    #                 continue
+    #
+    #             # Replace escaped newlines
+    #             rule_str = rruleset.replace("\\N", "\n").replace("\\n", "\n")
+    #
+    #             # Build rruleset object directly
+    #             rule = rrulestr(rule_str)
+    #
+    #             # Normalize bounds: if rule produces aware datetimes, make bounds UTC-aware too
+    #             first_occ = next(iter(rule), None)
+    #             if first_occ is None:
+    #                 continue
+    #
+    #             if first_occ.tzinfo:
+    #                 if start_date.tzinfo is None:
+    #                     start_date = start_date.replace(tzinfo=tz.UTC)
+    #                 if end_date.tzinfo is None:
+    #                     end_date = end_date.replace(tzinfo=tz.UTC)
+    #
+    #             extent_td = td_str_to_td(extent) if extent else timedelta(seconds=0)
+    #
+    #             # Get all occurrences in the range
+    #             occurrences = rule.between(start_date, end_date, inc=True)
+    #
+    #             for start_dt in occurrences:
+    #                 end_dt = start_dt + extent_td
+    #                 self.cursor.execute(
+    #                     """
+    #                     INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
+    #                     VALUES (?, ?, ?)
+    #                     """,
+    #                     (
+    #                         record_id,
+    #                         int(start_dt.timestamp()),
+    #                         int(end_dt.timestamp()),
+    #                     ),
+    #                 )
+    #
+    #         except Exception as e:
+    #             log_msg(f"Error processing {record_id = } {rruleset = }:\n  {e}")
+    #
+    #     self.conn.commit()
+
+    def generate_datetimes_for_period(self, start_date: datetime, end_date: datetime):
+        """
+        Populate DateTimes with local-naive strings:
+        • date      -> 'YYYYMMDD'
+        • datetime  -> 'YYYYMMDDTHHMMSS' (local-naive)
+        end_datetime is NULL when instantaneous; otherwise same string format.
+        Multi-day spans are split at day boundaries (23:59:59 / 00:00:00).
+        """
+        self.cursor.execute("SELECT id, rruleset, extent, processed FROM Records")
+        rows = self.cursor.fetchall()
+
+        for record_id, rruleset, extent, processed in rows:
+            if not rruleset:
+                continue
+
+            rule_str = (rruleset or "").replace("\\N", "\n").replace("\\n", "\n")
+            has_rrule = "RRULE" in rule_str
+            is_finite = (not has_rrule) or (
+                "COUNT=" in rule_str or "UNTIL=" in rule_str
+            )
+
+            # Skip already-processed finite items
+            if processed == 1 and is_finite:
+                continue
+
+            # extent -> timedelta
+            extent_td = td_str_to_td(extent) if extent else timedelta(0)
+
+            try:
+                rule = rrulestr(rule_str)
+            except Exception as e:
+                log_msg(
+                    f"rrulestr failed for record {record_id}: {e}\n---\n{rule_str}\n---"
+                )
+                continue
+
+            try:
+                if is_finite:
+                    # iterate all occurrences with .after(...)
+                    anchor = datetime.min
+                    try:
+                        cur = rule.after(anchor, inc=True)
+                    except TypeError:
+                        # timezone mismatch (aware vs naive)
+                        anchor = datetime.min.replace(tzinfo=tz.UTC)
+                        cur = rule.after(anchor, inc=True)
+
+                    # Optional: clear stale rows to avoid dup risk on re-runs
+                    # self.cursor.execute("DELETE FROM DateTimes WHERE record_id=?", (record_id,))
+
+                    while cur is not None:
+                        # DATE vs DATETIME
+                        if (
+                            isinstance(cur, datetime)
+                            and cur.tzinfo is None
+                            and cur.hour == 0
+                            and cur.minute == 0
+                            and cur.second == 0
+                        ):
+                            # This is a naive midnight datetime — if it came from a DATE RDATE, treat as DATE
+                            # Heuristic: dateutil often returns datetime for dates; detect pure date by presence in rule?
+                            # Easiest: if rule string line matched a YYYYMMDD for this occurrence; but we’ll keep it simple:
+                            start_str = _fmt_naive(cur)  # store as datetime
+                            end_str = (
+                                None
+                                if extent_td == timedelta(0)
+                                else _fmt_naive(cur + extent_td)
+                            )
+                            # If you truly want “pure date” storage for date-only, uncomment next two lines:
+                            # start_str = _fmt_date(cur.date())
+                            # end_str = None
+                            self.cursor.execute(
+                                "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
+                                (record_id, start_str, end_str),
+                            )
+                        elif isinstance(cur, datetime):
+                            # Aware → local naive; naive stays as is
+                            start_local = _to_local_naive(cur)
+                            end_local = start_local + extent_td
+                            if extent_td == timedelta(0):
+                                self.cursor.execute(
+                                    "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
+                                    (record_id, _fmt_naive(start_local), None),
+                                )
+                            else:
+                                # Split across days if needed
+                                for seg_start, seg_end in _split_span_local_days(
+                                    start_local, end_local
+                                ):
+                                    start_str = _fmt_naive(seg_start)
+                                    # If same instant (rare after split), store NULL
+                                    end_str = (
+                                        None
+                                        if seg_end == seg_start
+                                        else _fmt_naive(seg_end)
+                                    )
+                                    self.cursor.execute(
+                                        "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
+                                        (record_id, start_str, end_str),
+                                    )
+                        else:
+                            # Pure date (dateutil may actually return datetime; if truly a date object):
+                            start_str = _fmt_date(cur)  # 8-char date
+                            self.cursor.execute(
+                                "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
+                                (record_id, start_str, None),
+                            )
+
+                        cur = rule.after(cur, inc=False)
+
+                    # mark finite as processed
+                    self.cursor.execute(
+                        "UPDATE Records SET processed = 1 WHERE id=?", (record_id,)
+                    )
+                    self.conn.commit()
+
+                else:
+                    # Infinite: generate only within the requested window
+                    lo, hi = start_date, end_date
+                    try:
+                        occs = rule.between(lo, hi, inc=True)
+                    except TypeError:
+                        # aware/naive mismatch → retry with UTC-aware bounds
+                        if lo.tzinfo is None:
+                            lo = lo.replace(tzinfo=tz.UTC)
+                        if hi.tzinfo is None:
+                            hi = hi.replace(tzinfo=tz.UTC)
+                        occs = rule.between(lo, hi, inc=True)
+
+                    for cur in occs:
+                        if isinstance(cur, datetime):
+                            start_local = _to_local_naive(cur)
+                            end_local = start_local + extent_td
+                            if extent_td == timedelta(0):
+                                self.cursor.execute(
+                                    "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
+                                    (record_id, _fmt_naive(start_local), None),
+                                )
+                            else:
+                                for seg_start, seg_end in _split_span_local_days(
+                                    start_local, end_local
+                                ):
+                                    start_str = _fmt_naive(seg_start)
+                                    end_str = (
+                                        None
+                                        if seg_end == seg_start
+                                        else _fmt_naive(seg_end)
+                                    )
+                                    self.cursor.execute(
+                                        "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
+                                        (record_id, start_str, end_str),
+                                    )
+                        else:
+                            # pure date object
+                            start_str = _fmt_date(cur)
+                            self.cursor.execute(
+                                "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
+                                (record_id, start_str, None),
+                            )
+
+                    self.conn.commit()
+
+            except Exception as e:
+                log_msg(
+                    f"Error generating DateTimes for record_id={record_id}: {e}\n---\n{rule_str}\n---"
+                )
+
+    # FIXME: should parallel new generate_datetimes_for_period
     def generate_datetimes_for_record(self, record_id: int):
         """
         Regenerate DateTimes entries for a single record.
@@ -1457,8 +2002,66 @@ class DatabaseManager:
         WHERE dt.start_datetime < ? AND dt.end_datetime >= ?
         ORDER BY dt.start_datetime
         """,
-            (end_date.timestamp(), start_date.timestamp()),
+            (_fmt_naive(end_date), _fmt_naive(start_date)),
         )
+        return self.cursor.fetchall()
+
+    def get_events_for_period(self, start_date: datetime, end_date: datetime):
+        """
+        Retrieve all events that occur or overlap within [start_date, end_date),
+        ordered by start time.
+
+        DateTimes table stores TEXT:
+        - date-only: 'YYYYMMDD'
+        - datetime:  'YYYYMMDDTHHMMSS'
+        - end_datetime may be NULL (instantaneous)
+
+        Overlap rule:
+        normalized_end  >= period_start_key
+        normalized_start < period_end_key
+        """
+        start_key = _to_key(start_date)
+        end_key = _to_key(end_date)
+
+        # Normalize stored strings for correct lexicographic comparison:
+        #   start_norm = date -> append T000000, else use as-is
+        #   end_norm   = if NULL use start_norm (instantaneous)
+        #                if date append T235959, else as-is
+        sql = """
+        SELECT
+        dt.start_datetime,
+        dt.end_datetime,
+        r.itemtype,
+        r.subject,
+        r.id
+        FROM DateTimes dt
+        JOIN Records r ON dt.record_id = r.id
+        WHERE
+        (
+            CASE
+            WHEN dt.end_datetime IS NULL THEN
+                CASE
+                WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+                ELSE dt.start_datetime
+                END
+            WHEN LENGTH(dt.end_datetime) = 8 THEN dt.end_datetime || 'T235959'
+            ELSE dt.end_datetime
+            END
+        ) >= ?
+        AND
+        (
+            CASE
+            WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+            ELSE dt.start_datetime
+            END
+        ) < ?
+        ORDER BY
+        CASE
+            WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+            ELSE dt.start_datetime
+        END
+        """
+        self.cursor.execute(sql, (start_key, end_key))
         return self.cursor.fetchall()
 
     def get_beginby_for_events(self):
@@ -1544,38 +2147,40 @@ class DatabaseManager:
 
         for start_ts, end_ts, itemtype, subject, id in events:
             start_dt = (
-                datetime.utcfromtimestamp(start_ts)
-                .replace(tzinfo=gettz("UTC"))
-                .astimezone()
-                .replace(tzinfo=None)
+                datetime_from_timestamp(start_ts)
+                # .replace(tzinfo=gettz("UTC"))
+                # .astimezone()
+                # .replace(tzinfo=None)
             )
             end_dt = (
-                datetime.utcfromtimestamp(end_ts)
-                .replace(tzinfo=gettz("UTC"))
-                .astimezone()
-                .replace(tzinfo=None)
+                datetime_from_timestamp(end_ts)
+                # .replace(tzinfo=gettz("UTC"))
+                # .astimezone()
+                # .replace(tzinfo=None)
             )
 
+            iso_year, iso_week, iso_weekday = start_dt.isocalendar()
+            grouped_events[iso_year][iso_week][iso_weekday].append((start_dt, end_dt))
             # Process and split events across day boundaries
-            while start_dt.date() <= end_dt.date():
-                # Compute the end time for the current day
-                day_end = min(
-                    end_dt,
-                    datetime.combine(
-                        start_dt.date(), datetime.max.time()
-                    ),  # End of the current day
-                )
-
-                # Group by ISO year, week, and weekday
-                iso_year, iso_week, iso_weekday = start_dt.isocalendar()
-                # grouped_events[iso_year][iso_week][iso_weekday].append((start_dt, day_end, event_type, name))
-                grouped_events[iso_year][iso_week][iso_weekday].append(
-                    (start_dt, day_end)
-                )
-                # Move to the start of the next day
-                start_dt = datetime.combine(
-                    start_dt.date() + timedelta(days=1), datetime.min.time()
-                )
+            # while start_dt.date() <= end_dt.date():
+            #     # Compute the end time for the current day
+            #     day_end = min(
+            #         end_dt,
+            #         datetime.combine(
+            #             start_dt.date(), datetime.max.time()
+            #         ),  # End of the current day
+            #     )
+            #
+            #     # Group by ISO year, week, and weekday
+            #     iso_year, iso_week, iso_weekday = start_dt.isocalendar()
+            #     # grouped_events[iso_year][iso_week][iso_weekday].append((start_dt, day_end, event_type, name))
+            #     grouped_events[iso_year][iso_week][iso_weekday].append(
+            #         (start_dt, day_end)
+            #     )
+            #     # Move to the start of the next day
+            #     start_dt = datetime.combine(
+            #         start_dt.date() + timedelta(days=1), datetime.min.time()
+            #     )
 
         return grouped_events
 
@@ -1614,7 +2219,7 @@ class DatabaseManager:
         offset = td_str_to_td(beginby_str)
 
         for (start_ts,) in occurrences:
-            scheduled_dt = datetime.fromtimestamp(start_ts)
+            scheduled_dt = datetime_from_timestamp(start_ts)
             beginby_dt = scheduled_dt - offset
             if beginby_dt.date() <= today < scheduled_dt.date():
                 days_remaining = (scheduled_dt.date() - today).days
@@ -1817,7 +2422,7 @@ class DatabaseManager:
 
                 job_due = due_seconds
                 if job_due:
-                    b = td_str_to_seconds(job.get("b"))
+                    b = td_str_to_seconds(job.get("b", "0m"))
                     s = td_str_to_seconds(job.get("s", "0m"))
                     if b:
                         hide = job_due - b > now_seconds

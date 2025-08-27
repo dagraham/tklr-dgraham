@@ -28,7 +28,7 @@ def truncate_string(s: str, max_length: int) -> str:
         return s
 
 
-def log_msg(msg: str, file_path: str = "log_msg.md"):
+def log_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = False):
     """
     Log a message and save it directly to a specified file.
 
@@ -58,6 +58,35 @@ def log_msg(msg: str, file_path: str = "log_msg.md"):
         f.writelines(lines)
 
 
+def print_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = False):
+    """
+    Log a message and save it directly to a specified file.
+
+    Args:
+        msg (str): The message to log.
+        file_path (str, optional): Path to the log file. Defaults to "log_msg.txt".
+    """
+    caller_name = inspect.stack()[1].function
+    lines = [
+        f"{caller_name}",
+    ]
+    lines.extend(
+        [
+            f"\n{x}"
+            for x in textwrap.wrap(
+                msg.strip(),
+                width=shutil.get_terminal_size()[0] - 6,
+                initial_indent="   ",
+                subsequent_indent="   ",
+            )
+        ]
+    )
+
+    # Save the message to the file
+    # print("".join(lines))
+    print(lines)
+
+
 def display_messages(file_path: str = "log_msg.md"):
     """
     Display all logged messages from the specified file.
@@ -76,43 +105,33 @@ def display_messages(file_path: str = "log_msg.md"):
         print(f"Error: Log file '{file_path}' not found.")
 
 
-def format_time_range(
-    start_time: int, end_time: int, mode: Literal["24", "12"] = "24"
-) -> str:
-    """Format time range in 24-hour or 12-hour notation."""
-    start_dt = (
-        start_time
-        if isinstance(start_time, datetime)
-        else datetime.fromtimestamp(start_time)
-        if isinstance(start_time, int)
-        else None
-    )
-    end_dt = (
-        end_time
-        if isinstance(end_time, datetime)
-        else datetime.fromtimestamp(end_time)
-        if isinstance(start_time, int)
-        else None
-    )
+def format_time_range(start_time: str, end_time: str, ampm: bool = False) -> str:
+    """Format time range respecting ampm setting."""
+    start_dt = datetime_from_timestamp(start_time)
+    end_dt = datetime_from_timestamp(end_time) if end_time else None
+
+    if not end_dt:
+        end_dt = start_dt
+
     extent = start_dt != end_dt
 
     if start_dt == end_dt and start_dt.hour == 0 and start_dt.minute == 0:
         return ""
 
-    if mode == "24":
-        start_hour = start_dt.strftime("%H:%M").replace(":00", "")
-        if start_hour.startswith("0"):
-            start_hour = start_hour[1:]
-        end_hour = end_dt.strftime("%H:%M").replace(":00", "")
-        if end_hour.startswith("0"):
-            end_hour = end_hour[1:]
-        return f"{start_hour}-{end_hour}" if start_hour != end_hour else f"{start_hour}"
-    else:
+    if ampm:
         start_fmt = "%-I:%M%p" if start_dt.hour < 12 and end_dt.hour >= 12 else "%-I:%M"
         start_hour = start_dt.strftime(f"{start_fmt}").lower().replace(":00", "")
         end_hour = (
             end_dt.strftime("%-I:%M%p").lower().replace(":00", "")  # .replace("m", "")
         )
+        return f"{start_hour}-{end_hour}" if extent else f"{end_hour}"
+    else:
+        start_hour = start_dt.strftime("%H:%M").replace(":00", "")
+        if start_hour.startswith("0"):
+            start_hour = start_hour[1:]
+        end_hour = end_dt.strftime("%H:%M")  # .replace(":00", "")
+        if end_hour.startswith("0"):
+            end_hour = end_hour[1:]
         return f"{start_hour}-{end_hour}" if extent else f"{end_hour}"
 
 
@@ -219,59 +238,59 @@ def format_timedelta(seconds: int, short=False):
         return None
 
 
-def format_datetime(
-    seconds: int,
-    mode: Literal["24", "12"] = HRS_MINS,
-) -> str:
-    """Return the date and time components of a timestamp using 12 or 24 hour format."""
-    date_time = datetime.fromtimestamp(seconds)
+# def format_datetime(
+#     seconds: int,
+#     mode: Literal["24", "12"] = HRS_MINS,
+# ) -> str:
+#     """Return the date and time components of a timestamp using 12 or 24 hour format."""
+#     date_time = datetime.fromtimestamp(seconds)
+#
+#     date_part = date_time.strftime("%Y-%m-%d")
+#
+#     if mode == "24":
+#         time_part = date_time.strftime("%H:%Mh").lstrip("0").replace(":00", "")
+#     else:
+#         time_part = (
+#             date_time.strftime("%-I:%M%p").lower().replace(":00", "").rstrip("m")
+#         )
+#     return date_part, time_part
 
-    date_part = date_time.strftime("%Y-%m-%d")
 
-    if mode == "24":
-        time_part = date_time.strftime("%H:%Mh").lstrip("0").replace(":00", "")
-    else:
-        time_part = (
-            date_time.strftime("%-I:%M%p").lower().replace(":00", "").rstrip("m")
-        )
-    return date_part, time_part
-
-
-def format_datetime(seconds: int, mode: Literal["24", "12"] = HRS_MINS) -> str:
-    """
-    Convert a timestamp into a human-readable phrase based on the current time.
-
-    Args:
-        seconds (int): Timestamp in seconds since the epoch.
-        mode (str): "24" for 24-hour time (e.g., "15 30 hours"), "12" for 12-hour time (e.g., "3 30 p m").
-
-    Returns:
-        str: Formatted datetime phrase.
-    """
-    dt = datetime.fromtimestamp(seconds)
-    today = date.today()
-    delta_days = (dt.date() - today).days
-
-    time_str = (
-        dt.strftime("%I:%M%p").lower() if mode == "12" else dt.strftime("%H:%Mh")
-    ).replace(":00", "")
-    if time_str.startswith("0"):
-        time_str = "".join(time_str[1:])
-
-    # ✅ Case 1: Today → "3 30 p m" or "15 30 hours"
-    if delta_days == 0:
-        return time_str
-
-    # ✅ Case 2: Within the past/future 6 days → "Monday at 3 30 p m"
-    elif -6 <= delta_days <= 6:
-        day_of_week = dt.strftime("%A")
-        return f"{day_of_week} at {time_str}"
-
-    # ✅ Case 3: Beyond 6 days → "January 1, 2022 at 3 30 p m"
-    else:
-        date_str = dt.strftime("%B %-d, %Y")  # "January 1, 2022"
-        return f"{date_str} at {time_str}"
-
+# def format_datetime(fmt_dt: str, ampm: bool = False) -> str:
+#     """
+#     Convert a timestamp into a human-readable phrase based on the current time.
+#
+#     Args:
+#         seconds (int): Timestamp in seconds since the epoch.
+#         mode (str): "24" for 24-hour time (e.g., "15 30 hours"), "12" for 12-hour time (e.g., "3 30 p m").
+#
+#     Returns:
+#         str: Formatted datetime phrase.
+#     """
+#     dt = datetime.fromtimestamp(seconds)
+#     today = date.today()
+#     delta_days = (dt.date() - today).days
+#
+#     time_str = (
+#         dt.strftime("%I:%M%p").lower() if ampm else dt.strftime("%H:%Mh")
+#     ).replace(":00", "")
+#     if time_str.startswith("0"):
+#         time_str = "".join(time_str[1:])
+#
+#     # ✅ Case 1: Today → "3 30 p m" or "15 30 hours"
+#     if delta_days == 0:
+#         return time_str
+#
+#     # ✅ Case 2: Within the past/future 6 days → "Monday at 3 30 p m"
+#     elif -6 <= delta_days <= 6:
+#         day_of_week = dt.strftime("%A")
+#         return f"{day_of_week} at {time_str}"
+#
+#     # ✅ Case 3: Beyond 6 days → "January 1, 2022 at 3 30 p m"
+#     else:
+#         date_str = dt.strftime("%B %-d, %Y")  # "January 1, 2022"
+#         return f"{date_str} at {time_str}"
+#
 
 # def datetime_in_words(seconds: int, mode: Literal["24", "12"]) -> str:
 #     """Convert a timestamp into a human-readable phrase.
@@ -287,18 +306,95 @@ def format_datetime(seconds: int, mode: Literal["24", "12"] = HRS_MINS) -> str:
 #
 
 
-def datetime_in_words(seconds: int, mode: Literal["24", "12"] = HRS_MINS) -> str:
+def datetime_from_timestamp(fmt_dt: str) -> str:
+    if isinstance(fmt_dt, datetime):
+        return fmt_dt
+    if fmt_dt is None:
+        return None
+    try:
+        if "T" in fmt_dt:
+            dt = datetime.strptime(fmt_dt, "%Y%m%dT%H%M%S")
+            # is_date_only = False
+        else:
+            dt = datetime.strptime(fmt_dt, "%Y%m%d")
+            # is_date_only = True
+    except ValueError:
+        print(f"could not parse {fmt_dt}")
+        return None
+    return dt
+
+
+def format_datetime(fmt_dt: str, ampm: bool = False) -> str:
     """
-    Convert a timestamp into a human-readable phrase based on the current time.
+    Convert a compact naive-local datetime string into a human-readable phrase.
 
     Args:
-        seconds (int): Timestamp in seconds since the epoch.
-        mode (str): "24" for 24-hour time (e.g., "15 30 hours"), "12" for 12-hour time (e.g., "3 30 p m").
+        fmt_dt: 'YYYYMMDD' (date) or 'YYYYMMDDTHHMMSS' (naive datetime, local).
+        ampm:   True -> '3:30pm' / False -> '15h30'.
 
     Returns:
-        str: Formatted datetime phrase.
+        str: Human-readable phrase like 'today', 'Monday at 3pm', or
+             'January 5, 2026 at 15h'.
     """
-    dt = datetime.fromtimestamp(seconds)
+    # Parse
+    if "T" in fmt_dt:
+        dt = datetime.strptime(fmt_dt, "%Y%m%dT%H%M%S")
+        is_date_only = False
+    else:
+        dt = datetime.strptime(fmt_dt, "%Y%m%d")
+        is_date_only = True
+
+    today = date.today()
+    delta_days = (dt.date() - today).days
+
+    # Date-only cases
+    if is_date_only:
+        if delta_days == 0:
+            return "today"
+        elif -6 <= delta_days <= 6:
+            return dt.strftime("%A")
+        else:
+            # Note: %-d is POSIX; if you need Windows support, use an alternate path.
+            return dt.strftime("%B %-d, %Y")
+
+    # Time string
+    time_str = dt.strftime("%I:%M%p").lower() if ampm else dt.strftime("%H:%Mh")
+    # Drop :00 minutes
+    if time_str.endswith(":00pm") or time_str.endswith(":00am"):
+        time_str = time_str.replace(":00", "")
+    elif time_str.endswith(":00h"):
+        time_str = time_str.replace(":00", "")
+    # Drop leading zero for 12-hour format
+    if ampm and time_str.startswith("0"):
+        time_str = time_str[1:]
+
+    # Phrasing
+    if delta_days == 0:
+        return time_str
+    elif -6 <= delta_days <= 6:
+        return f"{dt.strftime('%A')} at {time_str}"
+    else:
+        return f"{dt.strftime('%B %-d, %Y')} at {time_str}"
+
+
+def datetime_in_words(fmt_dt: str, ampm: bool = False) -> str:
+    """
+    Convert a compact datetime string into a human-readable phrase based on the current time.
+
+    Args:
+        fmt_dt: 'YYYYMMDD' (date) or 'YYYYMMDDTHHMMSS' (naive datetime, local).
+        ampm:   True -> '3:30pm' / False -> '15h30'.
+
+    Returns:
+        str: Human-readable phrase like 'today', 'Monday at 3pm', or
+             'January 5, 2026 at 15h'.
+    """
+    if "T" in fmt_dt:
+        dt = datetime.strptime(fmt_dt, "%Y%m%dT%H%M%S")
+        is_date_only = False
+    else:
+        dt = datetime.strptime(fmt_dt, "%Y%m%d")
+        is_date_only = True
     today = date.today()
     delta_days = (dt.date() - today).days
 
@@ -307,10 +403,10 @@ def datetime_in_words(seconds: int, mode: Literal["24", "12"] = HRS_MINS) -> str
     minutes_str = (
         "" if minutes == 0 else f" o {minutes}" if minutes < 10 else f" {minutes}"
     )
-    hours_str = dt.strftime("%H") if mode == "24" else dt.strftime("%I")
+    hours_str = dt.strftime("%H") if ampm else dt.strftime("%I")
     if hours_str.startswith("0"):
         hours_str = hours_str[1:]  # Remove leading zero
-    suffix = " hours" if mode == "24" else " a m" if dt.hour < 12 else " p m"
+    suffix = " hours" if ampm else " a m" if dt.hour < 12 else " p m"
 
     time_str = f"{hours_str}{minutes_str}{suffix}"
 

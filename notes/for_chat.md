@@ -1,5 +1,96 @@
 # For ChatGPT
 
+## 2025-08-25 do_s()
+
+### original
+
+```python
+    def do_s(self, token):
+      """
+      Initialize the starting values for rruleset.
+      self.rdstart_str will be used if there is no recurrence rule
+      self.dtstart_str will be used if there is a recurrence rule
+      """
+        datetime_str = token["token"][2:].strip()
+        # ok, dt = do_datetime(datetime_str)
+        dt = parse(datetime_str)
+        if is_date(dt):
+            self.enforce_dates = True
+            self.dtstart = dt.strftime("%Y%m%d")
+            self.dtstart_str = f"DTSTART;VALUE=DATE:{dt.strftime('%Y%m%d')}"
+            self.rdstart_str = f"RDATE;VALUE=DATE:{dt.strftime('%Y%m%d')}"
+        else:
+            self.dtstart = dt.strftime("%Y%m%dT%H%M")
+            self.dtstart_str = f"DTSTART:{dt.strftime('%Y%m%dT%H%M%S')}"
+            self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT%H%M%S')}"
+        log_msg(f"scheduled date/datetime {self.dtstart_str = }, {self.rdstart_str = }")
+        return True, self.dtstart, []
+```
+
+### chat version
+
+```python
+    def do_s(self, token: dict):
+        """
+        Parse @s, with timezone controlled *only* by grouped '&z'.
+        Cases:
+        1) date-only               -> 'YYYYMMDD'
+        2) datetime + &z none      -> naive -> 'YYYYMMDDTHHMMSS'
+        3) datetime + &z TZ (or no &z -> local) -> aware UTC 'YYYYMMDDTHHMMSSZ'
+        """
+        try:
+            raw = token["token"][2:].strip()  # after '@s '
+            if not raw:
+                return False, "Missing @s value", []
+
+            # grouped &z (if tokenizer didn’t add 's' yet, fall back to empty list)
+            s_groups = self.token_group_map.get("s", [])
+            z_val = None
+            for k, v in s_groups:
+                if k == "z":
+                    z_val = (v or "").strip()
+                    break
+
+            parsed = parse(raw)
+            if parsed is None:
+                return False, f"Could not parse '{raw}'", []
+
+            if isinstance(parsed, date) and not isinstance(parsed, datetime):
+                # Case 1: date
+                compact = self._serialize_date(parsed)
+                tz_kind = "date"
+                self.dtstart_str = ""  # no DTSTART in pure date mode
+            else:
+                # Case 2/3: datetime
+                if z_val and z_val.lower() == "none":
+                    # naive
+                    compact = self._serialize_naive_dt(parsed)
+                    tz_kind = "naive"
+                    self.dtstart_str = f"DTSTART:{compact}"
+                else:
+                    # aware → use explicit tz if given, else local tz
+                    zone = tz.gettz(z_val) if z_val else tz.tzlocal()
+                    if zone is None:
+                        return False, f"Unknown timezone: {z_val!r}", []
+                    compact = self._serialize_aware_dt_as_utc_Z(parsed, zone)
+                    tz_kind = "aware"
+                    self.dtstart_str = f"DTSTART:{compact}"
+
+            # reflect into token_map
+            self.token_map["s"] = compact
+            self.s_kind = tz_kind
+            self.s_tz = z_val or ""  # empty string means "local"
+
+            # keep the visible @s token text in sync with the serialized compact value
+            token["token"] = f"@s {compact} "
+
+            return True, compact, []
+        except Exception as e:
+            return False, f"Invalid @s value: {e}", []
+
+
+```
+
 ## 2025-08-18 let Item do it
 
 First a question. I don't understand the need for "self.enforce_dates". For reasons already discussed, dates are treated as datetimes corresponding to "00:00:00" hours. Why enforce_dates?

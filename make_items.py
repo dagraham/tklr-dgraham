@@ -4,6 +4,7 @@ import random
 from datetime import datetime, timedelta
 from rich import print
 from tklr.item import Item
+from tklr.controller import Controller
 from tklr.model import DatabaseManager
 from tklr.tklr_env import TklrEnvironment
 
@@ -211,10 +212,10 @@ freq = [
 
 count = [f"COUNT={n}" for n in range(2, 5)]
 
-first_of_month = now.replace(day=1).strftime("%Y%m%dT000000")
-yesterday_date = (now - ONEDAY).strftime("%Y%m%dT000000")
-today_date = now.strftime("%Y%m%dT000000")
-tomorrow_date = (now + ONEDAY).strftime("%Y%m%dT000000")
+first_of_month = now.replace(day=1).strftime("%Y%m%d")
+yesterday_date = (now - ONEDAY).strftime("%Y%m%d")
+today_date = now.strftime("%Y%m%d")
+tomorrow_date = (now + ONEDAY).strftime("%Y%m%d")
 # type, name, details, rrulestr, extent, alerts, location
 
 items = [
@@ -225,32 +226,31 @@ items = [
     f"~ all day yesterday @d all day task @p 2 @s {yesterday_date}",
     f"~ all day today @d all day task @p 2 @s {today_date}",
     f"~ all day tomorrow @d all day event @p 2 @s {tomorrow_date}",
-    f"* zero extent float @s {tomorrow_date}T100000 @z none",
-    f"* daily date @s {today_date} @d whatever @c wherever @p 5 @r d &i 3 &c 10 @z US/Pacific",
-    f"* single date @s {today_date}",
-    # f"~ every other date @s {today_date}T000000 @r d &i 2",
-    f"* single datetime @s {in_five_days()} @e 2h30m @b 6d",
+    f"* zero extent naive @s {tomorrow_date}T100000 z none",
+    f"* daily datetime US/Pacific @s {today_date} 1pm z US/Pacific @d whatever @c wherever @r d &i 3 &c 10",
+    f"~ every other day @s {today_date} 10p @r d &i 2",
     f"~ due, tags, description, priority one @p 1 @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
     f"* three datetimes @s {in_ten_minutes()} @e 45m  @+ {in_one_hour()}, {in_one_day()}",
-    # f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
-    # f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
+    f"* ten minutes @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
+    f"* one hour @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
     f"~ daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",  # ***
-    f"""% long formatted description @s {yesterday_date} 
-    @d Title 
-    1. This 
+    f"""% long formatted description @s {yesterday_date}
+    @d Title
+    1. This
        i. with part one
-       ii. and this 
-    2. And finally this. @t test @l label @t red 
+       ii. and this
+    2. And finally this. 
+    @t test @t red
     """,
     f"""^ dog house @s {in_five_days()} @e 3h @b 2w @p 3
-    @~ create plan &s 1w &e 1h &r 1 &f {today_date} 
-    @~ go to Lowes &s 1w &e 2h &r 2: 1 
+    @~ create plan &s 1w &e 1h &r 1 &f {today_date}
+    @~ go to Lowes &s 1w &e 2h &r 2: 1
     @~ buy lumber &s 1w &r 3: 2
     @~ buy hardware &s 1w &r 4: 2
     @~ buy paint &s 1w &r 5: 2
-    @~ cut pieces &s 6d &e 3h &r 6: 3 
-    @~ assemble &s 4d &e 5h &r 7: 4, 6 
-    @~ sand &s 3d &e 1h &r 8: 7 
+    @~ cut pieces &s 6d &e 3h &r 6: 3
+    @~ assemble &s 4d &e 5h &r 7: 4, 6
+    @~ sand &s 3d &e 1h &r 8: 7
     @~ paint &s 2d &e 2h &r 9: 8
     """,
     "~ no due date or datetime and priority one @p 1",
@@ -267,8 +267,10 @@ items = [
     "~ add another after 4 days when complete @s fri 12a @+ 26 12a",
     "? draft reminder - no checks",
     f"~ one date with priority three @s {yesterday_date} @p 3",
-    f"~ one date with priority two @s {yesterday_date} @p 2",
-    f"~ three dates with priority one @s {yesterday_date} @+ {today_date}, {tomorrow_date} @p 1",
+    "~ three datetimes @s 9am @+ 10am, 11am",
+    "* multiday event @s 3p fri @e 2d2h30m",
+    f"* single date @s {today_date}",
+    "* daily datetime @s 3p @e 30m @r d",
 ]
 
 records = []
@@ -282,11 +284,7 @@ while len(items) < num_items:
     date = random.choice(dates)
     if date:
         # all day if event else end of day
-        dts = (
-            start.strftime("%Y%m%dT000000")
-            if t == "*"
-            else start.strftime("%Y%m%dT235959")
-        )
+        dts = start.strftime("%Y%m%d") if t == "*" else start.strftime("%Y%m%dT235959")
     else:
         dts = start.strftime("%Y%m%dT%H%M00")
     dtstart = local_dtstr_to_utc_str(dts)
@@ -303,11 +301,12 @@ id = 0
 for entry in items:
     count += 1
     id += 1
-    print(f"{entry = }")
-    item = Item(entry)  # .to_dict()
+    print(f"---\n{entry = }")
+    item = Item(raw=entry, env=env)  # .to_dict()
+    # print(f"{item.structured_tokens = }\n{item.item = }")
     print(f"{item.item = }")
 
-    # dbm.add_item(item)
+    dbm.add_item(item)
 dbm.populate_dependent_tables()
 
 print(f"Inserted {count} records into the database, last_id {id}.")

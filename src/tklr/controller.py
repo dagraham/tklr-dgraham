@@ -33,6 +33,7 @@ import json
 from typing import Literal
 from .item import Item
 from .model import DatabaseManager, UrgencyComputer
+from .model import _fmt_naive, _to_local_naive
 from .list_colors import css_named_colors
 
 from collections import defaultdict
@@ -43,7 +44,9 @@ from .shared import (
     # ALERT_COMMANDS,
     format_time_range,
     format_timedelta,
+    datetime_from_timestamp,
     format_datetime,
+    datetime_in_words,
     truncate_string,
 )
 from tklr.tklr_env import TklrEnvironment
@@ -64,6 +67,7 @@ label_color = css_named_colors["lightskyblue"]
 LEMON_CHIFFON = "#FFFACD"
 KHAKI = "#F0E68C"
 LIGHT_SKY_BLUE = "#87CEFA"
+LIGHT_CORAL = "#F08080"
 DARK_GRAY = "#A9A9A9"
 LIME_GREEN = "#32CD32"
 SEA_GREEN = "#2E8B57"
@@ -78,12 +82,15 @@ ORANGE_RED = "#FF4500"
 TOMATO = "#FF6347"
 CORNSILK = "#FFF8DC"
 DARK_SALMON = "#E9967A"
+PEACHPUFF = "#FFDAB9"
+SANDY_BROWN = "#F4A460"
 
 # Colors for UI elements
 DAY_COLOR = LEMON_CHIFFON
 FRAME_COLOR = KHAKI
 HEADER_COLOR = LIGHT_SKY_BLUE
 DIM_COLOR = DARK_GRAY
+ALLDAY_COLOR = SANDY_BROWN
 EVENT_COLOR = LIME_GREEN
 NOTE_COLOR = DARK_SALMON
 PASSED_EVENT = DARK_OLIVEGREEN
@@ -138,6 +145,16 @@ TYPE_TO_COLOR = {
     "!": GOAL_COLOR,  # draft
     "?": DRAFT_COLOR,  # draft
 }
+
+
+# def _to_local_naive(dt: datetime) -> datetime:
+#     """
+#     Convert aware -> local-naive; leave naive unchanged.
+#     Assumes dt is datetime (not date).
+#     """
+#     if dt.tzinfo is not None:
+#         dt = dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
+#     return dt
 
 
 def _ensure_tokens_list(value):
@@ -360,7 +377,7 @@ def event_tuple_to_minutes(start_dt: datetime, end_dt: datetime) -> Tuple[int, i
         Tuple(int, int): Tuple of start and end minutes since midnight.
     """
     start_minutes = start_dt.hour * 60 + start_dt.minute
-    end_minutes = end_dt.hour * 60 + end_dt.minute
+    end_minutes = end_dt.hour * 60 + end_dt.minute if end_dt else start_minutes
     return (start_minutes, end_minutes)
 
 
@@ -466,6 +483,15 @@ class Controller:
         self.width = shutil.get_terminal_size()[0] - 2
         self.afill = 1
         self._agenda_dirty = False
+
+    def format_datetime(self, fmt_dt: str) -> str:
+        return format_datetime(fmt_dt, self.AMPM)
+
+    def datetime_in_words(self, fmt_dt: str) -> str:
+        return datetime_in_words(fmt_dt, self.AMPM)
+
+    def make_item(self, entry_str: str) -> "Item":
+        return Item(entry_str, env=self.env)  # or config=self.env.load_config()
 
     # --- replace your set_afill with this per-view version ---
     def set_afill(self, details: list, view: str):
@@ -998,8 +1024,8 @@ class Controller:
             weekday_to_events[this_day] = []
 
         for start_ts, end_ts, itemtype, subject, id in events:
-            start_dt = datetime.fromtimestamp(start_ts)
-            end_dt = datetime.fromtimestamp(end_ts)
+            start_dt = datetime_from_timestamp(start_ts)
+            end_dt = datetime_from_timestamp(end_ts)
             # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
 
             if start_dt == end_dt:
@@ -1013,9 +1039,9 @@ class Controller:
                 ):
                     start_end = ""
                 else:
-                    start_end = f"{format_time_range(start_dt, end_dt, HRS_MINS)}"
+                    start_end = f"{format_time_range(start_dt, end_dt, self.AMPM)}"
             else:
-                start_end = f"{format_time_range(start_dt, end_dt, HRS_MINS)}"
+                start_end = f"{format_time_range(start_dt, end_dt, self.AMPM)}"
 
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = (
@@ -1086,7 +1112,7 @@ class Controller:
 
         # for start_ts, end_ts, itemtype, subject, id in events:
         for id, subject, description, itemtype, start_ts in events:
-            start_dt = datetime.fromtimestamp(start_ts)
+            start_dt = datetime_from_timestamp(start_ts)
             # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
             monthday = start_dt.strftime("%d")
             start_end = f"{format_hours_mins(start_dt, HRS_MINS):>8}"
@@ -1138,7 +1164,7 @@ class Controller:
         yr_mnth_to_events = {}
 
         for id, subject, description, itemtype, start_ts in events:
-            start_dt = datetime.fromtimestamp(start_ts)
+            start_dt = datetime_from_timestamp(start_ts)
             # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
             monthday = start_dt.strftime("%d")
             start_end = f"{format_hours_mins(start_dt, HRS_MINS):>8}"
@@ -1192,13 +1218,13 @@ class Controller:
         for record_id, subject, _, itemtype, last_ts, next_ts in events:
             subject = f"{truncate_string(subject, 30):<30}"
             last_dt = (
-                datetime.fromtimestamp(last_ts).strftime("%y-%m-%d %H:%M")
+                datetime_from_timestamp(last_ts).strftime("%y-%m-%d %H:%M")
                 if last_ts
                 else "~"
             )
             last_fmt = f"{last_dt:^14}"
             next_dt = (
-                datetime.fromtimestamp(next_ts).strftime("%y-%m-%d %H:%M")
+                datetime_from_timestamp(next_ts).strftime("%y-%m-%d %H:%M")
                 if next_ts
                 else "~"
             )
@@ -1226,10 +1252,11 @@ class Controller:
         grouped = defaultdict(list)
 
         for start_ts, end_ts, itemtype, subject, record_id in events:
+            log_msg(f"{start_ts = }, {end_ts = }, {subject = }")
             if itemtype != "*":
                 continue  # Only events
 
-            start_dt = datetime.fromtimestamp(start_ts)
+            start_dt = datetime_from_timestamp(start_ts)
             grouped[start_dt.date()].append(
                 (start_dt.time(), (start_ts, end_ts, subject, record_id))
             )
@@ -1252,10 +1279,10 @@ class Controller:
         draft_records = self.db_manager.get_drafts()  # (record_id, subject)
         # now = datetime.now()
         today = now.date()
-        now_ts = now.timestamp()
+        now_ts = _fmt_naive(now)
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         events = self.db_manager.get_events_for_period(
-            start, start + timedelta(days=14)
+            _to_local_naive(start), _to_local_naive(start + timedelta(days=14))
         )
         # events: (start_ts, end_ts, itemtype, subject, record_id)
         grouped_by_date = self.group_events_by_date_and_time(events)
@@ -1267,8 +1294,12 @@ class Controller:
         for date, entries in grouped_by_date.items():
             events_by_date.setdefault(date, [])
             for time, (start_ts, end_ts, subject, record_id) in entries:
-                label = format_time_range(start_ts, end_ts, mode)
-                if end_ts <= now_ts:
+                if not end_ts:
+                    end_ts = start_ts
+                label = format_time_range(start_ts, end_ts, self.AMPM)
+                if end_ts.endswith("T000000"):
+                    color = ALLDAY_COLOR
+                elif end_ts <= now_ts:
                     color = PASSED_EVENT
                 elif start_ts <= now_ts:
                     color = ACTIVE_EVENT
@@ -1395,7 +1426,8 @@ class Controller:
         entry_str = "".join(tok.get("token", "") for tok in tokens).strip()
 
         # Build/parse the Item
-        item = Item(entry_str)
+        # item = Item(entry_str)
+        item = self.make_item(entry_str)
         if not getattr(item, "parse_ok", True):
             # Some Item versions set parse_ok/parse_message; if not, skip this guard.
             raise ValueError(getattr(item, "parse_message", "Item.parse failed"))
