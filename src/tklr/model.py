@@ -11,7 +11,6 @@ from tklr.tklr_env import TklrEnvironment
 from dateutil import tz
 from dateutil.tz import gettz
 
-
 from .shared import (
     HRS_MINS,
     ALERT_COMMANDS,
@@ -76,6 +75,11 @@ def _to_local_naive(dt: datetime) -> datetime:
 def _to_key(dt: datetime) -> str:
     """Naive-local datetime -> 'YYYYMMDDTHHMMSS' string key."""
     return dt.strftime("%Y%m%dT%H%M%S")
+
+
+def _today_key() -> str:
+    """'YYYYMMDDTHHMMSS' for now in local time, used for lexicographic comparisons."""
+    return datetime.now().strftime("%Y%m%dT%H%M%S")
 
 
 def _split_span_local_days(
@@ -2272,6 +2276,82 @@ class DatabaseManager:
             """,
             (today,),
         )
+        return self.cursor.fetchall()
+
+    def get_last_instances(self) -> List[Tuple[int, str, str, str, str]]:
+        """
+        Retrieve the last instance *before now* for each record.
+
+        Returns:
+            List of tuples: (record_id, subject, description, itemtype, last_datetime_key)
+            where last_datetime_key is 'YYYYMMDDTHHMMSS'.
+        """
+        today_key = _today_key()
+
+        sql = """
+        WITH norm AS (
+        SELECT
+            r.id            AS record_id,
+            r.subject       AS subject,
+            r.description   AS description,
+            r.itemtype      AS itemtype,
+            CASE
+            WHEN LENGTH(d.start_datetime) = 8 THEN d.start_datetime || 'T000000'
+            ELSE d.start_datetime
+            END             AS start_norm
+        FROM Records r
+        JOIN DateTimes d ON r.id = d.record_id
+        )
+        SELECT
+        n1.record_id,
+        n1.subject,
+        n1.description,
+        n1.itemtype,
+        MAX(n1.start_norm) AS last_datetime
+        FROM norm n1
+        WHERE n1.start_norm < ?
+        GROUP BY n1.record_id
+        ORDER BY last_datetime DESC
+        """
+        self.cursor.execute(sql, (today_key,))
+        return self.cursor.fetchall()
+
+    def get_next_instances(self) -> List[Tuple[int, str, str, str, str]]:
+        """
+        Retrieve the next instance *at or after now* for each record.
+
+        Returns:
+            List of tuples: (record_id, subject, description, itemtype, next_datetime_key)
+            where next_datetime_key is 'YYYYMMDDTHHMMSS'.
+        """
+        today_key = _today_key()
+
+        sql = """
+        WITH norm AS (
+        SELECT
+            r.id            AS record_id,
+            r.subject       AS subject,
+            r.description   AS description,
+            r.itemtype      AS itemtype,
+            CASE
+            WHEN LENGTH(d.start_datetime) = 8 THEN d.start_datetime || 'T000000'
+            ELSE d.start_datetime
+            END             AS start_norm
+        FROM Records r
+        JOIN DateTimes d ON r.id = d.record_id
+        )
+        SELECT
+        n1.record_id,
+        n1.subject,
+        n1.description,
+        n1.itemtype,
+        MIN(n1.start_norm) AS next_datetime
+        FROM norm n1
+        WHERE n1.start_norm >= ?
+        GROUP BY n1.record_id
+        ORDER BY next_datetime ASC
+        """
+        self.cursor.execute(sql, (today_key,))
         return self.cursor.fetchall()
 
     def find_records(

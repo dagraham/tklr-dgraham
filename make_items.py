@@ -51,6 +51,13 @@ def in_one_day():
     return next.strftime("%Y%m%dT%H%M%S")
 
 
+def in_two_days():
+    now = datetime.now().replace(second=0, microsecond=0)
+    delta_minutes = 60 + (15 - now.minute % 15)
+    next = now + timedelta(days=2, minutes=delta_minutes)
+    return next.strftime("%Y%m%dT%H%M%S")
+
+
 def in_five_days():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
@@ -220,6 +227,12 @@ tomorrow_date = (now + ONEDAY).strftime("%Y%m%d")
 
 items = [
     f"* first of the month @d all day event @s {first_of_month}",
+    f"* event in 2 days with 1d beginby @s {in_two_days()} 7p @b 1d",
+    f"* event in 5 days with beginby @s {in_five_days()} 7p @b 1w",
+    f"~ task in 5 days with 1w beginby @s {in_five_days()} 7p @b 1w",
+    f"~ task in 5 days with 3d beginby @s {in_five_days()} 7p @b 3d",
+    f"* event in 1 day with beginby @s {tomorrow_date} 7p @b 1w",
+    f"* event today with beginby @s {today_date} 7p @b 1w",
     f"* yesterday @d all day event @s {yesterday_date}",
     f"* today @d all day event @s {today_date}",
     f"* tomorrow @d all day event @s {tomorrow_date}",
@@ -270,7 +283,7 @@ items = [
     "~ three datetimes @s 9am @+ 10am, 11am",
     "* multiday event @s 3p fri @e 2d2h30m",
     "* daily datetime @s 3p @e 30m @r d",
-    "* gour Tiki Roundtable Meeting @s 8/1 14:00 z UTC @e 1h30m @r m &w +3TH &c 10",
+    "* gour Tiki Roundtable Meeting @s 1/1 14:00 z UTC @e 1h30m @r m &w +3TH &c 10",
 ]
 
 records = []
