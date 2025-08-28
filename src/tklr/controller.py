@@ -56,11 +56,11 @@ from tklr.common import get_version
 VERSION = get_version()
 
 # type_color = css_named_colors["palegoldenrod"]
-type_color = css_named_colors["limegreen"]
+type_color = css_named_colors["burlywood"]
 # at_color = css_named_colors["khaki"]
 # am_color = css_named_colors["darkkhaki"]
-at_color = css_named_colors["palegreen"]
-am_color = css_named_colors["lightgreen"]
+at_color = css_named_colors["burlywood"]
+am_color = css_named_colors["burlywood"]
 label_color = css_named_colors["lightskyblue"]
 
 # The overall background color of the app is #2e2e2e - set in view_textual.css
@@ -1110,37 +1110,33 @@ class Controller:
         self.list_tag_to_id.setdefault("next", {})
         yr_mnth_to_events = {}
 
-        # for start_ts, end_ts, itemtype, subject, id in events:
         for id, subject, description, itemtype, start_ts in events:
             start_dt = datetime_from_timestamp(start_ts)
-            # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
-            monthday = start_dt.strftime("%d")
-            start_end = f"{format_hours_mins(start_dt, HRS_MINS):>8}"
+            monthday = start_dt.strftime("%m-%d")
+            start_end = f"{monthday}{format_hours_mins(start_dt, HRS_MINS):>8}"
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = f"[not bold]{start_end}[/not bold]"
             row = [
                 id,
                 f"[{type_color}]{itemtype} {escaped_start_end:<12}  {subject}[/{type_color}]",
             ]
-            yr_mnth_to_events.setdefault(start_dt.strftime("%y-%m"), []).append(row)
+            # yr_mnth_to_events.setdefault(start_dt.strftime("%B %Y"), []).append(row)
+            yr_mnth_to_events.setdefault(start_dt.strftime("%Y"), []).append(row)
 
+        self.set_afill(events, "next")
+
+        self.list_tag_to_id.setdefault("next", {})
         indx = 0
-
-        tag = indx_to_tag(indx, self.afill)
 
         for ym, events in yr_mnth_to_events.items():
             if events:
                 display.append(
-                    # f" [bold][yellow]{day.strftime('%A, %B %-d')}[/yellow][/bold]"
                     f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]"
                 )
                 for event in events:
                     event_id, event_str = event
-                    # log_msg(f"{event_str = }")
-                    tag = indx_to_tag(indx, self.afill)
-                    self.list_tag_to_id["next"][tag] = event_id
-                    display.append(f"  [dim]{tag}[/dim]  {event_str}")
-                    indx += 1
+                    tag_fmt, indx = self.add_tag("next", indx, event_id)
+                    display.append(f"  {tag_fmt}  {event_str}")
         return display
 
     def get_last(self):
