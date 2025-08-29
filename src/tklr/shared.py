@@ -358,12 +358,13 @@ def format_datetime(fmt_dt: str, ampm: bool = False) -> str:
             return dt.strftime("%B %-d, %Y")
 
     # Time string
-    time_str = dt.strftime("%I:%M%p").lower() if ampm else dt.strftime("%H:%Mh")
+    time_str = dt.strftime("%I:%M%p").lower() if ampm else dt.strftime("%H:%M")
     # Drop :00 minutes
-    if time_str.endswith(":00pm") or time_str.endswith(":00am"):
+    # if time_str.endswith(":00pm") or time_str.endswith(":00am"):
+    if ampm:
         time_str = time_str.replace(":00", "")
-    elif time_str.endswith(":00h"):
-        time_str = time_str.replace(":00", "")
+    # else:
+    #     time_str = time_str.replace(":00", "h")
     # Drop leading zero for 12-hour format
     if ampm and time_str.startswith("0"):
         time_str = time_str[1:]

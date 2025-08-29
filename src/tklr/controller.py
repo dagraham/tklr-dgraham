@@ -690,6 +690,7 @@ class Controller:
         if not alerts:
             results.append(f" [{HEADER_COLOR}]none scheduled[/{HEADER_COLOR}]")
             return results
+        now = datetime.now()
 
         table = Table(title="Remaining alerts for today", expand=True, box=HEAVY_EDGE)
         table.add_column("row", justify="center", width=3, style="dim")
@@ -701,7 +702,8 @@ class Controller:
         name_width = width - 35
         results.append(
             # f"{'row':^3}  {'cmd':^3}  {'time':^24}  {'subject':^{name_width}}",
-            f"[bold][dim]{'tag':^3}[/dim]  {' alert       for':^14}     {'subject':<{name_width}}[/bold]",
+            f"[bold][dim]{'tag':^3}[/dim]  {'  alert      @s ':^14}     {'subject':<{name_width}}[/bold]",
+            # f"[bold][dim]{'tag':^3}[/dim]  {' trigger     @s':^14}      {'subject':<{name_width}}[/bold]",
         )
 
         self.list_tag_to_id.setdefault("alerts", {})
@@ -724,9 +726,11 @@ class Controller:
             tag = indx_to_tag(indx, self.afill)
             self.list_tag_to_id["alerts"][tag] = record_id
             indx += 1
-            trtime = format_datetime(trigger_datetime)
+            if now > datetime_from_timestamp(trigger_datetime):
+                continue
+            trtime = self.format_datetime(trigger_datetime)
             # tdtime = format_timedelta(start_datetime - trigger_datetime)
-            sttime = format_datetime(start_datetime)
+            sttime = self.format_datetime(start_datetime)
             # starting = f"{format_datetime(trigger_datetime):<7} {format_timedelta(start_datetime - trigger_datetime):>4} → {format_datetime(start_datetime)}"
             subject = truncate_string(record_name, name_width)
             row = "  ".join(
@@ -735,7 +739,7 @@ class Controller:
                     # f"[{SALMON}]{alert_name:^3}[/{SALMON}]",
                     # f"[bold yellow]{trtime:<7}[/bold yellow]",
                     # f"[{EVENT_COLOR}]{tdtime:>4} → {sttime:<7}[/{EVENT_COLOR}]",
-                    f"[{SALMON}]{alert_name} {trtime:>7}[/{SALMON}][{PALE_GREEN}] → {sttime:<7}[/{PALE_GREEN}]",
+                    f"[{SALMON}] {alert_name}{trtime:>7}[/{SALMON}][{PALE_GREEN}] → {sttime:<7}[/{PALE_GREEN}]",
                     f"[{AVAILABLE_COLOR}]{subject:<{name_width}}[/{AVAILABLE_COLOR}]",
                 ]
             )
