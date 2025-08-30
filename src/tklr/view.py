@@ -1019,278 +1019,278 @@ details of the item and access related commands.
 #         self.focus()
 
 
-class DetailsDrawer(Widget):
-    """Bottom drawer that shows a record’s details (read-only, Rich markup)."""
-
-    DEFAULT_CSS = """
-    DetailsDrawer {
-        layout: vertical;       /* header then body */
-        dock: bottom;           /* sit at screen bottom */
-        background: $panel;
-        border-top: heavy $accent;
-        padding: 1 2;
-        height: auto;
-        max-height: 40%;
-    }
-    DetailsDrawer.hidden {
-        display: none;
-    }
-
-    /* Header (title + close) */
-    .hdr {
-        width: 100%;
-        height: auto;
-    }
-    #d-title {
-        width: 1fr;             /* expand to fill */
-        max-width: 1fr;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding-right: 1;
-    }
-
-    /* Body must be able to grow and scroll */
-    #d-body {
-        height: 1fr;            /* TAKE remaining space */
-        max-height: 1fr;
-    }
-    """
-
-    # callback optional
-    on_close: Optional[Callable[[], None]] = None
-
-    # queued content if open_lines called too early
-    _pending: Optional[Tuple[str, List[str]]] = None
-
-    def compose(self) -> ComposeResult:
-        # Header: title (rich) + close button
-        with Horizontal(classes="hdr"):
-            yield Static("", id="d-title")
-            yield Button("Close", id="btn-close")
-
-        # Scrollable body with one Static we update with Rich markup
-        with ScrollView(id="d-body"):
-            yield Static("", id="d-body-content")
-
-    # ---------- public API ----------
-
-    def open_lines(self, *, title: str, lines: List[str]) -> None:
-        """Open with pre-rendered title and lines (Rich markup strings)."""
-        if not self._nodes_ready():
-            self._pending = (title, lines)
-            # apply just after layout is ready
-            self.call_after_refresh(self._apply_pending_and_show)
-            return
-        self._apply_content(title, lines)
-        self._show_and_focus()
-
-    def open_from_parts(self, parts: List[str]) -> None:
-        if not parts:
-            self.open_lines(title="(no details)", lines=["No item found for that tag."])
-            return
-        self.open_lines(title=parts[0], lines=parts[1:])
-
-    def close(self) -> None:
-        self.add_class("hidden")
-        try:
-            self.app.set_focus(None)
-        except Exception:
-            pass
-        if self.on_close:
-            self.on_close()
-
-    # ---------- lifecycle & input ----------
-
-    def on_mount(self) -> None:
-        # start hidden (now that nodes exist we can safely hide)
-        self.add_class("hidden")
-        if self._pending:
-            self.call_after_refresh(self._apply_pending_and_show)
-
-    def on_blur(self, _: events.Blur) -> None:
-        # keep focus inside while visible
-        if not self.has_class("hidden"):
-            self.focus()
-
-    def on_key(self, event: events.Key) -> None:
-        if event.key in ("escape", "q"):
-            event.stop()
-            self.close()
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "btn-close":
-            self.close()
-
-    # ---------- helpers ----------
-
-    def _nodes_ready(self) -> bool:
-        try:
-            self.query_one("#d-title", Static)
-            self.query_one("#d-body-content", Static)
-            return True
-        except Exception:
-            return False
-
-    def _apply_pending_and_show(self) -> None:
-        if not self._pending:
-            return
-        title, lines = self._pending
-        self._pending = None
-        if not self._nodes_ready():
-            # try again next refresh
-            self._pending = (title, lines)
-            self.call_after_refresh(self._apply_pending_and_show)
-            return
-        self._apply_content(title, lines)
-        self._show_and_focus()
-
-    def _apply_content(self, title: str, lines: List[str]) -> None:
-        self.query_one("#d-title", Static).update(title)  # Rich markup OK
-        self.query_one("#d-body-content", Static).update(
-            "\n".join(lines)
-        )  # Rich markup OK
-
-    def _show_and_focus(self) -> None:
-        self.remove_class("hidden")
-        # optional: scroll body to top each time
-        try:
-            self.query_one("#d-body", ScrollView).scroll_home(animate=False)
-        except Exception:
-            pass
-        self.focus()
-
-
-class DetailsDrawer(Widget):
-    """Bottom drawer that shows a record’s details (read-only, Rich markup)."""
-
-    DEFAULT_CSS = """
-    DetailsDrawer {
-        layout: vertical;       /* header then body */
-        dock: bottom;           /* sit at screen bottom */
-        background: $panel;
-        /* keep or remove the next line depending on whether you want a top separator */
-        border-top: heavy $accent;
-        padding: 1 2;
-        height: auto;
-        max-height: 40%;
-    }
-    DetailsDrawer.hidden {
-        display: none;
-    }
-
-    /* Remove any inner borders so no box around content */
-    DetailsDrawer ScrollView, DetailsDrawer Static {
-        border: none;
-    }
-
-    /* Header (title only) */
-    .hdr {
-        width: 100%;
-        height: auto;
-    }
-    #d-title {
-        width: 1fr;             /* expand */
-        max-width: 1fr;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding-right: 1;
-    }
-
-    /* Body must be able to grow and scroll */
-    #d-body {
-        height: 1fr;            /* take remaining space */
-        max-height: 1fr;
-    }
-    """
-
-    on_close: Optional[Callable[[], None]] = None
-    _pending: Optional[Tuple[str, List[str]]] = None  # deferred content if needed
-
-    def compose(self) -> ComposeResult:
-        # Header: title (rich)
-        with Horizontal(classes="hdr"):
-            yield Static("", id="d-title")
-
-        # Scrollable body with one Static we update with Rich markup
-        with ScrollView(id="d-body"):
-            yield Static("", id="d-body-content")
-
-    # --- public API ---
-
-    def open_lines(self, *, title: str, lines: List[str]) -> None:
-        """Open with pre-rendered title and body lines (Rich markup strings)."""
-        if not self._nodes_ready():
-            self._pending = (title, lines)
-            self.call_after_refresh(self._apply_pending_and_show)
-            return
-        self._apply_content(title, lines)
-        self._show_and_focus()
-
-    def open_from_parts(self, parts: List[str]) -> None:
-        if not parts:
-            self.open_lines(title="(no details)", lines=["No item found for that tag."])
-            return
-        self.open_lines(title=parts[0], lines=parts[1:])
-
-    def close(self) -> None:
-        self.add_class("hidden")
-        try:
-            self.app.set_focus(None)
-        except Exception:
-            pass
-        if self.on_close:
-            self.on_close()
-
-    # --- lifecycle & input ---
-
-    def on_mount(self) -> None:
-        self.add_class("hidden")
-        if self._pending:
-            self.call_after_refresh(self._apply_pending_and_show)
-
-    def on_blur(self, _: events.Blur) -> None:
-        if not self.has_class("hidden"):
-            self.focus()
-
-    def on_key(self, event: events.Key) -> None:
-        if event.key in ("escape", "q"):
-            event.stop()
-            self.close()
-
-    # --- helpers ---
-
-    def _nodes_ready(self) -> bool:
-        try:
-            self.query_one("#d-title", Static)
-            self.query_one("#d-body-content", Static)
-            return True
-        except Exception:
-            return False
-
-    def _apply_pending_and_show(self) -> None:
-        if not self._pending:
-            return
-        title, lines = self._pending
-        self._pending = None
-        if not self._nodes_ready():
-            self._pending = (title, lines)
-            self.call_after_refresh(self._apply_pending_and_show)
-            return
-        self._apply_content(title, lines)
-        self._show_and_focus()
-
-    def _apply_content(self, title: str, lines: List[str]) -> None:
-        self.query_one("#d-title", Static).update(title)  # Rich OK
-        self.query_one("#d-body-content", Static).update("\n".join(lines))  # Rich OK
-
-    def _show_and_focus(self) -> None:
-        self.remove_class("hidden")
-        # Scroll body to top each time
-        try:
-            self.query_one("#d-body", ScrollView).scroll_home(animate=False)
-        except Exception:
-            pass
-        self.focus()
+# class DetailsDrawer(Widget):
+#     """Bottom drawer that shows a record’s details (read-only, Rich markup)."""
+#
+#     DEFAULT_CSS = """
+#     DetailsDrawer {
+#         layout: vertical;       /* header then body */
+#         dock: bottom;           /* sit at screen bottom */
+#         background: $panel;
+#         border-top: heavy $accent;
+#         padding: 1 2;
+#         height: auto;
+#         max-height: 40%;
+#     }
+#     DetailsDrawer.hidden {
+#         display: none;
+#     }
+#
+#     /* Header (title + close) */
+#     .hdr {
+#         width: 100%;
+#         height: auto;
+#     }
+#     #d-title {
+#         width: 1fr;             /* expand to fill */
+#         max-width: 1fr;
+#         overflow: hidden;
+#         text-overflow: ellipsis;
+#         padding-right: 1;
+#     }
+#
+#     /* Body must be able to grow and scroll */
+#     #d-body {
+#         height: 1fr;            /* TAKE remaining space */
+#         max-height: 1fr;
+#     }
+#     """
+#
+#     # callback optional
+#     on_close: Optional[Callable[[], None]] = None
+#
+#     # queued content if open_lines called too early
+#     _pending: Optional[Tuple[str, List[str]]] = None
+#
+#     def compose(self) -> ComposeResult:
+#         # Header: title (rich) + close button
+#         with Horizontal(classes="hdr"):
+#             yield Static("", id="d-title")
+#             yield Button("Close", id="btn-close")
+#
+#         # Scrollable body with one Static we update with Rich markup
+#         with ScrollView(id="d-body"):
+#             yield Static("", id="d-body-content")
+#
+#     # ---------- public API ----------
+#
+#     def open_lines(self, *, title: str, lines: List[str]) -> None:
+#         """Open with pre-rendered title and lines (Rich markup strings)."""
+#         if not self._nodes_ready():
+#             self._pending = (title, lines)
+#             # apply just after layout is ready
+#             self.call_after_refresh(self._apply_pending_and_show)
+#             return
+#         self._apply_content(title, lines)
+#         self._show_and_focus()
+#
+#     def open_from_parts(self, parts: List[str]) -> None:
+#         if not parts:
+#             self.open_lines(title="(no details)", lines=["No item found for that tag."])
+#             return
+#         self.open_lines(title=parts[0], lines=parts[1:])
+#
+#     def close(self) -> None:
+#         self.add_class("hidden")
+#         try:
+#             self.app.set_focus(None)
+#         except Exception:
+#             pass
+#         if self.on_close:
+#             self.on_close()
+#
+#     # ---------- lifecycle & input ----------
+#
+#     def on_mount(self) -> None:
+#         # start hidden (now that nodes exist we can safely hide)
+#         self.add_class("hidden")
+#         if self._pending:
+#             self.call_after_refresh(self._apply_pending_and_show)
+#
+#     def on_blur(self, _: events.Blur) -> None:
+#         # keep focus inside while visible
+#         if not self.has_class("hidden"):
+#             self.focus()
+#
+#     def on_key(self, event: events.Key) -> None:
+#         if event.key in ("escape", "q"):
+#             event.stop()
+#             self.close()
+#
+#     def on_button_pressed(self, event: Button.Pressed) -> None:
+#         if event.button.id == "btn-close":
+#             self.close()
+#
+#     # ---------- helpers ----------
+#
+#     def _nodes_ready(self) -> bool:
+#         try:
+#             self.query_one("#d-title", Static)
+#             self.query_one("#d-body-content", Static)
+#             return True
+#         except Exception:
+#             return False
+#
+#     def _apply_pending_and_show(self) -> None:
+#         if not self._pending:
+#             return
+#         title, lines = self._pending
+#         self._pending = None
+#         if not self._nodes_ready():
+#             # try again next refresh
+#             self._pending = (title, lines)
+#             self.call_after_refresh(self._apply_pending_and_show)
+#             return
+#         self._apply_content(title, lines)
+#         self._show_and_focus()
+#
+#     def _apply_content(self, title: str, lines: List[str]) -> None:
+#         self.query_one("#d-title", Static).update(title)  # Rich markup OK
+#         self.query_one("#d-body-content", Static).update(
+#             "\n".join(lines)
+#         )  # Rich markup OK
+#
+#     def _show_and_focus(self) -> None:
+#         self.remove_class("hidden")
+#         # optional: scroll body to top each time
+#         try:
+#             self.query_one("#d-body", ScrollView).scroll_home(animate=False)
+#         except Exception:
+#             pass
+#         self.focus()
+#
+#
+# class DetailsDrawer(Widget):
+#     """Bottom drawer that shows a record’s details (read-only, Rich markup)."""
+#
+#     DEFAULT_CSS = """
+#     DetailsDrawer {
+#         layout: vertical;       /* header then body */
+#         dock: bottom;           /* sit at screen bottom */
+#         background: $panel;
+#         /* keep or remove the next line depending on whether you want a top separator */
+#         border-top: heavy $accent;
+#         padding: 1 2;
+#         height: auto;
+#         max-height: 40%;
+#     }
+#     DetailsDrawer.hidden {
+#         display: none;
+#     }
+#
+#     /* Remove any inner borders so no box around content */
+#     DetailsDrawer ScrollView, DetailsDrawer Static {
+#         border: none;
+#     }
+#
+#     /* Header (title only) */
+#     .hdr {
+#         width: 100%;
+#         height: auto;
+#     }
+#     #d-title {
+#         width: 1fr;             /* expand */
+#         max-width: 1fr;
+#         overflow: hidden;
+#         text-overflow: ellipsis;
+#         padding-right: 1;
+#     }
+#
+#     /* Body must be able to grow and scroll */
+#     #d-body {
+#         height: 1fr;            /* take remaining space */
+#         max-height: 1fr;
+#     }
+#     """
+#
+#     on_close: Optional[Callable[[], None]] = None
+#     _pending: Optional[Tuple[str, List[str]]] = None  # deferred content if needed
+#
+#     def compose(self) -> ComposeResult:
+#         # Header: title (rich)
+#         with Horizontal(classes="hdr"):
+#             yield Static("", id="d-title")
+#
+#         # Scrollable body with one Static we update with Rich markup
+#         with ScrollView(id="d-body"):
+#             yield Static("", id="d-body-content")
+#
+#     # --- public API ---
+#
+#     def open_lines(self, *, title: str, lines: List[str]) -> None:
+#         """Open with pre-rendered title and body lines (Rich markup strings)."""
+#         if not self._nodes_ready():
+#             self._pending = (title, lines)
+#             self.call_after_refresh(self._apply_pending_and_show)
+#             return
+#         self._apply_content(title, lines)
+#         self._show_and_focus()
+#
+#     def open_from_parts(self, parts: List[str]) -> None:
+#         if not parts:
+#             self.open_lines(title="(no details)", lines=["No item found for that tag."])
+#             return
+#         self.open_lines(title=parts[0], lines=parts[1:])
+#
+#     def close(self) -> None:
+#         self.add_class("hidden")
+#         try:
+#             self.app.set_focus(None)
+#         except Exception:
+#             pass
+#         if self.on_close:
+#             self.on_close()
+#
+#     # --- lifecycle & input ---
+#
+#     def on_mount(self) -> None:
+#         self.add_class("hidden")
+#         if self._pending:
+#             self.call_after_refresh(self._apply_pending_and_show)
+#
+#     def on_blur(self, _: events.Blur) -> None:
+#         if not self.has_class("hidden"):
+#             self.focus()
+#
+#     def on_key(self, event: events.Key) -> None:
+#         if event.key in ("escape", "q"):
+#             event.stop()
+#             self.close()
+#
+#     # --- helpers ---
+#
+#     def _nodes_ready(self) -> bool:
+#         try:
+#             self.query_one("#d-title", Static)
+#             self.query_one("#d-body-content", Static)
+#             return True
+#         except Exception:
+#             return False
+#
+#     def _apply_pending_and_show(self) -> None:
+#         if not self._pending:
+#             return
+#         title, lines = self._pending
+#         self._pending = None
+#         if not self._nodes_ready():
+#             self._pending = (title, lines)
+#             self.call_after_refresh(self._apply_pending_and_show)
+#             return
+#         self._apply_content(title, lines)
+#         self._show_and_focus()
+#
+#     def _apply_content(self, title: str, lines: List[str]) -> None:
+#         self.query_one("#d-title", Static).update(title)  # Rich OK
+#         self.query_one("#d-body-content", Static).update("\n".join(lines))  # Rich OK
+#
+#     def _show_and_focus(self) -> None:
+#         self.remove_class("hidden")
+#         # Scroll body to top each time
+#         try:
+#             self.query_one("#d-body", ScrollView).scroll_home(animate=False)
+#         except Exception:
+#             pass
+#         self.focus()
 
 
 class DetailsDrawer(Widget):
@@ -1319,7 +1319,7 @@ class DetailsDrawer(Widget):
     /* Header (title only) */
     .hdr {
         width: 100%;
-        height: auto;
+        height: 1;
     }
     #d-title {
         width: 1fr;             /* expand */
@@ -1347,7 +1347,7 @@ class DetailsDrawer(Widget):
     def compose(self) -> ComposeResult:
         # Header
         yield Horizontal(
-            Static("Details", classes="labels"),
+            # Static("Details", classes="labels"),
             Static("", id="d-title", markup=True),
             classes="hdr",
         )
@@ -1412,7 +1412,7 @@ class DetailsDrawer(Widget):
             )
 
     def on_key(self, event: events.Key) -> None:
-        if event.key in ("escape", "q"):
+        if event.key in ("escape"):
             event.stop()
             self.close()
 
