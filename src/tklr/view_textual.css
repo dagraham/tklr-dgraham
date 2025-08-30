@@ -1,6 +1,7 @@
-/* Original screen background */
+/* Screen layout stays vertical; you can remove `layers` unless you plan to use them */
 Screen {
-  background: #2e2e2e; /* Dark grey near perfect */
+  layout: vertical;
+  background: #2e2e2e;
 }
 
 /* Titles */
@@ -12,39 +13,40 @@ Screen {
 #events_title,
 #tasks_title {
   color: #cdcdcd;
-  background: #4b4b4b; /* Slightly lighter grey for contrast */
-  text-style: bold; /* Make the text bold */
-  text-align: center; /* Center align the text */
+  background: #4b4b4b;
+  text-style: bold;
+  text-align: center;
 }
 
-/* Subtle highlight for the active pane's title */
+/* Subtle highlight for inactive pane */
 #events_title.inactive,
 #tasks_title.inactive {
-  background: #373737; /* Slightly lighter grey for contrast */
-  color: #7d7d7d; /* Keep existing text color */
+  background: #373737;
+  color: #7d7d7d;
   text-style: bold;
 }
 
+/* Agenda split */
 #agenda-layout {
   height: 1fr;
-} /* take remaining space, not the whole screen */
+}
 #agenda-layout > #events-pane,
 #agenda-layout > #tasks-pane {
   height: 1fr;
-} /* split evenly */
-
-/* ScrollableList inherits from ScrollView */
-ScrollView {
-  border: none; /* Remove border/frame */
-  padding: 0; /* Remove padding */
-  margin: 0; /* Remove margin */
 }
-/* Your existing rules… */
+
+/* Scroll views: keep them plain */
+ScrollView {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
 
 .hidden {
   display: none;
 }
 
+/* Search bar bits */
 #agenda-search-bar {
   padding: 0 1;
 }
@@ -52,36 +54,74 @@ ScrollView {
   min-width: 10;
   text-style: dim;
 }
-/* CSS backup (not strictly needed when you set styles in code) */
 #agenda-search-input {
   height: 1;
   width: 1fr;
 }
-/* Global Footer default (optional) */
+
+/* Footer (single definition) */
 Footer {
-  background: #2e2e2e; /* match your Screen bg or preferred bar color */
+  background: #2e2e2e;
   color: #fff8dc;
   text-style: bold;
+  border: none; /* important: no line beneath the drawer */
 }
 
-/* Details-only footer (wins due to id specificity) */
-#details_footer {
-  background: #2e2e2e; /* or #4b4b4b if you want slightly darker */
-  color: #fff8dc;
-  text-style: bold;
-}
-
+/* Details screen (unrelated to drawer) */
 DetailsScreen {
   align: center middle;
 }
 
+/* ─── Drawer ───────────────────────────────────────── */
+
+DetailsDrawer {
+  layout: vertical; /* title then body */
+  dock: bottom; /* stick to bottom */
+  background: $panel;
+  padding: 1 2;
+  height: auto;
+  max-height: 40%;
+  border: none; /* no outer box */
+  /* If you want a separator at the top edge, uncomment:
+     border-top: heavy $accent; */
+  /* If you decide to use layers:
+     layer: overlay; */
+}
+
+/* Hide when closed */
+DetailsDrawer.hidden {
+  display: none;
+}
+
+/* Title */
+#d-title {
+  width: 1fr;
+  max-width: 1fr;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-bottom: 1;
+  border: none;
+}
+
+/* Body ScrollView and content — absolutely no borders */
+DetailsDrawer ScrollView#d-body {
+  height: 1fr;
+  border: none;
+}
+DetailsDrawer #d-body-content {
+  border: none;
+}
+
+/* Remove this rule if you had it before (it causes the red boxes) */
+/* DetailsDrawer * { border: heavy red; } */
+
+/* Help panel */
 #help_panel {
   width: 100%;
   height: 100%;
   border: solid #4b4b4b;
   background: #2e2e2e;
 }
-
 #help_layout {
   height: 1fr;
 }

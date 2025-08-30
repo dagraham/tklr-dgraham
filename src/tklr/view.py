@@ -13,7 +13,7 @@ from rich.table import Table
 from rich.text import Text
 from rich.rule import Rule
 from textual.app import App, ComposeResult
-from textual.containers import Vertical
+from textual.containers import Horizontal, Vertical, Grid
 from textual.geometry import Size
 from textual.reactive import reactive
 from textual.screen import ModalScreen
@@ -23,24 +23,24 @@ from textual.strip import Strip
 from textual.widget import Widget
 from textual.widgets import Input
 from textual.widgets import Label
-from textual.widgets import Markdown, Static, Footer, Header
+from textual.widgets import Markdown, Static, Footer, Button, Header
 from textual.widgets import Placeholder
 import string
 import shutil
 import asyncio
 from tklr.common import get_version
+import re
 
 from rich.panel import Panel
 from textual.containers import Container
-from textual.containers import Horizontal
 
-from typing import List, Optional, Any, Iterable
-from textual.widgets import Button
+from typing import List, Callable, Optional, Any, Iterable
 
+# details_drawer.py
+from textual import events
 
 from textual.events import Key
 
-from textual import events
 
 # tklr_version = version("tklr")
 tklr_version = get_version()
@@ -205,6 +205,1216 @@ with a tag sequentially generated from 'a', 'b',
 keys of the tag on your keyboard to see the
 details of the item and access related commands. 
 """.splitlines()
+
+
+# class DetailsDrawer(Widget):
+#     """Bottom drawer that shows a record’s details (read-only)."""
+#
+#     DEFAULT_CSS = """
+#     DetailsDrawer {
+#         dock: bottom;
+#         background: $panel;
+#         border-top: heavy $accent;
+#         padding: 1 2;
+#         height: auto;
+#     }
+#     DetailsDrawer.hidden {
+#         display: none;
+#     }
+#     DetailsDrawer .hdr {
+#         width: 100%;
+#         height: auto;
+#         padding-bottom: 1;
+#     }
+#     DetailsDrawer .row {
+#         width: 100%;
+#         height: auto;
+#         padding: 0;
+#     }
+#     DetailsDrawer .labels {
+#         color: $text-muted;
+#     }
+#     #d-title {
+#         width: 1fr;
+#     }
+#     #d-body {
+#         width: 1fr;
+#     }
+#     """
+#
+#     # state
+#     record_id: reactive[Optional[int]] = reactive(None)
+#
+#     # optional callback
+#     on_close: Optional[Callable[[], None]] = None
+#
+#     def compose(self) -> ComposeResult:
+#         # Header row
+#         yield Horizontal(
+#             Static("Details", classes="labels"),
+#             Static("", id="d-title"),
+#             Button("Close", id="btn-close", variant="default"),
+#             classes="hdr",
+#         )
+#         # Body row (single Markdown block that we feed with process_tag lines)
+#         with Grid(classes="row"):
+#             yield Markdown("", id="d-body")
+#
+#     # ---------- public API ----------
+#
+#     def open_tag(
+#         self,
+#         *,
+#         controller,
+#         tag: str,
+#         view: str,
+#         selected_week: tuple[int, int],
+#     ) -> None:
+#         """
+#         Resolve the tag using controller.process_tag(...) and open the drawer.
+#         `process_tag` returns [title] + lines you already render in DetailsScreen.
+#         """
+#         parts: List[str] = controller.process_tag(tag, view, selected_week)
+#         if not parts:
+#             # Show something helpful instead of doing nothing
+#             self.open_lines(title="(no details)", lines=["No item found for that tag."])
+#             return
+#
+#         title, lines = parts[0], parts[1:]
+#         self.open_lines(title=title, lines=lines)
+#
+#     def open_lines(self, *, title: str, lines: List[str]) -> None:
+#         log_msg(f"{title = }, {lines = }")
+#         """Open with a pre-rendered title and body lines."""
+#         self.query_one("#d-title", Static).update(title)
+#         self.query_one("#d-body", Markdown).update("\n".join(lines))
+#         self.remove_class("hidden")
+#         self.focus()
+#
+#     def close(self) -> None:
+#         """Hide the drawer and return focus to the app/screen."""
+#         self.add_class("hidden")
+#         try:
+#             self.app.set_focus(None)
+#         except Exception:
+#             pass
+#         if self.on_close:
+#             self.on_close()
+#
+#     # ---------- lifecycle & input ----------
+#
+#     def on_mount(self) -> None:
+#         # Start hidden
+#         self.add_class("hidden")
+#
+#     def on_blur(self, _: events.Blur) -> None:
+#         # Keep focus inside while visible (acts like a modal)
+#         if not self.has_class("hidden"):
+#             self.focus()
+#
+#     def on_key(self, event: events.Key) -> None:
+#         log_msg(f"{event.key = }")
+#         if event.key in ("escape"):
+#             event.stop()
+#             self.close()
+#
+#     def on_button_pressed(self, event: Button.Pressed) -> None:
+#         if event.button.id == "btn-close":
+#             self.close()
+#
+#
+# class DetailsDrawer(Widget):
+#     """Bottom drawer that shows a record’s details (read-only)."""
+#
+#     DEFAULT_CSS = """
+#     DetailsDrawer {
+#         dock: bottom;
+#         background: $panel;
+#         border-top: heavy $accent;
+#         padding: 1 2;
+#         height: auto;
+#     }
+#     DetailsDrawer.hidden {
+#         display: none;
+#     }
+#     DetailsDrawer .hdr {
+#         width: 100%;
+#         height: auto;
+#         padding-bottom: 1;
+#     }
+#     DetailsDrawer .row {
+#         width: 100%;
+#         height: auto;
+#         padding: 0;
+#     }
+#     DetailsDrawer .labels {
+#         color: $text-muted;
+#     }
+#     #d-title { width: 1fr; }
+#     #d-body  { width: 1fr; }
+#     """
+#
+#     record_id: reactive[int | None] = reactive(None)
+#     on_close: Callable[[], None] | None = None
+#
+#     def compose(self) -> ComposeResult:
+#         # Header row
+#         yield Horizontal(
+#             Static("Details", classes="labels"),
+#             Static("", id="d-title"),
+#             Button("Close", id="btn-close", variant="default"),
+#             classes="hdr",
+#         )
+#         # Body row (use Static so we can render Rich markup)
+#         with Grid(classes="row"):
+#             yield Static("", id="d-body")
+#
+#     def open_tag(
+#         self, *, controller, tag: str, view: str, selected_week: tuple[int, int]
+#     ) -> None:
+#         parts = controller.process_tag(tag, view, selected_week) or []
+#         if not parts:
+#             self.open_lines(title="(no details)", lines=["No item found for that tag."])
+#             return
+#         title, lines = parts[0], parts[1:]
+#         self.open_lines(title=title, lines=lines)
+#
+#     def open_lines(self, *, title: str, lines: list[str]) -> None:
+#         # Render Rich markup in both title and body
+#         self.query_one("#d-title", Static).update(Text.from_markup(title))
+#         self.query_one("#d-body", Static).update(Text.from_markup("\n".join(lines)))
+#         self.remove_class("hidden")
+#         self.focus()
+#
+#     def close(self) -> None:
+#         self.add_class("hidden")
+#         try:
+#             self.app.set_focus(None)
+#         except Exception:
+#             pass
+#         if self.on_close:
+#             self.on_close()
+#
+#     def on_mount(self) -> None:
+#         self.add_class("hidden")
+#
+#     def on_blur(self, _: events.Blur) -> None:
+#         if not self.has_class("hidden"):
+#             self.focus()
+#
+#     def on_key(self, event: events.Key) -> None:
+#         if event.key in ("escape", "q"):
+#             event.stop()
+#             self.close()
+#
+#     def on_button_pressed(self, event: Button.Pressed) -> None:
+#         if event.button.id == "btn-close":
+#             self.close()
+#
+#
+# class DetailsDrawer(Widget):
+#     DEFAULT_CSS = """
+#     DetailsDrawer {
+#         dock: bottom;
+#         background: $panel;
+#         border-top: heavy $accent;
+#         padding: 1 2;
+#         height: auto;
+#     }
+#     DetailsDrawer.hidden {
+#         display: none;
+#     }
+#
+#     /* Header row as a grid: [label] [title expands] [Close button] */
+#     DetailsDrawer .hdr {
+#         width: 100%;
+#         height: auto;
+#         padding-bottom: 1;
+#         layout: grid;
+#         grid-columns: auto 1fr auto;  /* label | title | button */
+#         grid-gutter: 1 0;              /* horizontal gap 1, vertical gap 0 */
+#         align-horizontal: left;
+#         align-vertical: middle;
+#     }
+#
+#     DetailsDrawer .row {
+#         width: 100%;
+#         height: auto;
+#         padding: 0;
+#     }
+#     DetailsDrawer .labels {
+#         color: $text-muted;
+#     }
+#
+#     /* Title should expand */
+#     #d-title {
+#         width: 1fr;
+#         overflow: hidden;
+#         text-overflow: ellipsis;
+#     }
+#
+#     #d-body {
+#         width: 1fr;
+#     }
+#     """
+#
+#     record_id: Optional[int] = None
+#     on_close: Optional[Callable[[], None]] = None
+#
+#     def compose(self) -> ComposeResult:
+#         # Header row: just Title + Close
+#         yield Horizontal(
+#             Static("", id="d-title"),
+#             Button("Close", id="btn-close", variant="default"),
+#             classes="hdr",
+#         )
+#         # Body row: a Rich-capable Static so your [bold]/colors render
+#         with Grid():
+#             yield Static("", id="d-body")
+#
+#     # ---------- API ----------
+#     def open_tag(
+#         self, *, controller, tag: str, view: str, selected_week: tuple[int, int]
+#     ) -> None:
+#         parts = controller.process_tag(tag, view, selected_week) or []
+#         if not parts:
+#             self.open_lines(title="(no details)", lines=["No item found for that tag."])
+#             return
+#         title, lines = parts[0], parts[1:]
+#         self.open_lines(title=title, lines=lines)
+#
+#     def open_lines(self, *, title: str, lines: List[str]) -> None:
+#         # Render Rich markup in both title and body
+#         self.query_one("#d-title", Static).update(Text.from_markup(title))
+#         self.query_one("#d-body", Static).update(Text.from_markup("\n".join(lines)))
+#         self.remove_class("hidden")
+#         self.focus()
+#
+#     def close(self) -> None:
+#         self.add_class("hidden")
+#         try:
+#             self.app.set_focus(None)
+#         except Exception:
+#             pass
+#         if self.on_close:
+#             self.on_close()
+#
+#     # ---------- lifecycle & input ----------
+#     def on_mount(self) -> None:
+#         self.add_class("hidden")
+#
+#     def on_blur(self, _: events.Blur) -> None:
+#         if not self.has_class("hidden"):
+#             self.focus()
+#
+#     def on_key(self, event: events.Key) -> None:
+#         if event.key in ("escape", "q"):
+#             event.stop()
+#             self.close()
+#
+#     def on_button_pressed(self, event: Button.Pressed) -> None:
+#         if event.button.id == "btn-close":
+#             self.close()
+
+
+# class DetailsDrawer(Widget):
+#     """Bottom drawer that shows a record’s details (read-only)."""
+#
+#     DEFAULT_CSS = """
+#     DetailsDrawer {
+#         dock: bottom;
+#         layer: overlay;              /* overlay, not layout reflow */
+#         background: $panel;
+#         border-top: heavy $accent;
+#         padding: 1 2;
+#
+#         height: auto;                /* fit to content… */
+#         max-height: 12;              /* …but cap to ~12 rows */
+#     }
+#
+#     DetailsDrawer.hidden {
+#         display: none;
+#     }
+#
+#     /* Header bar */
+#     DetailsDrawer .hdr {
+#         width: 100%;
+#         height: auto;
+#         padding-bottom: 1;
+#         content-align: left middle;  /* keep title/buton nicely aligned */
+#     }
+#
+#     /* Title stretches within header */
+#     #d-title {
+#         width: 1fr;
+#     }
+#
+#     /* Body: scroll if it exceeds remaining height */
+#     #d-body {
+#         height: auto;
+#         max-height: 10;              /* header uses ~2 rows; adjust to taste */
+#         overflow-y: auto;            /* internal scroll, not giant whitespace */
+#     }
+#
+#     /* Subtle label color */
+#     DetailsDrawer .labels {
+#         color: $text-muted;
+#     }
+#     """
+#
+#     # state / callback
+#     record_id: Optional[int] = None
+#     on_close: Optional[Callable[[], None]] = None  # () -> None
+#
+#     def compose(self) -> ComposeResult:
+#         # Header row
+#         yield Horizontal(
+#             Static("Details", classes="labels"),
+#             Static("", id="d-title"),  # title (Rich markup)
+#             Button("Close", id="btn-close", variant="default"),
+#             classes="hdr",
+#         )
+#         # Body row (use Static for Rich markup, not Markdown)
+#         with Grid(classes="row"):
+#             yield Static("", id="d-body")  # body (Rich markup)
+#
+#     def compose(self) -> ComposeResult:
+#         # Header row
+#         yield Horizontal(
+#             Static("Details", classes="labels"),
+#             Static("", id="d-title"),
+#             Button("Close", id="btn-close", variant="default"),
+#             classes="hdr",
+#         )
+#         # Body: single Markdown block (scrollable via CSS)
+#         yield Markdown("", id="d-body")
+#
+#     def on_mount(self) -> None:
+#         # Start hidden
+#         self.add_class("hidden")
+#
+#     # ---------- public API ----------
+#
+#     def open_lines(self, *, title: str, lines: List[str]) -> None:
+#         """Open with a pre-rendered title and body lines (Rich markup)."""
+#         # If compose hasn't run yet, schedule this after refresh
+#         try:
+#             title_w = self.query_one("#d-title", Static)
+#             body_w = self.query_one("#d-body", Static)
+#         except NoMatches:
+#             self.call_after_refresh(lambda: self.open_lines(title=title, lines=lines))
+#             return
+#
+#         title_w.update(title)
+#         body_w.update("\n".join(lines))
+#         self.remove_class("hidden")
+#         self.focus()
+#
+#     def close(self) -> None:
+#         """Hide the drawer and return focus to the app/screen."""
+#         self.add_class("hidden")
+#         try:
+#             self.app.set_focus(None)
+#         except Exception:
+#             pass
+#         if self.on_close:
+#             self.on_close()
+#
+#     # ---------- input handling ----------
+#
+#     def on_blur(self, _: events.Blur) -> None:
+#         # Keep focus inside while visible (acts like a modal)
+#         if not self.has_class("hidden"):
+#             self.focus()
+#
+#     def on_key(self, event: events.Key) -> None:
+#         if event.key in ("escape", "q"):
+#             event.stop()
+#             self.close()
+#
+#     def on_button_pressed(self, event: Button.Pressed) -> None:
+#         if event.button.id == "btn-close":
+#             self.close()
+#
+#
+# class DetailsDrawer(Widget):
+#     """Bottom drawer that shows a record’s details (read-only, Rich markup)."""
+#
+#     DEFAULT_CSS = """
+#     DetailsDrawer {
+#         dock: bottom;
+#         layer: overlay;               /* overlay so it doesn't push layout */
+#         background: $panel;
+#         border-top: heavy $accent;
+#         padding: 1 2;
+#
+#         height: auto;                 /* shrink-wrap content */
+#         max-height: 14;               /* cap overall height */
+#     }
+#
+#     DetailsDrawer.hidden {
+#         display: none;
+#     }
+#
+#     /* Header row container */
+#     #d-hdr {
+#         width: 100%;
+#         height: auto;
+#         content-align: left middle;
+#         padding-bottom: 1;
+#     }
+#
+#     /* Title stretches within header */
+#     #d-title {
+#         width: 1fr;
+#         overflow: hidden;
+#         text-overflow: ellipsis;
+#     }
+#
+#     /* Scrollable body */
+#     #d-body {
+#         height: auto;
+#         max-height: 11;               /* remainder after header; tweak with max-height above */
+#         overflow: auto;               /* ensure scrollbar appears when needed */
+#     }
+#
+#     .labels {
+#         color: $text-muted;
+#     }
+#     """
+#
+#     # state
+#     record_id: reactive[Optional[int]] = reactive(None)
+#     on_close: Optional[Callable[[], None]] = None
+#
+#     # ---------- compose ----------
+#
+#     def compose(self) -> ComposeResult:
+#         # Header row
+#         from textual.containers import Horizontal
+#
+#         yield Horizontal(
+#             Static("Details", classes="labels"),
+#             Static("", id="d-title"),
+#             Button("Close", id="btn-close", variant="default"),
+#             id="d-hdr",
+#         )
+#         # Body: a scrollable region; we’ll inject a Static(markup=True) into it
+#         yield ScrollView(id="d-body")
+#
+#     # ---------- public API ----------
+#
+#     def open_tag(
+#         self, *, controller, tag: str, view: str, selected_week: tuple[int, int]
+#     ) -> None:
+#         parts: List[str] = controller.process_tag(tag, view, selected_week) or []
+#         if not parts:
+#             self.open_lines(title="(no details)", lines=["No item found for that tag."])
+#             return
+#         title, lines = parts[0], parts[1:]
+#         self.open_lines(title=title, lines=lines)
+#
+#     def open_lines(self, *, title: str, lines: List[str]) -> None:
+#         # compact leading blanks and huge gaps
+#         body_lines = list(lines)
+#         while body_lines and not body_lines[0].strip():
+#             body_lines.pop(0)
+#         body = "\n".join(body_lines)
+#         body = re.sub(r"\n{3,}", "\n\n", body)
+#
+#         # Title (Rich markup is fine in Static by default)
+#         self.query_one("#d-title", Static).update(title)
+#
+#         # Body: render Rich markup
+#         sv = self.query_one("#d-body", ScrollView)
+#         sv.update(Static(body, markup=True))
+#
+#         self.remove_class("hidden")
+#         self.focus()
+#
+#     def close(self) -> None:
+#         self.add_class("hidden")
+#         try:
+#             self.app.set_focus(None)
+#         except Exception:
+#             pass
+#         if self.on_close:
+#             self.on_close()
+#
+#     # ---------- lifecycle / input ----------
+#
+#     def on_mount(self) -> None:
+#         self.add_class("hidden")
+#
+#     def on_blur(self, _: events.Blur) -> None:
+#         if not self.has_class("hidden"):
+#             self.focus()
+#
+#     def on_key(self, event: events.Key) -> None:
+#         if event.key in ("escape", "q"):
+#             event.stop()
+#             self.close()
+#
+#     def on_button_pressed(self, event: Button.Pressed) -> None:
+#         if event.button.id == "btn-close":
+#             self.close()
+#
+#
+# class DetailsDrawer(Widget):
+#     """Bottom drawer that shows a record’s details (read-only, Rich markup)."""
+#
+#     can_focus = True  # so ESC is captured
+#
+#     DEFAULT_CSS = """
+#     DetailsDrawer {
+#         dock: bottom;
+#         background: $panel;
+#         border-top: heavy $accent;
+#         padding: 1 2;
+#
+#         height: auto;        /* shrink to fit */
+#         max-height: 14;      /* cap overall height so it doesn't take the screen */
+#     }
+#     DetailsDrawer.hidden {
+#         display: none;
+#     }
+#     #d-hdr {
+#         width: 100%;
+#         height: auto;
+#         content-align: left middle;
+#         padding-bottom: 1;
+#     }
+#     #d-title {
+#         width: 1fr;
+#         overflow: hidden;
+#         text-overflow: ellipsis;
+#     }
+#     #d-body {
+#         height: auto;
+#         max-height: 11;      /* leave room for header */
+#         overflow: auto;      /* show scrollbar when needed */
+#     }
+#     .labels {
+#         color: $text-muted;
+#     }
+#     """
+#
+#     record_id: reactive[Optional[int]] = reactive(None)
+#     on_close: Optional[Callable[[], None]] = None
+#
+#     def compose(self) -> ComposeResult:
+#         # Header
+#         yield Horizontal(
+#             Static("Details", classes="labels"),
+#             Static("", id="d-title"),
+#             Button("Close", id="btn-close", variant="default"),
+#             id="d-hdr",
+#         )
+#         # Body: ScrollView containing a Static we can update
+#         with ScrollView(id="d-body"):
+#             yield Static("", id="d-body-content", markup=True)
+#
+#     # ---------- public API ----------
+#
+#     def open_tag(
+#         self, *, controller, tag: str, view: str, selected_week: tuple[int, int]
+#     ) -> None:
+#         parts: List[str] = controller.process_tag(tag, view, selected_week) or []
+#         if not parts:
+#             self.open_lines(title="(no details)", lines=["No item found for that tag."])
+#             return
+#         title, lines = parts[0], parts[1:]
+#         self.open_lines(title=title, lines=lines)
+#
+#     def open_lines(self, *, title: str, lines: List[str]) -> None:
+#         log_msg(f"{title = }, {lines = }")
+#         # Trim leading empties & collapse big gaps
+#         body_lines = list(lines)
+#         while body_lines and not body_lines[0].strip():
+#             body_lines.pop(0)
+#         body = re.sub(r"\n{3,}", "\n\n", "\n".join(body_lines))
+#
+#         self.query_one("#d-title", Static).update(title)
+#         self.query_one("#d-body-content", Static).update(body)
+#
+#         self.remove_class("hidden")
+#         self.focus()
+#
+#     def close(self) -> None:
+#         self.add_class("hidden")
+#         try:
+#             self.app.set_focus(None)
+#         except Exception:
+#             pass
+#         if self.on_close:
+#             self.on_close()
+#
+#     # ---------- lifecycle / input ----------
+#
+#     def on_mount(self) -> None:
+#         self.add_class("hidden")
+#
+#     def on_blur(self, _: events.Blur) -> None:
+#         if not self.has_class("hidden"):
+#             self.focus()
+#
+#     def on_key(self, event: events.Key) -> None:
+#         if event.key in ("escape", "q"):
+#             event.stop()
+#             self.close()
+#
+#     def on_button_pressed(self, event: Button.Pressed) -> None:
+#         if event.button.id == "btn-close":
+#             self.close()
+#
+#
+# class DetailsDrawer(Widget):
+#     """Bottom drawer that shows a record’s details (read-only, Rich markup)."""
+#
+#     DEFAULT_CSS = """
+#     DetailsDrawer {
+#         dock: bottom;
+#         background: $panel;
+#         border-top: heavy $accent;
+#         padding: 1 2;
+#         height: auto;
+#         max-height: 40%;
+#     }
+#     DetailsDrawer.hidden {
+#         display: none;
+#     }
+#     /* Header row */
+#     DetailsDrawer .hdr {
+#         width: 100%;
+#         height: auto;
+#     }
+#     DetailsDrawer .labels {
+#         color: $text-muted;
+#     }
+#     /* Title expands, Close stays tight */
+#     #d-title {
+#         width: 1fr;
+#         max-width: 1fr;
+#         overflow: hidden;
+#         text-overflow: ellipsis;
+#         padding-left: 1;
+#     }
+#     /* Body area scrolls */
+#     #d-body {
+#         height: auto;
+#         max-height: 1fr;
+#     }
+#     """
+#
+#     # state
+#     record_id: Optional[int] = None
+#
+#     # optional callback
+#     on_close: Optional[Callable[[], None]] = None
+#
+#     # pending content if open_lines called before mount
+#     _pending: Optional[Tuple[str, List[str]]] = None
+#
+#     def compose(self) -> ComposeResult:
+#         # Header row: label, title, close button
+#         with Horizontal(classes="hdr"):
+#             yield Static("Details", classes="labels")
+#             yield Static("", id="d-title")  # <- title goes here (Rich markup)
+#             yield Button("Close", id="btn-close")
+#
+#         # Scrollable body contains a Static we update with Rich markup
+#         with Container():
+#             with ScrollView(id="d-body"):
+#                 yield Static("", id="d-body-content")
+#
+#         # start hidden by default
+#         # (do NOT hide here; do it in on_mount to ensure nodes exist)
+#         # self.add_class("hidden")
+#
+#     # ---------- public API ----------
+#
+#     def open_lines(self, *, title: str, lines: List[str]) -> None:
+#         """Open with a pre-rendered title and body lines (Rich markup)."""
+#         # If not mounted yet, queue and apply after the next refresh.
+#         log_msg(f"{title = }, {lines = }")
+#         if not self.is_attached or not self._has_nodes():
+#             self._pending = (title, lines)
+#             # ensure we’ll apply right after render
+#             self.call_after_refresh(self._apply_pending_and_show)
+#             return
+#         log_msg(f"{title = }, {lines = }")
+#         self._apply_content(title, lines)
+#         self._show_and_focus()
+#
+#     # Convenience if you kept your controller.process_tag() call outside
+#     def open_from_parts(self, parts: List[str]) -> None:
+#         if not parts:
+#             self.open_lines(title="(no details)", lines=["No item found for that tag."])
+#             return
+#         self.open_lines(title=parts[0], lines=parts[1:])
+#
+#     def close(self) -> None:
+#         self.add_class("hidden")
+#         try:
+#             self.app.set_focus(None)
+#         except Exception:
+#             pass
+#         if self.on_close:
+#             self.on_close()
+#
+#     # ---------- lifecycle & input ----------
+#
+#     def on_mount(self) -> None:
+#         # Hide once DOM exists to avoid NoMatches on first query_one
+#         self.add_class("hidden")
+#         if self._pending:
+#             # apply pending content once mounted
+#             self.call_after_refresh(self._apply_pending_and_show)
+#
+#     def on_blur(self, _: events.Blur) -> None:
+#         # Keep focus inside while visible (acts like a modal/drawer)
+#         if not self.has_class("hidden"):
+#             self.focus()
+#
+#     def on_key(self, event: events.Key) -> None:
+#         if event.key in ("escape", "q"):
+#             event.stop()
+#             self.close()
+#
+#     def on_button_pressed(self, event: Button.Pressed) -> None:
+#         if event.button.id == "btn-close":
+#             self.close()
+#
+#     # ---------- helpers ----------
+#
+#     def _has_nodes(self) -> bool:
+#         # Safe probe for required children
+#         try:
+#             self.query_one("#d-title", Static)
+#             self.query_one("#d-body-content", Static)
+#             return True
+#         except Exception:
+#             return False
+#
+#     def _apply_pending_and_show(self) -> None:
+#         if not self._pending:
+#             return
+#         title, lines = self._pending
+#         self._pending = None
+#         if not self._has_nodes():
+#             # Still not ready; try again after next refresh
+#             self._pending = (title, lines)
+#             self.call_after_refresh(self._apply_pending_and_show)
+#             return
+#         self._apply_content(title, lines)
+#         self._show_and_focus()
+#
+#     def _apply_content(self, title: str, lines: List[str]) -> None:
+#         # Render Rich markup in both title and body
+#         self.query_one("#d-title", Static).update(title)
+#         self.query_one("#d-body-content", Static).update("\n".join(lines))
+#
+#     def _show_and_focus(self) -> None:
+#         self.remove_class("hidden")
+#         self.focus()
+
+
+class DetailsDrawer(Widget):
+    """Bottom drawer that shows a record’s details (read-only, Rich markup)."""
+
+    DEFAULT_CSS = """
+    DetailsDrawer {
+        layout: vertical;       /* header then body */
+        dock: bottom;           /* sit at screen bottom */
+        background: $panel;
+        border-top: heavy $accent;
+        padding: 1 2;
+        height: auto;
+        max-height: 40%;
+    }
+    DetailsDrawer.hidden {
+        display: none;
+    }
+
+    /* Header (title + close) */
+    .hdr {
+        width: 100%;
+        height: auto;
+    }
+    #d-title {
+        width: 1fr;             /* expand to fill */
+        max-width: 1fr;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding-right: 1;
+    }
+
+    /* Body must be able to grow and scroll */
+    #d-body {
+        height: 1fr;            /* TAKE remaining space */
+        max-height: 1fr;
+    }
+    """
+
+    # callback optional
+    on_close: Optional[Callable[[], None]] = None
+
+    # queued content if open_lines called too early
+    _pending: Optional[Tuple[str, List[str]]] = None
+
+    def compose(self) -> ComposeResult:
+        # Header: title (rich) + close button
+        with Horizontal(classes="hdr"):
+            yield Static("", id="d-title")
+            yield Button("Close", id="btn-close")
+
+        # Scrollable body with one Static we update with Rich markup
+        with ScrollView(id="d-body"):
+            yield Static("", id="d-body-content")
+
+    # ---------- public API ----------
+
+    def open_lines(self, *, title: str, lines: List[str]) -> None:
+        """Open with pre-rendered title and lines (Rich markup strings)."""
+        if not self._nodes_ready():
+            self._pending = (title, lines)
+            # apply just after layout is ready
+            self.call_after_refresh(self._apply_pending_and_show)
+            return
+        self._apply_content(title, lines)
+        self._show_and_focus()
+
+    def open_from_parts(self, parts: List[str]) -> None:
+        if not parts:
+            self.open_lines(title="(no details)", lines=["No item found for that tag."])
+            return
+        self.open_lines(title=parts[0], lines=parts[1:])
+
+    def close(self) -> None:
+        self.add_class("hidden")
+        try:
+            self.app.set_focus(None)
+        except Exception:
+            pass
+        if self.on_close:
+            self.on_close()
+
+    # ---------- lifecycle & input ----------
+
+    def on_mount(self) -> None:
+        # start hidden (now that nodes exist we can safely hide)
+        self.add_class("hidden")
+        if self._pending:
+            self.call_after_refresh(self._apply_pending_and_show)
+
+    def on_blur(self, _: events.Blur) -> None:
+        # keep focus inside while visible
+        if not self.has_class("hidden"):
+            self.focus()
+
+    def on_key(self, event: events.Key) -> None:
+        if event.key in ("escape", "q"):
+            event.stop()
+            self.close()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-close":
+            self.close()
+
+    # ---------- helpers ----------
+
+    def _nodes_ready(self) -> bool:
+        try:
+            self.query_one("#d-title", Static)
+            self.query_one("#d-body-content", Static)
+            return True
+        except Exception:
+            return False
+
+    def _apply_pending_and_show(self) -> None:
+        if not self._pending:
+            return
+        title, lines = self._pending
+        self._pending = None
+        if not self._nodes_ready():
+            # try again next refresh
+            self._pending = (title, lines)
+            self.call_after_refresh(self._apply_pending_and_show)
+            return
+        self._apply_content(title, lines)
+        self._show_and_focus()
+
+    def _apply_content(self, title: str, lines: List[str]) -> None:
+        self.query_one("#d-title", Static).update(title)  # Rich markup OK
+        self.query_one("#d-body-content", Static).update(
+            "\n".join(lines)
+        )  # Rich markup OK
+
+    def _show_and_focus(self) -> None:
+        self.remove_class("hidden")
+        # optional: scroll body to top each time
+        try:
+            self.query_one("#d-body", ScrollView).scroll_home(animate=False)
+        except Exception:
+            pass
+        self.focus()
+
+
+class DetailsDrawer(Widget):
+    """Bottom drawer that shows a record’s details (read-only, Rich markup)."""
+
+    DEFAULT_CSS = """
+    DetailsDrawer {
+        layout: vertical;       /* header then body */
+        dock: bottom;           /* sit at screen bottom */
+        background: $panel;
+        /* keep or remove the next line depending on whether you want a top separator */
+        border-top: heavy $accent;
+        padding: 1 2;
+        height: auto;
+        max-height: 40%;
+    }
+    DetailsDrawer.hidden {
+        display: none;
+    }
+
+    /* Remove any inner borders so no box around content */
+    DetailsDrawer ScrollView, DetailsDrawer Static {
+        border: none;
+    }
+
+    /* Header (title only) */
+    .hdr {
+        width: 100%;
+        height: auto;
+    }
+    #d-title {
+        width: 1fr;             /* expand */
+        max-width: 1fr;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding-right: 1;
+    }
+
+    /* Body must be able to grow and scroll */
+    #d-body {
+        height: 1fr;            /* take remaining space */
+        max-height: 1fr;
+    }
+    """
+
+    on_close: Optional[Callable[[], None]] = None
+    _pending: Optional[Tuple[str, List[str]]] = None  # deferred content if needed
+
+    def compose(self) -> ComposeResult:
+        # Header: title (rich)
+        with Horizontal(classes="hdr"):
+            yield Static("", id="d-title")
+
+        # Scrollable body with one Static we update with Rich markup
+        with ScrollView(id="d-body"):
+            yield Static("", id="d-body-content")
+
+    # --- public API ---
+
+    def open_lines(self, *, title: str, lines: List[str]) -> None:
+        """Open with pre-rendered title and body lines (Rich markup strings)."""
+        if not self._nodes_ready():
+            self._pending = (title, lines)
+            self.call_after_refresh(self._apply_pending_and_show)
+            return
+        self._apply_content(title, lines)
+        self._show_and_focus()
+
+    def open_from_parts(self, parts: List[str]) -> None:
+        if not parts:
+            self.open_lines(title="(no details)", lines=["No item found for that tag."])
+            return
+        self.open_lines(title=parts[0], lines=parts[1:])
+
+    def close(self) -> None:
+        self.add_class("hidden")
+        try:
+            self.app.set_focus(None)
+        except Exception:
+            pass
+        if self.on_close:
+            self.on_close()
+
+    # --- lifecycle & input ---
+
+    def on_mount(self) -> None:
+        self.add_class("hidden")
+        if self._pending:
+            self.call_after_refresh(self._apply_pending_and_show)
+
+    def on_blur(self, _: events.Blur) -> None:
+        if not self.has_class("hidden"):
+            self.focus()
+
+    def on_key(self, event: events.Key) -> None:
+        if event.key in ("escape", "q"):
+            event.stop()
+            self.close()
+
+    # --- helpers ---
+
+    def _nodes_ready(self) -> bool:
+        try:
+            self.query_one("#d-title", Static)
+            self.query_one("#d-body-content", Static)
+            return True
+        except Exception:
+            return False
+
+    def _apply_pending_and_show(self) -> None:
+        if not self._pending:
+            return
+        title, lines = self._pending
+        self._pending = None
+        if not self._nodes_ready():
+            self._pending = (title, lines)
+            self.call_after_refresh(self._apply_pending_and_show)
+            return
+        self._apply_content(title, lines)
+        self._show_and_focus()
+
+    def _apply_content(self, title: str, lines: List[str]) -> None:
+        self.query_one("#d-title", Static).update(title)  # Rich OK
+        self.query_one("#d-body-content", Static).update("\n".join(lines))  # Rich OK
+
+    def _show_and_focus(self) -> None:
+        self.remove_class("hidden")
+        # Scroll body to top each time
+        try:
+            self.query_one("#d-body", ScrollView).scroll_home(animate=False)
+        except Exception:
+            pass
+        self.focus()
+
+
+class DetailsDrawer(Widget):
+    """Bottom drawer that shows a record’s details (read-only)."""
+
+    DEFAULT_CSS = """
+    DetailsDrawer {
+        layout: vertical;       /* header then body */
+        dock: bottom;           /* sit at screen bottom */
+        background: $panel;
+        /* keep or remove the next line depending on whether you want a top separator */
+        border-top: heavy $accent;
+        padding: 1 2;
+        height: auto;
+        max-height: 40%;
+    }
+    DetailsDrawer.hidden {
+        display: none;
+    }
+
+    /* Remove any inner borders so no box around content */
+    DetailsDrawer ScrollView, DetailsDrawer Static {
+        border: none;
+    }
+
+    /* Header (title only) */
+    .hdr {
+        width: 100%;
+        height: auto;
+    }
+    #d-title {
+        width: 1fr;             /* expand */
+        max-width: 1fr;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding-right: 1;
+    }
+
+    /* Body must be able to grow and scroll */
+    #d-body {
+        height: 1fr;            /* take remaining space */
+        max-height: 1fr;
+    }
+    """
+
+    # state
+    record_id: reactive[int | None] = reactive(None)
+    on_close: Optional[Callable[[], None]] = None
+
+    # queue to handle early open() calls (before mount)
+    _pending_title: Optional[str] = None
+    _pending_lines: Optional[List[str]] = None
+
+    def compose(self) -> ComposeResult:
+        # Header
+        yield Horizontal(
+            Static("Details", classes="labels"),
+            Static("", id="d-title", markup=True),
+            classes="hdr",
+        )
+        # Body (scrollable)
+        with Grid(classes="row"):
+            with ScrollView(id="d-body"):
+                yield Static("", id="d-body-content", markup=True)
+
+    # ---------- public API ----------
+
+    def open_lines(self, *, title: str, lines: List[str]) -> None:
+        """Open with a pre-rendered title and body lines (Rich markup)."""
+        # Save pending in case we are not mounted yet
+        self._pending_title = title
+        self._pending_lines = lines
+
+        def _apply():
+            try:
+                self.query_one("#d-title", Static).update(self._pending_title or "")
+                self.query_one("#d-body-content", Static).update(
+                    "\n".join(self._pending_lines or [])
+                )
+                self.remove_class("hidden")
+                self.focus()
+            except Exception:
+                # If nodes still aren’t present, leave it queued; on_mount will apply.
+                pass
+
+        # Try now…
+        _apply()
+        # …and try again next frame (ensures availability after mount/refresh)
+        try:
+            self.call_after_refresh(_apply)
+        except Exception:
+            pass  # older Textual versions without call_after_refresh
+
+    def open_from_parts(self, parts: List[str]) -> None:
+        if not parts:
+            self.open_lines(title="(no details)", lines=["No item found for that tag."])
+            return
+        self.open_lines(title=parts[0], lines=parts[1:])
+
+    def close(self) -> None:
+        self.add_class("hidden")
+        try:
+            self.app.set_focus(None)
+        except Exception:
+            pass
+        if self.on_close:
+            self.on_close()
+
+    # ---------- lifecycle & input ----------
+
+    def on_mount(self) -> None:
+        # Start hidden
+        self.add_class("hidden")
+        # If something is queued, apply it now
+        if self._pending_title is not None or self._pending_lines is not None:
+            self.open_lines(
+                title=self._pending_title or "",
+                lines=self._pending_lines or [],
+            )
+
+    def on_key(self, event: events.Key) -> None:
+        if event.key in ("escape", "q"):
+            event.stop()
+            self.close()
 
 
 class DetailsHelpScreen(ModalScreen[None]):
@@ -942,6 +2152,7 @@ class AgendaScreen(SearchableScreen):  # ← inherit your base
         self.tasks_list: ScrollableList | None = None
         self.events = {}
         self.tasks = []
+        self.details_drawer: DetailsDrawer | None = None
 
     def on_screen_resume(self) -> None:
         if self.app.controller.consume_agenda_dirty():
@@ -1068,6 +2279,7 @@ class DynamicViewApp(App):
         ("left", "previous_week", ""),
         ("right", "next_week", ""),
         ("ctrl+s", "take_screenshot", "Take Screenshot"),
+        ("escape", "close_details", "Close details"),
         ("R", "show_alerts", "Show Alerts"),
         ("A", "show_agenda", "Show Agenda"),
         ("L", "show_last", "Show Last"),
@@ -1091,6 +2303,7 @@ class DynamicViewApp(App):
         self.view = "week"
         self.saved_lines = []
         self.afill = 1
+        self.details_drawer: DetailsDrawer | None = None
         # log_msg(f"{self.afill = }")
 
     def set_afill(self, *_args, **_kwargs):
@@ -1108,25 +2321,363 @@ class DynamicViewApp(App):
             self.afill = len(next(iter(mapping.keys())))  # infer from first key
             log_msg(f"using {self.afill = } from keys for {self.view = }")
 
+    # async def on_mount(self):
+    #     self.action_show_weeks()
+    #
+    #     now = datetime.now()
+    #     seconds_to_next = (6 - (now.second % 6)) % 6
+    #     await asyncio.sleep(seconds_to_next)
+    #     self.set_interval(6, self.check_alerts)
+
     async def on_mount(self):
+        # mount the drawer (hidden by default)
+        self.details_drawer = DetailsDrawer()
+        # when the drawer closes, put focus back where it belongs
+        self.details_drawer.on_close = self._return_focus_to_active_screen
+        self.mount(self.details_drawer)
+
+        # open default screen
         self.action_show_weeks()
 
+        # your alert timers as-is
         now = datetime.now()
         seconds_to_next = (6 - (now.second % 6)) % 6
         await asyncio.sleep(seconds_to_next)
         self.set_interval(6, self.check_alerts)
 
-    def on_key(self, event):
-        """Handle key events."""
-        log_msg(f"{self.afill = }")
+    def _return_focus_to_active_screen(self) -> None:
+        screen = self.screen
+        # if screen exposes a search target (your panes do), focus it; otherwise noop
+        try:
+            if hasattr(screen, "get_search_target"):
+                self.set_focus(screen.get_search_target())
+        except Exception:
+            pass
 
+    def _resolve_tag_to_record(self, tag: str) -> tuple[int | None, int | None]:
+        """
+        Return (record_id, job_id) for the current view + tag, or (None, None).
+        """
+        log_msg(f"{self.view = }, {tag = }")
+        mapping = None
+        if self.view == "week":
+            log_msg(f"{self.selected_week = }, {self.controller.week_tag_to_id = }")
+            mapping = self.controller.week_tag_to_id.get(self.selected_week, None)
+        else:
+            log_msg(f"{self.view = }, {self.controller.list_tag_to_id = }")
+            mapping = self.controller.list_tag_to_id.get(self.view, None)
+
+        if not mapping:
+            return None, None
+        meta = mapping.get(tag, {})
+        return meta.get("record_id"), meta.get("job_id")
+
+    # def _ensure_screen_drawer(self):
+    #     scr = self.screen
+    #     if not hasattr(scr, "details_drawer") or scr.details_drawer is None:
+    #         scr.details_drawer = DetailsDrawer()
+    #         scr.mount(scr.details_drawer)  # mount INSIDE the screen
+    #     return scr.details_drawer
+    #
+    # def _ensure_screen_drawer(self):
+    #     scr = self.screen
+    #     if not hasattr(scr, "details_drawer") or scr.details_drawer is None:
+    #         scr.details_drawer = DetailsDrawer()
+    #         scr.mount(scr.details_drawer)
+    #     return scr.details_drawer
+    #
+    # def _ensure_screen_drawer(self):
+    #     screen = self.screen
+    #     drawer = getattr(screen, "details_drawer", None)
+    #
+    #     # Reuse existing if it’s still mounted under the screen
+    #     if drawer and drawer.parent is screen:
+    #         return drawer
+    #
+    #     # Create + mount
+    #     drawer = DetailsDrawer()
+    #     screen.details_drawer = drawer
+    #     screen.mount(drawer)
+    #     return drawer
+
+    def _ensure_screen_drawer(self):
+        screen = self.screen
+        drawer = getattr(screen, "details_drawer", None)
+
+        # Reuse existing if it’s still mounted under the screen
+        if drawer and drawer.parent is screen:
+            return drawer
+
+        # Create + mount
+        drawer = DetailsDrawer()
+        screen.details_drawer = drawer
+        screen.mount(drawer)
+        return drawer
+
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     log_msg(f"{tag = }, {self.details_drawer = }")
+    #     if not self.details_drawer:
+    #         return
+    #     record_id, job_id = self._resolve_tag_to_record(tag)
+    #     log_msg(f"{record_id = }, {job_id = }")
+    #     if record_id:
+    #         self.details_drawer.open(
+    #             record_id=record_id, controller=self.controller, job_id=job_id
+    #         )
+    #     else:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     if not getattr(self, "details_drawer", None):
+    #         return
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     if not parts:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #     title, lines = parts[0], parts[1:]
+    #     log_msg(f"{title = }, {lines = }")
+    #     self.details_drawer.open_lines(title=title, lines=lines)
+
+    def open_details_for_tag(self, tag: str) -> None:
+        parts = self.controller.process_tag(tag, self.view, self.selected_week)
+        if not parts:
+            self.notify(f"Unknown tag '{tag}'", severity="warning")
+            return
+        title, lines = parts[0], parts[1:]
+
+        drawer = self._ensure_screen_drawer()
+        drawer.open_lines(title=title, lines=lines)  # shows and focuses
+
+    def _ensure_screen_drawer(self) -> "DetailsDrawer":
+        """
+        Ensure the active Screen has a DetailsDrawer mounted and return it.
+        We keep the drawer per-screen so each view can manage its own state.
+        """
+        screen = self.screen
+        # Reuse if it already exists
+        drawer = getattr(screen, "details_drawer", None)
+        if drawer is not None and not drawer.is_destroyed:
+            return drawer
+
+        # Create + mount
+        drawer = DetailsDrawer()
+        # Stash a reference on the screen so repeated opens don't remount
+        setattr(screen, "details_drawer", drawer)
+        screen.mount(drawer)
+        return drawer
+
+    def _resolve_tag_to_record(self, tag: str) -> tuple[int | None, int | None]:
+        """
+        Return (record_id, job_id) for the current view + tag, or (None, None).
+        NOTE: uses week_tag_to_id for 'week' view, list_tag_to_id otherwise.
+        """
+        if self.view == "week":
+            mapping = self.controller.week_tag_to_id.get(self.selected_week, {})
+        else:
+            mapping = self.controller.list_tag_to_id.get(self.view, {})
+
+        meta = mapping.get(tag)
+        if not meta:
+            return None, None
+        if isinstance(meta, dict):
+            return meta.get("record_id"), meta.get("job_id")
+        # backward compatibility (old mapping was tag -> record_id)
+        return meta, None
+
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     """
+    #     Resolve tag → (record_id, job_id), build details via controller.process_tag,
+    #     then open the bottom drawer with those lines.
+    #     """
+    #     record_id, job_id = self._resolve_tag_to_record(tag)
+    #     if not record_id:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #
+    #     # Reuse your existing single source of truth builder
+    #     details_lines = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     if not details_lines:
+    #         self.notify("No details available.", severity="warning")
+    #         return
+    #
+    #     title, *lines = details_lines
+    #
+    #     drawer = self._ensure_screen_drawer()
+    #     drawer.open_lines(title=title, lines=lines)
+    #
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     record_id, job_id = self._resolve_tag_to_record(tag)
+    #     if not record_id:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week) or []
+    #     if not parts:
+    #         parts = ["(no details)", "No item found for that tag."]
+    #
+    #     title, lines = parts[0], parts[1:]
+    #
+    #     drawer = self._ensure_screen_drawer()
+    #     # <- IMPORTANT: defer until after compose/mount has run
+    #     self.call_after_refresh(lambda: drawer.open_lines(title=title, lines=lines))
+    #
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     record_id, job_id = self._resolve_tag_to_record(tag)
+    #     if not record_id:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week) or []
+    #     if not parts:
+    #         parts = ["(no details)", "No item found for that tag."]
+    #
+    #     title, lines = parts[0], parts[1:]
+    #
+    #     drawer = self._ensure_screen_drawer()  # mounts or returns existing
+    #     self.call_after_refresh(lambda: drawer.open_lines(title=title, lines=lines))
+    #
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     drawer = (
+    #         self._ensure_screen_drawer()
+    #     )  # mounts/reuses DetailsDrawer on current screen
+    #     record_id, job_id = self._resolve_tag_to_record(tag)
+    #     if record_id is None:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #     drawer.open_tag(
+    #         controller=self.controller,
+    #         tag=tag,
+    #         view=self.view,
+    #         selected_week=self.selected_week,
+    #     )
+    #
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     drawer = self._ensure_screen_drawer()
+    #     record_id, job_id = self._resolve_tag_to_record(tag)
+    #     if record_id is None:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #     drawer.open_tag(
+    #         controller=self.controller,
+    #         tag=tag,
+    #         view=self.view,
+    #         selected_week=self.selected_week,
+    #     )
+    #
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     drawer = self._ensure_screen_drawer()
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     if not parts:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #     title, lines = parts[0], parts[1:]
+    #     drawer.open_lines(title=title, lines=lines)
+
+    def open_details_for_tag(self, tag: str) -> None:
+        drawer = self._ensure_screen_drawer()  # your mount/reuse helper
+        parts = self.controller.process_tag(tag, self.view, self.selected_week)
+        if not parts:
+            self.notify(f"Unknown tag '{tag}'", severity="warning")
+            return
+        drawer.open_from_parts(parts)  # title = parts[0], lines = parts[1:]
+
+    def action_close_details(self):
+        screen = self.screen
+        drawer = getattr(screen, "details_drawer", None)
+        if drawer and not drawer.has_class("hidden"):
+            drawer.close()
+
+    def _ensure_screen_drawer(self) -> "DetailsDrawer":
+        screen = self.screen
+        drawer = getattr(screen, "details_drawer", None)
+        if isinstance(drawer, DetailsDrawer) and drawer.parent is not None:
+            return drawer
+        drawer = DetailsDrawer()
+        screen.details_drawer = drawer
+        screen.mount(drawer)  # compose happens after refresh
+        return drawer
+
+    def open_details_for_tag(self, tag: str) -> None:
+        record_id, job_id = self._resolve_tag_to_record(tag)
+        if record_id is None:
+            self.notify(f"Unknown tag '{tag}'", severity="warning")
+            return
+
+        drawer = self._ensure_screen_drawer()
+        parts = self.controller.process_tag(tag, self.view, self.selected_week)
+        if not parts:
+            # Schedule after refresh so nodes exist
+            drawer.call_after_refresh(
+                lambda: drawer.open_lines(
+                    title="(no details)", lines=["No item for that tag."]
+                )
+            )
+            return
+
+        title, lines = parts[0], parts[1:]
+        # Schedule after refresh so #d-title/#d-body exist
+        log_msg(f"{title = }, {lines = }")
+        drawer.call_after_refresh(lambda: drawer.open_lines(title=title, lines=lines))
+
+    def open_details_for_tag(self, tag: str) -> None:
+        drawer = self._ensure_screen_drawer()
+        parts = self.controller.process_tag(tag, self.view, self.selected_week)
+        if not parts:
+            self.notify(f"Unknown tag '{tag}'", severity="warning")
+            return
+        title, lines = parts[0], parts[1:]
+        log_msg(f"{title = }, {lines = }")
+        drawer.open_lines(title=title, lines=lines)
+
+    def open_details_for_tag(self, tag: str) -> None:
+        drawer = (
+            self._ensure_screen_drawer()
+        )  # your helper that mounts/reuses the drawer
+        parts = self.controller.process_tag(tag, self.view, self.selected_week)
+        if not parts:
+            self.notify(f"Unknown tag '{tag}'", severity="warning")
+            return
+        # This works even if the drawer was just mounted and not yet composed:
+        # drawer.open_from_parts(
+        #     parts
+        # )
+        title, lines = parts[0], parts[1:]
+        log_msg(f"{title = }, {lines = }")
+        drawer.open_lines(title=title, lines=lines)
+
+    def open_details_for_tag(self, tag: str) -> None:
+        drawer = (
+            self._ensure_screen_drawer()
+        )  # your helper that mounts/reuses the drawer
+        parts = self.controller.process_tag(tag, self.view, self.selected_week)
+        if not parts:
+            self.notify(f"Unknown tag '{tag}'", severity="warning")
+            return
+        # This works even if the drawer was just mounted and not yet composed:
+        log_msg(f"{parts = }")
+        drawer.open_from_parts(
+            parts
+        )  # or drawer.open_lines(title=parts[0], lines=parts[1:])
+
+    def on_key(self, event):
+        # Give the drawer first chance at Esc (and optionally block letter tags while open)
+        drawer = getattr(self.screen, "details_drawer", None)
+        if isinstance(drawer, DetailsDrawer) and not drawer.has_class("hidden"):
+            if event.key == "escape":
+                drawer.close()
+                event.stop()
+                return
+            if len(event.key) == 1 and event.key.isalpha():
+                event.stop()
+                return
+
+        # Your existing tag input:
         if event.key in "abcdefghijklmnopqrstuvwxyz":
-            # Handle lowercase letters
             self.digit_buffer.append(event.key)
             if len(self.digit_buffer) == self.afill:
                 base26_tag = "".join(self.digit_buffer)
                 self.digit_buffer.clear()
-                self.action_show_details(base26_tag)
+                self.open_details_for_tag(base26_tag)
 
     def action_take_screenshot(self):
         """Save a screenshot of the current app state."""
@@ -1309,11 +2860,27 @@ class DynamicViewApp(App):
     def action_show_help(self):
         self.push_screen(HelpScreen(HelpText))
 
+    # def action_show_details(self, tag: str):
+    #     log_msg(f"{self.view = }, {self.selected_week = }, {tag = }")
+    #     self.fill = self.controller.afill_by_week[self.selected_week]
+    #     details = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     self.push_screen(DetailsScreen(details))
+
+    # def action_show_details(self, tag: str):
+    #     self.open_details_for_tag(tag)
+
     def action_show_details(self, tag: str):
-        log_msg(f"{self.view = }, {self.selected_week = }, {tag = }")
-        self.fill = self.controller.afill_by_week[self.selected_week]
-        details = self.controller.process_tag(tag, self.view, self.selected_week)
-        self.push_screen(DetailsScreen(details))
+        record_id, job_id = self._resolve_tag_to_record(tag)
+        if not record_id:
+            self.notify(f"No item for tag '{tag}'", severity="warning")
+            return
+
+        # process_tag returns [title] + field lines
+        parts = self.controller.process_tag(tag, self.view, self.selected_week)
+        title, lines = parts[0], parts[1:]
+
+        # Open the drawer with exactly what process_tag produced
+        self.details_drawer.open_lines(title=title, lines=lines)
 
 
 if __name__ == "__main__":

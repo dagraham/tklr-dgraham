@@ -2354,6 +2354,31 @@ class DatabaseManager:
         self.cursor.execute(sql, (today_key,))
         return self.cursor.fetchall()
 
+    def get_next_instance_for_record(
+        self, record_id: int
+    ) -> tuple[str, str | None] | None:
+        """
+        Return (start_datetime, end_datetime|NULL) as compact local-naive strings
+        for the next instance of a single record, or None if none.
+        """
+        # start_datetime sorted ascending; end_datetime can be NULL
+        self.cursor.execute(
+            """
+            SELECT start_datetime, end_datetime
+            FROM DateTimes
+            WHERE record_id = ?
+            AND start_datetime >= ?
+            ORDER BY start_datetime ASC
+            LIMIT 1
+            """,
+            # now in compact local-naive format
+            (_fmt_naive(datetime.now()),),
+        )
+        row = self.cursor.fetchone()
+        if row:
+            return row[0], row[1]
+        return None
+
     def find_records(
         self, regex: str
     ) -> List[Tuple[int, str, str, str, Optional[int], Optional[int]]]:
