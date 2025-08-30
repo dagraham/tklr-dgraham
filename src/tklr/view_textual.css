@@ -1,10 +1,10 @@
-/* Screen layout stays vertical; you can remove `layers` unless you plan to use them */
+/* ── Screen ───────────────────────────────────────── */
 Screen {
   layout: vertical;
   background: #2e2e2e;
 }
 
-/* Titles */
+/* ── Titles ───────────────────────────────────────── */
 #table_title,
 #week_title,
 #scroll_title,
@@ -26,7 +26,7 @@ Screen {
   text-style: bold;
 }
 
-/* Agenda split */
+/* ── Agenda split ─────────────────────────────────── */
 #agenda-layout {
   height: 1fr;
 }
@@ -35,18 +35,19 @@ Screen {
   height: 1fr;
 }
 
-/* Scroll views: keep them plain */
+/* ── ScrollView defaults (plain) ──────────────────── */
 ScrollView {
   border: none;
   padding: 0;
   margin: 0;
 }
 
+/* Hidden utility */
 .hidden {
   display: none;
 }
 
-/* Search bar bits */
+/* ── Search bar bits ──────────────────────────────── */
 #agenda-search-bar {
   padding: 0 1;
 }
@@ -59,63 +60,78 @@ ScrollView {
   width: 1fr;
 }
 
-/* Footer (single definition) */
+/* ── Footer ───────────────────────────────────────── */
 Footer {
   background: #2e2e2e;
   color: #fff8dc;
   text-style: bold;
-  border: none; /* important: no line beneath the drawer */
+  border: none; /* no line beneath the details pane */
 }
 
-/* Details screen (unrelated to drawer) */
+/* ── Details screen (modal screen, not the pane) ─── */
 DetailsScreen {
   align: center middle;
 }
 
-/* ─── Drawer ───────────────────────────────────────── */
-
-DetailsDrawer {
-  layout: vertical; /* title then body */
-  dock: bottom; /* stick to bottom */
+/* ── Details Pane ───────────────────────────── */
+#details-pane {
+  dock: bottom;
+  layout: vertical;
   background: $panel;
-  padding: 1 2;
-  height: auto;
-  max-height: 40%;
-  border: none; /* no outer box */
-  /* If you want a separator at the top edge, uncomment:
-     border-top: heavy $accent; */
-  /* If you decide to use layers:
-     layer: overlay; */
+  border-top: heavy $accent;
+  padding-left: 1;
+  height: auto; /* will be overridden in code to a fixed row count */
 }
 
-/* Hide when closed */
-DetailsDrawer.hidden {
+#details-pane.hidden {
   display: none;
 }
+#details-pane * {
+  border: none;
+  outline: none;
+  margin: 0;
+}
+#details-title {
+  width: 1fr;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-bottom: 1;
+}
+#details-body {
+  height: 1fr;
+  overflow: auto;
+} /* <- enables scrolling when capped */
 
-/* Title */
-#d-title {
+#details-pane .hdr {
+  width: 100%;
+  height: auto;
+}
+
+#details-title {
   width: 1fr;
   max-width: 1fr;
   overflow: hidden;
   text-overflow: ellipsis;
   padding-bottom: 1;
+}
+
+#details-body {
+  height: 1fr; /* this will now work because parent has a fixed height */
+  overflow: auto;
   border: none;
 }
 
-/* Body ScrollView and content — absolutely no borders */
-DetailsDrawer ScrollView#d-body {
-  height: 1fr;
+#details-pane *,
+#details-body,
+#details-body-content {
   border: none;
-}
-DetailsDrawer #d-body-content {
-  border: none;
+  outline: none;
+  margin: 0;
+  padding-left: 0;
+  padding-right: 1;
 }
 
-/* Remove this rule if you had it before (it causes the red boxes) */
-/* DetailsDrawer * { border: heavy red; } */
-
-/* Help panel */
+/* (Optional) Help panel styles you already had */
 #help_panel {
   width: 100%;
   height: 100%;

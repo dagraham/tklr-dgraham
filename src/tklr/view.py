@@ -104,6 +104,18 @@ TYPE_TO_COLOR = {
 }
 
 
+def _measure_rows(lines: list[str]) -> int:
+    """
+    Count how many display rows are implied by explicit newlines.
+    Does NOT try to wrap, so markup stays safe.
+    """
+    total = 0
+    for block in lines:
+        # each newline adds a line visually
+        total += len(block.splitlines()) or 1
+    return total
+
+
 def format_date_range(start_dt: datetime, end_dt: datetime):
     """
     Format a datetime object as a week string, taking not to repeat the month name unless the week spans two months.
@@ -1466,6 +1478,193 @@ class HelpModal(ModalScreen[None]):
         self.app.pop_screen()
 
 
+# class DetailsPaneMixin:
+#     """Mixin to add a reusable, scrollable details pane to any Screen."""
+#
+#     _details_container = None  # Container
+#     _details_title = None  # Static
+#     _details_body = None  # ScrollView
+#     _details_content = None  # Static inside the ScrollView
+#
+#     def ensure_details_pane(self) -> None:
+#         """Create and mount the details pane once (idempotent, sync-safe)."""
+#         if self._details_container is not None:
+#             return
+#
+#         # Build entire subtree BEFORE mounting anything:
+#         self._details_title = Static("Details", id="details_title")
+#
+#         # Body: ScrollView with a Static child that we update with Rich markup
+#         self._details_content = Static("", id="details_content", markup=True)
+#         self._details_body = ScrollView(self._details_content, id="details_body")
+#
+#         # Single container holding title + scrollable body; starts hidden
+#         self._details_container = Container(
+#             self._details_title,
+#             self._details_body,
+#             id="details-pane",
+#             classes="hidden",
+#         )
+#
+#         # Mount the container (and its children) in one go — no ordering issues
+#         self.mount(self._details_container)
+#
+#     def show_details(self, title: str, lines: list[str]) -> None:
+#         self.ensure_details_pane()
+#         self._details_title.update(title)
+#         # join with newlines; content scrolls automatically inside ScrollView
+#         self._details_content.update("\n".join(lines))
+#         self._details_container.remove_class("hidden")
+#         # Focus the scrollview so arrows/PageUp/PageDown scroll it
+#         try:
+#             self.set_focus(self._details_body)
+#         except Exception:
+#             pass
+#
+#     def hide_details(self) -> None:
+#         if self._details_container is not None:
+#             self._details_container.add_class("hidden")
+#         # Return focus to your pane if you expose get_search_target()
+#         if hasattr(self, "get_search_target"):
+#             try:
+#                 self.set_focus(self.get_search_target())
+#             except Exception:
+#                 pass
+#
+#     def details_visible(self) -> bool:
+#         return (
+#             self._details_container is not None
+#             and not self._details_container.has_class("hidden")
+#         )
+
+
+class DetailsPaneMixin:
+    details_pane: Container | None = None
+
+    def ensure_details_pane(self) -> Container:
+        if self.details_pane and self.details_pane.parent:
+            return self.details_pane
+
+        # Build pane
+        pane = Container(
+            Vertical(
+                Horizontal(
+                    # Static("Details", classes="labels"),
+                    Static("", id="details-title", markup=True),
+                    classes="hdr",
+                ),
+                ScrollView(
+                    Static("", id="details-body-content", markup=True),
+                    id="details-body",
+                ),
+            ),
+            id="details-pane",
+        )
+        # Start hidden
+        pane.add_class("hidden")
+        self.mount(pane)
+        self.details_pane = pane
+        return pane
+
+    def open_details(self, title: str, lines: list[str]) -> None:
+        pane = self.ensure_details_pane()
+        pane.remove_class("hidden")
+        self.query_one("#details-title", Static).update(title)
+        self.query_one("#details-body-content", Static).update("\n".join(lines))
+        # scroll to top so first line is visible
+        try:
+            self.query_one("#details-body", ScrollView).scroll_home(animate=False)
+        except Exception:
+            pass
+        self.refresh(layout=True)
+
+    def close_details(self) -> None:
+        if self.details_pane:
+            self.details_pane.add_class("hidden")
+            self.refresh(layout=True)
+
+
+class DetailsPaneMixin:
+    details_pane: Container | None = None
+
+    def ensure_details_pane(self) -> Container:
+        if self.details_pane and self.details_pane.parent:
+            return self.details_pane
+
+        pane = Container(
+            Horizontal(
+                Static("", id="details-title", markup=True),
+                classes="hdr",
+            ),
+            ScrollView(
+                Static("", id="details-body-content", markup=True),
+                id="details-body",
+                can_focus=True,
+            ),
+            id="details-pane",
+        )
+        pane.add_class("hidden")
+        self.mount(pane)
+        self.details_pane = pane
+
+    def open_details(self, title: str, lines: list[str]) -> None:
+        pane = self.ensure_details_pane()
+        pane.remove_class("hidden")
+
+        self.query_one("#details-title", Static).update(title)
+        self.query_one("#details-body-content", Static).update("\n".join(lines))
+
+        # content_rows = _measure_rows(lines)
+        # header_rows = 2  # title + padding; adjust if you change CSS
+        # want_rows = content_rows + header_rows
+        #
+        # # 40% of terminal height (at least, say, 5 rows)
+        # term_rows = max(1, self.app.size.height)
+        # cap_rows = max(5, int(term_rows * 0.40))
+        #
+        # final_rows = min(want_rows, cap_rows)
+        # log_msg(f"{content_rows = }, {final_rows = }")
+        #
+        # # Apply explicit height so #details-body’s height:1fr is meaningful
+        # pane.styles.height = final_rows
+        #
+        # # Make sure the scroll view is focused so wheel/keys work
+        # body = self.query_one("#details-body", ScrollView)
+        # body.scroll_home(animate=False)
+        # self.set_focus(body)
+
+        content_rows = _measure_rows(lines)
+        header_rows = 2  # title + a little spacing
+        want_rows = content_rows + header_rows
+
+        cap_rows = 14  # <- your max height in rows (pick what feels right)
+        pane = self.ensure_details_pane()
+
+        pane.styles.height = min(want_rows, cap_rows)
+        pane.styles.max_height = None  # don't fight the fixed height
+        pane.styles.min_height = 3  # optional floor
+
+        body = self.query_one("#details-body", ScrollView)
+        body.styles.height = "1fr"
+        body.styles.overflow = "auto"
+        self.set_focus(body)
+
+        self.query_one("#details-title", Static).update(title)
+        self.query_one("#details-body-content", Static).update("\n".join(lines))
+        pane.remove_class("hidden")
+        try:
+            body.scroll_home(animate=False)
+        except Exception:
+            log_msg("scroll failed")
+            pass
+        self.refresh(layout=True)
+
+    def close_details(self) -> None:
+        if self.details_pane:
+            self.details_pane.add_class("hidden")
+            self.refresh(layout=True)
+
+
 class EditorScreen(Screen):
     BINDINGS = [
         ("shift+enter", "commit", "Commit"),
@@ -2095,7 +2294,7 @@ class SearchableScreen(Screen):
             pass
 
 
-class WeeksScreen(SearchableScreen):  # instead of Screen
+class WeeksScreen(SearchableScreen, DetailsPaneMixin):  # instead of Screen
     def __init__(
         self,
         title: str,
@@ -2113,6 +2312,7 @@ class WeeksScreen(SearchableScreen):  # instead of Screen
 
     async def on_mount(self) -> None:
         self.update_table_and_list()
+        self.call_after_refresh(self.ensure_details_pane)
 
     def compose(self) -> ComposeResult:
         yield Static(
@@ -2134,7 +2334,7 @@ class WeeksScreen(SearchableScreen):  # instead of Screen
         self.query_one("#list", expect_type=ScrollableList).update_list(details[1:])
 
 
-class AgendaScreen(SearchableScreen):  # ← inherit your base
+class AgendaScreen(SearchableScreen, DetailsPaneMixin):  # ← inherit your base
     BINDINGS = [
         ("tab", "toggle_pane", "Switch Pane"),
         ("r", "refresh", "Refresh"),
@@ -2181,6 +2381,7 @@ class AgendaScreen(SearchableScreen):  # ← inherit your base
     def on_mount(self):
         self.refresh_data()
         self._activate_pane("tasks")
+        self.call_after_refresh(self.ensure_details_pane)
 
     def _activate_pane(self, which: str):
         self.active_pane = which
@@ -2231,7 +2432,7 @@ class AgendaScreen(SearchableScreen):  # ← inherit your base
         self.tasks_list.update_list(task_lines)
 
 
-class FullScreenList(SearchableScreen):
+class FullScreenList(DetailsPaneMixin, SearchableScreen):
     """Reusable full-screen list for Last, Next, and Find views."""
 
     def __init__(
@@ -2587,97 +2788,173 @@ class DynamicViewApp(App):
         if drawer and not drawer.has_class("hidden"):
             drawer.close()
 
-    def _ensure_screen_drawer(self) -> "DetailsDrawer":
+    # def _ensure_screen_drawer(self) -> "DetailsDrawer":
+    #     screen = self.screen
+    #     drawer = getattr(screen, "details_drawer", None)
+    #     if isinstance(drawer, DetailsDrawer) and drawer.parent is not None:
+    #         return drawer
+    #     drawer = DetailsDrawer()
+    #     screen.details_drawer = drawer
+    #     screen.mount(drawer)  # compose happens after refresh
+    #     return drawer
+    #
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     record_id, job_id = self._resolve_tag_to_record(tag)
+    #     if record_id is None:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #
+    #     drawer = self._ensure_screen_drawer()
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     if not parts:
+    #         # Schedule after refresh so nodes exist
+    #         drawer.call_after_refresh(
+    #             lambda: drawer.open_lines(
+    #                 title="(no details)", lines=["No item for that tag."]
+    #             )
+    #         )
+    #         return
+    #
+    #     title, lines = parts[0], parts[1:]
+    #     # Schedule after refresh so #d-title/#d-body exist
+    #     log_msg(f"{title = }, {lines = }")
+    #     drawer.call_after_refresh(lambda: drawer.open_lines(title=title, lines=lines))
+    #
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     drawer = self._ensure_screen_drawer()
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     if not parts:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #     title, lines = parts[0], parts[1:]
+    #     log_msg(f"{title = }, {lines = }")
+    #     drawer.open_lines(title=title, lines=lines)
+    #
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     drawer = (
+    #         self._ensure_screen_drawer()
+    #     )  # your helper that mounts/reuses the drawer
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     if not parts:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #     # This works even if the drawer was just mounted and not yet composed:
+    #     # drawer.open_from_parts(
+    #     #     parts
+    #     # )
+    #     title, lines = parts[0], parts[1:]
+    #     log_msg(f"{title = }, {lines = }")
+    #     drawer.open_lines(title=title, lines=lines)
+    #
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     drawer = (
+    #         self._ensure_screen_drawer()
+    #     )  # your helper that mounts/reuses the drawer
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     if not parts:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #     # This works even if the drawer was just mounted and not yet composed:
+    #     log_msg(f"{parts = }")
+    #     drawer.open_from_parts(
+    #         parts
+    #     )  # or drawer.open_lines(title=parts[0], lines=parts[1:])
+    #
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     record_id, job_id = self._resolve_tag_to_record(tag)
+    #     if record_id is None:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     if not parts:
+    #         self.notify("No details found.", severity="warning")
+    #         return
+    #
+    #     title, lines = parts[0], parts[1:]
+    #
+    #     screen = self.screen
+    #     if hasattr(screen, "show_details"):
+    #         screen.show_details(title, lines)
+    #     else:
+    #         # fallback for any old screen not yet mixed-in
+    #         self.push_screen(DetailsScreen(parts))
+    #
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     # resolve (record_id, job_id) with your existing helper…
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     if not parts:
+    #         return
+    #     title, lines = parts[0], parts[1:]
+    #     self.show_details(title, lines)
+    #
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     if not parts:
+    #         return
+    #     title, lines = parts[0], parts[1:]
+    #     self.show_details(title, lines)
+
+    def _screen_show_details(self, title: str, lines: list[str]) -> None:
         screen = self.screen
-        drawer = getattr(screen, "details_drawer", None)
-        if isinstance(drawer, DetailsDrawer) and drawer.parent is not None:
-            return drawer
-        drawer = DetailsDrawer()
-        screen.details_drawer = drawer
-        screen.mount(drawer)  # compose happens after refresh
-        return drawer
+        if hasattr(screen, "show_details"):
+            # DetailsPaneMixin: show inline at bottom
+            screen.show_details(title, lines)
+        else:
+            # Fallback to your full-screen DetailsScreen if a screen doesn't have the mixin
+            from tklr.view import DetailsScreen
 
-    def open_details_for_tag(self, tag: str) -> None:
-        record_id, job_id = self._resolve_tag_to_record(tag)
-        if record_id is None:
-            self.notify(f"Unknown tag '{tag}'", severity="warning")
-            return
+            self.push_screen(DetailsScreen([title] + lines))
 
-        drawer = self._ensure_screen_drawer()
+    def _open_details_for_tag_on_screen(self, tag: str) -> None:
+        # Resolve with your existing controller logic
         parts = self.controller.process_tag(tag, self.view, self.selected_week)
-        if not parts:
-            # Schedule after refresh so nodes exist
-            drawer.call_after_refresh(
-                lambda: drawer.open_lines(
-                    title="(no details)", lines=["No item for that tag."]
-                )
-            )
-            return
+        if parts:
+            title, lines = parts[0], parts[1:]
+            log_msg(f"{lines = }, {len(lines) = }")
+            if hasattr(self.screen, "open_details"):
+                self.screen.open_details(title, lines)
 
-        title, lines = parts[0], parts[1:]
-        # Schedule after refresh so #d-title/#d-body exist
-        log_msg(f"{title = }, {lines = }")
-        drawer.call_after_refresh(lambda: drawer.open_lines(title=title, lines=lines))
+    # def on_key(self, event):
+    #     # Give the drawer first chance at Esc (and optionally block letter tags while open)
+    #     drawer = getattr(self.screen, "details_drawer", None)
+    #     if isinstance(drawer, DetailsDrawer) and not drawer.has_class("hidden"):
+    #         if event.key == "escape":
+    #             drawer.close()
+    #             event.stop()
+    #             return
+    #         if len(event.key) == 1 and event.key.isalpha():
+    #             event.stop()
+    #             return
+    #
+    #     # Your existing tag input:
+    #     if event.key in "abcdefghijklmnopqrstuvwxyz":
+    #         self.digit_buffer.append(event.key)
+    #         if len(self.digit_buffer) == self.afill:
+    #             base26_tag = "".join(self.digit_buffer)
+    #             self.digit_buffer.clear()
+    #             self._open_details_for_tag_on_screen(base26_tag)
 
-    def open_details_for_tag(self, tag: str) -> None:
-        drawer = self._ensure_screen_drawer()
-        parts = self.controller.process_tag(tag, self.view, self.selected_week)
-        if not parts:
-            self.notify(f"Unknown tag '{tag}'", severity="warning")
-            return
-        title, lines = parts[0], parts[1:]
-        log_msg(f"{title = }, {lines = }")
-        drawer.open_lines(title=title, lines=lines)
+    def on_key(self, event: events.Key) -> None:
+        """Handle global key events (tags, escape, etc.)."""
+        log_msg(f"{self.afill = }")
 
-    def open_details_for_tag(self, tag: str) -> None:
-        drawer = (
-            self._ensure_screen_drawer()
-        )  # your helper that mounts/reuses the drawer
-        parts = self.controller.process_tag(tag, self.view, self.selected_week)
-        if not parts:
-            self.notify(f"Unknown tag '{tag}'", severity="warning")
-            return
-        # This works even if the drawer was just mounted and not yet composed:
-        # drawer.open_from_parts(
-        #     parts
-        # )
-        title, lines = parts[0], parts[1:]
-        log_msg(f"{title = }, {lines = }")
-        drawer.open_lines(title=title, lines=lines)
-
-    def open_details_for_tag(self, tag: str) -> None:
-        drawer = (
-            self._ensure_screen_drawer()
-        )  # your helper that mounts/reuses the drawer
-        parts = self.controller.process_tag(tag, self.view, self.selected_week)
-        if not parts:
-            self.notify(f"Unknown tag '{tag}'", severity="warning")
-            return
-        # This works even if the drawer was just mounted and not yet composed:
-        log_msg(f"{parts = }")
-        drawer.open_from_parts(
-            parts
-        )  # or drawer.open_lines(title=parts[0], lines=parts[1:])
-
-    def on_key(self, event):
-        # Give the drawer first chance at Esc (and optionally block letter tags while open)
-        drawer = getattr(self.screen, "details_drawer", None)
-        if isinstance(drawer, DetailsDrawer) and not drawer.has_class("hidden"):
-            if event.key == "escape":
-                drawer.close()
-                event.stop()
-                return
-            if len(event.key) == 1 and event.key.isalpha():
-                event.stop()
-                return
-
-        # Your existing tag input:
+        # Handle tag input (letters)
         if event.key in "abcdefghijklmnopqrstuvwxyz":
             self.digit_buffer.append(event.key)
             if len(self.digit_buffer) == self.afill:
                 base26_tag = "".join(self.digit_buffer)
                 self.digit_buffer.clear()
-                self.open_details_for_tag(base26_tag)
+                self._open_details_for_tag_on_screen(base26_tag)
+                return
+
+        if event.key == "escape":
+            # if current screen has a details pane, close it
+            screen = self.screen
+            if hasattr(screen, "close_details"):
+                screen.close_details()
+                event.stop()
+                return
 
     def action_take_screenshot(self):
         """Save a screenshot of the current app state."""
