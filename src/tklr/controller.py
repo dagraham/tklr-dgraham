@@ -245,7 +245,7 @@ def format_tokens(tokens, width):
         output_lines.insert(0, line)
     log_msg(f"{output_lines = }")
 
-    return "\n".join(highlight(line) for line in output_lines)
+    return "\n ".join(highlight(line) for line in output_lines)
 
 
 def wrap_preserve_newlines(text, width=70, initial_indent="", subsequent_indent=""):
@@ -564,7 +564,7 @@ class Controller:
         result = self.db_manager.get_structured_tokens(record_id)
         tokens, rruleset, created, modified = result[0]
         entry = format_tokens(tokens, self.width)
-        rruleset = f"\n{12 * ' '}".join(rruleset.splitlines())
+        rruleset = f"\n{11 * ' '}".join(rruleset.splitlines())
         log_msg(f"{entry = }, {rruleset = }, {created = }, {modified = }")
         lines = []
         rr_line = (
@@ -709,9 +709,14 @@ class Controller:
 
         self.list_tag_to_id.setdefault("alerts", {})
         # self.afill = 1 if len(alerts) <= 26 else 2 if len(alerts) <= 676 else 3
-        self.set_afill(alerts, "get_active_alerts")
+        # self.set_afill(alerts, "get_active_alerts")
+        # indx = 0
+        # tag = indx_to_tag(indx, self.afill)
+
+        self.set_afill(alerts, "alerts")
         indx = 0
-        tag = indx_to_tag(indx, self.afill)
+        self.list_tag_to_id.setdefault("alerts", {})
+
         for alert in alerts:
             log_msg(f"Alert: {alert = }")
             # alert_id, record_id, record_name, start_dt, td, command
@@ -724,22 +729,15 @@ class Controller:
                 alert_name,
                 alert_command,
             ) = alert
-            tag = indx_to_tag(indx, self.afill)
-            self.list_tag_to_id["alerts"][tag] = record_id
-            indx += 1
             if now > datetime_from_timestamp(trigger_datetime):
                 continue
+            tag_fmt, indx = self.add_tag("alerts", indx, record_id)
             trtime = self.format_datetime(trigger_datetime)
-            # tdtime = format_timedelta(start_datetime - trigger_datetime)
             sttime = self.format_datetime(start_datetime)
-            # starting = f"{format_datetime(trigger_datetime):<7} {format_timedelta(start_datetime - trigger_datetime):>4} → {format_datetime(start_datetime)}"
             subject = truncate_string(record_name, name_width)
             row = "  ".join(
                 [
-                    f"[dim]{tag:^3}[/dim]",
-                    # f"[{SALMON}]{alert_name:^3}[/{SALMON}]",
-                    # f"[bold yellow]{trtime:<7}[/bold yellow]",
-                    # f"[{EVENT_COLOR}]{tdtime:>4} → {sttime:<7}[/{EVENT_COLOR}]",
+                    f"{tag_fmt}",
                     f"[{SALMON}] {alert_name}{trtime:>7}[/{SALMON}][{PALE_GREEN}] → {sttime:<7}[/{PALE_GREEN}]",
                     f"[{AVAILABLE_COLOR}]{subject:<{name_width}}[/{AVAILABLE_COLOR}]",
                 ]
@@ -1272,193 +1270,6 @@ class Controller:
             grouped[date].sort(key=lambda x: x[0])
 
         return dict(grouped)
-
-    def get_agenda_events(self, now: datetime = datetime.now()):
-        """
-        Returns dict: date -> list of (label, subject, record_id)
-        """
-        mode = "12" if self.AMPM else "24"
-        log_msg(f"{self.AMPM = }, {mode = }")
-        begin_records = (
-            self.db_manager.get_beginby_for_events()
-        )  # (record_id, days_remaining, subject)
-        draft_records = self.db_manager.get_drafts()  # (record_id, subject)
-        # now = datetime.now()
-        today = now.date()
-        now_ts = _fmt_naive(now)
-        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        events = self.db_manager.get_events_for_period(
-            _to_local_naive(start), _to_local_naive(start + timedelta(days=14))
-        )
-        # events: (start_ts, end_ts, itemtype, subject, record_id)
-        grouped_by_date = self.group_events_by_date_and_time(events)
-
-        events_by_date = {}
-
-        indx = 0
-
-        for date, entries in grouped_by_date.items():
-            events_by_date.setdefault(date, [])
-            for time, (start_ts, end_ts, subject, record_id) in entries:
-                if not end_ts:
-                    end_ts = start_ts
-                label = format_time_range(start_ts, end_ts, self.AMPM)
-                if end_ts.endswith("T000000"):
-                    color = ALLDAY_COLOR
-                elif end_ts <= now_ts:
-                    color = PASSED_EVENT
-                elif start_ts <= now_ts:
-                    color = ACTIVE_EVENT
-                else:
-                    color = EVENT_COLOR
-                events_by_date[date].append(
-                    (
-                        record_id,
-                        f"[{color}]{label}[/{color}]" if label.strip() else "",
-                        f"[{color}]{subject}[/{color}]",
-                    )
-                )
-
-        if today not in events_by_date:
-            events_by_date[today] = []
-
-        for record_id, days_remaining, subject in begin_records:
-            events_by_date[today].append(
-                (
-                    record_id,
-                    f"[{BEGIN_COLOR}]⮕  +{days_remaining}[/{BEGIN_COLOR}]",
-                    f"[{BEGIN_COLOR}]{subject}[/{BEGIN_COLOR}]",
-                )
-            )
-
-        for record_id, subject in draft_records:
-            events_by_date[today].append(
-                (
-                    record_id,
-                    f"[{DRAFT_COLOR}] ? [/{DRAFT_COLOR}]",
-                    f"[{DRAFT_COLOR}]{subject}[/{DRAFT_COLOR}]",
-                )
-            )
-
-        indx = 0
-        indexed_events_by_date = {}
-        event_count = sum(len(entries) for _, entries in events_by_date.items())
-        self.set_afill(range(event_count), "events")
-
-        self.afill_by_view["events"] = self.afill
-        self.list_tag_to_id.setdefault("events", {})
-        for date, records in events_by_date.items():
-            for record_id, label, subject in records:
-                tag_fmt, indx = self.add_tag("events", indx, record_id)
-                indexed_events_by_date.setdefault(date, []).append(
-                    (
-                        tag_fmt,
-                        label,
-                        subject,
-                    )
-                )
-        log_msg(f"{self.list_tag_to_id['events'] = }")
-        return indexed_events_by_date
-
-    def get_agenda_events(self, now: datetime = datetime.now()):
-        """
-        Returns dict: date -> list of (tag_fmt, label, subject),
-        limited to the first 3 dates (>= today) that actually have events.
-        """
-        mode = "12" if self.AMPM else "24"
-        log_msg(f"{self.AMPM = }, {mode = }")
-
-        begin_records = (
-            self.db_manager.get_beginby_for_events()
-        )  # (record_id, days_remaining, subject)
-        draft_records = self.db_manager.get_drafts()  # (record_id, subject)
-
-        today = now.date()
-        now_ts = _fmt_naive(now)
-        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        # Pull up to two weeks, like before
-        events = self.db_manager.get_events_for_period(
-            _to_local_naive(start),
-            _to_local_naive(start + timedelta(days=14)),
-        )
-        # events: (start_ts, end_ts, itemtype, subject, record_id)
-        grouped_by_date = self.group_events_by_date_and_time(
-            events
-        )  # {date: [(time_key, (start_ts, end_ts, subject, record_id)), ...]}
-
-        # --- pick the first 3 dates >= today that actually have events
-        candidate_dates = sorted(d for d, entries in grouped_by_date.items() if entries)
-        allowed_dates = []
-        for d in candidate_dates:
-            if d >= today:
-                allowed_dates.append(d)
-                if len(allowed_dates) == 3:
-                    break
-
-        events_by_date: dict[date, list[tuple[int, str, str]]] = {}
-
-        for d in allowed_dates:
-            entries = grouped_by_date.get(d, [])
-            if not entries:
-                continue
-            events_by_date.setdefault(d, [])
-            for time_key, (start_ts, end_ts, subject, record_id) in entries:
-                if not end_ts:
-                    end_ts = start_ts
-                label = format_time_range(start_ts, end_ts, self.AMPM)
-                if end_ts.endswith("T000000"):
-                    color = ALLDAY_COLOR
-                elif end_ts <= now_ts:
-                    color = PASSED_EVENT
-                elif start_ts <= now_ts:
-                    color = ACTIVE_EVENT
-                else:
-                    color = EVENT_COLOR
-                events_by_date[d].append(
-                    (
-                        record_id,
-                        f"[{color}]{label}[/{color}]" if label.strip() else "",
-                        f"[{color}]{subject}[/{color}]",
-                    )
-                )
-
-        # Only add Begin/Drafts if TODAY is one of the selected days
-        if today in events_by_date:
-            for record_id, days_remaining, subject in begin_records:
-                events_by_date[today].append(
-                    (
-                        record_id,
-                        f"[{BEGIN_COLOR}]⮕ +{days_remaining}[/{BEGIN_COLOR}]",
-                        f"[{BEGIN_COLOR}]{subject}[/{BEGIN_COLOR}]",
-                    )
-                )
-            for record_id, subject in draft_records:
-                events_by_date[today].append(
-                    (
-                        record_id,
-                        f"[{DRAFT_COLOR}] ? [/{DRAFT_COLOR}]",
-                        f"[{DRAFT_COLOR}]{subject}[/{DRAFT_COLOR}]",
-                    )
-                )
-
-        # Tag + index
-        indexed_events_by_date: dict[date, list[tuple[str, str, str]]] = {}
-        event_count = sum(len(entries) for _, entries in events_by_date.items())
-        self.set_afill(range(event_count), "events")
-        self.afill_by_view["events"] = self.afill
-        self.list_tag_to_id.setdefault("events", {})
-
-        indx = 0
-        for d in sorted(events_by_date.keys()):
-            for record_id, label, subject in events_by_date[d]:
-                tag_fmt, indx = self.add_tag("events", indx, record_id)
-                indexed_events_by_date.setdefault(d, []).append(
-                    (tag_fmt, label, subject)
-                )
-
-        log_msg(f"{self.list_tag_to_id['events'] = }")
-        return indexed_events_by_date
 
     def get_agenda_events(self, now: datetime = datetime.now()):
         """

@@ -68,11 +68,6 @@ Footer {
   border: none; /* no line beneath the details pane */
 }
 
-/* ── Details screen (modal screen, not the pane) ─── */
-DetailsScreen {
-  align: center middle;
-}
-
 /* ── Details Pane ───────────────────────────── */
 #details-pane {
   dock: bottom;

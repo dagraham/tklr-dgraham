@@ -307,130 +307,6 @@ class ListWithDetails(Container):
         self._main.focus()
 
 
-class DetailsDrawer(Widget):
-    """Bottom drawer that shows a record’s details (read-only)."""
-
-    DEFAULT_CSS = """
-    DetailsDrawer {
-        layout: vertical;       /* header then body */
-        dock: bottom;           /* sit at screen bottom */
-        background: $panel;
-        /* keep or remove the next line depending on whether you want a top separator */
-        border-top: heavy $accent;
-        padding: 1 2;
-        height: auto;
-        max-height: 40%;
-    }
-    DetailsDrawer.hidden {
-        display: none;
-    }
-
-    /* Remove any inner borders so no box around content */
-    DetailsDrawer ScrollView, DetailsDrawer Static {
-        border: none;
-    }
-
-    /* Header (title only) */
-    .hdr {
-        width: 100%;
-        height: 1;
-    }
-    #d-title {
-        width: 1fr;             /* expand */
-        max-width: 1fr;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding-right: 1;
-    }
-
-    /* Body must be able to grow and scroll */
-    #d-body {
-        height: 1fr;            /* take remaining space */
-        max-height: 1fr;
-    }
-    """
-
-    # state
-    record_id: reactive[int | None] = reactive(None)
-    on_close: Optional[Callable[[], None]] = None
-
-    # queue to handle early open() calls (before mount)
-    _pending_title: Optional[str] = None
-    _pending_lines: Optional[List[str]] = None
-
-    def compose(self) -> ComposeResult:
-        # Header
-        yield Horizontal(
-            # Static("Details", classes="labels"),
-            Static("", id="d-title", markup=True),
-            classes="hdr",
-        )
-        # Body (scrollable)
-        with Grid(classes="row"):
-            with ScrollView(id="d-body"):
-                yield Static("", id="d-body-content", markup=True)
-
-    # ---------- public API ----------
-
-    def open_lines(self, *, title: str, lines: List[str]) -> None:
-        """Open with a pre-rendered title and body lines (Rich markup)."""
-        # Save pending in case we are not mounted yet
-        self._pending_title = title
-        self._pending_lines = lines
-
-        def _apply():
-            try:
-                self.query_one("#d-title", Static).update(self._pending_title or "")
-                self.query_one("#d-body-content", Static).update(
-                    "\n".join(self._pending_lines or [])
-                )
-                self.remove_class("hidden")
-                self.focus()
-            except Exception:
-                # If nodes still aren’t present, leave it queued; on_mount will apply.
-                pass
-
-        # Try now…
-        _apply()
-        # …and try again next frame (ensures availability after mount/refresh)
-        try:
-            self.call_after_refresh(_apply)
-        except Exception:
-            pass  # older Textual versions without call_after_refresh
-
-    def open_from_parts(self, parts: List[str]) -> None:
-        if not parts:
-            self.open_lines(title="(no details)", lines=["No item found for that tag."])
-            return
-        self.open_lines(title=parts[0], lines=parts[1:])
-
-    def close(self) -> None:
-        self.add_class("hidden")
-        try:
-            self.app.set_focus(None)
-        except Exception:
-            pass
-        if self.on_close:
-            self.on_close()
-
-    # ---------- lifecycle & input ----------
-
-    def on_mount(self) -> None:
-        # Start hidden
-        self.add_class("hidden")
-        # If something is queued, apply it now
-        if self._pending_title is not None or self._pending_lines is not None:
-            self.open_lines(
-                title=self._pending_title or "",
-                lines=self._pending_lines or [],
-            )
-
-    def on_key(self, event: events.Key) -> None:
-        if event.key in ("escape"):
-            event.stop()
-            self.close()
-
-
 class DetailsHelpScreen(ModalScreen[None]):
     BINDINGS = [
         ("escape", "app.pop_screen", "Close"),
@@ -478,237 +354,6 @@ class HelpModal(ModalScreen[None]):
 
     def action_dismiss(self) -> None:
         self.app.pop_screen()
-
-
-# class DetailsPaneMixin:
-#     """Mixin to add a reusable, scrollable details pane to any Screen."""
-#
-#     _details_container = None  # Container
-#     _details_title = None  # Static
-#     _details_body = None  # ScrollView
-#     _details_content = None  # Static inside the ScrollView
-#
-#     def ensure_details_pane(self) -> None:
-#         """Create and mount the details pane once (idempotent, sync-safe)."""
-#         if self._details_container is not None:
-#             return
-#
-#         # Build entire subtree BEFORE mounting anything:
-#         self._details_title = Static("Details", id="details_title")
-#
-#         # Body: ScrollView with a Static child that we update with Rich markup
-#         self._details_content = Static("", id="details_content", markup=True)
-#         self._details_body = ScrollView(self._details_content, id="details_body")
-#
-#         # Single container holding title + scrollable body; starts hidden
-#         self._details_container = Container(
-#             self._details_title,
-#             self._details_body,
-#             id="details-pane",
-#             classes="hidden",
-#         )
-#
-#         # Mount the container (and its children) in one go — no ordering issues
-#         self.mount(self._details_container)
-#
-#     def show_details(self, title: str, lines: list[str]) -> None:
-#         self.ensure_details_pane()
-#         self._details_title.update(title)
-#         # join with newlines; content scrolls automatically inside ScrollView
-#         self._details_content.update("\n".join(lines))
-#         self._details_container.remove_class("hidden")
-#         # Focus the scrollview so arrows/PageUp/PageDown scroll it
-#         try:
-#             self.set_focus(self._details_body)
-#         except Exception:
-#             pass
-#
-#     def hide_details(self) -> None:
-#         if self._details_container is not None:
-#             self._details_container.add_class("hidden")
-#         # Return focus to your pane if you expose get_search_target()
-#         if hasattr(self, "get_search_target"):
-#             try:
-#                 self.set_focus(self.get_search_target())
-#             except Exception:
-#                 pass
-#
-#     def details_visible(self) -> bool:
-#         return (
-#             self._details_container is not None
-#             and not self._details_container.has_class("hidden")
-#         )
-
-
-class DetailsPaneMixin:
-    details_pane: Container | None = None
-
-    def ensure_details_pane(self) -> Container:
-        if self.details_pane and self.details_pane.parent:
-            return self.details_pane
-
-        # Build pane
-        pane = Container(
-            Vertical(
-                Horizontal(
-                    # Static("Details", classes="labels"),
-                    Static("", id="details-title", markup=True),
-                    classes="hdr",
-                ),
-                ScrollView(
-                    Static("", id="details-body-content", markup=True),
-                    id="details-body",
-                ),
-            ),
-            id="details-pane",
-        )
-        # Start hidden
-        pane.add_class("hidden")
-        self.mount(pane)
-        self.details_pane = pane
-        return pane
-
-    def open_details(self, title: str, lines: list[str]) -> None:
-        pane = self.ensure_details_pane()
-        pane.remove_class("hidden")
-        self.query_one("#details-title", Static).update(title)
-        self.query_one("#details-body-content", Static).update("\n".join(lines))
-        # scroll to top so first line is visible
-        try:
-            self.query_one("#details-body", ScrollView).scroll_home(animate=False)
-        except Exception:
-            pass
-        self.refresh(layout=True)
-
-    def close_details(self) -> None:
-        if self.details_pane:
-            self.details_pane.add_class("hidden")
-            self.refresh(layout=True)
-
-
-class DetailsPaneMixin:
-    details_pane: Container | None = None
-
-    def ensure_details_pane(self) -> Container:
-        if self.details_pane and self.details_pane.parent:
-            return self.details_pane
-
-        pane = Container(
-            Horizontal(
-                Static("", id="details-title", markup=True),
-                classes="hdr",
-            ),
-            ScrollView(
-                Static("", id="details-body-content", markup=True),
-                id="details-body",
-                can_focus=True,
-            ),
-            id="details-pane",
-        )
-        pane.add_class("hidden")
-        self.mount(pane)
-        self.details_pane = pane
-
-    def open_details(self, title: str, lines: list[str]) -> None:
-        pane = self.ensure_details_pane()
-        pane.remove_class("hidden")
-
-        self.query_one("#details-title", Static).update(title)
-        self.query_one("#details-body-content", Static).update("\n".join(lines))
-
-        # content_rows = _measure_rows(lines)
-        # header_rows = 2  # title + padding; adjust if you change CSS
-        # want_rows = content_rows + header_rows
-        #
-        # # 40% of terminal height (at least, say, 5 rows)
-        # term_rows = max(1, self.app.size.height)
-        # cap_rows = max(5, int(term_rows * 0.40))
-        #
-        # final_rows = min(want_rows, cap_rows)
-        # log_msg(f"{content_rows = }, {final_rows = }")
-        #
-        # # Apply explicit height so #details-body’s height:1fr is meaningful
-        # pane.styles.height = final_rows
-        #
-        # # Make sure the scroll view is focused so wheel/keys work
-        # body = self.query_one("#details-body", ScrollView)
-        # body.scroll_home(animate=False)
-        # self.set_focus(body)
-
-        content_rows = _measure_rows(lines)
-        header_rows = 2  # title + a little spacing
-        want_rows = content_rows + header_rows
-
-        cap_rows = 14  # <- your max height in rows (pick what feels right)
-        pane = self.ensure_details_pane()
-
-        pane.styles.height = min(want_rows, cap_rows)
-        pane.styles.max_height = None  # don't fight the fixed height
-        pane.styles.min_height = 3  # optional floor
-
-        body = self.query_one("#details-body", ScrollView)
-        body.styles.height = "1fr"
-        body.styles.overflow = "auto"
-        self.set_focus(body)
-
-        self.query_one("#details-title", Static).update(title)
-        self.query_one("#details-body-content", Static).update("\n".join(lines))
-        pane.remove_class("hidden")
-        try:
-            body.scroll_home(animate=False)
-        except Exception:
-            log_msg("scroll failed")
-            pass
-        self.refresh(layout=True)
-
-    def close_details(self) -> None:
-        if self.details_pane:
-            self.details_pane.add_class("hidden")
-            self.refresh(layout=True)
-
-
-class DetailsPaneMixin:
-    details_pane: Container | None = None
-
-    def ensure_details_pane(self) -> Container:
-        if self.details_pane and self.details_pane.parent:
-            return self.details_pane
-
-        pane = Container(
-            Vertical(
-                Horizontal(
-                    Static("", id="details-title", markup=True),
-                    classes="hdr",
-                ),
-                ScrollView(
-                    Static("", id="details-body-content", markup=True),
-                    id="details-body",
-                    can_focus=True,  # ← keyboard scrolling
-                ),
-            ),
-            id="details-pane",
-        )
-        pane.add_class("hidden")
-        self.mount(pane)
-        self.details_pane = pane
-        return pane
-
-    def open_details(self, title: str, lines: list[str]) -> None:
-        pane = self.ensure_details_pane()
-        # Update content
-        self.query_one("#details-title", Static).update(title)
-        self.query_one("#details-body-content", Static).update("\n".join(lines))
-        # Show + focus the scrollable body so arrow keys work immediately
-        pane.remove_class("hidden")
-        body = self.query_one("#details-body", ScrollView)
-        body.scroll_home(animate=False)
-        self.set_focus(body)
-        self.refresh(layout=True)
-
-    def close_details(self) -> None:
-        if self.details_pane:
-            self.details_pane.add_class("hidden")
-            self.refresh(layout=True)
 
 
 class EditorScreen(Screen):
@@ -1342,46 +987,6 @@ class SearchableScreen(Screen):
             pass
 
 
-class WeeksScreen(SearchableScreen, DetailsPaneMixin):  # instead of Screen
-    def __init__(
-        self,
-        title: str,
-        table: str,
-        list_title: str,
-        details: list[str],
-        footer_content: str,
-    ):
-        super().__init__()
-        self.table_title = title
-        self.table = table
-        self.list_title = list_title
-        self.details = details
-        self.footer_content = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
-
-    async def on_mount(self) -> None:
-        self.update_table_and_list()
-        self.call_after_refresh(self.ensure_details_pane)
-
-    def compose(self) -> ComposeResult:
-        yield Static(
-            self.table_title or "Untitled", id="table_title", classes="title-class"
-        )
-        yield Static(self.table or "[i]No data[/i]", id="table", classes="weeks-table")
-        yield Static(self.list_title, id="list_title", classes="title-class")
-        yield ScrollableList(self.details, id="list")
-        # yield Static(self.footer_content, id="details_footer")
-        yield Static(self.footer_content)
-
-    def update_table_and_list(self):
-        title, table, details = self.app.controller.get_table_and_list(
-            self.app.current_start_date, self.app.selected_week
-        )
-        self.query_one("#table_title", expect_type=Static).update(title)
-        self.query_one("#table", expect_type=Static).update(table)
-        self.query_one("#list_title", expect_type=Static).update(details[0])
-        self.query_one("#list", expect_type=ScrollableList).update_list(details[1:])
-
-
 class WeeksScreen(SearchableScreen):
     """4-week grid with a bottom details panel, powered by ListWithDetails."""
 
@@ -1584,37 +1189,6 @@ class AgendaScreen(SearchableScreen):
         pane_view.show_details(title, lines)
 
 
-class FullScreenList(DetailsPaneMixin, SearchableScreen):
-    """Reusable full-screen list for Last, Next, and Find views."""
-
-    def __init__(
-        self,
-        details: list[str],
-        footer_content: str = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search",
-    ):
-        super().__init__()
-        if details:
-            self.title = details[0]  # First line is the title
-            self.header = details[1]  # First line is also the header
-            self.lines = details[2:]  # Remaining lines are scrollable content
-        else:
-            self.title = "Untitled"
-            self.lines = []
-        # self.footer_content = footer_content
-        self.footer_content = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
-        log_msg(f"FullScreenList: {details[:3] = }")
-
-    def compose(self) -> ComposeResult:
-        """Compose the layout."""
-
-        yield Static(self.title, id="scroll_title", expand=True, classes="title-class")
-        yield Static(
-            self.header, id="scroll_header", expand=True, classes="header-class"
-        )
-        yield ScrollableList(self.lines, id="list")  # Using "list" as the ID
-        yield Static(self.footer_content, id="custom_footer")
-
-
 class FullScreenList(SearchableScreen):
     """Reusable full-screen list for Last, Next, and Find views."""
 
@@ -1741,10 +1315,10 @@ class DynamicViewApp(App):
 
     async def on_mount(self):
         # mount the drawer (hidden by default)
-        self.details_drawer = DetailsDrawer()
+        # self.details_drawer = DetailsDrawer()
         # when the drawer closes, put focus back where it belongs
-        self.details_drawer.on_close = self._return_focus_to_active_screen
-        self.mount(self.details_drawer)
+        # self.details_drawer.on_close = self._return_focus_to_active_screen
+        # self.mount(self.details_drawer)
 
         # open default screen
         self.action_show_weeks()
@@ -1782,72 +1356,6 @@ class DynamicViewApp(App):
         meta = mapping.get(tag, {})
         return meta.get("record_id"), meta.get("job_id")
 
-    # def _ensure_screen_drawer(self):
-    #     scr = self.screen
-    #     if not hasattr(scr, "details_drawer") or scr.details_drawer is None:
-    #         scr.details_drawer = DetailsDrawer()
-    #         scr.mount(scr.details_drawer)  # mount INSIDE the screen
-    #     return scr.details_drawer
-    #
-    # def _ensure_screen_drawer(self):
-    #     scr = self.screen
-    #     if not hasattr(scr, "details_drawer") or scr.details_drawer is None:
-    #         scr.details_drawer = DetailsDrawer()
-    #         scr.mount(scr.details_drawer)
-    #     return scr.details_drawer
-    #
-    # def _ensure_screen_drawer(self):
-    #     screen = self.screen
-    #     drawer = getattr(screen, "details_drawer", None)
-    #
-    #     # Reuse existing if it’s still mounted under the screen
-    #     if drawer and drawer.parent is screen:
-    #         return drawer
-    #
-    #     # Create + mount
-    #     drawer = DetailsDrawer()
-    #     screen.details_drawer = drawer
-    #     screen.mount(drawer)
-    #     return drawer
-
-    def _ensure_screen_drawer(self):
-        screen = self.screen
-        drawer = getattr(screen, "details_drawer", None)
-
-        # Reuse existing if it’s still mounted under the screen
-        if drawer and drawer.parent is screen:
-            return drawer
-
-        # Create + mount
-        drawer = DetailsDrawer()
-        screen.details_drawer = drawer
-        screen.mount(drawer)
-        return drawer
-
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     log_msg(f"{tag = }, {self.details_drawer = }")
-    #     if not self.details_drawer:
-    #         return
-    #     record_id, job_id = self._resolve_tag_to_record(tag)
-    #     log_msg(f"{record_id = }, {job_id = }")
-    #     if record_id:
-    #         self.details_drawer.open(
-    #             record_id=record_id, controller=self.controller, job_id=job_id
-    #         )
-    #     else:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     if not getattr(self, "details_drawer", None):
-    #         return
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     if not parts:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #     title, lines = parts[0], parts[1:]
-    #     log_msg(f"{title = }, {lines = }")
-    #     self.details_drawer.open_lines(title=title, lines=lines)
-
     def open_details_for_tag(self, tag: str) -> None:
         parts = self.controller.process_tag(tag, self.view, self.selected_week)
         if not parts:
@@ -1857,24 +1365,6 @@ class DynamicViewApp(App):
 
         drawer = self._ensure_screen_drawer()
         drawer.open_lines(title=title, lines=lines)  # shows and focuses
-
-    def _ensure_screen_drawer(self) -> "DetailsDrawer":
-        """
-        Ensure the active Screen has a DetailsDrawer mounted and return it.
-        We keep the drawer per-screen so each view can manage its own state.
-        """
-        screen = self.screen
-        # Reuse if it already exists
-        drawer = getattr(screen, "details_drawer", None)
-        if drawer is not None and not drawer.is_destroyed:
-            return drawer
-
-        # Create + mount
-        drawer = DetailsDrawer()
-        # Stash a reference on the screen so repeated opens don't remount
-        setattr(screen, "details_drawer", drawer)
-        screen.mount(drawer)
-        return drawer
 
     def _resolve_tag_to_record(self, tag: str) -> tuple[int | None, int | None]:
         """
@@ -1894,95 +1384,6 @@ class DynamicViewApp(App):
         # backward compatibility (old mapping was tag -> record_id)
         return meta, None
 
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     """
-    #     Resolve tag → (record_id, job_id), build details via controller.process_tag,
-    #     then open the bottom drawer with those lines.
-    #     """
-    #     record_id, job_id = self._resolve_tag_to_record(tag)
-    #     if not record_id:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #
-    #     # Reuse your existing single source of truth builder
-    #     details_lines = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     if not details_lines:
-    #         self.notify("No details available.", severity="warning")
-    #         return
-    #
-    #     title, *lines = details_lines
-    #
-    #     drawer = self._ensure_screen_drawer()
-    #     drawer.open_lines(title=title, lines=lines)
-    #
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     record_id, job_id = self._resolve_tag_to_record(tag)
-    #     if not record_id:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week) or []
-    #     if not parts:
-    #         parts = ["(no details)", "No item found for that tag."]
-    #
-    #     title, lines = parts[0], parts[1:]
-    #
-    #     drawer = self._ensure_screen_drawer()
-    #     # <- IMPORTANT: defer until after compose/mount has run
-    #     self.call_after_refresh(lambda: drawer.open_lines(title=title, lines=lines))
-    #
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     record_id, job_id = self._resolve_tag_to_record(tag)
-    #     if not record_id:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week) or []
-    #     if not parts:
-    #         parts = ["(no details)", "No item found for that tag."]
-    #
-    #     title, lines = parts[0], parts[1:]
-    #
-    #     drawer = self._ensure_screen_drawer()  # mounts or returns existing
-    #     self.call_after_refresh(lambda: drawer.open_lines(title=title, lines=lines))
-    #
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     drawer = (
-    #         self._ensure_screen_drawer()
-    #     )  # mounts/reuses DetailsDrawer on current screen
-    #     record_id, job_id = self._resolve_tag_to_record(tag)
-    #     if record_id is None:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #     drawer.open_tag(
-    #         controller=self.controller,
-    #         tag=tag,
-    #         view=self.view,
-    #         selected_week=self.selected_week,
-    #     )
-    #
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     drawer = self._ensure_screen_drawer()
-    #     record_id, job_id = self._resolve_tag_to_record(tag)
-    #     if record_id is None:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #     drawer.open_tag(
-    #         controller=self.controller,
-    #         tag=tag,
-    #         view=self.view,
-    #         selected_week=self.selected_week,
-    #     )
-    #
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     drawer = self._ensure_screen_drawer()
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     if not parts:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #     title, lines = parts[0], parts[1:]
-    #     drawer.open_lines(title=title, lines=lines)
-
     def open_details_for_tag(self, tag: str) -> None:
         drawer = self._ensure_screen_drawer()  # your mount/reuse helper
         parts = self.controller.process_tag(tag, self.view, self.selected_week)
@@ -1996,113 +1397,6 @@ class DynamicViewApp(App):
         drawer = getattr(screen, "details_drawer", None)
         if drawer and not drawer.has_class("hidden"):
             drawer.close()
-
-    # def _ensure_screen_drawer(self) -> "DetailsDrawer":
-    #     screen = self.screen
-    #     drawer = getattr(screen, "details_drawer", None)
-    #     if isinstance(drawer, DetailsDrawer) and drawer.parent is not None:
-    #         return drawer
-    #     drawer = DetailsDrawer()
-    #     screen.details_drawer = drawer
-    #     screen.mount(drawer)  # compose happens after refresh
-    #     return drawer
-    #
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     record_id, job_id = self._resolve_tag_to_record(tag)
-    #     if record_id is None:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #
-    #     drawer = self._ensure_screen_drawer()
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     if not parts:
-    #         # Schedule after refresh so nodes exist
-    #         drawer.call_after_refresh(
-    #             lambda: drawer.open_lines(
-    #                 title="(no details)", lines=["No item for that tag."]
-    #             )
-    #         )
-    #         return
-    #
-    #     title, lines = parts[0], parts[1:]
-    #     # Schedule after refresh so #d-title/#d-body exist
-    #     log_msg(f"{title = }, {lines = }")
-    #     drawer.call_after_refresh(lambda: drawer.open_lines(title=title, lines=lines))
-    #
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     drawer = self._ensure_screen_drawer()
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     if not parts:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #     title, lines = parts[0], parts[1:]
-    #     log_msg(f"{title = }, {lines = }")
-    #     drawer.open_lines(title=title, lines=lines)
-    #
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     drawer = (
-    #         self._ensure_screen_drawer()
-    #     )  # your helper that mounts/reuses the drawer
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     if not parts:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #     # This works even if the drawer was just mounted and not yet composed:
-    #     # drawer.open_from_parts(
-    #     #     parts
-    #     # )
-    #     title, lines = parts[0], parts[1:]
-    #     log_msg(f"{title = }, {lines = }")
-    #     drawer.open_lines(title=title, lines=lines)
-    #
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     drawer = (
-    #         self._ensure_screen_drawer()
-    #     )  # your helper that mounts/reuses the drawer
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     if not parts:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #     # This works even if the drawer was just mounted and not yet composed:
-    #     log_msg(f"{parts = }")
-    #     drawer.open_from_parts(
-    #         parts
-    #     )  # or drawer.open_lines(title=parts[0], lines=parts[1:])
-    #
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     record_id, job_id = self._resolve_tag_to_record(tag)
-    #     if record_id is None:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     if not parts:
-    #         self.notify("No details found.", severity="warning")
-    #         return
-    #
-    #     title, lines = parts[0], parts[1:]
-    #
-    #     screen = self.screen
-    #     if hasattr(screen, "show_details"):
-    #         screen.show_details(title, lines)
-    #     else:
-    #         # fallback for any old screen not yet mixed-in
-    #         self.push_screen(DetailsScreen(parts))
-    #
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     # resolve (record_id, job_id) with your existing helper…
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     if not parts:
-    #         return
-    #     title, lines = parts[0], parts[1:]
-    #     self.show_details(title, lines)
-    #
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     if not parts:
-    #         return
-    #     title, lines = parts[0], parts[1:]
-    #     self.show_details(title, lines)
 
     def _screen_show_details(self, title: str, lines: list[str]) -> None:
         screen = self.screen
@@ -2124,38 +1418,9 @@ class DynamicViewApp(App):
             if hasattr(self.screen, "open_details"):
                 self.screen.open_details(title, lines)
 
-    # def on_key(self, event):
-    #     # Give the drawer first chance at Esc (and optionally block letter tags while open)
-    #     drawer = getattr(self.screen, "details_drawer", None)
-    #     if isinstance(drawer, DetailsDrawer) and not drawer.has_class("hidden"):
-    #         if event.key == "escape":
-    #             drawer.close()
-    #             event.stop()
-    #             return
-    #         if len(event.key) == 1 and event.key.isalpha():
-    #             event.stop()
-    #             return
-    #
-    #     # Your existing tag input:
-    #     if event.key in "abcdefghijklmnopqrstuvwxyz":
-    #         self.digit_buffer.append(event.key)
-    #         if len(self.digit_buffer) == self.afill:
-    #             base26_tag = "".join(self.digit_buffer)
-    #             self.digit_buffer.clear()
-    #             self._open_details_for_tag_on_screen(base26_tag)
-
     def on_key(self, event: events.Key) -> None:
         """Handle global key events (tags, escape, etc.)."""
         log_msg(f"{self.afill = }")
-
-        # Handle tag input (letters)
-        # if event.key in "abcdefghijklmnopqrstuvwxyz":
-        #     self.digit_buffer.append(event.key)
-        #     if len(self.digit_buffer) == self.afill:
-        #         base26_tag = "".join(self.digit_buffer)
-        #         self.digit_buffer.clear()
-        #         self._open_details_for_tag_on_screen(base26_tag)
-        #         return
 
         if event.key in "abcdefghijklmnopqrstuvwxyz":
             self.digit_buffer.append(event.key)
@@ -2170,14 +1435,6 @@ class DynamicViewApp(App):
                 else:
                     # fallback: your older flow
                     self.action_show_details(base26_tag)
-
-        # if event.key == "escape":
-        #     # if current screen has a details pane, close it
-        #     screen = self.screen
-        #     if hasattr(screen, "close_details"):
-        #         screen.close_details()
-        #         event.stop()
-        #         return
 
     def action_take_screenshot(self):
         """Save a screenshot of the current app state."""
@@ -2250,7 +1507,7 @@ class DynamicViewApp(App):
         self.set_afill(self.view)
         details = self.controller.get_active_alerts()
         log_msg(f"{details = }")
-        self.set_afill(details, "action_show_alerts")
+        self.set_afill(details, "alerts")
 
         footer = (
             "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] ESC Back"
@@ -2359,15 +1616,6 @@ class DynamicViewApp(App):
 
     def action_show_help(self):
         self.push_screen(HelpScreen(HelpText))
-
-    # def action_show_details(self, tag: str):
-    #     log_msg(f"{self.view = }, {self.selected_week = }, {tag = }")
-    #     self.fill = self.controller.afill_by_week[self.selected_week]
-    #     details = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     self.push_screen(DetailsScreen(details))
-
-    # def action_show_details(self, tag: str):
-    #     self.open_details_for_tag(tag)
 
     def action_show_details(self, tag: str):
         record_id, job_id = self._resolve_tag_to_record(tag)
