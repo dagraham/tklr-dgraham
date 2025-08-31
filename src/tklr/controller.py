@@ -564,17 +564,18 @@ class Controller:
         result = self.db_manager.get_structured_tokens(record_id)
         tokens, rruleset, created, modified = result[0]
         entry = format_tokens(tokens, self.width)
-        rruleset = f"\n{10 * ' '}".join(rruleset.splitlines())
+        rruleset = f"\n{12 * ' '}".join(rruleset.splitlines())
         log_msg(f"{entry = }, {rruleset = }, {created = }, {modified = }")
         lines = []
-
+        rr_line = (
+            f"[{label_color}]instances:[/{label_color}] {rruleset}" if rruleset else ""
+        )
         lines.extend(
             [
-                f"{entry}",
+                entry,
                 "",
-                f"[{label_color}]rruleset:[/{label_color}] {rruleset}",
-                f"[{label_color}]created:[/{label_color}]  {created}",
-                f"[{label_color}]modified:[/{label_color}] {modified}",
+                rr_line,
+                f"[{label_color}]changes:[/{label_color}]   {created}, {modified}",
             ]
         )
 
@@ -853,7 +854,7 @@ class Controller:
         # if job_id is not None:
         #     fields = [f"[{label_color}]job_id:[/{label_color}] {job_id}"] + fields
         job = f" [dim]job_id {job_id}[/dim]" if job_id else ""
-        title = f"[{label_color}]Details:[/{label_color}] [bold]{subject}[/bold]  [dim]id {record_id}[/dim]{job}"
+        title = f"[{label_color}]subject:[/{label_color}] [bold]{subject}[/bold]  [dim]id {record_id}[/dim]{job}"
 
         # <-- this is your existing single source of truth for DetailsScreen
         self._last_details_meta = {

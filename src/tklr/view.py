@@ -1382,102 +1382,91 @@ class WeeksScreen(SearchableScreen, DetailsPaneMixin):  # instead of Screen
         self.query_one("#list", expect_type=ScrollableList).update_list(details[1:])
 
 
-class AgendaScreen(SearchableScreen, DetailsPaneMixin):  # ← inherit your base
-    BINDINGS = [
-        ("tab", "toggle_pane", "Switch Pane"),
-        ("r", "refresh", "Refresh"),
-        ("A", "refresh", "Agenda"),
-        # Do NOT bind "/" here if your App already handles it globally.
-        # Same for n/N/Esc if the App routes those to the current screen.
-    ]
+class WeeksScreen(SearchableScreen):
+    """4-week grid with a bottom details panel, powered by ListWithDetails."""
 
-    def __init__(self, controller, footer: str = ""):
+    def __init__(
+        self,
+        title: str,
+        table: str,
+        list_title: str,
+        details: list[str],
+        footer_content: str,
+    ):
         super().__init__()
-        self.controller = controller
-        self.footer_text = f"[{FOOTER}]?[/{FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search  [bold {FOOTER}]tab[/bold {FOOTER}] events <-> tasks"
-        self.active_pane = "tasks"
-        self.events_list: ScrollableList | None = None
-        self.tasks_list: ScrollableList | None = None
-        self.events = {}
-        self.tasks = []
-        self.details_drawer: DetailsDrawer | None = None
+        self.table_title = title
+        self.table = table
+        self.list_title = list_title
+        self.details = details
+        self.footer_content = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
+        self.list_with_details: ListWithDetails | None = None
 
-    def on_screen_resume(self) -> None:
-        if self.app.controller.consume_agenda_dirty():
-            log_msg("refreshing")
-            self.refresh_data()
-
-    # ← This is the only thing SearchableScreen needs to work with panes
-    def get_search_target(self) -> ScrollableList:
-        return self.tasks_list if self.active_pane == "tasks" else self.events_list
-
-    def compose(self) -> ComposeResult:
-        self.events_list = ScrollableList([], id="events")
-        self.tasks_list = ScrollableList([], id="tasks")
-        yield Vertical(
-            Container(
-                Static("Events", id="events_title"), self.events_list, id="events-pane"
-            ),
-            Container(
-                Static("Tasks", id="tasks_title"), self.tasks_list, id="tasks-pane"
-            ),
-            Static(self.footer_text),
-            # Footer(),
-            id="agenda-layout",
+    # Let global search target the currently-focused list
+    def get_search_target(self):
+        if not self.list_with_details:
+            return None
+        return (
+            self.list_with_details._details
+            if self.list_with_details.has_details_open()
+            else self.list_with_details._main
         )
 
-    def on_mount(self):
-        self.refresh_data()
-        self._activate_pane("tasks")
-        self.call_after_refresh(self.ensure_details_pane)
+    def compose(self) -> ComposeResult:
+        yield Static(
+            self.table_title or "Untitled",
+            id="table_title",
+            classes="title-class",
+        )
+        yield Static(
+            self.table or "[i]No data[/i]",
+            id="table",
+            classes="weeks-table",
+        )
+        yield Static(self.list_title, id="list_title", classes="title-class")
 
-    def _activate_pane(self, which: str):
-        self.active_pane = which
-        self.set_focus(self.get_search_target())
-        self.app.view = which  # if you use this for tag→id routing
-        ev = self.query_one("#events_title", Static)
-        tk = self.query_one("#tasks_title", Static)
-        if which == "events":
-            tk.add_class("inactive")
-            ev.remove_class("inactive")
-        else:
-            ev.add_class("inactive")
-            tk.remove_class("inactive")
+        # Main list + bottom details (scrollable) in one container
+        self.list_with_details = ListWithDetails(id="list")
+        yield self.list_with_details
 
-    def action_toggle_pane(self):
-        # self._activate_pane("tasks" if self.active_pane == "events" else "events")
-        self._activate_pane("events" if self.active_pane == "tasks" else "tasks")
+        yield Static(self.footer_content)
 
-    def action_refresh(self):
-        self.refresh_data()
+    async def on_mount(self) -> None:
+        # seed list content
+        if self.list_with_details:
+            # details[0] is the list title; details[1:] are lines
+            self.list_with_details.update_list(self.details[1:] if self.details else [])
 
-    def refresh_data(self):
-        try:
-            self.events = self.controller.get_agenda_events(datetime.now())
-        except TypeError:
-            self.events = self.controller.get_agenda_events()
-        self.tasks = self.controller.get_agenda_tasks()
-        log_msg(f"{self.tasks = }")
-        self.update_display()
+    def update_table_and_list(self):
+        # Rebuild from controller (called when week changes / navigations)
+        title, table, details = self.app.controller.get_table_and_list(
+            self.app.current_start_date, self.app.selected_week
+        )
+        self.query_one("#table_title", Static).update(title)
+        self.query_one("#table", Static).update(table)
+        self.query_one("#list_title", Static).update(details[0])
 
-    def update_display(self):
-        event_lines = []
-        for d, entries in self.events.items():
-            event_lines.append(f"[bold]{d.strftime('%a %b %-d')}[/bold]")
-            for tag, label, subject in entries:
-                entry = f"{label} {subject}" if label and label.strip() else subject
-                event_lines.append(f"{tag} {entry}".rstrip())
+        if self.list_with_details:
+            # refresh main lines and hide any open details
+            self.list_with_details.update_list(details[1:])
+            if self.list_with_details.has_details_open():
+                self.list_with_details.hide_details()
 
-        task_lines = []
-        for urgency, color, tag, subject in self.tasks:
-            # if urgency == 1.0:
-            #     urgency_str = "📌"
-            # else:
-            #     urgency_str = f"[{color}]{str(round(urgency * 100)):>2}[/{color}]"
-            task_lines.append(f"{tag} {urgency} {subject}")
+    # Called from DynamicViewApp.on_key when a tag is completed
+    def show_details_for_tag(self, tag: str) -> None:
+        app = self.app  # DynamicViewApp
+        parts = app.controller.process_tag(tag, "week", app.selected_week)
+        if not parts:
+            return
+        title, lines = parts[0], parts[1:]
+        if self.list_with_details:
+            self.list_with_details.show_details(title, lines)
 
-        self.events_list.update_list(event_lines)
-        self.tasks_list.update_list(task_lines)
+    # quality-of-life: Esc hides details
+    def on_key(self, event):
+        if event.key == "escape" and self.list_with_details:
+            if self.list_with_details.has_details_open():
+                self.list_with_details.hide_details()
+                event.stop()
 
 
 class AgendaScreen(SearchableScreen):
@@ -1749,14 +1738,6 @@ class DynamicViewApp(App):
         if mapping:
             self.afill = len(next(iter(mapping.keys())))  # infer from first key
             log_msg(f"using {self.afill = } from keys for {self.view = }")
-
-    # async def on_mount(self):
-    #     self.action_show_weeks()
-    #
-    #     now = datetime.now()
-    #     seconds_to_next = (6 - (now.second % 6)) % 6
-    #     await asyncio.sleep(seconds_to_next)
-    #     self.set_interval(6, self.check_alerts)
 
     async def on_mount(self):
         # mount the drawer (hidden by default)

@@ -132,7 +132,7 @@ ListWithDetails > #details-list {
   height: auto;
   max-height: 14; /* tweak to taste */
   border-top: heavy $accent; /* optional separator */
-  padding-left: 1;
+  /* padding-left: 1; */
   /* border: none; */
 }
 ListWithDetails > #details-list.hidden {
