@@ -850,9 +850,10 @@ class Controller:
             pinned_now = False
 
         fields = self.get_entry(record_id)
-        title = f"{subject}  [dim]id {record_id}[/dim]"
-        if job_id is not None:
-            fields = [f"[{label_color}]job_id:[/{label_color}] {job_id}"] + fields
+        # if job_id is not None:
+        #     fields = [f"[{label_color}]job_id:[/{label_color}] {job_id}"] + fields
+        job = f" [dim]job_id {job_id}[/dim]" if job_id else ""
+        title = f"[{label_color}]Details:[/{label_color}] [bold]{subject}[/bold]  [dim]id {record_id}[/dim]{job}"
 
         # <-- this is your existing single source of truth for DetailsScreen
         self._last_details_meta = {

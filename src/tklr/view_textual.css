@@ -76,35 +76,14 @@ DetailsScreen {
 /* ── Details Pane ───────────────────────────── */
 #details-pane {
   dock: bottom;
-  layout: vertical;
+  layout: vertical; /* header then body */
   background: $panel;
-  border-top: heavy $accent;
-  padding-left: 1;
-  height: auto; /* will be overridden in code to a fixed row count */
+  border-top: heavy $accent; /* optional separator */
+  height: 14; /* fixed: 2 rows for header + 12 for body */
 }
 
 #details-pane.hidden {
   display: none;
-}
-#details-pane * {
-  border: none;
-  outline: none;
-  margin: 0;
-}
-#details-title {
-  width: 1fr;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding-bottom: 1;
-}
-#details-body {
-  height: 1fr;
-  overflow: auto;
-} /* <- enables scrolling when capped */
-
-#details-pane .hdr {
-  width: 100%;
-  height: auto;
 }
 
 #details-title {
@@ -112,23 +91,16 @@ DetailsScreen {
   max-width: 1fr;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-bottom: 1;
+  padding: 0 1;
 }
 
 #details-body {
-  height: 1fr; /* this will now work because parent has a fixed height */
-  overflow: auto;
+  height: 1fr; /* fills remaining space in the pane */
   border: none;
 }
 
-#details-pane *,
-#details-body,
 #details-body-content {
   border: none;
-  outline: none;
-  margin: 0;
-  padding-left: 0;
-  padding-right: 1;
 }
 
 /* (Optional) Help panel styles you already had */
@@ -143,4 +115,26 @@ DetailsScreen {
 }
 #help_scroll {
   height: 1fr;
+}
+
+/* Container that holds a main list + details list */
+ListWithDetails {
+  layout: vertical;
+}
+
+/* Main list fills available space */
+ListWithDetails > #main-list {
+  height: 1fr;
+}
+
+/* Details list appears at bottom when shown and scrolls if long */
+ListWithDetails > #details-list {
+  height: auto;
+  max-height: 14; /* tweak to taste */
+  border-top: heavy $accent; /* optional separator */
+  padding-left: 1;
+  /* border: none; */
+}
+ListWithDetails > #details-list.hidden {
+  display: none;
 }
