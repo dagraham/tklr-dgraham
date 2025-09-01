@@ -851,8 +851,12 @@ class Controller:
         fields = self.get_entry(record_id)
         # if job_id is not None:
         #     fields = [f"[{label_color}]job_id:[/{label_color}] {job_id}"] + fields
-        job = f" [dim]job_id {job_id}[/dim]" if job_id else ""
-        title = f"[{label_color}]subject:[/{label_color}] [bold]{subject}[/bold]  [dim]id {record_id}[/dim]{job}"
+        job = (
+            f" [{label_color}]job_id:[/{label_color}] [bold]{job_id}[/bold]"
+            if job_id
+            else ""
+        )
+        title = f"[{label_color}]subject:[/{label_color}] [bold]{subject}[/bold]  [{label_color}]id:[/{label_color}] [bold]{record_id}[/bold]{job}"
 
         # <-- this is your existing single source of truth for DetailsScreen
         self._last_details_meta = {

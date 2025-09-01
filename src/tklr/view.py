@@ -227,6 +227,87 @@ details of the item and access related commands.
 
 
 # If you haven’t already defined it, here's the helper:
+# class ListWithDetails(Container):
+#     """Container with a main ScrollableList and a bottom details ScrollableList."""
+#
+#     DEFAULT_CSS = """
+#     ListWithDetails {
+#         layout: vertical;
+#     }
+#     ListWithDetails > #main-list {
+#         height: 1fr;
+#     }
+#     ListWithDetails > #details-list {
+#         height: auto;
+#         max-height: 14;   /* ~14 rows; adjust to taste */
+#         border: none;
+#     }
+#     ListWithDetails > #details-list.hidden {
+#         display: none;
+#     }
+#     """
+#
+#     def __init__(self, *args, match_color: str = "#ffd75f", **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self._main: ScrollableList | None = None
+#         self._details: ScrollableList | None = None
+#         self.match_color = match_color
+#         self.details_meta: Optional[dict] = None  # <- NEW (record_id, job_id, etc.)
+#
+#     def compose(self) -> ComposeResult:
+#         self._main = ScrollableList([], id="main-list")
+#         self._details = ScrollableList([], id="details-list")
+#         self._details.add_class("hidden")
+#         yield self._main
+#         yield self._details
+#
+#     # ---- main list passthroughs ----
+#     def update_list(self, lines: list[str]) -> None:
+#         log_msg(f"{lines = }")
+#         self._main.update_list(lines)
+#
+#     def set_search_term(self, term: str | None) -> None:
+#         self._main.set_search_term(term)
+#
+#     def clear_search(self) -> None:
+#         self._main.clear_search()
+#
+#     def jump_next_match(self) -> None:
+#         self._main.jump_next_match()
+#
+#     def jump_prev_match(self) -> None:
+#         self._main.jump_prev_match()
+#
+#     # ---- details control ----
+#
+#     def show_details(
+#         self, title: str, lines: list[str], *, meta: dict | None = None
+#     ) -> None:
+#         self.details_meta = meta or None  # <- keep meta for key actions
+#         new_lines = _make_rows(lines)
+#         body = [title] + new_lines
+#         self._details.update_list(body)
+#         self._details.remove_class("hidden")
+#         self._details.focus()
+#
+#     def hide_details(self) -> None:
+#         self.details_meta = None  # clear meta on close
+#         if not self._details.has_class("hidden"):
+#             self._details.add_class("hidden")
+#             self._main.focus()
+#
+#     def has_details_open(self) -> bool:
+#         return not self._details.has_class("hidden")
+#
+#     def focus_main(self) -> None:
+#         self._main.focus()
+#
+#     def on_key(self, event):
+#         if event.key == "escape" and self.has_details_open():
+#             self.hide_details()
+#             event.stop()
+
+
 class ListWithDetails(Container):
     """Container with a main ScrollableList and a bottom details ScrollableList."""
 
@@ -247,11 +328,15 @@ class ListWithDetails(Container):
     }
     """
 
+    # ... your existing DEFAULT_CSS / compose / update_list / show_details / hide_details ...
+
     def __init__(self, *args, match_color: str = "#ffd75f", **kwargs):
         super().__init__(*args, **kwargs)
         self._main: ScrollableList | None = None
         self._details: ScrollableList | None = None
         self.match_color = match_color
+        self._detail_key_handler: callable | None = None  # ← inject this
+        self.details_meta: dict = {}  # ← you already have this
 
     def compose(self) -> ComposeResult:
         self._main = ScrollableList([], id="main-list")
@@ -261,9 +346,20 @@ class ListWithDetails(Container):
         yield self._details
 
     # ---- main list passthroughs ----
-    def update_list(self, lines: list[str]) -> None:
-        log_msg(f"{lines = }")
+    # def update_list(self, lines: list[str]) -> None:
+    #     log_msg(f"{lines = }")
+    #     self._main.update_list(lines)
+
+    def update_list(
+        self, lines: list[str], meta_map: dict[str, dict] | None = None
+    ) -> None:
+        """
+        Replace the main list content and (optionally) update the tag→meta mapping.
+        `meta_map` is typically controller.list_tag_to_id[view] (or week_tag_to_id[week]).
+        """
         self._main.update_list(lines)
+        if meta_map is not None:
+            self._meta_map = meta_map
 
     def set_search_term(self, term: str | None) -> None:
         self._main.set_search_term(term)
@@ -278,26 +374,20 @@ class ListWithDetails(Container):
         self._main.jump_prev_match()
 
     # ---- details control ----
-    def show_details(self, title: str, lines: list[str]) -> None:
-        # Feed a single list: title, blank, body
-        new_lines = _make_rows(lines)
-        # body = [f"[b]{title}[/b]", ""] + new_lines
-        # body = [
-        #     f"[b]{title}[/b]",
-        # ] + new_lines
-        body = [
-            title,
-        ] + new_lines
-        log_msg(f"{body = }")
+
+    def show_details(
+        self, title: str, lines: list[str], meta: dict | None = None
+    ) -> None:
+        self.details_meta = meta or {}  # <- keep meta for key actions
+        body = [title] + _make_rows(lines)
         self._details.update_list(body)
         self._details.remove_class("hidden")
-        # focus the details so the user can scroll it immediately
-        self._details.focus()  # << here
+        self._details.focus()
 
     def hide_details(self) -> None:
+        self.details_meta = {}  # clear meta on close
         if not self._details.has_class("hidden"):
             self._details.add_class("hidden")
-            # return focus to main list
             self._main.focus()
 
     def has_details_open(self) -> bool:
@@ -305,6 +395,82 @@ class ListWithDetails(Container):
 
     def focus_main(self) -> None:
         self._main.focus()
+
+    def set_meta_map(self, meta_map: dict[str, dict]) -> None:
+        self._meta_map = meta_map
+
+    def get_meta_for_tag(self, tag: str) -> dict | None:
+        return self._meta_map.get(tag)
+
+    def set_detail_key_handler(self, handler: callable) -> None:
+        """handler(key: str, meta: dict) -> None"""
+        self._detail_key_handler = handler
+
+    def on_key(self, event) -> None:
+        # Only when details are open
+        if not self.has_details_open():
+            return
+
+        k = event.key or ""
+        log_msg(f"{k = }")
+        if k in ("escape"):
+            self.hide_details()
+            event.stop()
+            return
+
+        if not self._detail_key_handler:
+            return
+
+        # Normalize ctrl+r -> 'ctrl+r' so your handler can match
+        if event.key == "ctrl+r":
+            key = "ctrl+r"
+        else:
+            key = k
+
+        try:
+            self._detail_key_handler(key, self.details_meta or {})
+            event.stop()
+        except Exception as e:
+            # up to you if you want to log/notify
+            pass
+
+    def on_key(self, event) -> None:
+        """Only handle detail commands; let lowercase tag keys bubble up."""
+        if not self.has_details_open():
+            return
+
+        k = event.key or ""
+
+        # 1) Let lowercase a–z pass through (tag selection)
+        if len(k) == 1 and "a" <= k <= "z":
+            # do NOT stop the event; DynamicViewApp will collect the tag chars
+            return
+
+        # 2) Close details with Escape (but not 'q')
+        if k == "escape":
+            self.hide_details()
+            event.stop()
+            return
+
+        # 3) Route only your command keys to the injected handler
+        if not self._detail_key_handler:
+            return
+
+        # Normalize keys: we want uppercase single-letter commands + 'ctrl+r'
+        if k == "ctrl+r":
+            cmd = "CTRL+R"
+        elif len(k) == 1:
+            cmd = k.upper()
+        else:
+            cmd = k  # leave other keys as-is (unlikely used)
+
+        # Allow only the detail commands you use (uppercase)
+        ALLOWED = {"E", "D", "F", "P", "S", "R", "T", "CTRL+R"}
+        if cmd in ALLOWED:
+            try:
+                self._detail_key_handler(cmd, self.details_meta or {})
+            finally:
+                event.stop()
 
 
 class DetailsHelpScreen(ModalScreen[None]):
@@ -1031,6 +1197,12 @@ class WeeksScreen(SearchableScreen):
 
         # Main list + bottom details (scrollable) in one container
         self.list_with_details = ListWithDetails(id="list")
+        self.list_with_details.set_detail_key_handler(
+            self.app.make_detail_key_handler(
+                view_name="week",
+                week_provider=lambda: self.app.selected_week,
+            )
+        )
         yield self.list_with_details
 
         yield Static(self.footer_content)
@@ -1063,15 +1235,110 @@ class WeeksScreen(SearchableScreen):
         if not parts:
             return
         title, lines = parts[0], parts[1:]
+        meta = getattr(self.app.controller, "_last_details_meta", None) or {}
         if self.list_with_details:
-            self.list_with_details.show_details(title, lines)
+            self.list_with_details.show_details(title, lines, meta)
 
     # quality-of-life: Esc hides details
-    def on_key(self, event):
-        if event.key == "escape" and self.list_with_details:
-            if self.list_with_details.has_details_open():
-                self.list_with_details.hide_details()
-                event.stop()
+    # def on_key(self, event):
+    #     if event.key == "escape" and self.list_with_details:
+    #         if self.list_with_details.has_details_open():
+    #             self.list_with_details.hide_details()
+    #             event.stop()
+
+    # def on_key(self, event):
+    #     k = (event.key or "").lower()
+    #     host = self.list_with_details
+    #     if not (host and host.has_details_open()):
+    #         return  # nothing to do
+    #
+    #     if k in ("escape"):
+    #         host.hide_details()
+    #         event.stop()
+    #         return
+    #
+    #     meta = host.details_meta or {}
+    #     record_id = meta.get("record_id")
+    #     if not record_id:
+    #         return
+    #     # ... your e/c/d/f/p/s/r/t bindings using controller ...
+    #
+    #     record_id = meta.get("record_id")
+    #     job_id = meta.get("job_id")
+    #     itemtype = meta.get("itemtype", "")
+    #     is_task = itemtype == "~"
+    #     is_rec = bool(meta.get("rruleset") and "RRULE:" in (meta.get("rruleset") or ""))
+    #     log_msg(f"{meta = }")
+    #
+    #     # Esc always closes details
+    #     if k in ("escape"):
+    #         details_host.hide_details()
+    #         event.stop()
+    #         return
+    #
+    #     # ——— Actions that need the selected record ———
+    #     if not record_id:
+    #         return  # nothing to act on
+    #
+    #     ctrl = self.app.controller  # shorthand
+    #
+    #     if k == "E":  # Edit
+    #         ctrl.edit_record(record_id)  # << hook to your actual API
+    #         self.refresh_data_after_action(details_host)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "C":  # Edit copy
+    #         ctrl.copy_record(record_id)  # <<
+    #         self.refresh_data_after_action(details_host)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "D":  # Delete (scope depends on recurrence)
+    #         # If you support “this instance vs all” you can inspect meta, prompt, etc.
+    #         ctrl.delete_record(record_id)  # << or delete_instance(record_id, when=...)
+    #         self.refresh_data_after_action(details_host)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "F" and is_task:  # Finish task
+    #         ctrl.finish_task(record_id, job_id=job_id)  # << use your finish API
+    #         self.refresh_data_after_action(details_host)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "P":  # Toggle pinned (task-only; no-op otherwise)
+    #         if is_task:
+    #             ctrl.toggle_pinned(record_id)
+    #             # re-open details to reflect new pinned state
+    #             self._reopen_details(details_host, tag_meta=meta)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "S":  # Schedule new
+    #         ctrl.schedule_new(record_id)  # <<
+    #         self.refresh_data_after_action(details_host)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "R":  # Reschedule
+    #         ctrl.reschedule_record(record_id)  # <<
+    #         self.refresh_data_after_action(details_host)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "T":  # Touch (update modified)
+    #         ctrl.touch_record(record_id)  # <<
+    #         self._reopen_details(details_host, tag_meta=meta)
+    #         event.stop()
+    #         return
+    #
+    #     # Ctrl+R: show repetitions (if recurring)
+    #     if event.key == "ctrl+r" and is_rec:
+    #         # maybe open a modal/list with the next few instances
+    #         ctrl.show_repetitions(record_id)  # <<
+    #         event.stop()
+    #         return
 
 
 class AgendaScreen(SearchableScreen):
@@ -1106,7 +1373,13 @@ class AgendaScreen(SearchableScreen):
 
     def compose(self) -> ComposeResult:
         self.events_view = ListWithDetails(id="events")
+        self.events_view.set_detail_key_handler(
+            self.app.make_detail_key_handler(view_name="events")
+        )
         self.tasks_view = ListWithDetails(id="tasks")
+        self.tasks_view.set_detail_key_handler(
+            self.app.make_detail_key_handler(view_name="tasks")
+        )
         yield Vertical(
             Container(
                 Static("Events", id="events_title"),
@@ -1175,18 +1448,130 @@ class AgendaScreen(SearchableScreen):
         self.tasks_view.update_list(task_lines)
 
     # called by the app when the user types a tag (base-26)
+    # def show_details_for_tag(self, tag: str) -> None:
+    #     # Which pane are we in?
+    #     pane_view = self.tasks_view if self.active_pane == "tasks" else self.events_view
+    #     view_name = "tasks" if self.active_pane == "tasks" else "events"
+    #
+    #     parts = self.controller.process_tag(tag, view_name, None)
+    #     if not parts:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #     title, lines = parts[0], parts[1:]
+    #     log_msg(f"{title = }, {lines = }")
+    #     pane_view.show_details(title, lines)
+
     def show_details_for_tag(self, tag: str) -> None:
-        # Which pane are we in?
         pane_view = self.tasks_view if self.active_pane == "tasks" else self.events_view
         view_name = "tasks" if self.active_pane == "tasks" else "events"
 
+        # ask controller for the pre-rendered lines + side-effect meta
         parts = self.controller.process_tag(tag, view_name, None)
         if not parts:
-            self.notify(f"Unknown tag '{tag}'", severity="warning")
             return
         title, lines = parts[0], parts[1:]
-        log_msg(f"{title = }, {lines = }")
-        pane_view.show_details(title, lines)
+        meta = getattr(self.controller, "_last_details_meta", None) or {}
+
+        # If your screen has two ListWithDetails (one per pane), send to the active one.
+        # If you have one ListWithDetails instance named self.events_view / self.tasks_view:
+        pane_view.show_details(title, lines, meta)
+
+    # def on_key(self, event):
+    #     k = (event.key or "").lower()
+    #
+    #     # decide which ListWithDetails is showing details
+    #     host = None
+    #     if self.events_view and self.events_view.has_details_open():
+    #         host = self.events_view
+    #     elif self.tasks_view and self.tasks_view.has_details_open():
+    #         host = self.tasks_view
+    #
+    #     if not host:
+    #         return
+    #
+    #     if k in ("escape"):
+    #         host.hide_details()
+    #         event.stop()
+    #         return
+    #
+    #     meta = host.details_meta or {}
+    #     # ... bindings ...
+    #     record_id = meta.get("record_id")
+    #     job_id = meta.get("job_id")
+    #     itemtype = meta.get("itemtype", "")
+    #     is_task = itemtype == "~"
+    #     is_rec = bool(meta.get("rruleset") and "RRULE:" in (meta.get("rruleset") or ""))
+    #     log_msg(f"{meta = }")
+    #
+    #     # Esc always closes details
+    #     if k in ("escape"):
+    #         details_host.hide_details()
+    #         event.stop()
+    #         return
+    #
+    #     # ——— Actions that need the selected record ———
+    #     if not record_id:
+    #         return  # nothing to act on
+    #
+    #     ctrl = self.app.controller  # shorthand
+    #
+    #     if k == "E":  # Edit
+    #         ctrl.edit_record(record_id)  # << hook to your actual API
+    #         self.refresh_data_after_action(details_host)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "C":  # Edit copy
+    #         ctrl.copy_record(record_id)  # <<
+    #         self.refresh_data_after_action(details_host)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "D":  # Delete (scope depends on recurrence)
+    #         # If you support “this instance vs all” you can inspect meta, prompt, etc.
+    #         ctrl.delete_record(record_id)  # << or delete_instance(record_id, when=...)
+    #         self.refresh_data_after_action(details_host)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "F" and is_task:  # Finish task
+    #         ctrl.finish_task(record_id, job_id=job_id)  # << use your finish API
+    #         self.refresh_data_after_action(details_host)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "P":  # Toggle pinned (task-only; no-op otherwise)
+    #         if is_task:
+    #             ctrl.toggle_pinned(record_id)
+    #             # re-open details to reflect new pinned state
+    #             self._reopen_details(details_host, tag_meta=meta)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "S":  # Schedule new
+    #         ctrl.schedule_new(record_id)  # <<
+    #         self.refresh_data_after_action(details_host)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "R":  # Reschedule
+    #         ctrl.reschedule_record(record_id)  # <<
+    #         self.refresh_data_after_action(details_host)
+    #         event.stop()
+    #         return
+    #
+    #     if k == "T":  # Touch (update modified)
+    #         ctrl.touch_record(record_id)  # <<
+    #         self._reopen_details(details_host, tag_meta=meta)
+    #         event.stop()
+    #         return
+    #
+    #     # Ctrl+R: show repetitions (if recurring)
+    #     if event.key == "ctrl+r" and is_rec:
+    #         # maybe open a modal/list with the next few instances
+    #         ctrl.show_repetitions(record_id)  # <<
+    #         event.stop()
+    #         return
 
 
 class FullScreenList(SearchableScreen):
@@ -1225,6 +1610,11 @@ class FullScreenList(SearchableScreen):
                 self.header, id="scroll_header", expand=True, classes="header-class"
             )
         self.list_with_details = ListWithDetails(id="list")
+        # self.list_view = ListWithDetails(id="list")
+        self.list_with_details.set_detail_key_handler(
+            self.app.make_detail_key_handler(view_name="next")  # or 'last' / 'find'
+        )
+
         yield self.list_with_details
         yield Static(self.footer_content, id="custom_footer")
 
@@ -1243,15 +1633,16 @@ class FullScreenList(SearchableScreen):
         if not parts:
             return
         title, lines = parts[0], parts[1:]
+        meta = getattr(self.app.controller, "_last_details_meta", None) or {}
         if self.list_with_details:
-            self.list_with_details.show_details(title, lines)
+            self.list_with_details.show_details(title, lines, meta)
 
-    # Escape to hide details, then return focus to main
-    def on_key(self, event):
-        if event.key == "escape" and self.list_with_details:
-            if self.list_with_details.has_details_open():
-                self.list_with_details.hide_details()
-                event.stop()
+    # # Escape to hide details, then return focus to main
+    # def on_key(self, event):
+    #     if event.key == "escape" and self.list_with_details:
+    #         if self.list_with_details.has_details_open():
+    #             self.list_with_details.hide_details()
+    #             event.stop()
 
 
 class DynamicViewApp(App):
@@ -1356,16 +1747,6 @@ class DynamicViewApp(App):
         meta = mapping.get(tag, {})
         return meta.get("record_id"), meta.get("job_id")
 
-    def open_details_for_tag(self, tag: str) -> None:
-        parts = self.controller.process_tag(tag, self.view, self.selected_week)
-        if not parts:
-            self.notify(f"Unknown tag '{tag}'", severity="warning")
-            return
-        title, lines = parts[0], parts[1:]
-
-        drawer = self._ensure_screen_drawer()
-        drawer.open_lines(title=title, lines=lines)  # shows and focuses
-
     def _resolve_tag_to_record(self, tag: str) -> tuple[int | None, int | None]:
         """
         Return (record_id, job_id) for the current view + tag, or (None, None).
@@ -1384,13 +1765,13 @@ class DynamicViewApp(App):
         # backward compatibility (old mapping was tag -> record_id)
         return meta, None
 
-    def open_details_for_tag(self, tag: str) -> None:
-        drawer = self._ensure_screen_drawer()  # your mount/reuse helper
-        parts = self.controller.process_tag(tag, self.view, self.selected_week)
-        if not parts:
-            self.notify(f"Unknown tag '{tag}'", severity="warning")
-            return
-        drawer.open_from_parts(parts)  # title = parts[0], lines = parts[1:]
+    # def open_details_for_tag(self, tag: str) -> None:
+    #     drawer = self._ensure_screen_drawer()  # your mount/reuse helper
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     if not parts:
+    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
+    #         return
+    #     drawer.open_from_parts(parts)  # title = parts[0], lines = parts[1:]
 
     def action_close_details(self):
         screen = self.screen
@@ -1409,14 +1790,59 @@ class DynamicViewApp(App):
 
             self.push_screen(DetailsScreen([title] + lines))
 
-    def _open_details_for_tag_on_screen(self, tag: str) -> None:
-        # Resolve with your existing controller logic
-        parts = self.controller.process_tag(tag, self.view, self.selected_week)
-        if parts:
-            title, lines = parts[0], parts[1:]
-            log_msg(f"{lines = }, {len(lines) = }")
-            if hasattr(self.screen, "open_details"):
-                self.screen.open_details(title, lines)
+    def make_detail_key_handler(self, *, view_name: str, week_provider=None):
+        """
+        Returns a handler(key, meta) for ListWithDetails.set_detail_key_handler.
+
+        view_name: 'week' | 'events' | 'tasks' | 'next' | 'last' | 'find' | ...
+        week_provider: callable -> (year, week) if needed (for 'week' context)
+        """
+        ctrl = self.controller
+
+        def handler(key: str, meta: dict) -> None:
+            record_id = meta.get("record_id")
+            job_id = meta.get("job_id")
+            itemtype = meta.get("itemtype")
+            log_msg(f"{key = }, {meta = }")
+            # if not record_id:
+            #     return
+
+            if key == "E":
+                ctrl.edit_item(record_id)
+            elif key == "C":
+                ctrl.copy_item(record_id)
+            elif key == "D":
+                ctrl.delete_item(record_id, job_id=job_id)
+            elif key == "F":
+                if itemtype == "~":
+                    ctrl.finish_task(record_id, job_id=job_id)
+            elif key == "p":
+                if itemtype == "~":
+                    ctrl.toggle_pinned(record_id)
+            elif key == "P":
+                if itemtype == "~":
+                    ctrl.toggle_pinned(record_id)
+            elif key == "S":
+                ctrl.schedule_new(record_id)
+            elif key == "R":
+                yrwk = week_provider() if week_provider else None
+                ctrl.reschedule(record_id, context=view_name, yrwk=yrwk)
+            elif key == "T":
+                ctrl.touch_item(record_id)
+            elif key == "ctrl+r":
+                ctrl.show_repetitions(record_id)
+            # else: ignore unhandled keys
+
+        return handler
+
+    # def _open_details_for_tag_on_screen(self, tag: str) -> None:
+    #     # Resolve with your existing controller logic
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     if parts:
+    #         title, lines = parts[0], parts[1:]
+    #         log_msg(f"{lines = }, {len(lines) = }")
+    #         if hasattr(self.screen, "open_details"):
+    #             self.screen.open_details(title, lines)
 
     def on_key(self, event: events.Key) -> None:
         """Handle global key events (tags, escape, etc.)."""
@@ -1432,9 +1858,9 @@ class DynamicViewApp(App):
                 log_msg(f"{base26_tag = }, {screen = }")
                 if hasattr(screen, "show_details_for_tag"):
                     screen.show_details_for_tag(base26_tag)
-                else:
-                    # fallback: your older flow
-                    self.action_show_details(base26_tag)
+                # else:
+                #     # fallback: your older flow
+                #     self.action_show_details(base26_tag)
 
     def action_take_screenshot(self):
         """Save a screenshot of the current app state."""
@@ -1617,18 +2043,18 @@ class DynamicViewApp(App):
     def action_show_help(self):
         self.push_screen(HelpScreen(HelpText))
 
-    def action_show_details(self, tag: str):
-        record_id, job_id = self._resolve_tag_to_record(tag)
-        if not record_id:
-            self.notify(f"No item for tag '{tag}'", severity="warning")
-            return
-
-        # process_tag returns [title] + field lines
-        parts = self.controller.process_tag(tag, self.view, self.selected_week)
-        title, lines = parts[0], parts[1:]
-
-        # Open the drawer with exactly what process_tag produced
-        self.details_drawer.open_lines(title=title, lines=lines)
+    # def action_show_details(self, tag: str):
+    #     record_id, job_id = self._resolve_tag_to_record(tag)
+    #     if not record_id:
+    #         self.notify(f"No item for tag '{tag}'", severity="warning")
+    #         return
+    #
+    #     # process_tag returns [title] + field lines
+    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
+    #     title, lines = parts[0], parts[1:]
+    #
+    #     # Open the drawer with exactly what process_tag produced
+    #     self.details_drawer.open_lines(title=title, lines=lines)
 
 
 if __name__ == "__main__":
