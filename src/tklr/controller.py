@@ -707,7 +707,7 @@ class Controller:
         name_width = width - 35
         results.append(
             # f"{'row':^3}  {'cmd':^3}  {'time':^24}  {'subject':^{name_width}}",
-            f"[bold][dim]{'tag':^3}[/dim]  {'  alert      @s ':^14}     {'subject':<{name_width}}[/bold]",
+            f"[bold][dim]{'tag':^3}[/dim]  {'  alert         @s ':^14}     {'subject':<{name_width}}[/bold]",
             # f"[bold][dim]{'tag':^3}[/dim]  {' trigger     @s':^14}      {'subject':<{name_width}}[/bold]",
         )
 
@@ -742,7 +742,7 @@ class Controller:
             row = "  ".join(
                 [
                     f"{tag_fmt}",
-                    f"[{SALMON}] {alert_name}{trtime:>7}[/{SALMON}][{PALE_GREEN}] → {sttime:<7}[/{PALE_GREEN}]",
+                    f"[{SALMON}] {alert_name} {trtime:<8}[/{SALMON}][{PALE_GREEN}] → {sttime:<7}[/{PALE_GREEN}]",
                     f"[{AVAILABLE_COLOR}]{subject:<{name_width}}[/{AVAILABLE_COLOR}]",
                 ]
             )

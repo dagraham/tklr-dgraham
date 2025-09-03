@@ -864,7 +864,7 @@ class DatabaseManager:
         # now = round(datetime.now().timestamp())
         now = datetime.now()
         now_minus = _fmt_naive(now - timedelta(seconds=2))
-        now_plus = _fmt_naive(now + timedelta(seconds=2))
+        now_plus = _fmt_naive(now + timedelta(seconds=5))
         # log_msg(f"{now_minus = }, {now_plus = }")
 
         self.cursor.execute(

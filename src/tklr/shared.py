@@ -357,17 +357,23 @@ def format_datetime(fmt_dt: str, ampm: bool = False) -> str:
             # Note: %-d is POSIX; if you need Windows support, use an alternate path.
             return dt.strftime("%B %-d, %Y")
 
+    suffix = dt.strftime("%p").lower() if ampm else ""
+    hours = dt.strftime("%-I") if ampm else dt.strftime("%H")
+    minutes = dt.strftime(":%M") if not ampm or dt.minute else ""
+    seconds = dt.strftime(":%S") if dt.second else ""
+    time_str = hours + minutes + seconds + suffix
+
     # Time string
-    time_str = dt.strftime("%I:%M%p").lower() if ampm else dt.strftime("%H:%M")
+    # time_str = dt.strftime("%I:%M%p").lower() if ampm else dt.strftime("%H:%M")
     # Drop :00 minutes
     # if time_str.endswith(":00pm") or time_str.endswith(":00am"):
-    if ampm:
-        time_str = time_str.replace(":00", "")
-    # else:
-    #     time_str = time_str.replace(":00", "h")
-    # Drop leading zero for 12-hour format
-    if ampm and time_str.startswith("0"):
-        time_str = time_str[1:]
+    # if ampm:
+    #     time_str = time_str.replace(":00", "")
+    # # else:
+    # #     time_str = time_str.replace(":00", "h")
+    # # Drop leading zero for 12-hour format
+    # if ampm and time_str.startswith("0"):
+    #     time_str = time_str[1:]
 
     # Phrasing
     if delta_days == 0:

@@ -2,25 +2,43 @@
 
 ## 20250903 detail commands
 
+In cases requiring input, pressing "escape" cancels.
+When canceling an "Edit" in which changes have been made, a confirmation is required.
+
 - Selection (in details)
   - C (copy):
-    - Edit
+    - Edit (default copy of selected item)
   - D (delete):
-    - Confirmation / which instances
+    - Confirmation:
+      - repeating: Delete t) this instance, s) this and all subsequent instances, i) the item itself, n) nothing? t/s/i/N
+      - single instance or none: Delete this item? y/N
   - E (edit):
-    - Edit
+    - Edit (default selected item)
   - F (finish):
-    - Confirmation / datetime
-  - P toggle pinned ~
+    - Confirmation / datetime (default now)
+  - P toggle pinned:
+    - no input
   - R (reschedule):
-    - Confirmation / datetime
+    - Confirmation / datetime (no default)
   - S (schedule new):
-    - Confirmation / datetime
+    - Confirmation / datetime (no default)
   - T (touch):
-    - Confirmation / datetime
+    - Confirmation / datetime (default now)
 - No selection (possibly outside details)
   - N (new):
-    - Edit
+    - Edit (default "")
+
+### Edit
+
+- header: 1 line
+- message: as many lines as needed, typically 1 - 3
+- entry: 12 lines
+
+### Confirmation
+
+- header: 1 line
+- message: as many lines as needed, typically 1 - 3
+- entry: 1 line
 
 ```python
   if key == "E":

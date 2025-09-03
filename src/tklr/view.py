@@ -1819,6 +1819,7 @@ class DynamicViewApp(App):
             elif key == "p":
                 if itemtype == "~":
                     ctrl.toggle_pinned(record_id)
+                    self._reopen_details(details_host, tag_meta=meta)
             elif key == "P":
                 if itemtype == "~":
                     ctrl.toggle_pinned(record_id)
