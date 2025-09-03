@@ -1,5 +1,57 @@
 # For ChatGPT
 
+## 20250903 detail commands
+
+- Selection (in details)
+  - C (copy):
+    - Edit
+  - D (delete):
+    - Confirmation / which instances
+  - E (edit):
+    - Edit
+  - F (finish):
+    - Confirmation / datetime
+  - P toggle pinned ~
+  - R (reschedule):
+    - Confirmation / datetime
+  - S (schedule new):
+    - Confirmation / datetime
+  - T (touch):
+    - Confirmation / datetime
+- No selection (possibly outside details)
+  - N (new):
+    - Edit
+
+```python
+  if key == "E":
+      ctrl.edit_item(record_id)
+  elif key == "C":
+      ctrl.copy_item(record_id)
+  elif key == "D":
+      ctrl.delete_item(record_id, job_id=job_id)
+  elif key == "F":
+      if itemtype == "~":
+          ctrl.finish_task(record_id, job_id=job_id)
+  elif key == "p":
+      if itemtype == "~":
+          ctrl.toggle_pinned(record_id)
+          self._reopen_details(details_host, tag_meta=meta)
+  elif key == "P":
+      if itemtype == "~":
+          ctrl.toggle_pinned(record_id)
+  elif key == "S":
+      ctrl.schedule_new(record_id)
+  elif key == "R":
+      yrwk = week_provider() if week_provider else None
+      ctrl.reschedule(record_id, context=view_name, yrwk=yrwk)
+  elif key == "T":
+      ctrl.touch_item(record_id)
+  elif key == "ctrl+r":
+      ctrl.show_repetitions(record_id)
+  # else: ignore unhandled keys
+
+```
+
 ## 2025-08-25 do_s()
 
 ### original
@@ -20,7 +72,7 @@
             self.dtstart_str = f"DTSTART;VALUE=DATE:{dt.strftime('%Y%m%d')}"
             self.rdstart_str = f"RDATE;VALUE=DATE:{dt.strftime('%Y%m%d')}"
         else:
-            self.dtstart = dt.strftime("%Y%m%dT%H%M")
+            self.dtstart = dt.str bftime("%Y%m%dT%H%M")
             self.dtstart_str = f"DTSTART:{dt.strftime('%Y%m%dT%H%M%S')}"
             self.rdstart_str = f"RDATE:{dt.strftime('%Y%m%dT%H%M%S')}"
         log_msg(f"scheduled date/datetime {self.dtstart_str = }, {self.rdstart_str = }")

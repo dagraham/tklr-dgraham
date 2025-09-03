@@ -575,7 +575,10 @@ class Controller:
                 entry,
                 "",
                 rr_line,
-                f"[{label_color}]changes:[/{label_color}]   {created}, {modified}",
+                # f"[{label_color}]created, modified:[/{label_color}]   {created[:13]}, {modified[:13]}",
+                f"[{label_color}]created:[/{label_color}]   {created[:13]}",
+                f"[{label_color}]modified:[/{label_color}]  {modified[:13]}",
+                # f"[{label_color}]{record_id}: {created[:13]}, {modified[:13]}[/{label_color}]",
             ]
         )
 
@@ -668,6 +671,7 @@ class Controller:
 
     def execute_due_alerts(self):
         records = self.db_manager.get_due_alerts()
+        # log_msg(f"{records = }")
         # SELECT alert_id, record_id, record_name, trigger_datetime, start_timedelta, command
         for record in records:
             (
@@ -807,10 +811,12 @@ class Controller:
             if payload is None:
                 return [f"There is no item corresponding to tag '{tag}'."]
             if isinstance(payload, dict):
+                log_msg(f"{payload = }")
                 record_id = payload.get("record_id")
                 job_id = payload.get("job_id")
             else:
                 # backward compatibility (old mapping was tag -> record_id)
+                log_msg(f"{payload = }")
                 record_id, job_id = payload, None
 
         elif view in [
@@ -824,6 +830,7 @@ class Controller:
             "alerts",
         ]:
             payload = self.list_tag_to_id.get(view, {}).get(tag)
+            log_msg(f"{payload = }")
             if payload is None:
                 return [f"There is no item corresponding to tag '{tag}'."]
             if isinstance(payload, dict):
@@ -840,6 +847,7 @@ class Controller:
         subject = core.get("subject") or "(untitled)"
         itemtype = core.get("itemtype") or ""
         rruleset = core.get("rrulestr") or ""
+        all_prereqs = core.get("all_prereqs") or ""
 
         try:
             pinned_now = (
@@ -864,6 +872,7 @@ class Controller:
             "job_id": job_id,
             "itemtype": itemtype,  # "~" task, "*" event, etc.
             "rruleset": rruleset,
+            "all_prereqs": all_prereqs,
             "pinned": bool(pinned_now),
             "record": self.db_manager.get_record(record_id),
         }

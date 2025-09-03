@@ -861,7 +861,11 @@ class DatabaseManager:
 
     def get_due_alerts(self):
         """Retrieve alerts that need execution within the next 6 seconds."""
-        now = round(datetime.now().timestamp())
+        # now = round(datetime.now().timestamp())
+        now = datetime.now()
+        now_minus = _fmt_naive(now - timedelta(seconds=2))
+        now_plus = _fmt_naive(now + timedelta(seconds=2))
+        # log_msg(f"{now_minus = }, {now_plus = }")
 
         self.cursor.execute(
             """
@@ -869,7 +873,7 @@ class DatabaseManager:
             FROM Alerts
             WHERE (trigger_datetime) BETWEEN ? AND ?
         """,
-            (now - 2, now + 4),
+            (now_minus, now_plus),
         )
 
         return self.cursor.fetchall()

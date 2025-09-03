@@ -1889,7 +1889,7 @@ class DynamicViewApp(App):
             self.current_start_date, self.selected_week
         )
         list_title = details[0] if details else "Untitled"
-        details = details[1:] if details else []
+        # details = details[0:] if details else []
         log_msg(f"{len(details) = }")
         # self.set_afill(details, "action_show_weeks")
         # self.set_afill("week")

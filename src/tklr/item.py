@@ -3579,6 +3579,8 @@ class Item:
             )
 
             final.append(job)
+        if all_prereqs:
+            self.item["all_prereqs"] = all_prereqs
 
         self.jobset = json.dumps(final, cls=CustomJSONEncoder)
         self.jobs = final
