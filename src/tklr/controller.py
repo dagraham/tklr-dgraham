@@ -704,11 +704,13 @@ class Controller:
         table.add_column("subject", width=25, overflow="ellipsis", no_wrap=True)
 
         # 4*2 + 2*3 + 7 + 14 = 35 => subject width = width - 35
+        trigger_width = 10 if self.AMPM else 8
+        start_width = 7 if self.AMPM else 6
+        alert_width = trigger_width + 3
         name_width = width - 35
         results.append(
-            # f"{'row':^3}  {'cmd':^3}  {'time':^24}  {'subject':^{name_width}}",
-            f"[bold][dim]{'tag':^3}[/dim]  {'  alert         @s ':^14}     {'subject':<{name_width}}[/bold]",
-            # f"[bold][dim]{'tag':^3}[/dim]  {' trigger     @s':^14}      {'subject':<{name_width}}[/bold]",
+            # f"[bold][dim]{'tag':^3}[/dim]  {'  alert         @s ':^{alert_width}}     {'subject':<{name_width}}[/bold]",
+            f"[bold][dim]{'tag':^3}[/dim]  {'alert':^{alert_width}}  {'@s':^{start_width}}   {'subject':<{name_width}}[/bold]",
         )
 
         self.list_tag_to_id.setdefault("alerts", {})
@@ -742,7 +744,7 @@ class Controller:
             row = "  ".join(
                 [
                     f"{tag_fmt}",
-                    f"[{SALMON}] {alert_name} {trtime:<8}[/{SALMON}][{PALE_GREEN}] → {sttime:<7}[/{PALE_GREEN}]",
+                    f"[{SALMON}] {alert_name} {trtime:<{trigger_width}}[/{SALMON}][{PALE_GREEN}] → {sttime:<{start_width}}[/{PALE_GREEN}]",
                     f"[{AVAILABLE_COLOR}]{subject:<{name_width}}[/{AVAILABLE_COLOR}]",
                 ]
             )
