@@ -19,6 +19,7 @@ import re
 import inspect
 from rich.theme import Theme
 from rich import box
+from rich.text import Text
 from typing import List, Tuple, Optional, Dict, Any
 from bisect import bisect_left, bisect_right
 
@@ -526,7 +527,6 @@ class Controller:
         yr_wk: Tuple[int, int],
         indx: int,
         record_id: int,
-        *,
         job_id: int | None = None,
     ):
         """Produce the next tag (with the pre-chosen width) and register it."""
@@ -560,33 +560,38 @@ class Controller:
         log_msg(f"{record_id = }, {self.db_manager.is_pinned(record_id) = }")
         return self.db_manager.is_pinned(record_id)
 
-    def get_entry(self, record_id):
-        result = self.db_manager.get_structured_tokens(record_id)
-        tokens, rruleset, created, modified = result[0]
-        entry = format_tokens(tokens, self.width)
-        rruleset = f"\n{11 * ' '}".join(rruleset.splitlines())
-        log_msg(f"{entry = }, {rruleset = }, {created = }, {modified = }")
+    def get_entry(self, record_id, job_id=None):
         lines = []
+        result = self.db_manager.get_structured_tokens(record_id)
+        log_msg(f"{result = }")
+
+        tokens, rruleset, created, modified = result[0]
+
+        entry = format_tokens(tokens, self.width)
+        entry = f"[bold {type_color}]{entry[0]}[/bold {type_color}]{entry[1:]}"
+
+        rruleset = f"\n{11 * ' '}".join(rruleset.splitlines())
         rr_line = (
             f"[{label_color}]instances:[/{label_color}] {rruleset}" if rruleset else ""
         )
+
+        job = (
+            f" [{label_color}]job_id:[/{label_color}] [bold]{job_id}[/bold]"
+            if job_id
+            else ""
+        )
         lines.extend(
             [
+                # f"[{label_color}]entry:[/{label_color}] {entry}",
                 entry,
-                "",
+                " ",
                 rr_line,
-                # f"[{label_color}]created, modified:[/{label_color}]   {created[:13]}, {modified[:13]}",
+                f"[{label_color}]record_id:[/{label_color}] {record_id}{job}",
                 f"[{label_color}]created:[/{label_color}]   {created[:13]}",
                 f"[{label_color}]modified:[/{label_color}]  {modified[:13]}",
-                # f"[{label_color}]{record_id}: {created[:13]}, {modified[:13]}[/{label_color}]",
             ]
         )
 
-        first_line = lines.pop(0)
-        first_line = (
-            f"[bold {type_color}]{first_line[0]}[/bold {type_color}]{first_line[1:]}"
-        )
-        lines.insert(0, first_line)
         return lines
 
     def get_record_core(self, record_id: int) -> dict:
@@ -751,74 +756,95 @@ class Controller:
             results.append(row)
         return results
 
-    def get_record_details(self, record_id):
-        """
-        Retrieve and format the description of a record as a list.
-
-        Args:
-            record_id (int): The ID of the record to retrieve.
-
-        Returns:
-            str: A formatted string with the record's description.
-        """
-        # log_msg(f"Fetching description for record ID {record_id}")
-        self.db_manager.cursor.execute(
-            """
-            SELECT id, itemtype, subject, description, rruleset, extent
-            FROM Records
-            WHERE id = ?
-            """,
-            (record_id,),
-        )
-        record = self.db_manager.cursor.fetchone()
-        # log_msg(f"Record: {record = }")
-
-        if not record:
-            return [
-                f"[red]No record found for ID {record_id}[/red]",
-            ]
-
-        fields = ["Id", "itemtype", "subject", "description", "RRule", "Extent"]
-        width = max(len(field) for field in fields) + 1
-
-        lines = []
-        for field, value in zip(fields, record):
-            line = f"[{FIELD_COLOR}]{field:<{width}}[/{FIELD_COLOR}]"
-            if value is None:
-                line += "[dim]NULL[/dim]"
-                lines.append(line)
-            elif len(str(value)) <= self.width - width:
-                line += f"[white]{value}[/white]"
-                lines.append(line)
-            else:
-                wrapped = wrap_preserve_newlines(
-                    value,
-                    width=self.width,
-                    initial_indent=width * " ",
-                    subsequent_indent=width * " ",
-                )
-                line += f"[white]{wrapped.pop(0).lstrip()}"
-                lines.append(line)
-                wrapped[-1] = f"{wrapped[-1]}[/white]"
-                lines.extend(wrapped)
-
-        return lines
+    # def process_tag(self, tag: str, view: str, selected_week: tuple[int, int]):
+    #     if view == "week":
+    #         log_msg(
+    #             f"{selected_week = }, {tag = }, {self.week_tag_to_id[selected_week] = }"
+    #         )
+    #         payload = self.week_tag_to_id[selected_week].get(tag)
+    #         if payload is None:
+    #             return [f"There is no item corresponding to tag '{tag}'."]
+    #         if isinstance(payload, dict):
+    #             log_msg(f"{payload = }")
+    #             record_id = payload.get("record_id")
+    #             job_id = payload.get("job_id")
+    #         else:
+    #             # backward compatibility (old mapping was tag -> record_id)
+    #             log_msg(f"{payload = }")
+    #             record_id, job_id = payload, None
+    #
+    #     elif view in [
+    #         "next",
+    #         "last",
+    #         "find",
+    #         "events",
+    #         "tasks",
+    #         "agenda-events",
+    #         "agenda-tasks",
+    #         "alerts",
+    #     ]:
+    #         payload = self.list_tag_to_id.get(view, {}).get(tag)
+    #         log_msg(f"{payload = }")
+    #         if payload is None:
+    #             return [f"There is no item corresponding to tag '{tag}'."]
+    #         if isinstance(payload, dict):
+    #             record_id = payload.get("record_id")
+    #             job_id = payload.get("job_id")
+    #         else:
+    #             # backward compatibility (old mapping was tag -> record_id)
+    #             record_id, job_id = payload, None
+    #     else:
+    #         return ["Invalid view."]
+    #
+    #     # log_msg(f"got {record_id = } for {tag = }")
+    #     core = self.get_record_core(record_id) or {}
+    #     log_msg(f"{core = }")
+    #     subject = core.get("subject") or "(untitled)"
+    #     itemtype = core.get("itemtype") or ""
+    #     rruleset = core.get("rrulestr") or ""
+    #     all_prereqs = core.get("all_prereqs") or ""
+    #
+    #     try:
+    #         pinned_now = (
+    #             self.db_manager.is_task_pinned(record_id) if itemtype == "~" else False
+    #         )
+    #     except Exception:
+    #         pinned_now = False
+    #
+    #     fields = self.get_entry(record_id, job_id)
+    #     # if job_id is not None:
+    #     #     fields = [f"[{label_color}]job_id:[/{label_color}] {job_id}"] + fields
+    #     job = (
+    #         f" [{label_color}]job_id:[/{label_color}] [bold]{job_id}[/bold]"
+    #         if job_id
+    #         else ""
+    #     )
+    #     title = f"[{label_color}]details for:[/{label_color}] [bold]{subject}[/bold]"
+    #     ids = f"[{label_color}]id:[/{label_color}] [bold]{record_id}[/bold]{job}"
+    #
+    #     # <-- this is your existing single source of truth for DetailsScreen
+    #     self._last_details_meta = {
+    #         "record_id": record_id,
+    #         "job_id": job_id,
+    #         "itemtype": itemtype,  # "~" task, "*" event, etc.
+    #         "rruleset": rruleset,
+    #         "all_prereqs": all_prereqs,
+    #         "pinned": bool(pinned_now),
+    #         "record": self.db_manager.get_record(record_id),
+    #     }
+    #
+    #     return [title, ids] + fields
 
     def process_tag(self, tag: str, view: str, selected_week: tuple[int, int]):
+        job_id = None
         if view == "week":
-            log_msg(
-                f"{selected_week = }, {tag = }, {self.week_tag_to_id[selected_week] = }"
-            )
             payload = self.week_tag_to_id[selected_week].get(tag)
             if payload is None:
                 return [f"There is no item corresponding to tag '{tag}'."]
             if isinstance(payload, dict):
-                log_msg(f"{payload = }")
                 record_id = payload.get("record_id")
                 job_id = payload.get("job_id")
             else:
-                # backward compatibility (old mapping was tag -> record_id)
-                log_msg(f"{payload = }")
                 record_id, job_id = payload, None
 
         elif view in [
@@ -832,24 +858,35 @@ class Controller:
             "alerts",
         ]:
             payload = self.list_tag_to_id.get(view, {}).get(tag)
-            log_msg(f"{payload = }")
             if payload is None:
                 return [f"There is no item corresponding to tag '{tag}'."]
             if isinstance(payload, dict):
                 record_id = payload.get("record_id")
                 job_id = payload.get("job_id")
             else:
-                # backward compatibility (old mapping was tag -> record_id)
                 record_id, job_id = payload, None
         else:
             return ["Invalid view."]
 
-        log_msg(f"got {record_id = } for {tag = }")
         core = self.get_record_core(record_id) or {}
-        subject = core.get("subject") or "(untitled)"
         itemtype = core.get("itemtype") or ""
         rruleset = core.get("rrulestr") or ""
         all_prereqs = core.get("all_prereqs") or ""
+
+        # ----- subject selection -----
+        # default to record subject
+        subject = core.get("subject") or "(untitled)"
+        # if we're in week view and this tag points to a job, prefer the job's display_subject
+        # if view == "week" and job_id is not None:
+        if job_id is not None:
+            try:
+                js = self.db_manager.get_job_display_subject(record_id, job_id)
+                if js:  # only override if present/non-empty
+                    subject = js
+            except Exception:
+                # fail-safe: keep the record subject
+                pass
+        # -----------------------------
 
         try:
             pinned_now = (
@@ -858,28 +895,34 @@ class Controller:
         except Exception:
             pinned_now = False
 
-        fields = self.get_entry(record_id)
-        # if job_id is not None:
-        #     fields = [f"[{label_color}]job_id:[/{label_color}] {job_id}"] + fields
-        job = (
-            f" [{label_color}]job_id:[/{label_color}] [bold]{job_id}[/bold]"
-            if job_id
-            else ""
-        )
-        title = f"[{label_color}]subject:[/{label_color}] [bold]{subject}[/bold]  [{label_color}]id:[/{label_color}] [bold]{record_id}[/bold]{job}"
+        fields = [
+            "",
+        ] + self.get_entry(record_id, job_id)
 
-        # <-- this is your existing single source of truth for DetailsScreen
+        # job_suffix = (
+        #     f" [{label_color}]job_id:[/{label_color}] [bold]{job_id}[/bold]"
+        #     if job_id is not None
+        #     else ""
+        # )
+        # title = f"[{label_color}]details:[/{label_color}] [bold]{subject}[/bold]"
+        title = f"[bold]{subject:^{self.width}}[/bold]"
+        # ids = f"[{label_color}]id:[/{label_color}] [bold]{record_id}[/bold]{job_suffix}"
+
+        # side-channel meta for detail actions
         self._last_details_meta = {
             "record_id": record_id,
             "job_id": job_id,
-            "itemtype": itemtype,  # "~" task, "*" event, etc.
+            "itemtype": itemtype,
             "rruleset": rruleset,
             "all_prereqs": all_prereqs,
             "pinned": bool(pinned_now),
             "record": self.db_manager.get_record(record_id),
         }
 
-        return [title] + fields
+        return [
+            title,
+            " ",
+        ] + fields
 
     def generate_table(self, start_date, selected_week, grouped_events):
         """
@@ -1048,7 +1091,7 @@ class Controller:
             this_day = (start_datetime + timedelta(days=i)).date()
             weekday_to_events[this_day] = []
 
-        for start_ts, end_ts, itemtype, subject, id in events:
+        for start_ts, end_ts, itemtype, subject, id, job_id in events:
             start_dt = datetime_from_timestamp(start_ts)
             end_dt = datetime_from_timestamp(end_ts)
             # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
@@ -1075,6 +1118,7 @@ class Controller:
 
             row = [
                 id,
+                job_id,
                 f"[{type_color}]{itemtype} {escaped_start_end}{subject}[/{type_color}]",
             ]
             weekday_to_events.setdefault(start_dt.date(), []).append(row)
@@ -1102,13 +1146,13 @@ class Controller:
                     f"[bold][{HEADER_COLOR}]{day.strftime('%a, %b %-d')}{flag}[/{HEADER_COLOR}][/bold]"
                 )
                 for event in events:
-                    event_id, event_str = event
-                    # log_msg(f"{event_str = }")
+                    event_id, job_id, event_str = event
+                    log_msg(f"{event_str = }")
                     # tag_fmt, indx = self.add_tag(yr_wk, indx, event_id)
                     # tag = indx_to_tag(indx, self.afill)
                     # self.tag_to_id[yr_wk][tag] = event_id
                     # description.append(f" [dim]{tag}[/dim]   {event_str}")
-                    tag_fmt, indx = self.add_week_tag(yr_wk, indx, event_id)
+                    tag_fmt, indx = self.add_week_tag(yr_wk, indx, event_id, job_id)
                     description.append(f"{tag_fmt} {event_str}")
                     # indx += 1
         # NOTE: maybe return list for scrollable view?
@@ -1130,19 +1174,27 @@ class Controller:
             return display
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
-        self.set_afill(events, "get_next")
-
-        self.list_tag_to_id.setdefault("next", {})
         year_to_events = {}
 
-        for id, subject, description, itemtype, start_ts in events:
+        for id, job_id, subject, description, itemtype, start_ts in events:
             start_dt = datetime_from_timestamp(start_ts)
+            if job_id is not None:
+                try:
+                    js = self.db_manager.get_job_display_subject(id, job_id)
+                    if js:  # only override if present/non-empty
+                        subject = js
+                    log_msg(f"{subject = }")
+                except Exception as e:
+                    # fail-safe: keep the record subject
+                    log_msg(f"{e = }")
+                    pass
             monthday = start_dt.strftime("%m-%d")
             start_end = f"{monthday}{format_hours_mins(start_dt, HRS_MINS):>8}"
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = f"[not bold]{start_end}[/not bold]"
             row = [
                 id,
+                job_id,
                 f"[{type_color}]{itemtype} {escaped_start_end:<12}  {subject}[/{type_color}]",
             ]
             # yr_mnth_to_events.setdefault(start_dt.strftime("%B %Y"), []).append(row)
@@ -1159,8 +1211,8 @@ class Controller:
                     f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]"
                 )
                 for event in events:
-                    event_id, event_str = event
-                    tag_fmt, indx = self.add_tag("next", indx, event_id)
+                    event_id, job_id, event_str = event
+                    tag_fmt, indx = self.add_tag("next", indx, event_id, job_id=job_id)
                     display.append(f"{tag_fmt}{event_str}")
         return display
 
@@ -1181,15 +1233,26 @@ class Controller:
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
         year_to_events = {}
 
-        for id, subject, description, itemtype, start_ts in events:
+        for id, job_id, subject, description, itemtype, start_ts in events:
             start_dt = datetime_from_timestamp(start_ts)
             # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
+            if job_id is not None:
+                try:
+                    js = self.db_manager.get_job_display_subject(id, job_id)
+                    if js:  # only override if present/non-empty
+                        subject = js
+                    log_msg(f"{subject = }")
+                except Exception as e:
+                    # fail-safe: keep the record subject
+                    log_msg(f"{e = }")
+                    pass
             monthday = start_dt.strftime("%m-%d")
             start_end = f"{monthday}{format_hours_mins(start_dt, HRS_MINS):>8}"
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = f"[not bold]{start_end}[/not bold]"
             row = [
                 id,
+                job_id,
                 f"[{type_color}]{itemtype} {escaped_start_end:<12}  {subject}[/{type_color}]",
             ]
             year_to_events.setdefault(start_dt.strftime("%Y"), []).append(row)
@@ -1206,10 +1269,11 @@ class Controller:
                     f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]"
                 )
                 for event in events:
-                    event_id, event_str = event
+                    event_id, job_id, event_str = event
                     # log_msg(f"{event_str = }")
                     # tag = indx_to_tag(indx, self.afill)
-                    tag_fmt, indx = self.add_tag("last", indx, event_id)
+                    # tag_fmt, indx = self.add_tag("last", indx, event_id)
+                    tag_fmt, indx = self.add_tag("last", indx, event_id, job_id=job_id)
                     # self.list_tag_to_id["last"][tag] = event_id
                     display.append(f"{tag_fmt}{event_str}")
         return display
@@ -1270,14 +1334,14 @@ class Controller:
         """
         grouped = defaultdict(list)
 
-        for start_ts, end_ts, itemtype, subject, record_id in events:
+        for start_ts, end_ts, itemtype, subject, record_id, job_id in events:
             log_msg(f"{start_ts = }, {end_ts = }, {subject = }")
             if itemtype != "*":
                 continue  # Only events
 
             start_dt = datetime_from_timestamp(start_ts)
             grouped[start_dt.date()].append(
-                (start_dt.time(), (start_ts, end_ts, subject, record_id))
+                (start_dt.time(), (start_ts, end_ts, subject, record_id, job_id))
             )
 
         # Sort each day's events by time
@@ -1347,7 +1411,7 @@ class Controller:
 
         for d in allowed_dates:
             entries = grouped_by_date.get(d, [])
-            for _, (start_ts, end_ts, subject, record_id) in entries:
+            for _, (start_ts, end_ts, subject, record_id, job_id) in entries:
                 end_ts = end_ts or start_ts
                 label = format_time_range(start_ts, end_ts, self.AMPM)
                 if end_ts.endswith("T000000"):
@@ -1537,120 +1601,3 @@ class Controller:
             "completed_ts": int(completed_dt.timestamp()),
             "new_rruleset": item.rruleset or "",
         }
-
-    # def finish_current_instance(
-    #     self,
-    #     record_id: int,
-    #     completed_dt: datetime | None = None,
-    #     *,
-    #     history_weight: int | None = None,
-    # ) -> dict:
-    #     """
-    #     Finish the current occurrence of a task and advance its schedule (if any).
-    #
-    #     - Rebuilds Item from stored structured_tokens.
-    #     - Calls Item.finish(...) to adjust @s/@r/@+/@- (and rruleset/jobs).
-    #     - Persists the mutated Item via db_manager.update_item(...).
-    #     - Inserts a row in Completions (due_ts_used from Item.finish, completed_ts from now/provided).
-    #     - Removes rows from Urgency/DateTimes if the item is now fully finished (itemtype 'x').
-    #     - Refreshes derived tables (urgency, alerts, etc.).
-    #     """
-    #     completed_dt = completed_dt or datetime.utcnow()
-    #
-    #     row = self.db_manager.get_record(record_id)
-    #     if not row:
-    #         raise ValueError(f"No record found for id {record_id}")
-    #
-    #     # Records row layout:
-    #     # 0 id, 1 itemtype, 2 subject, 3 description, 4 rruleset,
-    #     # 5 timezone, 6 extent, 7 alerts, 8 beginby, 9 context,
-    #     # 10 jobs, 11 tags, 12 priority, 13 structured_tokens, 14 processed,
-    #     # 15 created, 16 modified
-    #     structured_tokens_value = row[13]
-    #     existing_subject = row[2]  # fallback to avoid nulling subject
-    #
-    #     # Normalize tokens to list[dict]
-    #     tokens = _ensure_tokens_list(structured_tokens_value)
-    #
-    #     # Rebuild input for Item and parse
-    #     entry_str = "".join(tok.get("token", "") for tok in tokens).strip()
-    #     item = Item(entry_str)
-    #     if not item.parse_ok:
-    #         raise ValueError(
-    #             f"Item.parse failed for record {record_id}: {item.parse_message}"
-    #         )
-    #
-    #     # Make sure subject can’t become empty on update
-    #     if not item.subject:
-    #         item.subject = existing_subject
-    #
-    #     # Finish via Item
-    #     if history_weight is None:
-    #         history_weight = getattr(self.env.config.ui, "history_weight", 3)
-    #
-    #     fin = item.finish(completed_dt, history_weight=history_weight)
-    #     # Support either dataclass field name
-    #     due_ts_used = getattr(fin, "due_ts_used", getattr(fin, "due_ts", None))
-    #     finished_final = getattr(fin, "finished_final", getattr(fin, "final", False))
-    #
-    #     # Helper: does this item still have @o (offset) behavior?
-    #     def _has_o_token(toks: list[dict]) -> bool:
-    #         return any(t.get("t") == "@" and t.get("k") == "o" for t in toks)
-    #
-    #     # Flip to 'x' ONLY if final, no @o, and no schedule left (neither RRULE nor RDATE)
-    #     if finished_final and not _has_o_token(item.structured_tokens):
-    #         has_rrule = getattr(item, "_has_rrule", None)
-    #         is_rdate_only = getattr(item, "_is_rdate_only", None)
-    #         # If helper methods exist (as we added), use them to confirm nothing remains
-    #         nothing_left = True
-    #         if callable(has_rrule) and has_rrule():
-    #             nothing_left = False
-    #         if callable(is_rdate_only) and is_rdate_only():
-    #             nothing_left = False
-    #
-    #         if nothing_left:
-    #             item.itemtype = "x"
-    #             item.rruleset = ""  # clear rruleset when fully done
-    #             # also reflect itemtype in the first structured token
-    #             if (
-    #                 item.structured_tokens
-    #                 and item.structured_tokens[0].get("t") == "itemtype"
-    #             ):
-    #                 item.structured_tokens[0]["token"] = "x"
-    #
-    #     # Persist the mutated Item (tokens, rruleset, jobs, etc.)
-    #     self.db_manager.update_item(record_id, item)
-    #
-    #     # Record completion (even if due_ts_used is None for one-shots)
-    #     self.db_manager.insert_completion(
-    #         record_id=record_id,
-    #         due_ts=due_ts_used,
-    #         completed_ts=int(completed_dt.timestamp()),
-    #     )
-    #
-    #     # If fully finished, remove from derived tables so it disappears from lists
-    #     if finished_final:
-    #         try:
-    #             self.db_manager.cursor.execute(
-    #                 "DELETE FROM Urgency WHERE record_id=?", (record_id,)
-    #             )
-    #             self.db_manager.cursor.execute(
-    #                 "DELETE FROM DateTimes WHERE record_id=?", (record_id,)
-    #             )
-    #             self.db_manager.conn.commit()
-    #         except Exception:
-    #             pass  # best-effort
-    #
-    #     # Refresh derived tables so UI re-sorts immediately
-    #     try:
-    #         self.db_manager.populate_dependent_tables()
-    #     except AttributeError:
-    #         pass
-    #
-    #     return {
-    #         "record_id": record_id,
-    #         "final": finished_final,
-    #         "due_ts": due_ts_used,  # may be None
-    #         "completed_ts": int(completed_dt.timestamp()),
-    #         "new_rruleset": item.rruleset or "",
-    #     }

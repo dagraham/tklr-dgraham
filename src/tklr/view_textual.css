@@ -62,7 +62,8 @@ ScrollView {
 
 /* ── Footer ───────────────────────────────────────── */
 Footer {
-  background: #2e2e2e;
+  /* background: #2e2e2e; */
+  background: #373737;
   color: #fff8dc;
   text-style: bold;
   border: none; /* no line beneath the details pane */

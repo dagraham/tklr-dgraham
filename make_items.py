@@ -72,6 +72,13 @@ def in_five_days():
     return next.strftime("%Y%m%dT%H%M%S")
 
 
+def five_days_ago():
+    now = datetime.now().replace(second=0, microsecond=0)
+    delta_minutes = 60 + (15 - now.minute % 15)
+    next = now - timedelta(days=5, minutes=delta_minutes)
+    return next.strftime("%Y%m%dT%H%M%S")
+
+
 def in_two_weeks():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
@@ -251,10 +258,6 @@ items = [
     f"~ every other day @s {today_date} 10p @r d &i 2",
     f"~ due, tags, description, priority one @p 1 @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
     f"* three datetimes @s {in_ten_minutes()} @e 45m  @+ {in_one_hour()}, {in_one_day()}",
-    f"* alert seconds test @s {in_five_minutes()} @e {random.choice(duration)} @a 1m31s, 1m12s, 1m5s, 30s, -1m10s: d",  # ***
-    f"* alert minutes test @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
-    f"* alert hour test @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
-    f"~ daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",  # ***
     f"""% long formatted description @s {yesterday_date}
     @d Title
     1. This
@@ -284,7 +287,8 @@ items = [
     "~ no due date and priority five @p 5",
     f"~ finished one hour ago @s {in_one_hour()} @f {one_hour_ago()}",
     f"^ no prerequisites @s {today_date} @b 1w @~ this &r 1 &f {today_date}  @~ that &r 2 &f {today_date}",
-    "~ do over after 4 days when complete @s 22 12a @o 4d",
+    f"~ do over after 4 days when complete @s {five_days_ago()} 12p  @f {today_date} 10a @o 4d",
+    f"~ do over after approximately 4 days when complete @s {five_days_ago()} 12p  @f {today_date} 10a @o ~4d",
     "~ add another after 4 days when complete @s fri 12a @+ 26 12a",
     "? draft reminder - no checks",
     f"~ one date with priority three @s {yesterday_date} @p 3",
@@ -292,6 +296,13 @@ items = [
     "* multiday event @s 3p fri @e 2d2h30m",
     "* daily datetime @s 3p @e 30m @r d",
     "* gour Tiki Roundtable Meeting @s 1/1 14:00 z UTC @e 1h30m @r m &w +3TH &c 10",
+]
+
+alerts = [
+    f"* alert seconds test @s {in_five_minutes()} @e {random.choice(duration)} @a 1m31s, 1m12s, 1m5s, 30s, -1m10s: d",  # ***
+    f"* alert minutes test @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
+    f"* alert hour test @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
+    f"~ daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",  # ***
 ]
 
 records = []

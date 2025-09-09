@@ -205,6 +205,81 @@ def td_to_tdstr(td_obj: timedelta) -> str:
     return "".join(parts)
 
 
+# If you already have these helpers elsewhere, import and reuse them.
+def _fmt_compact_local_naive(dt: datetime) -> str:
+    """Return local-naive 'YYYYMMDD' or 'YYYYMMDDTHHMMSS'."""
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
+    if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
+        return dt.strftime("%Y%m%d")
+    return dt.strftime("%Y%m%dT%H%M%S")
+
+
+def _shift_from_parent(parent_dt: datetime, seconds: int) -> datetime:
+    """
+    Positive seconds = '&s 5d' means 5 days BEFORE parent => subtract.
+    Negative seconds => AFTER parent => add.
+    """
+    return parent_dt - timedelta(seconds=seconds)
+
+
+def _parse_jobs_json(jobs_json: str | None) -> list[dict]:
+    """
+    Parse your jobs list. Expects a list of dicts like:
+      {"~": "create plan", "s": "1w", "e": "1h", "i": 1, "status": "...", ...}
+    Returns a normalized list with keys: job_id, offset_str, extent_str, status.
+    """
+    if not jobs_json:
+        return []
+    try:
+        data = json.loads(jobs_json)
+    except Exception:
+        return []
+
+    jobs = []
+    if isinstance(data, list):
+        for j in data:
+            if isinstance(j, dict):
+                jobs.append(
+                    {
+                        "job_id": j.get("i"),
+                        "offset_str": (j.get("s") or "").strip(),
+                        "extent_str": (j.get("e") or "").strip(),
+                        "status": (j.get("status") or "").strip().lower(),
+                        "display_subject": (j.get("display_subject") or "").strip(),
+                    }
+                )
+    return jobs
+
+
+# You already have this helper elsewhere; re-use it
+# from tklr.common import td_str_to_seconds
+# def _td_str_to_seconds(s: str) -> int:
+#     # minimal fallback if you don’t want to import: supports d/h/m
+#     s = (s or "").strip().lower()
+#     if not s:
+#         return 0
+#     total = 0
+#     num = ""
+#     for ch in s:
+#         if ch.isdigit():
+#             num += ch
+#         else:
+#             if not num:
+#                 continue
+#             n = int(num)
+#             if ch == "d":
+#                 total += n * 86400
+#             elif ch == "h":
+#                 total += n * 3600
+#             elif ch == "m":
+#                 total += n * 60
+#             # ignore unknown for brevity
+#             num = ""
+#     return total
+#
+
+
 class UrgencyComputer:
     def __init__(self, env: TklrEnvironment):
         self.env = env
@@ -556,50 +631,51 @@ class DatabaseManager:
             CREATE TABLE IF NOT EXISTS Completions (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
                 record_id     INTEGER NOT NULL,
-                due_ts        INTEGER,          -- epoch seconds (nullable for one-shots)
-                completed_ts  INTEGER NOT NULL, -- epoch seconds
+                job_id        INTEGER,          -- nullable; link to a specific job if any
+                due           INTEGER,          -- epoch seconds (nullable for one-shots)
+                completed     TEXT NOT NULL,    -- UTC datetime string, e.g. "20250828T211259Z"
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
             );
         """)
+
         self.cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_completions_record_id
             ON Completions(record_id);
         """)
+
         self.cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_completions_completed_ts
-            ON Completions(completed_ts);
+            CREATE INDEX IF NOT EXISTS idx_completions_completed
+            ON Completions(completed);
         """)
+
         self.cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_completions_record_due
-            ON Completions(record_id, due_ts);
+            ON Completions(record_id, due);
         """)
 
-        # ---------------- DateTimes (for expanded instances) ----------------
-        # self.cursor.execute("""
-        #     CREATE TABLE IF NOT EXISTS DateTimes (
-        #         record_id      INTEGER,
-        #         start_datetime INTEGER,          -- epoch seconds
-        #         end_datetime   INTEGER,          -- epoch seconds
-        #         FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-        #     );
-        # """)
-
+        # ---------------- DateTimes ----------------
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS DateTimes (
-                record_id INTEGER NOT NULL,
-                start_datetime TEXT NOT NULL,  -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
-                end_datetime   TEXT,           -- NULL if instantaneous; same formats as start
+                record_id     INTEGER NOT NULL,
+                job_id        INTEGER,          -- nullable; link to specific job if any
+                start_datetime TEXT NOT NULL,   -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
+                end_datetime   TEXT,            -- NULL if instantaneous; same formats as start
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
             )
         """)
 
-        # enforce uniqueness across the triple, treating NULL end as ''
+        # enforce uniqueness across (record_id, job_id, start, end)
         self.cursor.execute("""
             CREATE UNIQUE INDEX IF NOT EXISTS idx_datetimes_unique
-            ON DateTimes(record_id, start_datetime, COALESCE(end_datetime, ''))
+            ON DateTimes(
+                record_id,
+                COALESCE(job_id, -1),
+                start_datetime,
+                COALESCE(end_datetime, '')
+            )
         """)
 
-        # (optional) range query helper
+        # range query helper
         self.cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_datetimes_start
             ON DateTimes(start_datetime)
@@ -815,18 +891,16 @@ class DatabaseManager:
         if item.itemtype in ["~", "^"]:
             self.populate_urgency_from_record(record_id)
 
-    def insert_completion(
-        self,
-        record_id: int,
-        due_ts: int | None,
-        completed_ts: int,
-    ) -> None:
+    def add_completion(
+        self, record_id: int, job_id: int | None = None, due_ts: int | None = None
+    ):
+        completed_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         self.cursor.execute(
             """
-            INSERT INTO Completions (record_id, due_ts, completed_ts)
-            VALUES (?, ?, ?)
+            INSERT INTO Completions (record_id, job_id, due, completed)
+            VALUES (?, ?, ?, ?)
             """,
-            (record_id, due_ts, completed_ts),
+            (record_id, job_id, due, completed),
         )
         self.conn.commit()
 
@@ -936,6 +1010,26 @@ class DatabaseManager:
         )
         columns = [column[0] for column in self.cursor.description]
         return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+
+    def get_job_display_subject(self, record_id: int, job_id: int | None) -> str | None:
+        """
+        Return the display_subject for a given record_id + job_id pair.
+        Falls back to None if not found or no display_subject is present.
+        """
+        if job_id is None:
+            return None
+
+        self.cursor.execute("SELECT jobs FROM Records WHERE id=?", (record_id,))
+        row = self.cursor.fetchone()
+        if not row or not row[0]:
+            return None
+
+        jobs = _parse_jobs_json(row[0])
+        for job in jobs:
+            if job.get("job_id") == job_id:
+                return job.get("display_subject") or None
+
+        return None
 
     def get_all_alerts(self):
         """Retrieve all stored alerts for debugging."""
@@ -1530,494 +1624,213 @@ class DatabaseManager:
 
         return results
 
-    # def generate_datetimes_for_period(self, start_date, end_date):
-    #     """
-    #     Populate the DateTimes table with datetimes for all records within the specified range.
-    #
-    #     Strategy:
-    #     • Build a dateutil rruleset via rrulestr(rule_str) for each record.
-    #     • If finite (RDATE-only OR RRULE with COUNT/UNTIL), iterate all occurrences via .after(...)
-    #         and set processed=1. Otherwise (infinite RRULE), only insert those between start_date and end_date.
-    #     • Handle aware/naive mismatch by retrying with UTC-aware bounds when needed.
-    #     """
-    #     self.cursor.execute("SELECT id, rruleset, extent, processed FROM Records")
-    #     records = self.cursor.fetchall()
-    #
-    #     for record_id, rruleset, extent, processed in records:
-    #         if not rruleset:
-    #             # Nothing to generate
-    #             continue
-    #
-    #         # Unescape any serialized '\n's
-    #         rule_str = (rruleset or "").replace("\\N", "\n").replace("\\n", "\n")
-    #
-    #         # Finite if no RRULE at all (RDATE-only), or RRULE has COUNT/UNTIL
-    #         has_rrule = "RRULE" in rule_str
-    #         is_finite = (not has_rrule) or (
-    #             "COUNT=" in rule_str or "UNTIL=" in rule_str
-    #         )
-    #
-    #         # Skip already-processed finite recurrences
-    #         if processed == 1 and is_finite:
-    #             continue
-    #
-    #         # Parse extent duration
-    #         extent_td = td_str_to_td(extent) if extent else timedelta(seconds=0)
-    #
-    #         try:
-    #             rule = rrulestr(rule_str)
-    #         except Exception as e:
-    #             log_msg(
-    #                 f"rrulestr failed for record {record_id}: {e}\n---\n{rule_str}\n---"
-    #             )
-    #             continue
-    #
-    #         try:
-    #             if is_finite:
-    #                 # Iterate all occurrences using .after(...).
-    #                 # Choose an anchor compatible with rule's awareness.
-    #                 anchor = datetime.min
-    #                 try:
-    #                     next_dt = rule.after(anchor, inc=True)
-    #                 except TypeError:
-    #                     # Mismatch (aware vs naive): try UTC-aware anchor
-    #                     anchor = datetime.min.replace(tzinfo=tz.UTC)
-    #                     next_dt = rule.after(anchor, inc=True)
-    #
-    #                 # Optional: to avoid duplicates on repeated runs where processed wasn't set,
-    #                 # you can clear DateTimes for this record before inserting finite sets:
-    #                 # self.cursor.execute("DELETE FROM DateTimes WHERE record_id=?", (record_id,))
-    #
-    #                 while next_dt is not None:
-    #                     end_dt = next_dt + extent_td
-    #                     self.cursor.execute(
-    #                         """
-    #                         INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
-    #                         VALUES (?, ?, ?)
-    #                         """,
-    #                         (
-    #                             record_id,
-    #                             int(next_dt.timestamp()),
-    #                             int(end_dt.timestamp()),
-    #                         ),
-    #                     )
-    #                     # get the next occurrence strictly after current
-    #                     next_dt = rule.after(next_dt, inc=False)
-    #
-    #                 # Mark as processed to avoid re-inserting the same finite set next time
-    #                 self.cursor.execute(
-    #                     "UPDATE Records SET processed = 1 WHERE id = ?", (record_id,)
-    #                 )
-    #                 self.conn.commit()
-    #
-    #             else:
-    #                 # Infinite rule: fetch occurrences between start_date and end_date (inclusive)
-    #                 lo, hi = start_date, end_date
-    #                 try:
-    #                     occs = rule.between(lo, hi, inc=True)
-    #                 except TypeError:
-    #                     # Bounds timezone mismatch → try UTC-aware bounds
-    #                     if lo.tzinfo is None:
-    #                         lo = lo.replace(tzinfo=tz.UTC)
-    #                     if hi.tzinfo is None:
-    #                         hi = hi.replace(tzinfo=tz.UTC)
-    #                     occs = rule.between(lo, hi, inc=True)
-    #
-    #                 for start_dt in occs:
-    #                     end_dt = start_dt + extent_td
-    #                     self.cursor.execute(
-    #                         """
-    #                         INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
-    #                         VALUES (?, ?, ?)
-    #                         """,
-    #                         (
-    #                             record_id,
-    #                             int(start_dt.timestamp()),
-    #                             int(end_dt.timestamp()),
-    #                         ),
-    #                     )
-    #
-    #                 self.conn.commit()
-    #
-    #         except Exception as e:
-    #             log_msg(
-    #                 "Error generating datetimes for record_id={}: {}\n"
-    #                 "--- rruleset ---\n{}\n---------------".format(
-    #                     record_id, e, rule_str
-    #                 )
-    #             )
-    #
-    # def generate_datetimes_for_period(self, start_date, end_date):
-    #     """
-    #     Populate DateTimes with occurrences from each record's rruleset,
-    #     using dateutil.rrule.rrulestr directly.
-    #     """
-    #     log_msg(f"generating datetimes for {start_date = } through {end_date = }")
-    #     self.cursor.execute("SELECT id, rruleset, extent, processed FROM Records")
-    #     records = self.cursor.fetchall()
-    #
-    #     for record_id, rruleset, extent, processed in records:
-    #         try:
-    #             if not rruleset:
-    #                 continue
-    #
-    #             # Replace escaped newlines
-    #             rule_str = rruleset.replace("\\N", "\n").replace("\\n", "\n")
-    #
-    #             # Build rruleset object directly
-    #             rule = rrulestr(rule_str)
-    #
-    #             # Normalize bounds: if rule produces aware datetimes, make bounds UTC-aware too
-    #             first_occ = next(iter(rule), None)
-    #             if first_occ is None:
-    #                 continue
-    #
-    #             if first_occ.tzinfo:
-    #                 if start_date.tzinfo is None:
-    #                     start_date = start_date.replace(tzinfo=tz.UTC)
-    #                 if end_date.tzinfo is None:
-    #                     end_date = end_date.replace(tzinfo=tz.UTC)
-    #
-    #             extent_td = td_str_to_td(extent) if extent else timedelta(seconds=0)
-    #
-    #             # Get all occurrences in the range
-    #             occurrences = rule.between(start_date, end_date, inc=True)
-    #
-    #             for start_dt in occurrences:
-    #                 end_dt = start_dt + extent_td
-    #                 self.cursor.execute(
-    #                     """
-    #                     INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
-    #                     VALUES (?, ?, ?)
-    #                     """,
-    #                     (
-    #                         record_id,
-    #                         int(start_dt.timestamp()),
-    #                         int(end_dt.timestamp()),
-    #                     ),
-    #                 )
-    #
-    #         except Exception as e:
-    #             log_msg(f"Error processing {record_id = } {rruleset = }:\n  {e}")
-    #
-    #     self.conn.commit()
-
-    # def generate_datetimes_for_period(self, start_date, end_date):
-    #     """
-    #     Populate DateTimes with occurrences from each record's rruleset,
-    #     using dateutil.rrule.rrulestr directly.
-    #     """
-    #     log_msg(f"generating datetimes for {start_date = } through {end_date = }")
-    #     self.cursor.execute("SELECT id, rruleset, extent, processed FROM Records")
-    #     records = self.cursor.fetchall()
-    #
-    #     for record_id, rruleset, extent, processed in records:
-    #         try:
-    #             if not rruleset:
-    #                 continue
-    #
-    #             # Replace escaped newlines
-    #             rule_str = rruleset.replace("\\N", "\n").replace("\\n", "\n")
-    #
-    #             # Build rruleset object directly
-    #             rule = rrulestr(rule_str)
-    #
-    #             # Normalize bounds: if rule produces aware datetimes, make bounds UTC-aware too
-    #             first_occ = next(iter(rule), None)
-    #             if first_occ is None:
-    #                 continue
-    #
-    #             if first_occ.tzinfo:
-    #                 if start_date.tzinfo is None:
-    #                     start_date = start_date.replace(tzinfo=tz.UTC)
-    #                 if end_date.tzinfo is None:
-    #                     end_date = end_date.replace(tzinfo=tz.UTC)
-    #
-    #             extent_td = td_str_to_td(extent) if extent else timedelta(seconds=0)
-    #
-    #             # Get all occurrences in the range
-    #             occurrences = rule.between(start_date, end_date, inc=True)
-    #
-    #             for start_dt in occurrences:
-    #                 end_dt = start_dt + extent_td
-    #                 self.cursor.execute(
-    #                     """
-    #                     INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
-    #                     VALUES (?, ?, ?)
-    #                     """,
-    #                     (
-    #                         record_id,
-    #                         int(start_dt.timestamp()),
-    #                         int(end_dt.timestamp()),
-    #                     ),
-    #                 )
-    #
-    #         except Exception as e:
-    #             log_msg(f"Error processing {record_id = } {rruleset = }:\n  {e}")
-    #
-    #     self.conn.commit()
-
-    def generate_datetimes_for_period(self, start_date: datetime, end_date: datetime):
+    def generate_datetimes_for_record(
+        self,
+        record_id: int,
+        *,
+        window: tuple[datetime, datetime] | None = None,
+        clear_existing: bool = True,
+    ) -> None:
         """
-        Populate DateTimes with local-naive strings:
-        • date      -> 'YYYYMMDD'
-        • datetime  -> 'YYYYMMDDTHHMMSS' (local-naive)
-        end_datetime is NULL when instantaneous; otherwise same string format.
-        Multi-day spans are split at day boundaries (23:59:59 / 00:00:00).
+        Regenerate DateTimes rows for a single record.
+
+        Behavior:
+        • If the record has jobs (project): generate rows for jobs ONLY (job_id set).
+        • If the record has no jobs (event or single task): generate rows for the parent
+            itself (job_id NULL).
+        • Notes / unscheduled: nothing.
+
+        Infinite rules: constrained to `window` when provided.
+        Finite rules: generated fully (window ignored).
         """
-        self.cursor.execute("SELECT id, rruleset, extent, processed FROM Records")
-        rows = self.cursor.fetchall()
+        # Fetch core fields including itemtype and jobs JSON
+        self.cursor.execute(
+            "SELECT itemtype, rruleset, extent, jobs, processed FROM Records WHERE id=?",
+            (record_id,),
+        )
+        row = self.cursor.fetchone()
+        if not row:
+            log_msg(f"⚠️ No record found id={record_id}")
+            return
 
-        for record_id, rruleset, extent, processed in rows:
-            if not rruleset:
-                continue
+        itemtype, rruleset, record_extent, jobs_json, processed = row
+        rule_str = (rruleset or "").replace("\\N", "\n").replace("\\n", "\n")
 
-            rule_str = (rruleset or "").replace("\\N", "\n").replace("\\n", "\n")
-            has_rrule = "RRULE" in rule_str
-            is_finite = (not has_rrule) or (
-                "COUNT=" in rule_str or "UNTIL=" in rule_str
+        # Nothing to do without any schedule
+        if not rule_str:
+            return
+
+        # Optional: clear existing rows for this record
+        if clear_existing:
+            self.cursor.execute(
+                "DELETE FROM DateTimes WHERE record_id = ?", (record_id,)
             )
 
-            # Skip already-processed finite items
-            if processed == 1 and is_finite:
-                continue
+        # Parse jobs (if any)
+        jobs = _parse_jobs_json(jobs_json)
+        has_jobs = bool(jobs)
 
-            # extent -> timedelta
-            extent_td = td_str_to_td(extent) if extent else timedelta(0)
+        has_rrule = "RRULE" in rule_str
+        is_finite = (not has_rrule) or ("COUNT=" in rule_str) or ("UNTIL=" in rule_str)
 
-            try:
-                rule = rrulestr(rule_str)
-            except Exception as e:
-                log_msg(
-                    f"rrulestr failed for record {record_id}: {e}\n---\n{rule_str}\n---"
-                )
-                continue
+        # Build parent recurrence iterator
+        try:
+            rule = rrulestr(rule_str)
+        except Exception as e:
+            log_msg(
+                f"rrulestr failed for record {record_id}: {e}\n---\n{rule_str}\n---"
+            )
+            return
 
-            try:
-                if is_finite:
-                    # iterate all occurrences with .after(...)
-                    anchor = datetime.min
-                    try:
-                        cur = rule.after(anchor, inc=True)
-                    except TypeError:
-                        # timezone mismatch (aware vs naive)
-                        anchor = datetime.min.replace(tzinfo=tz.UTC)
-                        cur = rule.after(anchor, inc=True)
-
-                    # Optional: clear stale rows to avoid dup risk on re-runs
-                    # self.cursor.execute("DELETE FROM DateTimes WHERE record_id=?", (record_id,))
-
-                    while cur is not None:
-                        # DATE vs DATETIME
-                        if (
-                            isinstance(cur, datetime)
-                            and cur.tzinfo is None
-                            and cur.hour == 0
-                            and cur.minute == 0
-                            and cur.second == 0
-                        ):
-                            # This is a naive midnight datetime — if it came from a DATE RDATE, treat as DATE
-                            # Heuristic: dateutil often returns datetime for dates; detect pure date by presence in rule?
-                            # Easiest: if rule string line matched a YYYYMMDD for this occurrence; but we’ll keep it simple:
-                            start_str = _fmt_naive(cur)  # store as datetime
-                            end_str = (
-                                None
-                                if extent_td == timedelta(0)
-                                else _fmt_naive(cur + extent_td)
-                            )
-                            # If you truly want “pure date” storage for date-only, uncomment next two lines:
-                            # start_str = _fmt_date(cur.date())
-                            # end_str = None
-                            self.cursor.execute(
-                                "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
-                                (record_id, start_str, end_str),
-                            )
-                        elif isinstance(cur, datetime):
-                            # Aware → local naive; naive stays as is
-                            start_local = _to_local_naive(cur)
-                            end_local = start_local + extent_td
-                            if extent_td == timedelta(0):
-                                self.cursor.execute(
-                                    "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
-                                    (record_id, _fmt_naive(start_local), None),
-                                )
-                            else:
-                                # Split across days if needed
-                                for seg_start, seg_end in _split_span_local_days(
-                                    start_local, end_local
-                                ):
-                                    start_str = _fmt_naive(seg_start)
-                                    # If same instant (rare after split), store NULL
-                                    end_str = (
-                                        None
-                                        if seg_end == seg_start
-                                        else _fmt_naive(seg_end)
-                                    )
-                                    self.cursor.execute(
-                                        "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
-                                        (record_id, start_str, end_str),
-                                    )
-                        else:
-                            # Pure date (dateutil may actually return datetime; if truly a date object):
-                            start_str = _fmt_date(cur)  # 8-char date
-                            self.cursor.execute(
-                                "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
-                                (record_id, start_str, None),
-                            )
-
-                        cur = rule.after(cur, inc=False)
-
-                    # mark finite as processed
-                    self.cursor.execute(
-                        "UPDATE Records SET processed = 1 WHERE id=?", (record_id,)
-                    )
-                    self.conn.commit()
-
-                else:
-                    # Infinite: generate only within the requested window
-                    lo, hi = start_date, end_date
+        def _iter_parent_occurrences():
+            if is_finite:
+                anchor = datetime.min
+                try:
+                    cur = rule.after(anchor, inc=True)
+                except TypeError:
+                    anchor = datetime.min.replace(tzinfo=tz.UTC)
+                    cur = rule.after(anchor, inc=True)
+                while cur is not None:
+                    yield cur
+                    cur = rule.after(cur, inc=False)
+            else:
+                if window:
+                    lo, hi = window
                     try:
                         occs = rule.between(lo, hi, inc=True)
                     except TypeError:
-                        # aware/naive mismatch → retry with UTC-aware bounds
                         if lo.tzinfo is None:
                             lo = lo.replace(tzinfo=tz.UTC)
                         if hi.tzinfo is None:
                             hi = hi.replace(tzinfo=tz.UTC)
                         occs = rule.between(lo, hi, inc=True)
-
                     for cur in occs:
-                        if isinstance(cur, datetime):
-                            start_local = _to_local_naive(cur)
-                            end_local = start_local + extent_td
-                            if extent_td == timedelta(0):
-                                self.cursor.execute(
-                                    "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
-                                    (record_id, _fmt_naive(start_local), None),
+                        yield cur
+                else:
+                    # default horizon for infinite rules
+                    start = datetime.now()
+                    end = start + timedelta(weeks=12)
+                    try:
+                        occs = rule.between(start, end, inc=True)
+                    except TypeError:
+                        occs = rule.between(
+                            start.replace(tzinfo=tz.UTC),
+                            end.replace(tzinfo=tz.UTC),
+                            inc=True,
+                        )
+                    for cur in occs:
+                        yield cur
+
+        extent_sec_record = td_str_to_seconds(record_extent or "")
+
+        # ---- PATH A: Projects with jobs -> generate job rows only ----
+        if has_jobs:
+            for parent_dt in _iter_parent_occurrences():
+                parent_local = _to_local_naive(
+                    parent_dt
+                    if isinstance(parent_dt, datetime)
+                    else datetime.combine(parent_dt, datetime.min.time())
+                )
+                for j in jobs:
+                    if j.get("status") == "finished":
+                        continue
+                    job_id = j.get("job_id")
+                    off_sec = td_str_to_seconds(j.get("offset_str") or "")
+                    job_start = _shift_from_parent(parent_local, off_sec)
+                    job_extent_sec = (
+                        td_str_to_seconds(j.get("extent_str") or "")
+                        or extent_sec_record
+                    )
+
+                    if job_extent_sec:
+                        job_end = job_start + timedelta(seconds=job_extent_sec)
+                        try:
+                            # preferred: split across days if you have this helper
+                            for seg_start, seg_end in _split_span_local_days(
+                                job_start, job_end
+                            ):
+                                s_txt = _fmt_naive(seg_start)
+                                e_txt = (
+                                    None
+                                    if seg_end == seg_start
+                                    else _fmt_naive(seg_end)
                                 )
-                            else:
-                                for seg_start, seg_end in _split_span_local_days(
-                                    start_local, end_local
-                                ):
-                                    start_str = _fmt_naive(seg_start)
-                                    end_str = (
-                                        None
-                                        if seg_end == seg_start
-                                        else _fmt_naive(seg_end)
-                                    )
-                                    self.cursor.execute(
-                                        "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
-                                        (record_id, start_str, end_str),
-                                    )
-                        else:
-                            # pure date object
-                            start_str = _fmt_date(cur)
+                                self.cursor.execute(
+                                    "INSERT OR IGNORE INTO DateTimes (record_id, job_id, start_datetime, end_datetime) VALUES (?, ?, ?, ?)",
+                                    (record_id, job_id, s_txt, e_txt),
+                                )
+                        except NameError:
+                            # fallback: single row
                             self.cursor.execute(
-                                "INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime) VALUES (?, ?, ?)",
-                                (record_id, start_str, None),
+                                "INSERT OR IGNORE INTO DateTimes (record_id, job_id, start_datetime, end_datetime) VALUES (?, ?, ?, ?)",
+                                (
+                                    record_id,
+                                    job_id,
+                                    _fmt_naive(job_start),
+                                    _fmt_naive(job_end),
+                                ),
                             )
+                    else:
+                        self.cursor.execute(
+                            "INSERT OR IGNORE INTO DateTimes (record_id, job_id, start_datetime, end_datetime) VALUES (?, ?, ?, NULL)",
+                            (record_id, job_id, _fmt_naive(job_start)),
+                        )
 
-                    self.conn.commit()
+        # ---- PATH B: Events / single tasks (no jobs) -> generate parent rows ----
+        else:
+            for cur in _iter_parent_occurrences():
+                # cur can be aware/naive datetime (or, rarely, date)
+                if isinstance(cur, datetime):
+                    start_local = _to_local_naive(cur)
+                else:
+                    start_local = (
+                        cur  # date; treated as local-naive midnight by _fmt_naive
+                    )
 
-            except Exception as e:
-                log_msg(
-                    f"Error generating DateTimes for record_id={record_id}: {e}\n---\n{rule_str}\n---"
-                )
+                if extent_sec_record:
+                    end_local = (
+                        start_local + timedelta(seconds=extent_sec_record)
+                        if isinstance(start_local, datetime)
+                        else datetime.combine(start_local, datetime.min.time())
+                        + timedelta(seconds=extent_sec_record)
+                    )
+                    try:
+                        for seg_start, seg_end in _split_span_local_days(
+                            start_local, end_local
+                        ):
+                            s_txt = _fmt_naive(seg_start)
+                            e_txt = (
+                                None if seg_end == seg_start else _fmt_naive(seg_end)
+                            )
+                            self.cursor.execute(
+                                "INSERT OR IGNORE INTO DateTimes (record_id, job_id, start_datetime, end_datetime) VALUES (?, NULL, ?, ?)",
+                                (record_id, s_txt, e_txt),
+                            )
+                    except NameError:
+                        self.cursor.execute(
+                            "INSERT OR IGNORE INTO DateTimes (record_id, job_id, start_datetime, end_datetime) VALUES (?, NULL, ?, ?)",
+                            (record_id, _fmt_naive(start_local), _fmt_naive(end_local)),
+                        )
+                else:
+                    self.cursor.execute(
+                        "INSERT OR IGNORE INTO DateTimes (record_id, job_id, start_datetime, end_datetime) VALUES (?, NULL, ?, NULL)",
+                        (record_id, _fmt_naive(start_local)),
+                    )
 
-    # FIXME: should parallel new generate_datetimes_for_period
-    def generate_datetimes_for_record(self, record_id: int):
-        """
-        Regenerate DateTimes entries for a single record.
-        This mirrors logic from generate_datetimes_for_period but for one record.
-        """
-
-        # Fetch the record's recurrence data
-        self.cursor.execute(
-            "SELECT rruleset, extent FROM Records WHERE id = ?", (record_id,)
-        )
-        result = self.cursor.fetchone()
-        if not result:
-            log_msg(f"⚠️ No record found with id {record_id}")
-            return
-
-        rruleset, extent = result
-
-        # Clean and normalize the rruleset string
-        rule_str = rruleset.replace("\\N", "\n").replace("\\n", "\n")
-
-        try:
-            # Clear existing datetimes for this record
+        # Mark finite as processed only when we generated full set (no window)
+        if is_finite and not window:
             self.cursor.execute(
-                "DELETE FROM DateTimes WHERE record_id = ?", (record_id,)
+                "UPDATE Records SET processed = 1 WHERE id = ?", (record_id,)
             )
-
-            # Determine if the recurrence is finite
-            is_finite = (
-                "RRULE" not in rule_str or "COUNT=" in rule_str or "UNTIL=" in rule_str
-            )
-
-            if is_finite:
-                occurrences = self.generate_datetimes(
-                    rule_str, extent, datetime.min, datetime.max
-                )
-                self.cursor.execute(
-                    "UPDATE Records SET processed = 1 WHERE id = ?", (record_id,)
-                )
-            else:
-                # For infinite recurrences, only generate a 12-week forward window
-                start = datetime.now()
-                end = start + timedelta(weeks=12)
-                occurrences = self.generate_datetimes(rule_str, extent, start, end)
-
-            for start_dt, end_dt in occurrences:
-                self.cursor.execute(
-                    """
-                    INSERT OR IGNORE INTO DateTimes (record_id, start_datetime, end_datetime)
-                    VALUES (?, ?, ?)
-                    """,
-                    (
-                        record_id,
-                        int(start_dt.timestamp()),
-                        int(end_dt.timestamp()),
-                    ),
-                )
-
-            self.conn.commit()
-
-        except Exception as e:
-            log_msg(
-                f"⚠️ Error processing rruleset {rule_str} for record_id {record_id}: {e}"
-            )
-
-    def get_events_for_period(self, start_date, end_date):
-        """
-        Retrieve all events that occur or overlap within a specified period,
-        including the itemtype, subject, and ID of each event, ordered by start time.
-
-        Args:
-            start_date (datetime): The start of the period.
-            end_date (datetime): The end of the period.
-
-        Returns:
-            List[Tuple[int, int, str, str, int]]: A list of tuples containing
-            start and end timestamps, event type, event name, and event ID.
-        """
-        self.cursor.execute(
-            """
-        SELECT dt.start_datetime, dt.end_datetime, r.itemtype, r.subject, r.id 
-        FROM DateTimes dt
-        JOIN Records r ON dt.record_id = r.id
-        WHERE dt.start_datetime < ? AND dt.end_datetime >= ?
-        ORDER BY dt.start_datetime
-        """,
-            (_fmt_naive(end_date), _fmt_naive(start_date)),
-        )
-        return self.cursor.fetchall()
+        self.conn.commit()
 
     def get_events_for_period(self, start_date: datetime, end_date: datetime):
         """
         Retrieve all events that occur or overlap within [start_date, end_date),
         ordered by start time.
+
+        Returns rows as:
+            (start_datetime, end_datetime, itemtype, subject, record_id, job_id)
 
         DateTimes table stores TEXT:
         - date-only: 'YYYYMMDD'
@@ -2025,52 +1838,146 @@ class DatabaseManager:
         - end_datetime may be NULL (instantaneous)
 
         Overlap rule:
-        normalized_end  >= period_start_key
-        normalized_start < period_end_key
+        normalized_end   >= period_start_key
+        normalized_start <  period_end_key
         """
         start_key = _to_key(start_date)
         end_key = _to_key(end_date)
 
-        # Normalize stored strings for correct lexicographic comparison:
-        #   start_norm = date -> append T000000, else use as-is
-        #   end_norm   = if NULL use start_norm (instantaneous)
-        #                if date append T235959, else as-is
         sql = """
         SELECT
-        dt.start_datetime,
-        dt.end_datetime,
-        r.itemtype,
-        r.subject,
-        r.id
+            dt.start_datetime,
+            dt.end_datetime,
+            r.itemtype,
+            r.subject,
+            r.id,
+            dt.job_id
         FROM DateTimes dt
         JOIN Records r ON dt.record_id = r.id
         WHERE
-        (
-            CASE
-            WHEN dt.end_datetime IS NULL THEN
+            -- normalized end >= period start
+            (
                 CASE
+                    WHEN dt.end_datetime IS NULL THEN
+                        CASE
+                            WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+                            ELSE dt.start_datetime
+                        END
+                    WHEN LENGTH(dt.end_datetime) = 8 THEN dt.end_datetime || 'T235959'
+                    ELSE dt.end_datetime
+                END
+            ) >= ?
+            AND
+            -- normalized start < period end
+            (
+                CASE
+                    WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+                    ELSE dt.start_datetime
+                END
+            ) < ?
+        ORDER BY
+            CASE
                 WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
                 ELSE dt.start_datetime
-                END
-            WHEN LENGTH(dt.end_datetime) = 8 THEN dt.end_datetime || 'T235959'
-            ELSE dt.end_datetime
             END
-        ) >= ?
-        AND
-        (
-            CASE
-            WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
-            ELSE dt.start_datetime
-            END
-        ) < ?
-        ORDER BY
-        CASE
-            WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
-            ELSE dt.start_datetime
-        END
         """
         self.cursor.execute(sql, (start_key, end_key))
         return self.cursor.fetchall()
+
+    def get_events_for_period(self, start_date: datetime, end_date: datetime):
+        """
+        Retrieve all events that occur or overlap within [start_date, end_date),
+        ordered by start time.
+
+        Returns rows as:
+        (start_datetime, end_datetime, itemtype, resolved_subject, record_id, job_id)
+
+        If dt.job_id is not NULL and Records.jobs contains a matching job with key "i",
+        we use that job's "display_subject" (falling back to "~" or parent subject).
+        """
+        start_key = _to_key(start_date)
+        end_key = _to_key(end_date)
+
+        sql = """
+        SELECT
+            dt.start_datetime,
+            dt.end_datetime,
+            r.itemtype,
+            r.subject,     -- parent subject
+            r.id,
+            dt.job_id,
+            r.jobs         -- JSON array of job dicts (may be NULL)
+        FROM DateTimes dt
+        JOIN Records r ON dt.record_id = r.id
+        WHERE
+            -- normalized end >= period start
+            (
+                CASE
+                    WHEN dt.end_datetime IS NULL THEN
+                        CASE
+                            WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+                            ELSE dt.start_datetime
+                        END
+                    WHEN LENGTH(dt.end_datetime) = 8 THEN dt.end_datetime || 'T235959'
+                    ELSE dt.end_datetime
+                END
+            ) >= ?
+            AND
+            -- normalized start < period end
+            (
+                CASE
+                    WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+                    ELSE dt.start_datetime
+                END
+            ) < ?
+        ORDER BY
+            CASE
+                WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+                ELSE dt.start_datetime
+            END
+        """
+        self.cursor.execute(sql, (start_key, end_key))
+        rows = self.cursor.fetchall()
+
+        resolved = []
+        for (
+            start_dt,
+            end_dt,
+            itemtype,
+            parent_subject,
+            record_id,
+            job_id,
+            jobs_json,
+        ) in rows:
+            subject = parent_subject
+            if job_id is not None and jobs_json:
+                try:
+                    jobs = json.loads(jobs_json)
+                    for job in jobs:
+                        # match job by its "i" field
+                        if job.get("i") == job_id:
+                            subject = (
+                                job.get("display_subject")
+                                or job.get("~")
+                                or parent_subject
+                            )
+                            break
+                except Exception:
+                    # if JSON is malformed, just fall back to parent subject
+                    pass
+
+            resolved.append((start_dt, end_dt, itemtype, subject, record_id, job_id))
+
+        return resolved
+
+    def generate_datetimes_for_period(self, start_date: datetime, end_date: datetime):
+        self.cursor.execute("SELECT id FROM Records")
+        for (record_id,) in self.cursor.fetchall():
+            self.generate_datetimes_for_record(
+                record_id,
+                window=(start_date, end_date),
+                clear_existing=True,
+            )
 
     def get_beginby_for_events(self):
         """
@@ -2153,7 +2060,7 @@ class DatabaseManager:
         # Group events by ISO year, week, and weekday
         grouped_events = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
-        for start_ts, end_ts, itemtype, subject, id in events:
+        for start_ts, end_ts, itemtype, subject, id, job_id in events:
             start_dt = (
                 datetime_from_timestamp(start_ts)
                 # .replace(tzinfo=gettz("UTC"))
@@ -2260,28 +2167,6 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
-    def get_next_instances(self) -> List[Tuple[int, str, str, str, datetime]]:
-        """
-        Retrieve the next instances of each record falling on or after today.
-
-        Returns:
-            List[Tuple[int, str, str, str, datetime]]: List of tuples containing
-                record ID, name, description, type, and the next datetime.
-        """
-        today = int(datetime.now().timestamp())
-        self.cursor.execute(
-            """
-            SELECT r.id, r.subject, r.description, r.itemtype, MIN(d.start_datetime) AS next_datetime
-            FROM Records r
-            JOIN DateTimes d ON r.id = d.record_id
-            WHERE d.start_datetime >= ?
-            GROUP BY r.id
-            ORDER BY next_datetime ASC
-            """,
-            (today,),
-        )
-        return self.cursor.fetchall()
-
     def get_last_instances(self) -> List[Tuple[int, str, str, str, str]]:
         """
         Retrieve the last instance *before now* for each record.
@@ -2320,43 +2205,103 @@ class DatabaseManager:
         self.cursor.execute(sql, (today_key,))
         return self.cursor.fetchall()
 
-    def get_next_instances(self) -> List[Tuple[int, str, str, str, str]]:
+    def get_last_instances(
+        self,
+    ) -> List[Tuple[int, int | None, str, str, str, str]]:
         """
-        Retrieve the next instance *at or after now* for each record.
+        Retrieve the last instances of each record/job falling before today.
 
         Returns:
-            List of tuples: (record_id, subject, description, itemtype, next_datetime_key)
-            where next_datetime_key is 'YYYYMMDDTHHMMSS'.
+            List of tuples:
+                (record_id, job_id, subject, description, itemtype, last_datetime)
         """
-        today_key = _today_key()
-
-        sql = """
-        WITH norm AS (
-        SELECT
-            r.id            AS record_id,
-            r.subject       AS subject,
-            r.description   AS description,
-            r.itemtype      AS itemtype,
-            CASE
-            WHEN LENGTH(d.start_datetime) = 8 THEN d.start_datetime || 'T000000'
-            ELSE d.start_datetime
-            END             AS start_norm
-        FROM Records r
-        JOIN DateTimes d ON r.id = d.record_id
+        today = datetime.now().strftime("%Y%m%dT%H%M%S")
+        self.cursor.execute(
+            """
+            SELECT
+                r.id,
+                d.job_id,
+                r.subject,
+                r.description,
+                r.itemtype,
+                MAX(d.start_datetime) AS last_datetime
+            FROM Records r
+            JOIN DateTimes d ON r.id = d.record_id
+            WHERE d.start_datetime < ?
+            GROUP BY r.id, d.job_id
+            ORDER BY last_datetime DESC
+            """,
+            (today,),
         )
-        SELECT
-        n1.record_id,
-        n1.subject,
-        n1.description,
-        n1.itemtype,
-        MIN(n1.start_norm) AS next_datetime
-        FROM norm n1
-        WHERE n1.start_norm >= ?
-        GROUP BY n1.record_id
-        ORDER BY next_datetime ASC
-        """
-        self.cursor.execute(sql, (today_key,))
         return self.cursor.fetchall()
+
+    def get_next_instances(
+        self,
+    ) -> List[Tuple[int, int | None, str, str, str, str]]:
+        """
+        Retrieve the next instances of each record/job falling on or after today.
+
+        Returns:
+            List of tuples:
+                (record_id, job_id, subject, description, itemtype, last_datetime)
+        """
+        today = datetime.now().strftime("%Y%m%dT%H%M%S")
+        self.cursor.execute(
+            """
+            SELECT
+                r.id,
+                d.job_id,
+                r.subject,
+                r.description,
+                r.itemtype,
+                MIN(d.start_datetime) AS next_datetime
+            FROM Records r
+            JOIN DateTimes d ON r.id = d.record_id
+            WHERE d.start_datetime >= ?
+            GROUP BY r.id, d.job_id
+            ORDER BY next_datetime ASC
+            """,
+            (today,),
+        )
+        return self.cursor.fetchall()
+
+    # def get_next_instances(self) -> List[Tuple[int, int | None, str, str, str, str]]:
+    #     """
+    #     Retrieve the next instance *at or after now* for each record.
+    #
+    #     Returns:
+    #         List of tuples:
+    #             (record_id, job_id, subject, description, itemtype, next_datetime)
+    #     """
+    #     today_key = _today_key()
+    #
+    #     sql = """
+    #     WITH norm AS (
+    #     SELECT
+    #         r.id            AS record_id,
+    #         r.subject       AS subject,
+    #         r.description   AS description,
+    #         r.itemtype      AS itemtype,
+    #         CASE
+    #         WHEN LENGTH(d.start_datetime) = 8 THEN d.start_datetime || 'T000000'
+    #         ELSE d.start_datetime
+    #         END             AS start_norm
+    #     FROM Records r
+    #     JOIN DateTimes d ON r.id = d.record_id
+    #     )
+    #     SELECT
+    #     n1.record_id,
+    #     n1.subject,
+    #     n1.description,
+    #     n1.itemtype,
+    #     MIN(n1.start_norm) AS next_datetime
+    #     FROM norm n1
+    #     WHERE n1.start_norm >= ?
+    #     GROUP BY n1.record_id
+    #     ORDER BY next_datetime ASC
+    #     """
+    #     self.cursor.execute(sql, (today_key,))
+    #     return self.cursor.fetchall()
 
     def get_next_instance_for_record(
         self, record_id: int
@@ -2673,7 +2618,7 @@ class DatabaseManager:
 
     def get_jobs_for_record(self, record_id):
         cur = self.conn.cursor()
-        cur.execute("SELECT * FROM Jobs WHERE record_id = ?", (record_id,))
+        cur.execute("SELECT * FROM Records WHERE record_id = ?", (record_id,))
         return cur.fetchall()
 
     def get_tagged(self, tag):

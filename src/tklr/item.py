@@ -785,51 +785,6 @@ class Item:
     )
     param_to_key = {v: k for k, v in key_to_param.items()}
 
-    # def __init__(self, raw: Optional[str] = None, env: "TklrEnvironment" = None):
-    #     """
-    #     raw    = entry string (optional; new items may start empty)
-    #     env    = TklrEnvironment instance
-    #     """
-    #     self.env = env
-    #     self.entry = ""
-    #     self.previous_entry = ""
-    #     self.itemtype = ""
-    #     self.subject = ""
-    #     self.description = ""
-    #     self.item = {}
-    #     self.parse_ok = False
-    #     self.parse_message = ""
-    #     self.previous_tokens = []
-    #     self.structured_tokens = []
-    #     self.rruleset = ""
-    #     self.extent = ""
-    #     self.over = ""
-    #     self.context = ""
-    #     self.messages = []
-    #     self.rrule_tokens = []
-    #     self.job_tokens = []
-    #     self.token_store = None
-    #     self.rrules = []
-    #     self.jobs = []
-    #     self.priority = None
-    #     self.jobset = []
-    #     self.tags = []
-    #     self.alerts = []
-    #     self.beginby = ""
-    #     self.rdates = []
-    #     self.exdates = []
-    #     self.dtstart = None
-    #     self.dtstart_str = None
-    #     self.rdstart_str = ""
-    #     self.rdate_str = ""
-    #     self.exdate_str = ""
-    #     self.timezone = gettz("local")
-    #     self.tz_str = local_timezone
-    #     self.completions = []  # list[datetime] from @f tokens (task-level)
-    #     if raw:
-    #         self.entry = raw
-    #         self.parse_input(raw)
-    #
     def __init__(self, *args, **kwargs):
         """
         Compatible constructor that accepts:
@@ -928,65 +883,6 @@ class Item:
         if raw:
             self.entry = raw
             self.parse_input(raw)
-
-    # def parse_user_dt(
-    #     self, user_text: str
-    # ) -> tuple[date | datetime | None, str, str | None]:
-    #     """
-    #     Parse user datetime text honoring Item config flags.
-    #     Returns (obj, kind, tz_name_used)
-    #     - kind: 'date' | 'naive' | 'aware'
-    #     - tz_name_used: string tz name, or '' for local aware, or None for date/naive
-    #     Rules:
-    #     • If parsed time is 00:00:00 -> treat as DATE
-    #     • Else if 'z none' -> NAIVE datetime
-    #     • Else (no z or 'z <tz>') -> AWARE datetime:
-    #             - with explicit tz -> convert to UTC
-    #             - with no tz -> treat as local, convert to UTC
-    #     """
-    #     core, zdir = _split_z_directive(user_text)
-    #     print(f"{core = }, {zdir = }")
-    #     # dayfirst/yearfirst from config already placed on self
-    #     try:
-    #         obj = parse_dt(core, dayfirst=self.dayfirst, yearfirst=self.yearfirst)
-    #     except Exception:
-    #         return None, "error", None
-    #
-    #     # DATE case if midnight (and dateutil returned datetime)
-    #     if _is_date_only(obj) or (
-    #         _is_datetime(obj)
-    #         and obj.hour == obj.minute == obj.second == 0
-    #         and obj.tzinfo is None
-    #     ):
-    #         # Always return a *date* object in this branch
-    #         if _is_datetime(obj):
-    #             obj = obj.date()
-    #         return obj, "date", None
-    #
-    #     # DATETIME cases
-    #     if (zdir or "").lower() == "none":
-    #         # NAIVE: keep naive, no tz conversion
-    #         if _is_datetime(obj) and obj.tzinfo is not None:
-    #             # strip tz if user forced 'none'
-    #             obj = obj.replace(tzinfo=None)
-    #         return obj, "naive", None
-    #
-    #     # AWARE: explicit zone or local
-    #     if zdir:  # explicit name
-    #         zone = tz.gettz(zdir)
-    #         if zone is None:
-    #             # fallback: treat as local if tz name is invalid
-    #             zone = tz.tzlocal()
-    #             tz_used = ""
-    #         else:
-    #             tz_used = zdir
-    #     else:
-    #         zone = tz.tzlocal()
-    #         tz_used = ""  # empty string means "local tz" per earlier convention
-    #
-    #     obj_aware = _attach_zone(obj, zone)
-    #     obj_utc = _ensure_utc(obj_aware)
-    #     return obj_utc, "aware", tz_used
 
     def parse_user_dt_for_s(
         self, user_text: str
@@ -3591,6 +3487,8 @@ class Item:
     def do_completion(self, token):
         """
         Handle both:
+        - parse completion datetime
+        - replace the token value with datetime formatted.
         - @f <datetime>  (task-level)  -> store in self.completions and normalize token text
         - &f <datetime>  (job-level)   -> return integer timestamp for job metadata
         """

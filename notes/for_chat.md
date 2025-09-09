@@ -1,5 +1,24 @@
 # For ChatGPT
 
+## 20250903 do_f
+
+### do_f
+
+combine do_f and do_completion
+
+- parse token
+- add local datetime to self.completions as local time aware
+- replace token with formatted datetime?
+
+A test for self.completions having one or more entries
+
+### finalize_completions and finish_without_exdate combined
+
+- parse entry
+- @o action
+- not @o:
+  - undated task
+
 ## 20250903 detail commands
 
 In cases requiring input, pressing "escape" cancels.
