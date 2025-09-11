@@ -465,7 +465,7 @@ class ListWithDetails(Container):
             cmd = k  # leave other keys as-is (unlikely used)
 
         # Allow only the detail commands you use (uppercase)
-        ALLOWED = {"E", "D", "F", "P", "S", "R", "T", "CTRL+R"}
+        ALLOWED = {"E", "D", "F", "P", "N", "R", "T", "CTRL+R"}
         if cmd in ALLOWED:
             try:
                 self._detail_key_handler(cmd, self.details_meta or {})
@@ -738,28 +738,28 @@ class DetailsScreen(ModalScreen[None]):
         log_msg(f"{event.key = }")
         k = (event.key or "").lower()
 
-        if k == "e":  # Edit
+        if k == "E":  # Edit
             self._edit_item()
             return
-        if k == "c":  # Edit Copy
+        if k == "C":  # Edit Copy
             self._copy_item()
             return
-        if k == "d":  # Delete (scope depends on recurrence)
+        if k == "D":  # Delete (scope depends on recurrence)
             self._delete_item()
             return
-        if k == "f" and self.is_task:  # Finish task
+        if k == "F" and self.is_task:  # Finish task
             self._finish_task()
             return
-        if k == "p":  # Toggle pinned (task-only; no-op otherwise)
+        if k == "P":  # Toggle pinned (task-only; no-op otherwise)
             self._toggle_pinned()
             return
-        if k == "s":  # Schedule new
+        if k == "N":  # Schedule new
             self._schedule_new()
             return
-        if k == "r":  # Reschedule
+        if k == "R":  # Reschedule
             self._reschedule()
             return
-        if k == "t":  # Touch (update modified)
+        if k == "T":  # Touch (update modified)
             self._touch_item()
             return
 
@@ -1029,9 +1029,9 @@ class ScrollableList(ScrollView):
 
     def update_list(self, new_lines: List[str]) -> None:
         """Replace the list content and refresh."""
-        log_msg(f"{new_lines = }")
+        # log_msg(f"{new_lines = }")
         self.lines = [Text.from_markup(line) for line in new_lines]
-        log_msg(f"{self.lines = }")
+        # log_msg(f"{self.lines = }")
         width = shutil.get_terminal_size().columns - 3
         self.virtual_size = Size(width, len(self.lines))
         # Clear any existing search (content likely changed)
@@ -1691,18 +1691,39 @@ class DynamicViewApp(App):
 
     def set_afill(self, *_args, **_kwargs):
         # Prefer controller’s chosen width, fallback to infer from existing tags
+        log_msg(f"### setting afill, {self.view = }, {self.selected_week = } ###")
+        fill = None
         if self.view == "week":
+            log_msg(f"getting afill for {self.selected_week = }")
             fill = self.controller.afill_by_week.get(self.selected_week)
+            log_msg(f"got {fill = } for {self.selected_week = }")
         else:
             fill = self.controller.afill_by_view.get(self.view)
-        if fill:
-            self.afill = fill
-            log_msg(f"using {self.afill = } from controller for {self.view = }")
-            return fill
-        mapping = self.controller.list_tag_to_id.get(self.view, {})
-        if mapping:
-            self.afill = len(next(iter(mapping.keys())))  # infer from first key
-            log_msg(f"using {self.afill = } from keys for {self.view = }")
+            log_msg(f"got {fill = } for {self.view = }")
+        log_msg(f"got preliminary {fill = }")
+        self.afill = fill if fill else 1
+        # if fill is None:
+        #
+        #     mapping = (
+        #         self.controller.week_tag_to_id.get(self.selected_week, {})
+        #         if self.view == "week"
+        #         else self.controller.list_tag_to_id.get(self.view, {})
+        #     )
+        #     log_msg(f"{mapping.keys() = }")
+        #     if mapping:
+        #         self.afill = len(next(iter(mapping.keys())))  # infer from first key
+        #         log_msg(
+        #             f"using {self.afill = } from keys for {self.view = }, {self.selected_week = }"
+        #         )
+        #     else:
+        #         self.afill = 3
+        #         log_msg(
+        #             f"### fill and mapping failed - using default {self.afill = } ###"
+        #         )
+        #
+        # else:
+        #     self.afill = fill
+        #     log_msg(f"using {self.afill = } from controller for {self.view = }")
 
     async def on_mount(self):
         # mount the drawer (hidden by default)
@@ -1847,11 +1868,19 @@ class DynamicViewApp(App):
 
     def on_key(self, event: events.Key) -> None:
         """Handle global key events (tags, escape, etc.)."""
-        log_msg(f"{self.afill = }")
+        log_msg(
+            f"before: {self.afill = }, {event.key = }, {self.view = }, {self.selected_week = }"
+        )
+        if self.view == "week":
+            self.afill = self.controller.afill_by_week.get(self.selected_week)
+        log_msg(
+            f"after: {self.afill = }, {event.key = }, {self.view = }, {self.selected_week = }"
+        )
 
         if event.key in "abcdefghijklmnopqrstuvwxyz":
             self.digit_buffer.append(event.key)
-            if len(self.digit_buffer) == self.afill:
+            log_msg(f"{self.digit_buffer = }, {self.afill = }")
+            if len(self.digit_buffer) >= self.afill:
                 base26_tag = "".join(self.digit_buffer)
                 self.digit_buffer.clear()
                 # new: ask the current screen to show details if it supports it
@@ -1862,6 +1891,8 @@ class DynamicViewApp(App):
                 # else:
                 #     # fallback: your older flow
                 #     self.action_show_details(base26_tag)
+        else:
+            self.digit_buffer.clear()
 
     def action_take_screenshot(self):
         """Save a screenshot of the current app state."""
@@ -1891,10 +1922,10 @@ class DynamicViewApp(App):
         )
         list_title = details[0] if details else "Untitled"
         # details = details[0:] if details else []
-        log_msg(f"{len(details) = }")
+        # log_msg(f"{len(details) = }")
         # self.set_afill(details, "action_show_weeks")
-        # self.set_afill("week")
-        self.set_afill(self.view)
+        self.set_afill("week")
+        # self.set_afill(self.view)
         footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
         self.push_screen(WeeksScreen(title, table, list_title, details, footer))
 
@@ -2023,6 +2054,7 @@ class DynamicViewApp(App):
         ):
             self.current_start_date += timedelta(weeks=1)
         self.set_afill("week")
+        log_msg(f"{self.afill = }, {self.selected_week = }")
         self.update_table_and_list()
 
     def action_previous_week(self):
@@ -2030,7 +2062,17 @@ class DynamicViewApp(App):
         if self.selected_week < tuple((self.current_start_date).isocalendar()[:2]):
             self.current_start_date -= timedelta(weeks=1)
         self.set_afill("week")
+        log_msg(f"{self.afill = }, {self.selected_week = }")
         self.update_table_and_list()
+
+    # def action_previous_week(self):
+    #     self.selected_week = get_previous_yrwk(*self.selected_week)
+    #     if self.selected_week < tuple(
+    #         (self.current_start_date + timedelta(weeks=4) - ONEDAY).isocalendar()[:2]
+    #     ):
+    #         self.current_start_date += timedelta(weeks=1)
+    #     self.set_afill("week")
+    #     self.update_table_and_list()
 
     def action_center_week(self):
         self.current_start_date = datetime.strptime(

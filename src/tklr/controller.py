@@ -4,7 +4,8 @@ from importlib.metadata import version
 
 # TODO: Keep the display part - the model part will be in model.py
 from datetime import datetime, timedelta
-from logging import log
+
+# from logging import log
 from sre_compile import dis
 from rich.console import Console
 from rich.table import Table
@@ -182,7 +183,7 @@ def format_tokens(tokens, width):
     for i, t in enumerate(tokens):
         token = t["token"].rstrip()
         key = t.get("key", "")
-        log_msg(f"processing {key = } in {token = }, {token.startswith('@~')}")
+        # log_msg(f"processing {key = } in {token = }, {token.startswith('@~')}")
 
         if t["t"] == "itemtype":
             current_line = ""
@@ -244,7 +245,7 @@ def format_tokens(tokens, width):
         line = f"[{label_color}]entry:[/label_color] [bold yellow]{line[8]}[/bold yellow]{line[9:]}"
         # line = f"[bold yellow]{line[4]}[/bold yellow]{line[5:]}"
         output_lines.insert(0, line)
-    log_msg(f"{output_lines = }")
+    # log_msg(f"{output_lines = }")
 
     return "\n ".join(highlight(line) for line in output_lines)
 
@@ -263,6 +264,50 @@ def wrap_preserve_newlines(text, width=70, initial_indent="", subsequent_indent=
         or [""]
     ]
     return wrapped_lines
+
+
+def format_rruleset_for_details(
+    rruleset: str, width: int, subsequent_indent: int = 11
+) -> str:
+    """
+    Wrap RDATE/EXDATE value lists on commas to fit `width`.
+    Continuation lines are indented by the length of header.
+    When a wrap occurs, the comma stays at the end of the line.
+    """
+
+    def wrap_value_line(header: str, values_csv: str) -> list[str]:
+        # indent = " " * (len(header) + 2)  # for colon and space
+        indent = " " * 2
+        tokens = [t.strip() for t in values_csv.split(",") if t.strip()]
+        out_lines: list[str] = []
+        cur = header  # start with e.g. "RDATE:"
+
+        for i, tok in enumerate(tokens):
+            sep = "," if i < len(tokens) - 1 else ""  # last token → no comma
+            candidate = f"{cur}{tok}{sep}"
+
+            if len(candidate) <= width:
+                cur = candidate + " "
+            else:
+                # flush current line before adding token
+                out_lines.append(cur.rstrip())
+                cur = f"{indent}{tok}{sep} "
+        if cur.strip():
+            out_lines.append(cur.rstrip())
+        return out_lines
+
+    out: list[str] = []
+    for line in (rruleset or "").splitlines():
+        if ":" in line:
+            prop, value = line.split(":", 1)
+            prop_up = prop.upper()
+            if prop_up.startswith("RDATE") or prop_up.startswith("EXDATE"):
+                out.extend(wrap_value_line(f"{prop_up}:", value.strip()))
+                continue
+        out.append(line)
+    # prepend = " " * (len("rruleset: ")) + "\n"
+    log_msg(f"{out = }")
+    return "\n           ".join(out)
 
 
 def format_hours_mins(dt: datetime, mode: Literal["24", "12"]) -> str:
@@ -519,7 +564,7 @@ class Controller:
     def set_week_afill(self, details: list, yr_wk: Tuple[int, int]):
         n = len(details)
         fill = 1 if n <= 26 else 2 if n <= 26 * 26 else 3
-        log_msg(f"{yr_wk = }, {n = }, {fill = }, {details = }")
+        log_msg(f"{yr_wk = }, {n = }, {fill = }")
         self.afill_by_week[yr_wk] = fill
 
     def add_week_tag(
@@ -563,17 +608,22 @@ class Controller:
     def get_entry(self, record_id, job_id=None):
         lines = []
         result = self.db_manager.get_structured_tokens(record_id)
-        log_msg(f"{result = }")
+        # log_msg(f"{result = }")
 
         tokens, rruleset, created, modified = result[0]
 
         entry = format_tokens(tokens, self.width)
         entry = f"[bold {type_color}]{entry[0]}[/bold {type_color}]{entry[1:]}"
 
-        rruleset = f"\n{11 * ' '}".join(rruleset.splitlines())
-        rr_line = (
-            f"[{label_color}]instances:[/{label_color}] {rruleset}" if rruleset else ""
-        )
+        log_msg(f"{rruleset = }")
+        # rruleset = f"\n{11 * ' '}".join(rruleset.splitlines())
+
+        rr_line = ""
+        if rruleset:
+            formatted_rr = format_rruleset_for_details(
+                rruleset, width=self.width, subsequent_indent=11
+            )
+            rr_line = f"[{label_color}]rruleset:[/{label_color}]  {formatted_rr}"
 
         job = (
             f" [{label_color}]job_id:[/{label_color}] [bold]{job_id}[/bold]"
@@ -1048,7 +1098,9 @@ class Controller:
 
         # Generate the table
         title, table = self.generate_table(start_date, selected_week, grouped_events)
-        log_msg(f"Generated table for {title}, {selected_week = }")
+        log_msg(
+            f"Generated table for {title}, {selected_week = }, {self.afill_by_week.get(selected_week) = }"
+        )
 
         if selected_week in self.yrwk_to_details:
             description = self.yrwk_to_details[selected_week]
@@ -1060,7 +1112,7 @@ class Controller:
         """
         Fetch and format description for a specific week.
         """
-        log_msg(f"Getting description for week {yr_wk}")
+        # log_msg(f"Getting description for week {yr_wk}")
         today_year, today_week, today_weekday = datetime.now().isocalendar()
         tomorrow_year, tomorrow_week, tomorrow_day = (
             datetime.now() + ONEDAY
@@ -1077,14 +1129,14 @@ class Controller:
         header = f"{this_week} #{yr_wk[1]} ({len(events)})"
         description = [header]
 
+        self.set_week_afill(events, yr_wk)
+
         if not events:
             description.append(
                 f" [{HEADER_COLOR}]Nothing scheduled for this week[/{HEADER_COLOR}]"
             )
             # return "\n".join(description)
             return description
-
-        self.set_week_afill(events, yr_wk)
 
         weekday_to_events = {}
         for i in range(7):
@@ -1147,7 +1199,7 @@ class Controller:
                 )
                 for event in events:
                     event_id, job_id, event_str = event
-                    log_msg(f"{event_str = }")
+                    # log_msg(f"{event_str = }")
                     # tag_fmt, indx = self.add_tag(yr_wk, indx, event_id)
                     # tag = indx_to_tag(indx, self.afill)
                     # self.tag_to_id[yr_wk][tag] = event_id
@@ -1183,7 +1235,7 @@ class Controller:
                     js = self.db_manager.get_job_display_subject(id, job_id)
                     if js:  # only override if present/non-empty
                         subject = js
-                    log_msg(f"{subject = }")
+                    # log_msg(f"{subject = }")
                 except Exception as e:
                     # fail-safe: keep the record subject
                     log_msg(f"{e = }")

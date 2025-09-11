@@ -1785,7 +1785,7 @@ class Item:
                 msg = (False, f"No matching @r group found for token: {token}", [])
                 self.messages.append(msg)
                 return msg
-
+            log_msg(f"have group for {token = }")
             anchor_token = group[0]  # the @r token
             anchor_parts = anchor_token["token"].split(maxsplit=1)
             if len(anchor_parts) < 2:
@@ -3232,6 +3232,7 @@ class Item:
             self.rrule_tokens = []
             self.rdates = []
             self.exdates = []
+            log_msg(f"{rruleset_str = }")
             return True, rruleset_str
 
         # --- RDATE-only path ---
@@ -3246,6 +3247,7 @@ class Item:
         rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
         self.item["rruleset"] = rruleset_str
         self.rruleset = rruleset_str
+        log_msg(f"{rruleset_str = }")
         return True, rruleset_str
 
     def collect_rruleset_tokens(self):

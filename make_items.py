@@ -256,6 +256,7 @@ items = [
     f"* zero extent naive @s {tomorrow_date}T100000 z none",
     f"* daily datetime US/Pacific @s {today_date} 1pm z US/Pacific @d whatever @c wherever @r d &i 3 &c 10",
     f"~ every other day @s {today_date} 10p @r d &i 2",
+    f"~ repeating and rdates @s {yesterday_date}T180000 @r d &i 2 @+ fri 9a, sat 10a, sun 11a, mon 12p",
     f"~ due, tags, description, priority one @p 1 @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
     f"* three datetimes @s {in_ten_minutes()} @e 45m  @+ {in_one_hour()}, {in_one_day()}",
     f"""% long formatted description @s {yesterday_date}
@@ -293,7 +294,7 @@ items = [
     "? draft reminder - no checks",
     f"~ one date with priority three @s {yesterday_date} @p 3",
     "~ three datetimes @s 9am @+ 10am, 11am",
-    "* multiday event @s 3p fri @e 2d2h30m",
+    "* event spread over multiple days @s 3p fri @e 2d2h30m",
     "* daily datetime @s 3p @e 30m @r d",
     "* gour Tiki Roundtable Meeting @s 1/1 14:00 z UTC @e 1h30m @r m &w +3TH &c 10",
 ]
