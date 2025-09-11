@@ -621,7 +621,7 @@ class Controller:
         rr_line = ""
         if rruleset:
             formatted_rr = format_rruleset_for_details(
-                rruleset, width=self.width, subsequent_indent=11
+                rruleset, width=self.width - 11, subsequent_indent=11
             )
             rr_line = f"[{label_color}]rruleset:[/{label_color}]  {formatted_rr}"
 
@@ -635,8 +635,8 @@ class Controller:
                 # f"[{label_color}]entry:[/{label_color}] {entry}",
                 entry,
                 " ",
-                rr_line,
                 f"[{label_color}]record_id:[/{label_color}] {record_id}{job}",
+                rr_line,
                 f"[{label_color}]created:[/{label_color}]   {created[:13]}",
                 f"[{label_color}]modified:[/{label_color}]  {modified[:13]}",
             ]

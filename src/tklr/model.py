@@ -146,7 +146,7 @@ def td_str_to_seconds(duration_str: str) -> int:
         raise ValueError(f"Invalid duration format: '{duration_str}'")
     weeks, days, hours, minutes, seconds = [int(x) if x else 0 for x in match.groups()]
 
-    log_msg(f"{weeks = }, {days = }, {hours = }, {minutes = }, {seconds = }")
+    # log_msg(f"{weeks = }, {days = }, {hours = }, {minutes = }, {seconds = }")
 
     if sign == "-":
         return -(weeks * 604800 + days * 86400 + hours * 3600 + minutes * 60 + seconds)

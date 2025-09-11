@@ -113,38 +113,6 @@ def _split_z_directive(text: str) -> tuple[str, str | None]:
     return (main or s), (tail or None)
 
 
-# def parse(dt_str: str):
-#     """
-#     Return a `date` if the parsed time is 00:00:00, otherwise a `datetime`.
-#     Return None on failure.
-#     """
-#     parts = [x.strip() for x in dt_str.split("z")]
-#     dt_part = parts[0]
-#     try:
-#         dt_obj = parse_dt(dt_part)
-#     except Exception:
-#         return None
-#
-#     if dt_obj.hour == dt_obj.minute == 0:  # date
-#         return dt_obj.date()
-#
-#     tz_part = parts[1:2]
-#     if not tz_part:
-#         timezone = tzlocal.get_localzone_name()
-#     elif tz_part[0] == "none":
-#         timezone = None
-#     else:
-#         timezone = tz_part[0]
-#
-#     log_msg(f"{dt_obj.strftime('%Y-%m-%d %H:%M')} {timezone}")
-#     if timezone:  # aware datetime
-#         dt_obj = dt_obj.replace(tzinfo=gettz(timezone)).astimezone(tz.UTC)
-#
-#     log_msg(f"  => {dt_obj.strftime('%Y-%m-%d %H:%M %Z')}")
-#
-#     return dt_obj
-
-
 def parse(dt_str: str, zone: tzinfo = None):
     """
     User-facing parser with a trailing 'z' directive:
@@ -267,37 +235,6 @@ def as_timezone(dt: datetime, timezone: ZoneInfo) -> datetime:
     if is_date(dt):
         return dt
     return dt.astimezone(timezone)
-
-
-# def do_datetime(datetime_str):
-#     """
-#     Process a datetime string such as "@s 3p fri" or "@s 2025-04-24".
-#     """
-#     try:
-#         datetime_str = re.sub(r"^@.\s+", "", datetime_str)
-#         # Parse the datetime
-#         dt = parse(datetime_str)
-#         if isinstance(dt, datetime):
-#             return True, dt
-#         return False, dt
-#
-#     except ValueError as e:
-#         return False, f"Invalid datetime: {datetime_str}. Error: {e}"
-
-
-# def promote_date_to_datetime(dt: datetime, itemtype: str) -> datetime | date:
-#     """
-#     If dt is exactly midnight (00:00:00), adjust:
-#     - For events (*): move to 00:00:01
-#     - For tasks (~): move to 23:59:59
-#     """
-#     if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
-#         # return dt.date()
-#         if itemtype == "~":
-#             return dt.replace(hour=23, minute=59, second=59)
-#         else:
-#             return dt.replace(second=1)
-#     return dt
 
 
 def enforce_date(dt: datetime) -> datetime:
@@ -534,23 +471,6 @@ requires = {
     "~a": ["s"],
     "~b": ["s"],
 }
-
-
-# NOTE: experiment for replacing jinja2
-# def itemhsh_to_details(item: dict[str, str]) -> str:
-#     format_dict = {
-#         "itemtype": "",
-#         "subject": " ",
-#         "s": f"\n@s ",
-#         "e": f" @e ",
-#         "r": f"\n@r ",
-#     }
-#
-#     formatted_string = ""
-#     for key in format_dict.keys():
-#         if key in item:
-#             formatted_string += f"{format_dict[key]}{item[key]}"
-#     return formatted_string
 
 
 class Paragraph:
@@ -937,8 +857,6 @@ class Item:
         """
         Parses the input string to extract tokens, then processes and validates the tokens.
         """
-        # print(f"{entry = }")
-        # print("--- begin entry ---\n", f"{entry}", "\n--- end entry --- ")
         digits = "1234567890" * ceil(len(entry) / 10)
         self._tokenize(entry)
 
@@ -952,8 +870,6 @@ class Item:
         self.mark_grouped_tokens()
         # print("calling parse_tokens")
         self._parse_tokens(entry)
-        # print("back from parse_tokens")
-        # print(f"{self.structured_tokens = }")
 
         self.parse_ok = True
         self.previous_entry = entry
@@ -962,34 +878,26 @@ class Item:
         # Build rruleset if @r group exists
         if self.collect_grouped_tokens({"r"}):
             # log_msg(f"building rruleset {self.item = }")
-            # print("building rruleset")
             rruleset = self.build_rruleset()
+            log_msg(f"{rruleset = }")
             if rruleset:
                 self.item["rruleset"] = rruleset
-                # print(f"{rruleset = }")
         elif self.rdstart_str is not None:
             # @s but not @r
             self.item["rruleset"] = f"{self.rdstart_str}"
 
         # Only build jobs if @~ group exists
         if self.collect_grouped_tokens({"~"}):
-            # print("building jobs")
             jobset = self.build_jobs()
-            # print(f"{jobs = }")
             success, finalized = self.finalize_jobs(jobset)
-            # print(f"{success = }, {finalized = }")
 
         if "s" in self.item and "z" not in self.item:
             self.timezone = local_timezone
-            # print(f"{self.timezone = }")
 
         self.itemtype = self.item.get("itemtype", "")
         self.subject = self.item.get("subject", "")
-        priority = self.item.get("priority", None)
-        # print(f"{priority = }")
-        # self.extent = self.item.get("extent", "")
+        # priority = self.item.get("priority", None)
         self.rruleset = self.item.get("rruleset", "")
-        # print(f"{self.rruleset = }")
 
         if self.tags:
             # self.tag_str = "; ".join(self.tags)
@@ -1051,9 +959,6 @@ class Item:
                     )
                 current_atkey = this_atkey
                 used_atkeys.append(current_atkey)
-                # if current_atkey not in multiple_allowed:
-                #     allowed_fortype.remove(current_atkey)
-                # print(f"{used_atkeys = }, {count = }")
                 if this_atkey in ["r", "~"]:
                     # reset for this use
                     used_ampkeys = []
@@ -1086,25 +991,6 @@ class Item:
         else:
             needed_msg = ""
         return needed_msg
-
-    def mark_grouped_tokens(self):
-        """
-        Build both:
-        - skip_token_positions: to avoid redundant dispatch
-        - token_group_anchors: map (start, end) of & tokens to their @ anchor
-        """
-        self.skip_token_positions = set()
-        self.token_group_anchors = {}  # maps (start, end) of &token -> (start, end) of anchor
-
-        anchor_keys = {"r", "~"}  # @-keys with grouped &-tokens
-        grouped = self.collect_grouped_tokens(anchor_keys)
-
-        for group in grouped:
-            anchor = group[0]
-            anchor_pos = (anchor["s"], anchor["e"])
-            for token in group[1:]:
-                self.skip_token_positions.add((token["s"], token["e"]))
-                self.token_group_anchors[(token["s"], token["e"])] = anchor_pos
 
     def collect_grouped_tokens(self, anchor_keys: set[str]) -> list[list[dict]]:
         """
@@ -1251,8 +1137,6 @@ class Item:
         remainder = rest[len(subject) :]
 
         # Token pattern that keeps @ and & together
-        # pattern = r"(@\w+ [^@&]+)|(&\w+ [^@&]+)"
-        # pattern = r"(@[\w\+\-]+ [^@&]+)|(&\w+ [^@&]+)"
         pattern = r"(@[~\w\+\-]+ [^@&]+)|(&\w+ [^@&]+)"
         for match in re.finditer(pattern, remainder):
             token = match.group(0)
@@ -1418,9 +1302,6 @@ class Item:
         return token not in self.previous_tokens
 
     def _dispatch_token(self, token, start_pos, end_pos, token_type):
-        # print(
-        #     f"dispatching token: {token = }, {start_pos = }, {end_pos = }, {token_type = }"
-        # )
         if token_type in self.token_keys:
             method_name = self.token_keys[token_type][2]
             method = getattr(self, method_name)
@@ -1428,17 +1309,11 @@ class Item:
             is_valid, result, sub_tokens = method(token)
             if is_valid:
                 if token_type == "r":
-                    # print(f"appending {result} to self.rrules")
                     self.rrules.append(result)
                     self._dispatch_sub_tokens(sub_tokens, "r")
                 elif token_type == "~":
-                    # print(f"appending {result} to self.jobset")
                     self.jobset.append(result)
                     self._dispatch_sub_tokens(sub_tokens, "~")
-                # elif token_type == "+":
-                #     self.rdates.extend(result)
-                # elif token_type == "-":
-                #     self.exdates.extend(result)
                 else:
                     self.item[token_type] = result
             else:
@@ -1496,7 +1371,6 @@ class Item:
             "context": self.context,
             "jobset": self.jobset,
             "priority": self.p,
-            # "structured_tokens": self.structured_tokens,
         }
 
     @classmethod
@@ -1531,7 +1405,6 @@ class Item:
 
     def do_priority(self, token):
         # Process datetime token
-        # print(f"processing priorty {token = }")
         x = re.sub("^@. ", "", token["token"].strip()).lower()
         try:
             y = int(x)
@@ -1580,7 +1453,6 @@ class Item:
         """
         Process an alert string, validate it and return a corresponding string
         """
-        # print(f"{token = }")
 
         alert = token["token"][2:].strip()
 
@@ -1610,7 +1482,6 @@ class Item:
                 ok = False
                 probs.append(f"  Invalid timedelta: {td}")
         if ok:
-            # res.append(f"{', '.join(secs)}: {', '.join(cmds)}")
             res = f"{', '.join(tds)}: {', '.join(cmds)}"
             self.alerts.append(res)
         else:
@@ -1665,10 +1536,8 @@ class Item:
 
     def do_description(self, token):
         description = re.sub("^@. ", "", token["token"])
-        # print(f"description {token = }, {description = }")
         if not description:
             return False, "missing description", []
-        # ok, rep = Item.do_paragraph(description)
         if description:
             self.description = description
             # print(f"{self.description = }")
@@ -1774,158 +1643,68 @@ class Item:
             return False, f"Invalid timezone: '{tz_str}'", []
 
     def do_rrule(self, token):
-        # print(f"Processing rrule token: {token}")
-        # Locate the group starting with this @r token
+        """
+        Handle an @r ... group. `token` may be a token dict or the raw token string.
+        This only validates / records RRULE components; RDATE/EXDATE are added later
+        by build_rruleset().
+        Returns (ok: bool, message: str, extras: list).
+        """
+
+        # Normalize input to raw text
+        tok_text = token.get("token") if isinstance(token, dict) else str(token)
+
+        # Find the matching @r group (scan all groups first)
         group = None
-        for g in self.collect_grouped_tokens({"r"}):
-            if g[0]["token"] == token:
+        r_groups = list(self.collect_grouped_tokens({"r"}))
+        for g in r_groups:
+            if g and g[0].get("token") == tok_text:
                 group = g
                 break
-            if not group:
-                msg = (False, f"No matching @r group found for token: {token}", [])
-                self.messages.append(msg)
-                return msg
-            log_msg(f"have group for {token = }")
-            anchor_token = group[0]  # the @r token
-            anchor_parts = anchor_token["token"].split(maxsplit=1)
-            if len(anchor_parts) < 2:
-                msg = (False, f"Missing rrule frequency: {token}", [])
-                self.messages.append(msg)
-                return msg
 
-            freq_code = anchor_parts[1].strip()
-            if freq_code not in self.freq_map:
-                keys = ", ".join([f"{k} ({v})" for k, v in self.freq_map.items()])
-                msg = (
-                    False,
-                    f"'{freq_code}' is not a supported frequency. Choose from:\n   {keys}",
-                    [],
-                )
-                self.messages.append(msg)
-                return msg
+        # Only after scanning all groups decide if it's missing
+        if group is None:
+            msg = (False, f"No matching @r group found for token: {tok_text}", [])
+            self.messages.append(msg)
+            return msg
 
-    # def do_s(self, token: dict):
-    #     """
-    #     Parse @s with timezone controlled by grouped '&z' only.
-    #
-    #     Cases:
-    #     1) date-only               -> compact 'YYYYMMDD'
-    #         -> dtstart_str = 'DTSTART;VALUE=DATE:YYYYMMDD'
-    #     2) datetime + &z none      -> naive -> 'YYYYMMDDTHHMMSS'
-    #         -> dtstart_str = 'DTSTART:YYYYMMDDTHHMMSS'
-    #     3) datetime + &z TZ (or no &z -> local) -> aware UTC 'YYYYMMDDTHHMMSSZ'
-    #         -> dtstart_str = 'DTSTART:YYYYMMDDTHHMMSSZ'
-    #     """
-    #     try:
-    #         raw = token["token"][2:].strip()  # after '@s '
-    #         if not raw:
-    #             return False, "Missing @s value", []
-    #
-    #         # Read grouped &z for @s (built by your tokenizer/grouping)
-    #         s_groups = self.token_group_map.get("s", [])
-    #         z_val = None
-    #         for k, v in s_groups:
-    #             if k == "z":
-    #                 z_val = (v or "").strip()
-    #                 break
-    #
-    #         parsed = parse(raw)
-    #         if parsed is None:
-    #             return False, f"Could not parse '{raw}'", []
-    #
-    #         # --- Determine serialization & DTSTART line ---
-    #         if isinstance(parsed, date) and not isinstance(parsed, datetime):
-    #             # Case 1: date
-    #             compact = self._serialize_date(parsed)  # 'YYYYMMDD'
-    #             self.s_kind = "date"
-    #             self.s_tz = ""  # ignored for pure dates
-    #             # Important for RRULE-on-dates: provide a date-valued DTSTART
-    #             self.dtstart_str = f"DTSTART;VALUE=DATE:{compact}"
-    #
-    #         else:
-    #             # datetime
-    #             if z_val and z_val.lower() == "none":
-    #                 # Case 2: naive datetime
-    #                 compact = self._serialize_naive_dt(parsed)  # 'YYYYMMDDTHHMMSS'
-    #                 self.s_kind = "naive"
-    #                 self.s_tz = "none"
-    #                 self.dtstart_str = f"DTSTART:{compact}"
-    #             else:
-    #                 # Case 3: aware datetime (explicit tz or local)
-    #                 zone = tz.gettz(z_val) if z_val else tz.tzlocal()
-    #                 if zone is None:
-    #                     return False, f"Unknown timezone: {z_val!r}", []
-    #                 compact = self._serialize_aware_dt_as_utc_Z(parsed, zone)  # '...Z'
-    #                 self.s_kind = "aware"
-    #                 self.s_tz = z_val or ""  # empty => local
-    #                 self.dtstart_str = f"DTSTART:{compact}"
-    #
-    #         # Reflect into your state
-    #         self.token_map["s"] = compact
-    #         self.dtstart = compact  # optional: many of your helpers expect this
-    #
-    #         # Keep visible token text in sync with the serialized compact
-    #         token["token"] = f"@s {compact} "
-    #
-    #         # We intentionally DO NOT set rdstart_str anymore.
-    #         # finalize_rruleset() will build RDATE/EXDATE from token_map + tokens.
-    #         return True, compact, []
-    #
-    #     except Exception as e:
-    #         return False, f"Invalid @s value: {e}", []
+        # Parse frequency from the anchor token "@r d|w|m|y"
+        anchor = group[0]
+        parts = anchor["token"].split(maxsplit=1)
+        if len(parts) < 2:
+            msg = (False, f"Missing rrule frequency: {tok_text}", [])
+            self.messages.append(msg)
+            return msg
 
-    # def do_s(self, token: dict):
-    #     """
-    #     Parse @s with optional inline ' z ' directive.
-    #     Examples:
-    #     @s 2025-08-24             -> date
-    #     @s 2025-08-24 14:00       -> aware in *local* tz (stored as UTC)
-    #     @s 2025-08-24 14:00 z CET -> aware in CET (stored as UTC)
-    #     @s 2025-08-24 14:00 z none-> naive datetime (no tz)
-    #     """
-    #     try:
-    #         raw = token["token"][2:].strip()
-    #         if not raw:
-    #             return False, "Missing @s value", []
-    #
-    #         obj, kind, tz_used = self.parse_user_dt(raw)
-    #         if obj is None or kind == "error":
-    #             return False, f"Could not parse '{raw}'", []
-    #
-    #         self.s_kind = kind  # 'date' | 'naive' | 'aware'
-    #         self.s_tz = tz_used or ""  # '' means local aware, None for date/naive
-    #
-    #         if kind == "date":
-    #             # date-only: store compact date; no DTSTART here
-    #             compact = _fmt_date(obj)  # obj is date
-    #             self.token_map["s"] = compact
-    #             self.dtstart_str = ""  # handled in finalize when @r present? (we don't emit DTSTART for pure dates)
-    #             self.rdstart_str = f"RDATE;VALUE=DATE:{compact}"
-    #             # keep token text in serialized form or original? Using serialized for consistency:
-    #             token["token"] = f"@s {compact} "
-    #             return True, compact, []
-    #
-    #         if kind == "naive":
-    #             # naive datetime
-    #             compact = _fmt_naive(obj)  # obj is naive datetime
-    #             self.token_map["s"] = compact
-    #             self.dtstart_str = f"DTSTART:{compact}"
-    #             self.rdstart_str = f"RDATE:{compact}"
-    #             token["token"] = f"@s {compact} "
-    #             return True, compact, []
-    #
-    #         # aware in UTC
-    #         if kind == "aware":
-    #             compact = _fmt_utc_Z(obj)  # obj is UTC-aware datetime
-    #             self.token_map["s"] = compact
-    #             self.dtstart_str = f"DTSTART:{compact}"
-    #             self.rdstart_str = f"RDATE:{compact}"
-    #             token["token"] = f"@s {compact} "
-    #             return True, compact, []
-    #
-    #         return False, "Unhandled @s kind", []
-    #     except Exception as e:
-    #         return False, f"Invalid @s value: {e}", []
+        freq_code = parts[1].strip().lower()
+        if freq_code not in self.freq_map:
+            keys = ", ".join(f"{k} ({v})" for k, v in self.freq_map.items())
+            msg = (
+                False,
+                f"'{freq_code}' is not a supported frequency. Choose from:\n   {keys}",
+                [],
+            )
+            self.messages.append(msg)
+            return msg
+
+        # Record a normalized RRULE "component" for your builder
+        # (Keep this lightweight. Don't emit RDATE/EXDATE here.)
+        self.rrule_tokens.append(
+            {"token": f"&FREQ {self.freq_map[freq_code]}", "t": "&", "k": "FREQ"}
+        )
+
+        # Parse following &-tokens in this @r group (e.g., &i 3, &c 10, &u 20250101, &m..., &w..., &d...)
+        for t in group[1:]:
+            tstr = t.get("token", "")
+            try:
+                key, value = tstr[1:].split(maxsplit=1)  # strip leading '&'
+                key = key.upper().strip()
+                value = value.strip()
+            except Exception:
+                continue
+
+            self.rrule_tokens.append({"token": tstr, "t": "&", "k": key, "v": value})
+
+        return (True, "", [])
 
     def do_s(self, token: dict):
         """
@@ -1968,7 +1747,6 @@ class Item:
                 self.rdstart_str = f"RDATE:{compact}"  # seed for single / no-@r
 
             # reflect serialized form back into the visible token text
-            # token["token"] = f"@s {compact} "
             print(
                 f"do_s({raw}) returning {compact = }, {self.dtstart_str = }, {self.rdstart_str = }"
             )
@@ -1978,42 +1756,8 @@ class Item:
             print(f"exception {e}")
             return False, f"Invalid @s value: {e}", []
 
-    # def do_rdate(self, token: dict):
-    #     """
-    #     @+ … : explicit inclusion dates
-    #     - Maintain a de-duplicated list of compact dates in self.rdates (only @+).
-    #     - For the RDATE-only path (no RRULE), we will merge @s + self.rdates in finalize_rruleset().
-    #     (So we DO NOT try to build rdstart_str here anymore.)
-    #     """
-    #     try:
-    #         token_body = token["token"][2:].strip()
-    #         dt_strs = [s.strip() for s in token_body.split(",") if s.strip()]
-    #
-    #         # ensure list exists
-    #         if not hasattr(self, "rdates") or self.rdates is None:
-    #             self.rdates = []
-    #
-    #         new_rdates = []
-    #         for dt_str in dt_strs:
-    #             dt = parse(dt_str)
-    #             dt_fmt = dt_to_dtstr(dt)
-    #             if dt_fmt not in self.rdates and dt_fmt not in new_rdates:
-    #                 new_rdates.append(dt_fmt)
-    #
-    #         # merge into self.rdates preserving order
-    #         self.rdates.extend(new_rdates)
-    #
-    #         # keep a convenience comma string for finalize_rruleset’s RRULE branch
-    #         self.rdate_str = ",".join(self.rdates) if self.rdates else ""
-    #
-    #         return True, new_rdates, []
-    #     except Exception as e:
-    #         return False, f"Invalid @+ value: {e}", []
-
     def do_job(self, token):
         # Process journal token
-        # print(" ### do_job ### ")
-        # print(f"{token = }")
         node, summary, tokens_remaining = self._extract_job_node_and_summary(
             token["token"]
         )
@@ -2060,12 +1804,9 @@ class Item:
         bad = [x for x in all if x not in _]
         problem_str = ""
         problems = []
-        # print(f"{all = }, {bad = }")
         for x in bad:
             probs = []
-            # print(f"splitting {x}")
             i, w = cls.split_int_str(x)
-            # print(f"{x = }, i = |{i}|, w = |{w}|")
             if i is not None:
                 abs_i = abs(int(i))
                 if abs_i > 4 or abs_i == 0:
@@ -2484,12 +2225,6 @@ class Item:
 
         return None, None
 
-    # def _reparse_from_tokens(self) -> None:
-    #     """Rebuild entry string from structured_tokens and re-parse to refresh rruleset/jobs."""
-    #     entry = "".join(t.get("token", "") for t in self.structured_tokens).strip()
-    #     # Re-parse in-place to recompute dtstart_str / rruleset / jobset, etc.
-    #     self.parse_input(entry)
-
     def _get_o_interval(self):
         """
         Return (timedelta, learn_bool) if @o present, else None.
@@ -2707,20 +2442,13 @@ class Item:
         self.structured_tokens = new_tokens
         self.rruleset = ""  # remove compiled schedule string
 
-    # def _sync_tokens_from_rruleset(self) -> list:
-    #     """
-    #     If you source tokens (@s/@r/@+/@-) from rruleset, re-sync here;
-    #     otherwise this can just return self.structured_tokens.
-    #     """
-    #     return self.structured_tokens
-
     def do_rdate(self, token: str):
         """
         Process an RDATE token, e.g., "@+ 2024-07-03 14:00, 2024-08-05 09:00".
         Uses the global timezone (set via @z) for all entries, and serializes
         them using TZID (even for UTC).
         """
-        # log_msg(f"processing rdate {token = }")
+        log_msg(f"processing rdate {token = }")
         try:
             # Remove the "@+" prefix and extra whitespace
             # token_body = token.strip()[2:].strip()
@@ -2748,6 +2476,7 @@ class Item:
             self.rdstart_str = f"{self.rdstart_str},{','.join(rdates)}"
             self.rdates = rdates
             # Prepend RDATE in finalize_rruleset after possible insertion of DTSTART
+            log_msg(f"{rdates = }, {self.rdstart_str = }")
             return True, rdates, []
         except Exception as e:
             return False, f"Invalid @+ value: {e}", []
@@ -2787,392 +2516,6 @@ class Item:
             return True, new_ex, []
         except Exception as e:
             return False, f"Invalid @- value: {e}", []
-
-    # def finalize_rruleset(self):
-    #     log_msg("in finalize_rruleset")
-    #     if self.rrule_tokens:
-    #         components = []
-    #         rruleset_str = ""
-    #         for token in self.rrule_tokens:
-    #             print(f"{self.rrule_tokens = }")
-    #             rule_parts = []
-    #             _, rrule_params = token
-    #             # dtstart = rrule_params.pop("DTSTART", None)
-    #             # if dtstart:
-    #             #     components.append(f"DTSTART:{dtstart}")
-    #             if self.dtstart_str:
-    #                 components.append(self.dtstart_str)
-    #             freq = rrule_params.pop("FREQ", None)
-    #             if freq:
-    #                 rule_parts = [
-    #                     f"RRULE:FREQ={freq}",
-    #                 ]
-    #             for k, v in rrule_params.items():
-    #                 if v:
-    #                     rule_parts.append(f"{v}")
-    #             rrule_params = {}
-    #
-    #             rule = ";".join(rule_parts)
-    #
-    #             components.append(rule)
-    #
-    #         if self.rdate_str:
-    #             components.append(f"RDATE:{self.rdate_str}")
-    #
-    #         if self.exdate_str:
-    #             components.append(f"EXDATE:{self.exdate_str}")
-    #
-    #         rruleset_str = "\n".join(components)
-    #         self.item["rruleset"] = rruleset_str
-    #
-    #         # must reset these to avoid duplicates
-    #         self.rrule_tokens = []
-    #         self.rdates = []
-    #         self.exdates = []
-    #         return True, rruleset_str
-    #
-    #     elif self.rdstart_str:
-    #         components = [self.rdstart_str]
-    #         if self.rdate_str:
-    #             components.append(f"RDATE:{self.rdate_str}")
-    #         rruleset_str = "\n".join(components)
-    #         self.item["rruleset"] = rruleset_str
-    #         return True, rruleset_str
-    #     return False, "No rrule tokens or rdate to finalize"
-    #
-    # def finalize_rruleset(self):
-    #     """
-    #     Build self.rruleset from current tokens:
-    #
-    #     If @r exists:
-    #     - Include DTSTART (from @s), RRULE (your existing build_rruleset()),
-    #         RDATE with ONLY explicit @+ (self.rdates), and EXDATE with @- (self.exdates).
-    #     - DO NOT include @s in RDATE for RRULE path.
-    #
-    #     If NO @r:
-    #     - A single RDATE line that includes (@s if any) + all @+ dates.
-    #     - Include EXDATE line (if any).
-    #     """
-    #     components: list[str] = []
-    #
-    #     # Detect RRULE presence with your existing signal
-    #     has_rrule = bool(getattr(self, "rrule_tokens", None))
-    #
-    #     # Make sure these lists are defined
-    #     rdates_plus = list(dict.fromkeys(getattr(self, "rdates", []) or []))
-    #     exdates_minus = list(dict.fromkeys(getattr(self, "exdates", []) or []))
-    #
-    #     if has_rrule:
-    #         # DTSTART from @s (if present)
-    #         if getattr(self, "dtstart_str", None):
-    #             components.append(self.dtstart_str)
-    #
-    #         # RRULE(s)
-    #         rule_block = self.build_rruleset() or ""
-    #         if rule_block:
-    #             # Avoid duplicating DTSTART if build_rruleset already included it
-    #             components.extend(
-    #                 ln for ln in rule_block.splitlines() if ln.startswith("RRULE:")
-    #             )
-    #
-    #         # RDATE: ONLY explicit @+ dates
-    #         if rdates_plus:
-    #             components.append(f"RDATE:{','.join(rdates_plus)}")
-    #
-    #         # EXDATE: explicit @- dates
-    #         if exdates_minus:
-    #             components.append(f"EXDATE:{','.join(exdates_minus)}")
-    #
-    #     else:
-    #         # No RRULE — single RDATE line combining @s (if any) + @+ dates
-    #         merged = []
-    #         # Prefer the already-parsed compact scheduled (if available)
-    #         s_compact = getattr(self, "scheduled_compact", None)
-    #
-    #         # If you prefer reading @s straight from the token text instead:
-    #         # s_compact = None
-    #         # for tok in self.structured_tokens:
-    #         #     if tok.get("t") == "@" and tok.get("k") == "s":
-    #         #         try:
-    #         #             s_compact = dt_to_dtstr(parse(tok["token"][2:].strip()))
-    #         #         except Exception:
-    #         #             pass
-    #         #         break
-    #
-    #         if s_compact:
-    #             merged.append(s_compact)
-    #         merged.extend(rdates_plus)
-    #
-    #         if merged:
-    #             merged_unique = list(dict.fromkeys(merged))
-    #             components.append(f"RDATE:{','.join(merged_unique)}")
-    #
-    #         if exdates_minus:
-    #             components.append(f"EXDATE:{','.join(exdates_minus)}")
-    #
-    #     self.rruleset = "\n".join(components)
-    #     return True, self.rruleset
-    #
-
-    # def finalize_rruleset(self):
-    #     """
-    #     Build self.rruleset from current tokens:
-    #
-    #     - If @r exists:
-    #         * Include DTSTART from @s (only if @s is a datetime, i.e. contains 'T').
-    #         * Include RRULE line(s) from build_rruleset() (strip any duplicate DTSTART).
-    #         * Include RDATE containing only explicit @+ dates (never @s).
-    #         * Include EXDATE containing explicit @- dates.
-    #
-    #     - If no @r:
-    #         * Single RDATE that contains (@s if any) + all @+ dates (de-duplicated).
-    #         * Include EXDATE if present.
-    #
-    #     Assumes:
-    #     - self.token_map["s"] contains the compact serialized @s if present.
-    #     - self._parse_rdate_list() returns a list[str] for @+ (compact serialization).
-    #     - @- token is a comma-separated list in structured_tokens.
-    #     """
-    #
-    #     def _has_rrule() -> bool:
-    #         return any(
-    #             t.get("t") == "@" and t.get("k") == "r" for t in self.structured_tokens
-    #         )
-    #
-    #     def _parse_exdate_list() -> list[str]:
-    #         # Find the @- token (only one allowed by your grammar) and split on commas.
-    #         for t in self.structured_tokens:
-    #             if t.get("t") == "@" and t.get("k") == "-":
-    #                 body = t.get("token", "")[2:].strip()  # after "@- "
-    #                 if not body:
-    #                     return []
-    #                 parts = [p.strip() for p in body.split(",") if p.strip()]
-    #                 # No reformatting here: tokens should already be compact-serialized
-    #                 return parts
-    #         return []
-    #
-    #     components: list[str] = []
-    #
-    #     has_rrule = _has_rrule()
-    #     s_compact = (self.token_map.get("s") or "").strip()
-    #     # datetime if it contains 'T' (date-only has no 'T')
-    #     s_is_datetime = bool(s_compact) and ("T" in s_compact)
-    #
-    #     # Collect @+ and @- lists (de-dup while preserving order)
-    #     rdates_plus = list(dict.fromkeys(self._parse_rdate_list() or []))
-    #     exdates_minus = list(dict.fromkeys(_parse_exdate_list() or []))
-    #
-    #     if has_rrule:
-    #         # DTSTART only when @s is a datetime; avoid emitting for date-only schedules
-    #         if s_is_datetime:
-    #             components.append(f"DTSTART:{s_compact}")
-    #
-    #         # RRULE lines from your existing builder
-    #         rule_block = self.build_rruleset() or ""
-    #         if rule_block:
-    #             # Keep only RRULE lines (some builders also emit DTSTART)
-    #             components.extend(
-    #                 ln for ln in rule_block.splitlines() if ln.startswith("RRULE:")
-    #             )
-    #
-    #         # RDATE: only explicit @+ dates (never @s) in RRULE mode
-    #         if rdates_plus:
-    #             components.append(f"RDATE:{','.join(rdates_plus)}")
-    #
-    #         # EXDATE: explicit @- dates
-    #         if exdates_minus:
-    #             components.append(f"EXDATE:{','.join(exdates_minus)}")
-    #
-    #     else:
-    #         # No RRULE → RDATE holds (@s if any) + all @+ dates
-    #         merged = []
-    #         if s_compact:
-    #             merged.append(s_compact)
-    #         merged.extend(rdates_plus)
-    #
-    #         if merged:
-    #             merged_unique = list(dict.fromkeys(merged))
-    #             components.append(f"RDATE:{','.join(merged_unique)}")
-    #
-    #         if exdates_minus:
-    #             components.append(f"EXDATE:{','.join(exdates_minus)}")
-    #
-    #     self.rruleset = "\n".join(components)
-    #     return True, self.rruleset
-
-    # def finalize_rruleset(self):
-    #     """
-    #     Build self.rruleset from current parts, staying compatible with the
-    #     'master' behavior that worked:
-    #
-    #     • RRULE path (when @r present via self.rrule_tokens):
-    #         - Append self.dtstart_str if truthy (must already be 'DTSTART:...').
-    #         - Append only RRULE lines from self.build_rruleset() (strip 'None' and any DTSTART).
-    #         - If self.rdate_str -> append 'RDATE:{self.rdate_str}'.
-    #         - If self.exdate_str -> append 'EXDATE:{self.exdate_str}'.
-    #
-    #     • RDATE-only path (no @r):
-    #         - If self.rdstart_str (already 'RDATE...' from do_s) exists -> start with that.
-    #         - If self.rdate_str -> append 'RDATE:{self.rdate_str}'.
-    #         - (No EXDATE in your original master block here; add if you want.)
-    #
-    #     Side effects:
-    #     - self.item['rruleset'] is set
-    #     - self.rrule_tokens, self.rdates, self.exdates are reset (like master)
-    #     """
-    #     components: list[str] = []
-    #
-    #     has_rrule = bool(self.rrule_tokens)
-    #
-    #     if has_rrule:
-    #         # 1) DTSTART (if provided by do_s)
-    #         if self.dtstart_str:
-    #             # Be safe: only accept proper DTSTART lines
-    #             if isinstance(self.dtstart_str, str) and self.dtstart_str.startswith(
-    #                 "DTSTART:"
-    #             ):
-    #                 components.append(self.dtstart_str)
-    #
-    #         # 2) RRULE lines
-    #         rule_block = ""
-    #         try:
-    #             # Your builder may return a block containing DTSTART, RRULE, or even 'None'
-    #             rb = self.build_rruleset()  # may be None or multi-line string
-    #             rule_block = rb or ""
-    #         except Exception:
-    #             # If build_rruleset explodes, keep going with whatever we already have
-    #             rule_block = ""
-    #
-    #         if rule_block:
-    #             # Keep ONLY RRULE lines; drop accidental 'None' or empty lines or DTSTART echoes
-    #             for ln in rule_block.splitlines():
-    #                 if not ln:
-    #                     continue
-    #                 if ln == "None":
-    #                     continue
-    #                 if ln.startswith("DTSTART:"):
-    #                     continue
-    #                 if ln.startswith("RRULE:"):
-    #                     components.append(ln)
-    #
-    #         # 3) RDATE (explicit additions)
-    #         if getattr(self, "rdate_str", None):
-    #             # Master appended RDATE once, as-is
-    #             components.append(f"RDATE:{self.rdate_str}")
-    #
-    #         # 4) EXDATE (explicit exclusions)
-    #         if getattr(self, "exdate_str", None):
-    #             components.append(f"EXDATE:{self.exdate_str}")
-    #
-    #         rruleset_str = "\n".join(components)
-    #         self.item["rruleset"] = rruleset_str
-    #         self.rruleset = rruleset_str
-    #
-    #         # reset accumulators like master to avoid duplicates next build
-    #         self.rrule_tokens = []
-    #         self.rdates = []
-    #         self.exdates = []
-    #
-    #         return True, rruleset_str
-    #
-    #     # ---- RDATE-only path (no @r) ----
-    #     components = []
-    #
-    #     # Master used rdstart_str (already fully 'RDATE:...' from do_s) as the first line
-    #     if getattr(self, "rdstart_str", None):
-    #         if isinstance(self.rdstart_str, str) and self.rdstart_str.startswith(
-    #             "RDATE"
-    #         ):
-    #             components.append(self.rdstart_str)
-    #
-    #     # Then master optionally appended another RDATE with extra @+ dates
-    #     if getattr(self, "rdate_str", None):
-    #         components.append(f"RDATE:{self.rdate_str}")
-    #
-    #     rruleset_str = "\n".join([c for c in components if c])  # filter out empties
-    #     self.item["rruleset"] = rruleset_str
-    #     self.rruleset = rruleset_str
-    #
-    #     # no resets here in master’s RDATE-only branch except returning early,
-    #     # but it’s harmless to mirror the behavior and leave lists as-is if you prefer.
-    #     return True, rruleset_str
-    #
-    # def finalize_rruleset(self):
-    #     """
-    #     Build self.rruleset from current state, mirroring the old 'master' behavior:
-    #
-    #     RRULE present (self.rrule_tokens truthy):
-    #     • prepend self.dtstart_str (if set and well-formed)
-    #     • for each rrule token, emit 'RRULE:...' line
-    #     • append RDATE:self.rdate_str (if any explicit @+)
-    #     • append EXDATE:self.exdate_str (if any explicit @-)
-    #     • clear self.rrule_tokens/self.rdates/self.exdates to avoid duplicates
-    #
-    #     No RRULE:
-    #     • start with self.rdstart_str (seeded by do_s)
-    #     • append RDATE:self.rdate_str if present
-    #     """
-    #     components: list[str] = []
-    #
-    #     # --- RRULE path ---
-    #     if self.rrule_tokens:
-    #         # 1) DTSTART from do_s (only if it's a proper line)
-    #         if isinstance(self.dtstart_str, str) and self.dtstart_str.startswith(
-    #             "DTSTART:"
-    #         ):
-    #             components.append(self.dtstart_str)
-    #
-    #         # 2) RRULE lines from rrule_tokens (as in the original master code)
-    #         for token in self.rrule_tokens:
-    #             # token is typically (anchor_token, params_dict)
-    #             _, rrule_params = token
-    #             rule_parts = []
-    #
-    #             freq = rrule_params.pop("FREQ", None)
-    #             if freq:
-    #                 rule_parts.append(f"RRULE:FREQ={freq}")
-    #
-    #             # remaining params are already like "KEY=VALUE" or "KEY=V1,V2"
-    #             for _, v in rrule_params.items():
-    #                 if v:
-    #                     rule_parts.append(str(v))
-    #
-    #             # join with ';' -> RRULE:...
-    #             if rule_parts:
-    #                 components.append(";".join(rule_parts))
-    #
-    #         # 3) RDATE / EXDATE from strings managed by do_rdate/do_exdate
-    #         if getattr(self, "rdate_str", None):
-    #             components.append(f"RDATE:{self.rdate_str}")
-    #         if getattr(self, "exdate_str", None):
-    #             components.append(f"EXDATE:{self.exdate_str}")
-    #
-    #         # Assemble + store
-    #         rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
-    #         self.item["rruleset"] = rruleset_str
-    #         self.rruleset = rruleset_str
-    #
-    #         # Prevent double-append in subsequent calls (matches master)
-    #         self.rrule_tokens = []
-    #         self.rdates = []
-    #         self.exdates = []
-    #         return True, rruleset_str
-    #
-    #     # --- RDATE-only path ---
-    #     components = []
-    #
-    #     # Start with the seed created by do_s()
-    #     if isinstance(self.rdstart_str, str) and self.rdstart_str.startswith("RDATE"):
-    #         components.append(self.rdstart_str)
-    #
-    #     # Then explicit @+ (if any)
-    #     if getattr(self, "rdate_str", None):
-    #         components.append(f"RDATE:{self.rdate_str}")
-    #
-    #     rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
-    #     self.item["rruleset"] = rruleset_str
-    #     self.rruleset = rruleset_str
-    #     return True, rruleset_str
 
     def finalize_rruleset(self):
         """
@@ -3218,8 +2561,9 @@ class Item:
                     components.append(";".join(rule_parts))
 
             # 3) RDATE / EXDATE from strings managed by do_rdate/do_exdate
-            if getattr(self, "rdate_str", None):
-                components.append(f"RDATE:{self.rdate_str}")
+            log_msg(f"{self.rdstart_str = }")
+            if getattr(self, "rdstart_str", None):
+                components.append(f"RDATE:{self.rdstart_str}")
             if getattr(self, "exdate_str", None):
                 components.append(f"EXDATE:{self.exdate_str}")
 
@@ -3232,7 +2576,6 @@ class Item:
             self.rrule_tokens = []
             self.rdates = []
             self.exdates = []
-            log_msg(f"{rruleset_str = }")
             return True, rruleset_str
 
         # --- RDATE-only path ---
@@ -3247,7 +2590,6 @@ class Item:
         rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
         self.item["rruleset"] = rruleset_str
         self.rruleset = rruleset_str
-        log_msg(f"{rruleset_str = }")
         return True, rruleset_str
 
     def collect_rruleset_tokens(self):
@@ -3271,33 +2613,35 @@ class Item:
     def build_rruleset(self) -> str:
         """
         Build an rruleset string using self.structured_tokens and self.dtstart_str.
+        Emits:
+        - DTSTART (if present)
+        - RRULE:...
+        - RDATE:...   (from your rdstart_str or rdate_str)
+        - EXDATE:...  (if you track it)
         """
         rrule_tokens = self.collect_rruleset_tokens()
-
         if not rrule_tokens or not rrule_tokens[0]["token"].startswith("@r"):
             return ""
 
-        rrule_components = {}
+        # map @r y/m/w/d → RRULE:FREQ=...
         freq_map = {"y": "YEARLY", "m": "MONTHLY", "w": "WEEKLY", "d": "DAILY"}
-        freq_token = rrule_tokens[0]["token"].split(maxsplit=1)
-        freq_abbr = freq_token[1].strip() if len(freq_token) > 1 else ""
+        parts = rrule_tokens[0]["token"].split(maxsplit=1)
+        freq_abbr = parts[1].strip() if len(parts) > 1 else ""
         freq = freq_map.get(freq_abbr.lower())
         if not freq:
             return ""
 
-        rrule_components["FREQ"] = freq
+        rrule_components = {"FREQ": freq}
 
-        for token in rrule_tokens[1:]:  # &-tokens as structured dicts
-            token_str = token["token"]
+        # &-tokens
+        for tok in rrule_tokens[1:]:
+            token_str = tok["token"]
             try:
-                key, value = token_str[1:].split(maxsplit=1)
-            except Exception as e:
-                print(f"Exception: {e} for {token_str = }")
+                key, value = token_str[1:].split(maxsplit=1)  # strip leading '&'
+            except Exception:
                 continue
-
-            key = key.upper()
+            key = key.upper().strip()
             value = value.strip()
-
             if key == "M":
                 rrule_components["BYMONTH"] = value
             elif key == "W":
@@ -3311,17 +2655,33 @@ class Item:
             elif key == "C":
                 rrule_components["COUNT"] = value
 
-        rrule_str = "RRULE:" + ";".join(f"{k}={v}" for k, v in rrule_components.items())
-
-        print(
-            f"{self.dtstart_str = }, {self.rdstart_str = }, {hasattr(self, 'dtstart_str') = }"
+        rrule_line = "RRULE:" + ";".join(
+            f"{k}={v}" for k, v in rrule_components.items()
         )
 
-        return (
-            f"{self.dtstart_str}\n{rrule_str}"
-            if hasattr(self, "dtstart_str")
-            else rrule_str
-        )
+        # Assemble lines safely
+        lines: list[str] = []
+
+        dtstart_str = getattr(self, "dtstart_str", "") or ""
+        if dtstart_str:
+            lines.append(dtstart_str)
+
+        if rrule_line:
+            lines.append(rrule_line)
+
+        # If you keep plus-dates inside rdstart_str, append it here.
+        # (If you also track self.rdate_str and/or self.exdate_str separately,
+        #  prefer to append those explicit lines here instead.)
+        rdstart_str = getattr(self, "rdstart_str", "") or ""
+        if rdstart_str:
+            lines.append(rdstart_str)
+
+        # Optional: include EXDATE if you’re storing it separately
+        exdate_str = getattr(self, "exdate_str", "") or ""
+        if exdate_str:
+            lines.append(f"EXDATE:{exdate_str}")
+
+        return "\n".join(lines)
 
     def build_jobs(self):
         """
@@ -3489,8 +2849,6 @@ class Item:
     def do_completion(self, token):
         """
         Handle both:
-        - parse completion datetime
-        - replace the token value with datetime formatted.
         - @f <datetime>  (task-level)  -> store in self.completions and normalize token text
         - &f <datetime>  (job-level)   -> return integer timestamp for job metadata
         """
