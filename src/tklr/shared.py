@@ -1,7 +1,8 @@
 import inspect
 import textwrap
 import shutil
-from datetime import date, datetime, timedelta
+import re
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal, Tuple
 
 
@@ -20,6 +21,90 @@ ALERT_COMMANDS = {
 
 ELLIPSIS_CHAR = "…"
 
+# from shared import fmt_local_compact, parse_local_compact, fmt_local_seconds, parse_local_seconds, fmt_utc_z, parse_utc_z
+
+
+def timedelta_str_to_seconds(time_str: str) -> tuple[bool, int]:
+    """
+    Converts a time string composed of integers followed by 'w', 'd', 'h', or 'm'
+    into the total number of seconds.
+    Args:
+        time_str (str): The time string (e.g., '3h15s').
+    Returns:
+        int: The total number of seconds.
+    Raises:
+        ValueError: If the input string is not in the expected format.
+    """
+    # Define time multipliers for each unit
+    multipliers = {
+        "w": 7 * 24 * 60 * 60,  # Weeks to seconds
+        "d": 24 * 60 * 60,  # Days to seconds
+        "h": 60 * 60,  # Hours to seconds
+        "m": 60,  # Minutes to seconds
+    }
+    # Match all integer-unit pairs (e.g., "3h", "15s")
+    matches = re.findall(r"(\d+)([wdhm])", time_str)
+    if not matches:
+        return (
+            False,
+            "Invalid time string format. Expected integers followed by 'w', 'd', 'h', or 'm'.",
+        )
+    # Convert each match to seconds and sum them
+    total_seconds = sum(int(value) * multipliers[unit] for value, unit in matches)
+    return True, total_seconds
+
+
+# ---------- DateTimes (local-naive, minute precision) ----------
+def fmt_local_compact(dt: datetime) -> str:
+    """Local-naive → 'YYYYMMDD' or 'YYYYMMDDTHHMM' (no seconds)."""
+    if dt.hour == dt.minute == dt.second == 0:
+        return dt.strftime("%Y%m%d")
+    return dt.strftime("%Y%m%dT%H%M")
+
+
+def parse_local_compact(s: str) -> datetime:
+    """'YYYYMMDD' or 'YYYYMMDDTHHMM' → local-naive datetime."""
+    if len(s) == 8:
+        return datetime.strptime(s, "%Y%m%d")
+    if len(s) == 13 and s[8] == "T":
+        return datetime.strptime(s, "%Y%m%dT%H%M")
+    raise ValueError(f"Bad local-compact datetime: {s!r}")
+
+
+# FIXME: not needed without seconds
+# ---------- Alerts (local-naive, second precision) ----------
+# def fmt_local_seconds(dt: datetime) -> str:
+#     """Local-naive → 'YYYYMMDDTHHMMSS'."""
+#     return dt.strftime("%Y%m%dT%H%M%S")
+#
+#
+# def parse_local_seconds(s: str) -> datetime:
+#     """'YYYYMMDDTHHMMSS' → local-naive datetime."""
+#     return datetime.strptime(s, "%Y%m%dT%H%M%S")
+#
+
+
+# ---------- Aware UTC (with trailing 'Z', minute precision) ----------
+def fmt_utc_z(dt: datetime) -> str:
+    """Aware/naive → UTC aware → 'YYYYMMDDTHHMMZ' (no seconds)."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)  # or attach your local tz then convert
+    dt = dt.astimezone(timezone.utc)
+    return dt.strftime("%Y%m%dT%H%MZ")
+
+
+def parse_utc_z(s: str) -> datetime:
+    """
+    'YYYYMMDDTHHMMZ' or 'YYYYMMDDTHHMMSSZ' → aware datetime in UTC.
+    Accept seconds if present; normalize to tz-aware UTC object.
+    """
+    if not s.endswith("Z"):
+        raise ValueError(f"UTC-Z string must end with 'Z': {s!r}")
+    body = s[:-1]
+    fmt = "%Y%m%dT%H%M"
+    dt = datetime.strptime(body, fmt)
+    return dt.replace(tzinfo=timezone.utc)
+
 
 def truncate_string(s: str, max_length: int) -> str:
     # log_msg(f"Truncating string '{s}' to {max_length} characters")
@@ -29,34 +114,34 @@ def truncate_string(s: str, max_length: int) -> str:
         return s
 
 
-def log_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = False):
-    """
-    Log a message and save it directly to a specified file.
-
-    Args:
-        msg (str): The message to log.
-        file_path (str, optional): Path to the log file. Defaults to "log_msg.txt".
-    """
-    caller_name = inspect.stack()[1].function
-    lines = [
-        f"- {datetime.now().strftime('%y-%m-%d %H:%M:%S')} " + rf"({caller_name}):  ",
-    ]
-    lines.extend(
-        [
-            f"\n{x}"
-            for x in textwrap.wrap(
-                msg.strip(),
-                width=shutil.get_terminal_size()[0] - 6,
-                initial_indent="   ",
-                subsequent_indent="   ",
-            )
-        ]
-    )
-    lines.append("\n\n")
-
-    # Save the message to the file
-    with open(file_path, "a") as f:
-        f.writelines(lines)
+# def log_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = False):
+#     """
+#     Log a message and save it directly to a specified file.
+#
+#     Args:
+#         msg (str): The message to log.
+#         file_path (str, optional): Path to the log file. Defaults to "log_msg.txt".
+#     """
+#     caller_name = inspect.stack()[1].function
+#     lines = [
+#         f"- {datetime.now().strftime('%y-%m-%d %H:%M:%S')} " + rf"({caller_name}):  ",
+#     ]
+#     lines.extend(
+#         [
+#             f"\n{x}"
+#             for x in textwrap.wrap(
+#                 msg.strip(),
+#                 width=shutil.get_terminal_size()[0] - 6,
+#                 initial_indent="   ",
+#                 subsequent_indent="   ",
+#             )
+#         ]
+#     )
+#     lines.append("\n\n")
+#
+#     # Save the message to the file
+#     with open(file_path, "a") as f:
+#         f.writelines(lines)
 
 
 def log_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = False):
@@ -160,6 +245,7 @@ def format_time_range(start_time: str, end_time: str, ampm: bool = False) -> str
     """Format time range respecting ampm setting."""
     start_dt = datetime_from_timestamp(start_time)
     end_dt = datetime_from_timestamp(end_time) if end_time else None
+    log_msg(f"{start_dt = }, {end_dt = }")
 
     if not end_dt:
         end_dt = start_dt
@@ -175,6 +261,7 @@ def format_time_range(start_time: str, end_time: str, ampm: bool = False) -> str
         end_hour = (
             end_dt.strftime("%-I:%M%p").lower().replace(":00", "")  # .replace("m", "")
         )
+        log_msg(f"{start_hour = }, {end_hour = }")
         return f"{start_hour}-{end_hour}" if extent else f"{end_hour}"
     else:
         start_hour = start_dt.strftime("%H:%M").replace(":00", "")
@@ -183,6 +270,7 @@ def format_time_range(start_time: str, end_time: str, ampm: bool = False) -> str
         end_hour = end_dt.strftime("%H:%M")  # .replace(":00", "")
         if end_hour.startswith("0"):
             end_hour = end_hour[1:]
+        log_msg(f"{start_hour = }, {end_hour = }")
         return f"{start_hour}-{end_hour}" if extent else f"{end_hour}"
 
 
@@ -364,7 +452,7 @@ def datetime_from_timestamp(fmt_dt: str) -> str:
         return None
     try:
         if "T" in fmt_dt:
-            dt = datetime.strptime(fmt_dt, "%Y%m%dT%H%M%S")
+            dt = datetime.strptime(fmt_dt, "%Y%m%dT%H%M")
             # is_date_only = False
         else:
             dt = datetime.strptime(fmt_dt, "%Y%m%d")
@@ -389,7 +477,7 @@ def format_datetime(fmt_dt: str, ampm: bool = False) -> str:
     """
     # Parse
     if "T" in fmt_dt:
-        dt = datetime.strptime(fmt_dt, "%Y%m%dT%H%M%S")
+        dt = datetime.strptime(fmt_dt, "%Y%m%dT%H%M")
         is_date_only = False
     else:
         dt = datetime.strptime(fmt_dt, "%Y%m%d")

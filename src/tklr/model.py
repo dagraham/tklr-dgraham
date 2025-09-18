@@ -19,6 +19,10 @@ from .shared import (
     datetime_from_timestamp,
     duration_in_words,
     datetime_in_words,
+    fmt_local_compact,
+    parse_local_compact,
+    fmt_utc_z,
+    parse_utc_z,
 )
 
 import re
@@ -34,7 +38,7 @@ def regexp(pattern, value):
 
 def utc_now_string():
     """Return current UTC time as 'YYYYMMDDTHHMMSS'."""
-    return datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+    return datetime.utcnow().strftime("%Y%m%dT%H%MZ")
 
 
 def utc_now_to_seconds():
@@ -46,7 +50,7 @@ def is_date(obj):
 
 
 DATE_FMT = "%Y%m%d"
-DT_FMT = "%Y%m%dT%H%M%S"
+DT_FMT = "%Y%m%dT%H%M"
 
 
 def _fmt_date(d: date) -> str:
@@ -74,12 +78,12 @@ def _to_local_naive(dt: datetime) -> datetime:
 
 def _to_key(dt: datetime) -> str:
     """Naive-local datetime -> 'YYYYMMDDTHHMMSS' string key."""
-    return dt.strftime("%Y%m%dT%H%M%S")
+    return dt.strftime("%Y%m%dT%H%M")
 
 
 def _today_key() -> str:
     """'YYYYMMDDTHHMMSS' for now in local time, used for lexicographic comparisons."""
-    return datetime.now().strftime("%Y%m%dT%H%M%S")
+    return datetime.now().strftime("%Y%m%dT%H%M")
 
 
 def _split_span_local_days(
@@ -161,19 +165,19 @@ def dt_str_to_seconds(datetime_str: str) -> int:
     if "T" not in datetime_str:
         datetime_str += "T000000"
     try:
-        return round(datetime.strptime(datetime_str, "%Y%m%dT%H%M%S").timestamp())
+        return round(datetime.strptime(datetime_str[:13], "%Y%m%dT%H%M").timestamp())
 
     except ValueError:
         return round(
-            datetime.strptime(datetime_str, "%Y%m%dT000000").timestamp()
+            datetime.strptime(datetime_str.rstrip("Z"), "%Y%m%dT0000").timestamp()
         )  # Allow date-only
 
 
 def dt_to_dtstr(dt_obj: datetime) -> str:
-    """Convert a datetime object to 'YYYYMMDDTHHMMSS' format."""
+    """Convert a datetime object to 'YYYYMMDDTHHMM' format."""
     if is_date:
         return dt_obj.strftime("%Y%m%d")
-    return dt_obj.strftime("%Y%m%dT%H%M%S")
+    return dt_obj.strftime("%Y%m%dT%H%M")
 
 
 def td_to_tdstr(td_obj: timedelta) -> str:
@@ -212,7 +216,7 @@ def _fmt_compact_local_naive(dt: datetime) -> str:
         dt = dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
     if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
         return dt.strftime("%Y%m%d")
-    return dt.strftime("%Y%m%dT%H%M%S")
+    return dt.strftime("%Y%m%dT%H%M")
 
 
 def _shift_from_parent(parent_dt: datetime, seconds: int) -> datetime:
@@ -568,7 +572,7 @@ class DatabaseManager:
                 jobs              TEXT,
                 tags              TEXT,
                 priority          INTEGER CHECK (priority IN (1,2,3,4,5)),
-                structured_tokens TEXT,                         -- JSON text
+                relative_tokens TEXT,                         -- JSON text
                 processed         INTEGER,
                 created           TEXT,                         -- 'YYYYMMDDTHHMMSS' UTC
                 modified          TEXT                          -- 'YYYYMMDDTHHMMSS' UTC
@@ -747,7 +751,7 @@ class DatabaseManager:
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
                     extent, alerts, beginby, context, jobs, priority, tags,
-                    structured_tokens, processed, created, modified
+                    relative_tokens, processed, created, modified
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
@@ -763,7 +767,7 @@ class DatabaseManager:
                     json.dumps(item.jobs),
                     item.priority,
                     json.dumps(item.tags),
-                    json.dumps(item.structured_tokens),
+                    json.dumps(item.relative_tokens),
                     0,
                     timestamp,  # created
                     timestamp,  # modified (same on insert)
@@ -796,8 +800,8 @@ class DatabaseManager:
                 "context": item.context,
                 "jobs": json.dumps(item.jobs) if item.jobs is not None else None,
                 "tags": json.dumps(item.tags) if item.tags is not None else None,
-                "structured_tokens": json.dumps(item.structured_tokens)
-                if item.structured_tokens is not None
+                "relative_tokens": json.dumps(item.relative_tokens)
+                if item.relative_tokens is not None
                 else None,
                 "processed": 0,  # reset processed
             }
@@ -830,7 +834,7 @@ class DatabaseManager:
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
                     extent, alerts, beginby, context, jobs, tags,
-                    structured_tokens, processed, created, modified
+                    relative_tokens, processed, created, modified
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
@@ -845,7 +849,7 @@ class DatabaseManager:
                     item.context,
                     json.dumps(item.jobs),
                     json.dumps(item.tags),
-                    json.dumps(item.structured_tokens),
+                    json.dumps(item.relative_tokens),
                     0,
                     timestamp,
                     timestamp,
@@ -859,7 +863,7 @@ class DatabaseManager:
                 UPDATE Records
                 SET itemtype = ?, subject = ?, description = ?, rruleset = ?, timezone = ?,
                     extent = ?, alerts = ?, beginby = ?, context = ?, jobs = ?, tags = ?,
-                    structured_tokens = ?, modified = ?
+                    relative_tokens = ?, modified = ?
                 WHERE id = ?
                 """,
                 (
@@ -874,7 +878,7 @@ class DatabaseManager:
                     item.context,
                     json.dumps(item.jobs),
                     json.dumps(item.tags),
-                    json.dumps(item.structured_tokens),
+                    json.dumps(item.relative_tokens),
                     timestamp,
                     record_id,
                 ),
@@ -894,7 +898,7 @@ class DatabaseManager:
     def add_completion(
         self, record_id: int, job_id: int | None = None, due_ts: int | None = None
     ):
-        completed_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        completed_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%MZ")
         self.cursor.execute(
             """
             INSERT INTO Completions (record_id, job_id, due, completed)
@@ -1052,7 +1056,7 @@ class DatabaseManager:
             alert_id, record_id, record_name, start_dt, td, command = alert
             execution_time = start_dt - td  # When the alert is scheduled to run
             formatted_time = datetime_from_timestamp(execution_time).strftime(
-                "%Y-%m-%d %H:%M:%S"
+                "%Y-%m-%d %H:%M"
             )
 
             results.append([alert_id, record_id, record_name, formatted_time, command])
@@ -1131,25 +1135,25 @@ class DatabaseManager:
             ) in self.cursor.fetchall()
         ]
 
-    def get_structured_tokens(self, record_id: int):
+    def get_relative_tokens(self, record_id: int):
         """
-        Retrieve the structured_tokens field from a record and return it as a list of dictionaries.
+        Retrieve the relative_tokens field from a record and return it as a list of dictionaries.
         Returns an empty list if the field is null, empty, or if the record is not found.
         """
         self.cursor.execute(
-            "SELECT structured_tokens, rruleset, created, modified FROM Records WHERE id = ?",
+            "SELECT relative_tokens, rruleset, created, modified FROM Records WHERE id = ?",
             (record_id,),
         )
         return [
             (
-                # " ".join([t["token"] for t in json.loads(structured_tokens)]),
-                json.loads(structured_tokens),
+                # " ".join([t["token"] for t in json.loads(relative_tokens)]),
+                json.loads(relative_tokens),
                 rruleset,
                 created,
                 modified,
             )
             for (
-                structured_tokens,
+                relative_tokens,
                 rruleset,
                 created,
                 modified,
@@ -1301,7 +1305,7 @@ class DatabaseManager:
                 raise ValueError("empty datetime text")
             if "T" in s:
                 # datetime
-                return datetime.strptime(s, "%Y%m%dT%H%M%S")
+                return datetime.strptime(s, "%Y%m%dT%H%M")
             else:
                 # date-only -> treat as midnight local
                 return datetime.strptime(s, "%Y%m%d")
@@ -1313,7 +1317,7 @@ class DatabaseManager:
             """
             if is_date_only:
                 return dt.strftime("%Y%m%d")
-            return dt.strftime("%Y%m%dT%H%M%S")
+            return dt.strftime("%Y%m%dT%H%M")
 
         def _is_date_only_text(s: str) -> bool:
             return "T" not in (s or "")
@@ -1335,7 +1339,7 @@ class DatabaseManager:
             WHERE trigger_datetime >= ?
             AND trigger_datetime <= ?
             """,
-            (now.strftime("%Y%m%dT%H%M%S"), end_of_day.strftime("%Y%m%dT%H%M%S")),
+            (now.strftime("%Y%m%dT%H%M"), end_of_day.strftime("%Y%m%dT%H%M")),
         )
         self.conn.commit()
 
@@ -2215,7 +2219,7 @@ class DatabaseManager:
             List of tuples:
                 (record_id, job_id, subject, description, itemtype, last_datetime)
         """
-        today = datetime.now().strftime("%Y%m%dT%H%M%S")
+        today = datetime.now().strftime("%Y%m%dT%H%M")
         self.cursor.execute(
             """
             SELECT
@@ -2245,7 +2249,7 @@ class DatabaseManager:
             List of tuples:
                 (record_id, job_id, subject, description, itemtype, last_datetime)
         """
-        today = datetime.now().strftime("%Y%m%dT%H%M%S")
+        today = datetime.now().strftime("%Y%m%dT%H%M")
         self.cursor.execute(
             """
             SELECT
@@ -2384,8 +2388,8 @@ class DatabaseManager:
     def update_tags_for_record(self, record_data):
         cur = self.conn.cursor()
         tags = record_data.pop("tags", [])
-        record_data["structured_tokens"] = json.dumps(
-            record_data.get("structured_tokens", [])
+        record_data["relative_tokens"] = json.dumps(
+            record_data.get("relative_tokens", [])
         )
         record_data["jobs"] = json.dumps(record_data.get("jobs", []))
         if "id" in record_data:
@@ -2452,7 +2456,7 @@ class DatabaseManager:
             due_str = rruleset.split(":", 1)[1].split(",")[0]
             try:
                 if "T" in due_str:
-                    dt = datetime.strptime(due_str.strip(), "%Y%m%dT%H%M%SZ")
+                    dt = datetime.strptime(due_str.strip(), "%Y%m%dT%H%MZ")
                 else:
                     dt = datetime.strptime(due_str.strip(), "%Y%m%d")
                 due_seconds = round(dt.timestamp())

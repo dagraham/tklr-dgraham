@@ -19,6 +19,7 @@ class UIConfig(BaseModel):
     ampm: bool = False
     dayfirst: bool = False
     yearfirst: bool = True
+    two_digit_year: bool = True
     history_weight: int = 3
 
 
@@ -142,6 +143,11 @@ dayfirst = {{ ui.dayfirst | lower }}
 
 # yearfirst: bool = true | false
 yearfirst = {{ ui.yearfirst | lower }}
+
+# two_digit_year: bool = true | false 
+# If true, years are displayed using the last two digits, e.g.,
+# 25 instead of 2025. 
+two_digit_year = {{ ui.two_digit_year | lower }} 
 
 [alerts]
 # dict[str, str]: character -> command_str.

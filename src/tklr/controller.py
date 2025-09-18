@@ -50,12 +50,18 @@ from .shared import (
     format_datetime,
     datetime_in_words,
     truncate_string,
+    fmt_local_compact,
+    parse_local_compact,
+    fmt_utc_z,
+    parse_utc_z,
 )
 from tklr.tklr_env import TklrEnvironment
 
 from tklr.common import get_version
 
 VERSION = get_version()
+
+ISO_Z = "%Y%m%dT%H%MZ"
 
 type_color = css_named_colors["goldenrod"]
 at_color = css_named_colors["goldenrod"]
@@ -162,7 +168,7 @@ TYPE_TO_COLOR = {
 
 
 def _ensure_tokens_list(value):
-    """Return a list[dict] for structured_tokens whether DB returned JSON str or already-parsed list."""
+    """Return a list[dict] for relative_tokens whether DB returned JSON str or already-parsed list."""
     if value is None:
         return []
     if isinstance(value, (list, tuple)):
@@ -176,7 +182,7 @@ def _ensure_tokens_list(value):
 
 
 def format_tokens(tokens, width):
-    # tokens = json.loads(structured_tokens)
+    # tokens = json.loads(relative_tokens)
     output_lines = []
     current_line = ""
 
@@ -607,7 +613,7 @@ class Controller:
 
     def get_entry(self, record_id, job_id=None):
         lines = []
-        result = self.db_manager.get_structured_tokens(record_id)
+        result = self.db_manager.get_relative_tokens(record_id)
         # log_msg(f"{result = }")
 
         tokens, rruleset, created, modified = result[0]
@@ -637,12 +643,41 @@ class Controller:
                 " ",
                 f"[{label_color}]record_id:[/{label_color}] {record_id}{job}",
                 rr_line,
-                f"[{label_color}]created:[/{label_color}]   {created[:13]}",
-                f"[{label_color}]modified:[/{label_color}]  {modified[:13]}",
+                f"[{label_color}]created:[/{label_color}]   {created}",
+                f"[{label_color}]modified:[/{label_color}]  {modified}",
             ]
         )
 
         return lines
+
+    def update_record_from_item(self, item) -> None:
+        self.cursor.execute(
+            """
+            UPDATE Records
+            SET itemtype=?, subject=?, description=?, rruleset=?, timezone=?,
+                extent=?, alerts=?, beginby=?, context=?, jobs=?, tags=?,
+                priority=?, relative_tokens=?, modified=?
+            WHERE id=?
+            """,
+            (
+                item.itemtype,
+                item.subject,
+                item.description,
+                item.rruleset,
+                item.timezone or "",
+                item.item.get("extent", ""),
+                json.dumps(item.item.get("a") or []),
+                item.item.get("beginby", ""),
+                item.item.get("context", ""),
+                json.dumps(item.jobs) if getattr(item, "jobs", None) else None,
+                ";".join(item.item.get("t") or []),
+                item.item.get("priority"),
+                json.dumps(item.relative_tokens),
+                item.item.get("modified"),
+                item.id,
+            ),
+        )
+        self.conn.commit()
 
     def get_record_core(self, record_id: int) -> dict:
         row = self.db_manager.get_record(record_id)
@@ -759,7 +794,7 @@ class Controller:
         table.add_column("subject", width=25, overflow="ellipsis", no_wrap=True)
 
         # 4*2 + 2*3 + 7 + 14 = 35 => subject width = width - 35
-        trigger_width = 10 if self.AMPM else 8
+        trigger_width = 7 if self.AMPM else 8
         start_width = 7 if self.AMPM else 6
         alert_width = trigger_width + 3
         name_width = width - 35
@@ -1146,17 +1181,14 @@ class Controller:
         for start_ts, end_ts, itemtype, subject, id, job_id in events:
             start_dt = datetime_from_timestamp(start_ts)
             end_dt = datetime_from_timestamp(end_ts)
-            # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
+            log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
 
             if start_dt == end_dt:
-                if start_dt.hour == 0 and start_dt.minute == 0 and start_dt.second == 0:
+                # if start_dt.hour == 0 and start_dt.minute == 0 and start_dt.second == 0:
+                if start_dt.hour == 0 and start_dt.minute == 0:
                     # start_end = f"{str('~'):^11}"
                     start_end = ""
-                elif (
-                    start_dt.hour == 23
-                    and start_dt.minute == 59
-                    and start_dt.second == 59
-                ):
+                elif start_dt.hour == 23 and start_dt.minute == 59:
                     start_end = ""
                 else:
                     start_end = f"{format_time_range(start_dt, end_dt, self.AMPM)}"
@@ -1582,12 +1614,12 @@ class Controller:
         if not row:
             raise ValueError(f"No record found for id {record_id}")
 
-        # 0..16 schema like you described; 13 = structured_tokens
-        structured_tokens_value = row[13]
-        tokens = structured_tokens_value
-        if isinstance(structured_tokens_value, str):
+        # 0..16 schema like you described; 13 = relative_tokens
+        relative_tokens_value = row[13]
+        tokens = relative_tokens_value
+        if isinstance(relative_tokens_value, str):
             try:
-                tokens = json.loads(structured_tokens_value)
+                tokens = json.loads(relative_tokens_value)
             except Exception:
                 # already a list or malformed — best effort
                 pass

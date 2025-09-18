@@ -22,68 +22,68 @@ ONEDAY = timedelta(days=1)
 
 # in_one_hour = (
 #     datetime.now().replace(second=0, microsecond=0) + timedelta(hours=1)
-# ).strftime("%Y%m%dT%H%M00")
+# ).strftime("%y-%m-%d %H:%M00")
 def in_five_minutes():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 5 + (5 - now.minute % 10)
     next = now + timedelta(minutes=delta_minutes)
-    return next.strftime("%Y%m%dT%H%M%S")
+    return next.strftime("%y-%m-%d %H:%M")
 
 
 def in_ten_minutes():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 10 + (10 - now.minute % 10)
     next = now + timedelta(minutes=delta_minutes)
-    return next.strftime("%Y%m%dT%H%M%S")
+    return next.strftime("%y-%m-%d %H:%M")
 
 
 def one_hour_ago():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now - timedelta(minutes=delta_minutes)
-    return next.strftime("%Y%m%dT%H%M%S")
+    return next.strftime("%y-%m-%d %H:%M")
 
 
 def in_one_hour():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now + timedelta(minutes=delta_minutes)
-    return next.strftime("%Y%m%dT%H%M%S")
+    return next.strftime("%y-%m-%d %H:%M")
 
 
 def in_one_day():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now + timedelta(days=1, minutes=delta_minutes)
-    return next.strftime("%Y%m%dT%H%M%S")
+    return next.strftime("%y-%m-%d %H:%M")
 
 
 def in_two_days():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now + timedelta(days=2, minutes=delta_minutes)
-    return next.strftime("%Y%m%dT%H%M%S")
+    return next.strftime("%y-%m-%d %H:%M")
 
 
 def in_five_days():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now + timedelta(days=5, minutes=delta_minutes)
-    return next.strftime("%Y%m%dT%H%M%S")
+    return next.strftime("%y-%m-%d %H:%M")
 
 
 def five_days_ago():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now - timedelta(days=5, minutes=delta_minutes)
-    return next.strftime("%Y%m%dT%H%M%S")
+    return next.strftime("%y-%m-%d %H:%M")
 
 
 def in_two_weeks():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now + timedelta(days=2 * 7, minutes=delta_minutes)
-    return next.strftime("%Y%m%dT%H%M%S")
+    return next.strftime("%y-%m-%d %H:%M")
 
 
 def local_dtstr_to_utc_str(local_dt_str: str) -> str:
@@ -102,7 +102,7 @@ def local_dtstr_to_utc_str(local_dt_str: str) -> str:
     local_dt = parser.parse(local_dt_str).astimezone()
     utc_dt = local_dt.astimezone(tz=gettz("UTC")).replace(tzinfo=None)
     # return utc_dt.isoformat()
-    return utc_dt.strftime("%Y%m%dT%H%M%S")
+    return utc_dt.strftime("%y-%m-%d %H:%M")
 
 
 def to_tdstr(seconds: int) -> str:
@@ -233,19 +233,19 @@ freq = [
 
 count = [f"COUNT={n}" for n in range(2, 5)]
 
-first_of_month = now.replace(day=1).strftime("%Y%m%d")
-yesterday_date = (now - ONEDAY).strftime("%Y%m%d")
-today_date = now.strftime("%Y%m%d")
-tomorrow_date = (now + ONEDAY).strftime("%Y%m%d")
+first_of_month = now.replace(day=1).strftime("%y-%m-%d")
+yesterday_date = (now - ONEDAY).strftime("%y-%m-%d")
+today_date = now.strftime("%y-%m-%d")
+tomorrow_date = (now + ONEDAY).strftime("%y-%m-%d")
 # type, name, details, rrulestr, extent, alerts, location
 
 items = [
     f"* first of the month @d all day event @s {first_of_month}",
-    f"* event in 2 days with 1d beginby @s {in_two_days()} 7p @b 1d",
-    f"* event in 5 days with beginby @s {in_five_days()} 7p @b 1w",
-    f"~ task in 5 days with 1w beginby @s {in_five_days()} 7p @b 1w",
-    f"~ task in 5 days with 3d beginby @s {in_five_days()} 7p @b 3d",
-    f"* event in 1 day with beginby @s {tomorrow_date} 7p @b 1w",
+    f"* event in 2 days with 1d beginby @s {in_two_days()} @b 1d",
+    f"* event in 5 days with beginby @s {in_five_days()} @b 1w",
+    f"~ task in 5 days with 1w beginby @s {in_five_days()} @b 1w",
+    f"~ task in 5 days with 3d beginby @s {in_five_days()} @b 3d",
+    f"* event in 1 day with beginby @s {tomorrow_date} @b 1w",
     f"* event today with beginby @s {today_date} 7p @b 1w",
     f"* yesterday @d all day event @s {yesterday_date}",
     f"* today @d all day event @s {today_date}",
@@ -253,10 +253,12 @@ items = [
     f"~ all day yesterday @d all day task @p 2 @s {yesterday_date}",
     f"~ all day today @d all day task @p 2 @s {today_date}",
     f"~ all day tomorrow @d all day event @p 2 @s {tomorrow_date}",
-    f"* zero extent naive @s {tomorrow_date}T100000 z none",
-    f"* daily datetime US/Pacific @s {today_date} 1pm z US/Pacific @d whatever @c wherever @r d &i 3 &c 10",
+    f"* zero extent naive @s {tomorrow_date} 10h @z none",
+    f"* zero extent naive from z @s {tomorrow_date} 10h z none",
+    "* daily with US/Pacific from z @s 3pm z US/Pacific @d whatever @c wherever @r d &i 3 &c 10",
+    "* daily datetime US/Pacific @s 1pm @z US/Pacific @d whatever @c wherever @r d &i 3 &c 10",
     f"~ every other day @s {today_date} 10p @r d &i 2",
-    f"~ repeating and rdates @s {yesterday_date}T180000 @r d &i 2 @+ fri 9a, sat 10a, sun 11a, mon 12p",
+    f"~ repeating and rdates @s {yesterday_date} 6p @r d &i 2 @+ fri 9a, sat 10a, sun 11a, mon 12p",
     f"~ due, tags, description, priority one @p 1 @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
     f"* three datetimes @s {in_ten_minutes()} @e 45m  @+ {in_one_hour()}, {in_one_day()}",
     f"""% long formatted description @s {yesterday_date}
@@ -268,7 +270,7 @@ items = [
     @t test @t red
     """,
     f"""^ dog house @s {in_five_days()} @e 3h @b 2w @p 3
-    @~ create plan &s 1w &e 1h &r 1 &f {today_date}
+    @~ create plan &s 1w &e 1h &r 1 &f {one_hour_ago()}
     @~ go to Lowes &s 1w &e 2h &r 2: 1
     @~ buy lumber &s 1w &r 3: 2
     @~ buy hardware &s 1w &r 4: 2
@@ -318,7 +320,7 @@ while len(items) < num_items:
         # all day if event else end of day
         dts = start.strftime("%Y%m%d") if t == "*" else start.strftime("%Y%m%dT235959")
     else:
-        dts = start.strftime("%Y%m%dT%H%M00")
+        dts = start.strftime("%y-%m-%d %H:%M00")
     dtstart = local_dtstr_to_utc_str(dts)
     extent = random.choice(duration)
     if random.choice(repeat):
@@ -330,13 +332,14 @@ while len(items) < num_items:
 
 
 id = 0
-for entry in items:
+for entry in items + alerts:
     count += 1
     id += 1
     print(f"---\n{entry = }")
-    item = Item(raw=entry, env=env)  # .to_dict()
-    # print(f"{item.structured_tokens = }\n{item.item = }")
+    item = Item(raw=entry, env=env, final=True)  # .to_dict()
+    # print(f"{item.relative_tokens = }\n{item.item = }")
     print(f"{item.item = }")
+    print(f"{item.token_map = }")
 
     dbm.add_item(item)
 dbm.populate_dependent_tables()

@@ -1,8 +1,26 @@
 # For ChatGPT
 
+## Thinking about tokens
+
+- Want to store tokens with relative dates and datetimes expanded and without positions
+  - \_strip_positions makes the latter easy.
+  - maybe use token_map to store expanded datetimes?
+- finalize - update:
+  - process completions updating @s when appropriate
+  - expand datetime tokens including remaining @f
+
 ## 20250903 do_f
 
-### do_f
+Processing a completion is one of several similar cases in which element(s) of an item's structured_tokens are changed in place and then dependent elements of the item need to be updated to re:flect the changed tokens. Other cases range from scheduling a new instance, rescheduling an existing instance, deleting one or more instances, editing an entire item or creating a new one.
+
+In the case of finish, finalize_rruleset is called but this method requires that self.dtstart_str and self.rdstart_str have been updated which, alas, they currently have not. Handling all the possible update cases piecemeal seems less than ideal. My thought is that it would be better to have an "update_item" method that would process the updated restructured_tokens as if it were a new item and, for an existing item, update the database record for the given id accordingly.
+
+Regarding restructured_tokens, when an entire item is being edited it is useful to keep track of the start and end positions of each token. When only selected elements are being changed, on the other hand, keeping track of the start and end positions is both tedious since start and end positions for many otherwise unaffected tokens may change and useless since these positions are not used for anything except when the entire entry is being edited. Furthermore, the start and end positions are not even used to recreate the entry from the structured_tokens. Perhaps "position_tokens" for editing an entire item and "record_tokens" for storage and element by element manipulation?
+
+A related point concerns the difference between the case in which 1) an item is being edited and 2) when an item is processed all at once, e.g., when an instance of an Item is generated from an entry string or when elements of an existing item are changed and the modified "entry" is updated. For (1) a method is needed such as "save" that essentially says "I'm done, treat the current state of the item as final." As an example, suppose I am editing an entry that currently is "\* Dinner with the Smiths @s 6p fri @e 2h". As long as I am editing this I want to leave the "@s 6p fri" untouched but when I "save" the item, I want the "6p fri" to be replaced by the string representation of the datetime that parse("6p fri") and this is the datetime I want recorded. Similarly for other entries involving datetimes such as @+, @f and so forth.
+
+- F: record a completion (or process an @f or &f entry)
+-
 
 combine do_f and do_completion
 

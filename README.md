@@ -216,7 +216,25 @@ Any directory can be used for _home_. These are the options:
 
 ## Dates and times
 
-When an `@s` scheduled entry specifies a date without a time, i.e., a date instead of a datetime, the interpretation is that the task is due sometime on that day. Specifically, it is not due until `00:00:00` on that day and not past due until `00:00:00` on the following day. The interpretation of `@b` and `@u` in this circumstance is similar. For example, if `@s 2025-04-06` is specified with `@b 3d` and `@u 2d` then the task status would change from waiting to pending at `2025-04-03 00:00:00` and, if not completed, to deleted at `2025-04-09 00:00:00`.
+Suppose it is Monday, September 15 2025 in the US/Eastern timezone. When a datetime is entered it is interpreted _relative_ to the current date, time and timezone. When entering the scheduled datetime for a reminder using "@s", the following table illustrates how the entries would be interpreted
+
+| @s entry           | scheduled datetime  |
+| ------------------ | ------------------- |
+| @s wed             | 25-09-17            |
+| @s 9a              | 25-09-15 9:00am EST |
+| @s 9a fri          | 25-09-19 9:00am EST |
+| @s 9a 23 z none    | 25-09-23 9:00am     |
+| @s 3p z US/Pacific | 25-09-15 3:00pm PST |
+| @s 13h 23 z CET    | 25-09-23 13:00 CET  |
+| @s 20h 23 z none   | 25-09-23 20:00      |
+
+Datetimes entered with "z none" and dates are _naive_ - have no timezone information. Datetimes entered with "z TIMEZONE" are interpreted as _aware_ datetimes in TIMEZONE. Datetimes without a "z" entry are also interpreted as _aware_ but in the timezone of the user's computer.
+
+When dates and datetimes are recorded, _aware_ datetimes are first converted to UTC time and then stored with a "Z" appended. E.g., the "25-09-15 3:00pm PST" datetime would be recorded as "20250915T2200Z". Dates and _naive_ datetimes are recorded without conversion and without the trailing "Z". When _aware_ datetimes are displayed to the user, they are first converted to the timezone of the user's computer. Thus the "PST" example would be displayed as scheduled for 6pm today in US/Eastern. Dates and _naive_ datetimes are displayed without change in every timezone.
+
+When an `@s` scheduled entry specifies a date without a time, i.e., a date instead of a datetime, the interpretation is that the task is due sometime on that day. Specifically, it is not due until `00:00` on that day and not past due until `00:00` on the following day. The interpretation of `@b` and `@u` in this circumstance is similar. For example, if `@s 2025-04-06` is specified with `@b 3d` and `@u 2d` then the task status would change from waiting to pending at `2025-04-03 00:00` and, if not completed, to deleted at `2025-04-09 00:00`.
+
+Note that times can only be specified, stored and displayed in hours and minutes - seconds and microseconds are not supported.
 
 ## Recurrence
 
@@ -234,7 +252,7 @@ is serialized (stored) as
   {
       "itemtype": "*",
       "subject": "datetime repeating",
-      "rruleset": "DTSTART:20240807T140000\nRRULE:FREQ=DAILY;INTERVAL=2",
+      "rruleset": "DTSTART:20240807T1400Z\nRRULE:FREQ=DAILY;INTERVAL=2",
   }
 ```
 
@@ -245,7 +263,7 @@ is serialized (stored) as
 On the other hand, if an `@s` entry is specified, but `@r` is not, then the `@s` entry is stored as an `RDATE` in the recurrence rule. E.g.,
 
 ```python
-* datetime only @s 2024-08-07 14:00 @e 1h30m
+* datetime only @s 2024-08-07  14:00 @e 1h30m
 ```
 
 is serialized (stored) as
@@ -255,7 +273,7 @@ is serialized (stored) as
   "itemtype": "*",
   "subject": "datetime only",
   "e": 5400,
-  "rruleset": "RDATE:20240807T140000"
+  "rruleset": "RDATE:20240807T1400Z"
 }
 ```
 
