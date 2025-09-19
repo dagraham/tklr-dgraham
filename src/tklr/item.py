@@ -820,7 +820,7 @@ class Item:
         self.parse_message = ""
         self.previous_tokens = []
         self.relative_tokens = []
-        self.expanded_tokens = []
+        self.tokens = []
         self.messages = []
 
         # --- schedule / tokens / jobs ---
@@ -989,6 +989,7 @@ class Item:
         self.previous_entry = entry
         self.previous_tokens = self.relative_tokens.copy()
 
+        # NOTE: maybe create (stripped) tokens here and use here after
         # Build rruleset if @r group exists
         if self.collect_grouped_tokens({"r"}):
             # log_msg(f"building rruleset {self.item = }")
@@ -1020,6 +1021,22 @@ class Item:
             self.item["a"] = self.alerts
             print(f"{self.alerts = }")
         log_msg(f"{self.item = }")
+
+        #### -----------
+        # 1) tokens = striped relative_tokens
+        #    starting_tokens = deep copy of tokens
+        # 2) expand datetimes
+        # 3) process completion(s) leaving expanded datetimes
+        # 4) dirty = tokens != starting_tokens
+        #
+        # STOP HERE IF NOT DIRTY
+        #
+        # 5) create new entry from tokens
+        # 6) run parse_input steps on the new entry to build rruleset, jobs and ...
+        #### -----------
+        self.tokens = self._strip_positions(self.relative_tokens)
+        log_msg(f"{self.relative_tokens = }; {self.tokens = }")
+
         # if getattr(self, "completions", None):
         #     # Pick the most recent completion (could also loop through all)
         #     dt, job_id = max(self.completions, key=lambda x: x[0])
@@ -3948,7 +3965,7 @@ class Item:
         out = []
         for t in tokens_with_pos:
             t2 = dict(t)
-            t2.pop("start", None)
-            t2.pop("end", None)
+            t2.pop("s", None)
+            t2.pop("e", None)
             out.append(t2)
         return out

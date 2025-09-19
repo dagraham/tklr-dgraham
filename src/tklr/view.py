@@ -1906,7 +1906,7 @@ class DynamicViewApp(App):
         if now.hour == 0 and now.minute == 0 and 0 <= now.second < 6:
             # populate alerts daily
             self.controller.populate_alerts()
-            self.controller.popularte_beginby()
+            self.controller.populate_beginby()
         if now.minute % 10 == 0 and now.second == 0:
             # check alerts every 10 minutes
             self.notify(

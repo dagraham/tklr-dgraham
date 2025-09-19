@@ -289,7 +289,7 @@ items = [
     "~ no due date and no priority",
     "~ no due date and priority five @p 5",
     f"~ finished one hour ago @s {in_one_hour()} @f {one_hour_ago()}",
-    f"^ no prerequisites @s {today_date} @b 1w @~ this &r 1 &f {today_date}  @~ that &r 2 &f {today_date}",
+    f"^ no prerequisites @s {today_date} @b 1w @~ this &r 1 &f {today_date}  @~ that &r 2",
     f"~ do over after 4 days when complete @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o 4d",
     f"~ do over after approximately 4 days when complete @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o ~4d",
     "? draft reminder - no checks",
