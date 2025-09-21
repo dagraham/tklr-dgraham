@@ -270,7 +270,7 @@ items = [
     @t test @t red
     """,
     f"""^ dog house @s {in_five_days()} @e 3h @b 2w @p 3
-    @~ create plan &s 1w &e 1h &r 1 &f {one_hour_ago()}
+    @~ create plan &s 1w &e 1h &r 1 &f {one_hour_ago()} 
     @~ go to Lowes &s 1w &e 2h &r 2: 1
     @~ buy lumber &s 1w &r 3: 2
     @~ buy hardware &s 1w &r 4: 2
@@ -332,7 +332,7 @@ while len(items) < num_items:
 
 
 id = 0
-for entry in items + alerts:
+for entry in items:  # + alerts:
     count += 1
     id += 1
     print(f"---\n{entry = }")
@@ -342,6 +342,10 @@ for entry in items + alerts:
     print(f"{item.token_map = }")
 
     dbm.add_item(item)
-dbm.populate_dependent_tables()
+
+try:
+    dbm.populate_dependent_tables()
+except Exception as e:
+    print(f"Error: {e}")
 
 print(f"Inserted {count} records into the database, last_id {id}.")

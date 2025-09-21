@@ -726,7 +726,7 @@ class Item:
         # "~b": ["beginby", " beginby period", "do_beginby"],
         "~c": ["context", " string", "do_string"],
         "~d": ["description", " string", "do_description"],
-        "~e": ["extent", " timeperiod", "do_duration"],
+        "~e": ["extent", " timeperiod", "do_extent"],
         "~f": ["finish", " completion done -> due", "do_completion"],
         "~i": ["unique id", " integer or string", "do_string"],
         "~l": ["label", " string", "do_string"],
@@ -855,6 +855,10 @@ class Item:
         self.timezone = get_localzone_name()
         self.tz_str = local_timezone
 
+        # TODO: remove these
+        self.skip_token_positions = set()
+        self.token_group_anchors = {}
+
         # --- other flags / features ---
         self.completions = []
         self.over = ""
@@ -892,6 +896,142 @@ class Item:
         if raw:
             self.entry = raw
             self.parse_input(raw)
+            if self.final:
+                self.finalize_record()
+
+    def parse_input(self, entry: str):
+        """
+        Parses the input string to extract tokens, then processes and validates the tokens.
+        """
+        # digits = "1234567890" * ceil(len(entry) / 10)
+
+        self._tokenize(entry)
+        # NOTE: _tokenize sets self.itemtype and self.subject
+
+        message = self.validate()
+        if message:
+            self.parse_ok = False
+            self.parse_message = message
+            print(f"parse failed: {message = }")
+            return
+
+        self._parse_tokens(entry)
+
+        self.parse_ok = True
+        self.previous_entry = entry
+        self.previous_tokens = self.relative_tokens.copy()
+
+        # Only build jobs for projects
+        if self.itemtype == "^":
+            jobset = self.build_jobs()
+            success, finalized = self.finalize_jobs(jobset)
+
+        if self.tags:
+            # self.tag_str = "; ".join(self.tags)
+            self.item["t"] = self.tags
+            print(f"{self.tags = }")
+        if self.alerts:
+            # self.alert_str = "; ".join(self.alerts)
+            self.item["a"] = self.alerts
+            print(f"{self.alerts = }")
+        # log_msg(f"{self.item = }")
+
+        self.tokens = self._strip_positions(self.relative_tokens)
+        log_msg(f"{self.relative_tokens = }; {self.tokens = }")
+
+    def finalize_record(self):
+        """
+        When the entry and token list is complete:
+        1) finalize jobs, processing any &f entries and adding @f when all jobs are finished
+        2) finalize_rruleset so that next instances will be available
+        3) process @f entries (&f entries will have been done by finalize_jobs)
+
+        """
+        self.finalize_rruleset()
+
+    def validate(self):
+        if len(self.relative_tokens) < 2:
+            # nothing to validate without itemtype and subject
+            return
+
+        def fmt_error(message: str):
+            return [x.strip() for x in message.split(",")]
+
+        errors = []
+
+        self.itemtype = self.relative_tokens[0]["token"]
+        subject = self.relative_tokens[1]["token"]
+        allowed_fortype = allowed[self.itemtype]
+        required_fortype = required[self.itemtype]
+
+        current_atkey = None
+        used_atkeys = []
+        used_ampkeys = []
+        needed = required_fortype
+        count = 0
+        # print(f"{len(self.relative_tokens) = }")
+        for token in self.relative_tokens:
+            count += 1
+            if token.get("incomplete", False) == True:
+                type = token["t"]
+                need = (
+                    f"required: {', '.join(needed)}\n" if needed and type == "@" else ""
+                )
+                options = []
+                options = (
+                    [x for x in allowed_fortype if len(x) == 1]
+                    if type == "@"
+                    else [x[-1] for x in allowed_fortype if len(x) == 2]
+                )
+                optional = f"options: {', '.join(options)}" if options else ""
+                return fmt_error(f"{token['t']} incomplete, {need}{optional}")
+            if token["t"] == "@":
+                # print(f"{token['token']}; {used_atkeys = }")
+                this_atkey = token["k"]
+                if this_atkey not in all_keys:
+                    return fmt_error(f"@{this_atkey}, Unrecognized @-key")
+                if this_atkey not in allowed_fortype:
+                    return fmt_error(
+                        f"@{this_atkey}, The use of this @-key is not supported in type '{itemtype}' reminders"
+                    )
+                if this_atkey in used_atkeys and this_atkey not in multiple_allowed:
+                    return fmt_error(
+                        f"@{current_atkey}, Multiple instances of this @-key are not allowed"
+                    )
+                current_atkey = this_atkey
+                used_atkeys.append(current_atkey)
+                if this_atkey in ["r", "~"]:
+                    # reset for this use
+                    used_ampkeys = []
+                if current_atkey in needed:
+                    needed.remove(current_atkey)
+                if current_atkey in requires:
+                    for _key in requires[current_atkey]:
+                        if _key not in used_atkeys and _key not in needed:
+                            needed.append(_key)
+            elif token["t"] == "&":
+                this_ampkey = f"{current_atkey}{token['k']}"
+                if current_atkey not in ["r", "~"]:
+                    return fmt_error(
+                        f"&{token['k']}, The use of &-keys is not supported for @{current_atkey}"
+                    )
+
+                if this_ampkey not in all_keys:
+                    return fmt_error(
+                        f"&{token['k']}, This &-key is not supported for @{current_atkey}"
+                    )
+                if this_ampkey in used_ampkeys and this_ampkey not in multiple_allowed:
+                    return fmt_error(
+                        f"&{current_ampkey}, Multiple instances of this &-key are not supported"
+                    )
+                used_ampkeys.append(this_ampkey)
+
+        if needed:
+            needed_keys = ", ".join("@" + k for k in needed)
+            needed_msg = f"Required keys not yet provided: {needed_keys}"
+        else:
+            needed_msg = ""
+        return needed_msg
 
     def fmt_user(self, dt: datetime) -> str:
         """
@@ -967,173 +1107,6 @@ class Item:
         obj_utc = _ensure_utc(obj_aware)
         return obj_utc, "aware", zone
 
-    def parse_input(self, entry: str):
-        """
-        Parses the input string to extract tokens, then processes and validates the tokens.
-        """
-        digits = "1234567890" * ceil(len(entry) / 10)
-        self._tokenize(entry)
-
-        message = self.validate()
-        if message:
-            self.parse_ok = False
-            self.parse_message = message
-            print(f"parse failed: {message = }")
-            return
-
-        self.mark_grouped_tokens()
-        # print("calling parse_tokens")
-        self._parse_tokens(entry)
-
-        self.parse_ok = True
-        self.previous_entry = entry
-        self.previous_tokens = self.relative_tokens.copy()
-
-        # NOTE: maybe create (stripped) tokens here and use here after
-        # Build rruleset if @r group exists
-        if self.collect_grouped_tokens({"r"}):
-            # log_msg(f"building rruleset {self.item = }")
-            self.rruleset = self.build_rruleset()
-            log_msg(f"{self.rruleset = }")
-            if rruleset:
-                self.item["rruleset"] = self.rruleset
-        elif self.rdstart_str is not None:
-            # @s but not @r
-            self.item["rruleset"] = f"{self.rdstart_str}"
-
-        # Only build jobs if @~ group exists
-        if self.collect_grouped_tokens({"~"}):
-            jobset = self.build_jobs()
-            success, finalized = self.finalize_jobs(jobset)
-
-        if "s" in self.item and "z" not in self.item:
-            self.timezone = local_timezone
-
-        self.itemtype = self.item.get("itemtype", "")
-        self.subject = self.item.get("subject", "")
-
-        if self.tags:
-            # self.tag_str = "; ".join(self.tags)
-            self.item["t"] = self.tags
-            print(f"{self.tags = }")
-        if self.alerts:
-            # self.alert_str = "; ".join(self.alerts)
-            self.item["a"] = self.alerts
-            print(f"{self.alerts = }")
-        log_msg(f"{self.item = }")
-
-        #### -----------
-        # 1) tokens = striped relative_tokens
-        #    starting_tokens = deep copy of tokens
-        # 2) expand datetimes
-        # 3) process completion(s) leaving expanded datetimes
-        # 4) dirty = tokens != starting_tokens
-        #
-        # STOP HERE IF NOT DIRTY
-        #
-        # 5) create new entry from tokens
-        # 6) run parse_input steps on the new entry to build rruleset, jobs and ...
-        #### -----------
-        self.tokens = self._strip_positions(self.relative_tokens)
-        log_msg(f"{self.relative_tokens = }; {self.tokens = }")
-
-        # if getattr(self, "completions", None):
-        #     # Pick the most recent completion (could also loop through all)
-        #     dt, job_id = max(self.completions, key=lambda x: x[0])
-        #     log_msg(f"{dt = }, {job_id = }")
-        #     self.finish(completed_dt=dt, job_id=job_id)
-        #     self.completions.clear()
-        # after self._tokenize(entry) / self._parse_tokens(...) / etc.
-        # if self.final:
-        #     # turn any relative pieces (@s 6p fri, @+ next tue, @f now, …) into absolute
-        #     self.rebuild_from_tokens(resolve_relative=True)
-        #     # refresh rruleset mirror (DTSTART/RRULE/RDATE/EXDATE) from tokens
-        #     # self.finalize_rruleset()
-
-    def validate(self):
-        if len(self.relative_tokens) < 2:
-            # nothing to validate without itemtype and subject
-            return
-
-        def fmt_error(message: str):
-            return [x.strip() for x in message.split(",")]
-
-        errors = []
-
-        itemtype = self.relative_tokens[0]["token"]
-        subject = self.relative_tokens[1]["token"]
-        allowed_fortype = allowed[itemtype]
-        required_fortype = required[itemtype]
-
-        current_atkey = None
-        used_atkeys = []
-        used_ampkeys = []
-        needed = required_fortype
-        count = 0
-        # print(f"{len(self.relative_tokens) = }")
-        for token in self.relative_tokens:
-            count += 1
-            if token.get("incomplete", False) == True:
-                type = token["t"]
-                need = (
-                    f"required: {', '.join(needed)}\n" if needed and type == "@" else ""
-                )
-                options = []
-                options = (
-                    [x for x in allowed_fortype if len(x) == 1]
-                    if type == "@"
-                    else [x[-1] for x in allowed_fortype if len(x) == 2]
-                )
-                optional = f"options: {', '.join(options)}" if options else ""
-                return fmt_error(f"{token['t']} incomplete, {need}{optional}")
-            if token["t"] == "@":
-                # print(f"{token['token']}; {used_atkeys = }")
-                this_atkey = token["k"]
-                if this_atkey not in all_keys:
-                    return fmt_error(f"@{this_atkey}, Unrecognized @-key")
-                if this_atkey not in allowed_fortype:
-                    return fmt_error(
-                        f"@{this_atkey}, The use of this @-key is not supported in type '{itemtype}' reminders"
-                    )
-                if this_atkey in used_atkeys and this_atkey not in multiple_allowed:
-                    return fmt_error(
-                        f"@{current_atkey}, Multiple instances of this @-key are not allowed"
-                    )
-                current_atkey = this_atkey
-                used_atkeys.append(current_atkey)
-                if this_atkey in ["r", "~"]:
-                    # reset for this use
-                    used_ampkeys = []
-                if current_atkey in needed:
-                    needed.remove(current_atkey)
-                if current_atkey in requires:
-                    for _key in requires[current_atkey]:
-                        if _key not in used_atkeys and _key not in needed:
-                            needed.append(_key)
-            elif token["t"] == "&":
-                this_ampkey = f"{current_atkey}{token['k']}"
-                if current_atkey not in ["r", "~"]:
-                    return fmt_error(
-                        f"&{token['k']}, The use of &-keys is not supported for @{current_atkey}"
-                    )
-
-                if this_ampkey not in all_keys:
-                    return fmt_error(
-                        f"&{token['k']}, This &-key is not supported for @{current_atkey}"
-                    )
-                if this_ampkey in used_ampkeys and this_ampkey not in multiple_allowed:
-                    return fmt_error(
-                        f"&{current_ampkey}, Multiple instances of this &-key are not supported"
-                    )
-                used_ampkeys.append(this_ampkey)
-
-        if needed:
-            needed_keys = ", ".join("@" + k for k in needed)
-            needed_msg = f"Required keys not yet provided: {needed_keys}"
-        else:
-            needed_msg = ""
-        return needed_msg
-
     def collect_grouped_tokens(self, anchor_keys: set[str]) -> list[list[dict]]:
         """
         Collect multiple groups of @-tokens and their immediately trailing &-tokens.
@@ -1165,6 +1138,7 @@ class Item:
         if current_group:
             groups.append(current_group)
 
+        log_msg(f"{groups = }")
         return groups
 
     def mark_grouped_tokens(self):
@@ -1281,6 +1255,7 @@ class Item:
             {"token": itemtype, "s": 0, "e": 1, "t": "itemtype"}
         )
         self.itemtype = itemtype
+        self.item["itemtype"] = self.itemtype
 
         rest = entry[1:].lstrip()
         offset = 1 + len(entry[1:]) - len(rest)
@@ -1296,6 +1271,7 @@ class Item:
                 {"token": subject_token, "s": start, "e": end, "t": "subject"}
             )
             self.subject = subject
+            self.item["subject"] = self.subject
         else:
             self.errors.append("Missing subject")
 
@@ -1385,6 +1361,7 @@ class Item:
                 )
                 token_str, anchor_start, anchor_end = anchor_token_info
                 token_type = token["k"]
+
                 self._dispatch_token(token_str, anchor_start, anchor_end, token_type)
                 dispatched_anchors.add(anchor_pos)
                 continue
@@ -1603,7 +1580,7 @@ class Item:
 
     def do_extent(self, token):
         # Process datetime token
-        extent = re.sub("^@. ", "", token["token"].strip()).lower()
+        extent = re.sub("^[@&]. ", "", token["token"].strip()).lower()
         ok, extent_obj = timedelta_str_to_seconds(extent)
         log_msg(f"{token = }, {ok = }, {extent_obj = }")
         if ok:
@@ -1813,6 +1790,7 @@ class Item:
         by build_rruleset().
         Returns (ok: bool, message: str, extras: list).
         """
+        log_msg(f"in do_rrule: {token = }")
 
         # Normalize input to raw text
         tok_text = token.get("token") if isinstance(token, dict) else str(token)
@@ -1856,6 +1834,7 @@ class Item:
             {"token": f"{self.freq_map[freq_code]}", "t": "&", "k": "FREQ"}
         )
 
+        log_msg(f"{self.rrule_tokens = } processing remaining tokens")
         # Parse following &-tokens in this @r group (e.g., &i 3, &c 10, &u 20250101, &m..., &w..., &d...)
         for t in group[1:]:
             tstr = t.get("token", "")
@@ -1882,7 +1861,9 @@ class Item:
                 return False, "Missing @s value", []
 
             obj, kind, tz_used = self.parse_user_dt_for_s(raw)
-            print(f"{raw = }, {obj = }, {kind = }, {tz_used = }")
+            log_msg(
+                f"in do_s {self.subject = }, {raw = }, {obj = }, {kind = }, {tz_used = }"
+            )
             if kind == "error":
                 # tz_used holds an error message in this case
                 return False, tz_used or f"Invalid @s value: {raw}", []
@@ -1922,7 +1903,7 @@ class Item:
             return True, userfmt, []
 
         except Exception as e:
-            print(f"exception {e}")
+            log_msg(f"exception {e}")
             return False, f"Invalid @s value: {e}", []
 
     # def do_s(self, token):
@@ -2574,85 +2555,85 @@ class Item:
         except Exception as e:
             return False, f"Invalid @- value: {e}", []
 
-    # def finalize_rruleset(self):
-    #     """
-    #     Build self.rruleset from current state, mirroring the old 'master' behavior:
-    #
-    #     RRULE present (self.rrule_tokens truthy):
-    #     • prepend self.dtstart_str (if set and well-formed)
-    #     • for each rrule token, emit 'RRULE:...' line
-    #     • append RDATE:self.rdate_str (if any explicit @+)
-    #     • append EXDATE:self.exdate_str (if any explicit @-)
-    #     • clear self.rrule_tokens/self.rdates/self.exdates to avoid duplicates
-    #
-    #     No RRULE:
-    #     • start with self.rdstart_str (seeded by do_s)
-    #     • append RDATE:self.rdate_str if present
-    #     """
-    #
-    #     components: list[str] = []
-    #     log_msg("finalizing_rruleset")
-    #     log_msg(f"{self.dtstart_str = }, {self.rdstart_str = }")
-    #     # --- RRULE path ---
-    #     if self.rrule_tokens:
-    #         # put dtstart_str first if possible
-    #         if self.dtstart_str:
-    #             components.append(self.dtstart_str)
-    #
-    #         log_msg(f"{self.rrule_tokens = }")
-    #
-    #         # 2) RRULE lines from rrule_tokens (as in the original master code)
-    #         for token in self.rrule_tokens:
-    #             # token is typically (anchor_token, params_dict)
-    #             log_msg(f"{token = }")
-    #             _, rrule_params = token
-    #             rule_parts = []
-    #
-    #             freq = rrule_params.pop("FREQ", None)
-    #             if freq:
-    #                 rule_parts.append(f"RRULE:FREQ={freq}")
-    #
-    #             # remaining params are already like "KEY=VALUE" or "KEY=V1,V2"
-    #             for _, v in rrule_params.items():
-    #                 if v:
-    #                     rule_parts.append(str(v))
-    #
-    #             # join with ';' -> RRULE:...
-    #             if rule_parts:
-    #                 components.append(";".join(rule_parts))
-    #
-    #         # 3) RDATE / EXDATE from strings managed by do_rdate/do_exdate
-    #         log_msg(f"{self.rdstart_str = }")
-    #         if getattr(self, "rdstart_str", None) and not self.rrule_tokens:
-    #             log_msg(f"appending RDATE: and {self.rdstart_str = }")
-    #             components.append(f"RDATE:{self.rdstart_str}")
-    #         if getattr(self, "exdate_str", None):
-    #             components.append(f"EXDATE:{self.exdate_str}")
-    #
-    #         # Assemble + store
-    #         rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
-    #         self.item["rruleset"] = rruleset_str
-    #         self.rruleset = rruleset_str
-    #
-    #         # Prevent double-append in subsequent calls (matches master)
-    #         self.rrule_tokens = []
-    #         self.rdates = []
-    #         self.exdates = []
-    #         return True, rruleset_str
-    #
-    #     # --- RDATE-only path ---
-    #
-    #     # Start with the seed created by do_s()
-    #     components.append(self.rdstart_str)
-    #
-    #     # Then explicit @+ (if any)
-    #     if getattr(self, "rdate_str", None):
-    #         components.append(f"RDATE:{self.rdate_str}")
-    #
-    #     rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
-    #     self.item["rruleset"] = rruleset_str
-    #     self.rruleset = rruleset_str
-    #     return True, rruleset_str
+    def finalize_rruleset(self):
+        """
+        Build self.rruleset from current state, mirroring the old 'master' behavior:
+
+        RRULE present (self.rrule_tokens truthy):
+        • prepend self.dtstart_str (if set and well-formed)
+        • for each rrule token, emit 'RRULE:...' line
+        • append RDATE:self.rdate_str (if any explicit @+)
+        • append EXDATE:self.exdate_str (if any explicit @-)
+        • clear self.rrule_tokens/self.rdates/self.exdates to avoid duplicates
+
+        No RRULE:
+        • start with self.rdstart_str (seeded by do_s)
+        • append RDATE:self.rdate_str if present
+        """
+
+        components: list[str] = []
+        log_msg("finalizing_rruleset")
+        log_msg(f"{self.dtstart_str = }, {self.rdstart_str = }")
+        # --- RRULE path ---
+        if self.rrule_tokens:
+            # put dtstart_str first if possible
+            if self.dtstart_str:
+                components.append(self.dtstart_str)
+
+            log_msg(f"{self.rrule_tokens = }")
+
+            # 2) RRULE lines from rrule_tokens (as in the original master code)
+            for token in self.rrule_tokens:
+                # token is typically (anchor_token, params_dict)
+                log_msg(f"{token = }")
+                rrule_params = token
+                rule_parts = []
+
+                freq = rrule_params.pop("FREQ", None)
+                if freq:
+                    rule_parts.append(f"RRULE:FREQ={freq}")
+
+                # remaining params are already like "KEY=VALUE" or "KEY=V1,V2"
+                for _, v in rrule_params.items():
+                    if v:
+                        rule_parts.append(str(v))
+
+                # join with ';' -> RRULE:...
+                if rule_parts:
+                    components.append(";".join(rule_parts))
+
+            # 3) RDATE / EXDATE from strings managed by do_rdate/do_exdate
+            log_msg(f"{self.rdstart_str = }")
+            if getattr(self, "rdstart_str", None) and not self.rrule_tokens:
+                log_msg(f"appending RDATE: and {self.rdstart_str = }")
+                components.append(f"RDATE:{self.rdstart_str}")
+            if getattr(self, "exdate_str", None):
+                components.append(f"EXDATE:{self.exdate_str}")
+
+            # Assemble + store
+            rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
+            self.item["rruleset"] = rruleset_str
+            self.rruleset = rruleset_str
+
+            # Prevent double-append in subsequent calls (matches master)
+            self.rrule_tokens = []
+            self.rdates = []
+            self.exdates = []
+            return True, rruleset_str
+
+        # --- RDATE-only path ---
+
+        # Start with the seed created by do_s()
+        components.append(self.rdstart_str)
+
+        # Then explicit @+ (if any)
+        if getattr(self, "rdate_str", None):
+            components.append(f"RDATE:{self.rdate_str}")
+
+        rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
+        self.item["rruleset"] = rruleset_str
+        self.rruleset = rruleset_str
+        return True, rruleset_str
 
     def collect_rruleset_tokens(self):
         """Return the list of relative tokens used for building the rruleset."""
@@ -2684,7 +2665,7 @@ class Item:
         # rrule_tokens = self.collect_rruleset_tokens()
         rrule_tokens = self.rrule_tokens
         log_msg(f"in build {self.rrule_tokens = }")
-        if not rrule_tokens:
+        if not self.dtstart:
             return ""
 
         # map @r y/m/w/d → RRULE:FREQ=...

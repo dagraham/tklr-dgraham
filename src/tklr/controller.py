@@ -722,6 +722,9 @@ class Controller:
     def get_jobs(self, record_id):
         return self.db_manager.get_jobs_for_record(record_id)
 
+    def get_job(self, record_id):
+        return self.db_manager.get_jobs_for_record(record_id)
+
     def record_count(self):
         return self.db_manager.count_records()
 
@@ -923,7 +926,9 @@ class Controller:
     def process_tag(self, tag: str, view: str, selected_week: tuple[int, int]):
         job_id = None
         if view == "week":
-            payload = self.week_tag_to_id[selected_week].get(tag)
+            payload = None
+            tags_for_week = self.week_tag_to_id.get(selected_week, None)
+            payload = tags_for_week.get(tag, None) if tags_for_week else None
             if payload is None:
                 return [f"There is no item corresponding to tag '{tag}'."]
             if isinstance(payload, dict):
@@ -964,13 +969,14 @@ class Controller:
         # if we're in week view and this tag points to a job, prefer the job's display_subject
         # if view == "week" and job_id is not None:
         if job_id is not None:
+            log_msg(f"setting subject for {record_id = }, {job_id = }")
             try:
                 js = self.db_manager.get_job_display_subject(record_id, job_id)
                 if js:  # only override if present/non-empty
                     subject = js
-            except Exception:
+            except Exception as e:
                 # fail-safe: keep the record subject
-                pass
+                log_msg(f"Error: {e}. Failed for {record_id = }, {job_id = }")
         # -----------------------------
 
         try:
@@ -1182,6 +1188,7 @@ class Controller:
             start_dt = datetime_from_timestamp(start_ts)
             end_dt = datetime_from_timestamp(end_ts)
             log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
+            status = "available"
 
             if start_dt == end_dt:
                 # if start_dt.hour == 0 and start_dt.minute == 0 and start_dt.second == 0:
@@ -1199,6 +1206,14 @@ class Controller:
             escaped_start_end = (
                 f"[not bold]{start_end} [/not bold]" if start_end else ""
             )
+
+            if job_id:
+                job = self.db_manager.get_job_dict(id, job_id)
+                status = job.get("status", "available")
+                subject = job.get("display_subject", subject)
+                itemtype = "~"
+            if status != "available":
+                continue
 
             row = [
                 id,
