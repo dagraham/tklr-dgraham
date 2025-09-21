@@ -1213,7 +1213,7 @@ class Controller:
                 subject = job.get("display_subject", subject)
                 itemtype = "~"
             if status != "available":
-                continue
+                type_color = WAITING_COLOR
 
             row = [
                 id,
