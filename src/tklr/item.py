@@ -2612,6 +2612,7 @@ class Item:
 
             # Assemble + store
             rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
+            log_msg(f"{rruleset_str = }, {components = }")
             self.item["rruleset"] = rruleset_str
             self.rruleset = rruleset_str
 

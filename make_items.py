@@ -258,7 +258,8 @@ items = [
     "* daily with US/Pacific from z @s 3pm z US/Pacific @d whatever @c wherever @r d &i 3 &c 10",
     "* daily datetime US/Pacific @s 1pm @z US/Pacific @d whatever @c wherever @r d &i 3 &c 10",
     f"~ every other day @s {today_date} 10p @r d &i 2",
-    f"~ repeating and rdates @s {yesterday_date} 6p @r d &i 2 @+ fri 9a, sat 10a, sun 11a, mon 12p",
+    f"* starting in 5 days repeating for 3 days @s {in_five_days()} 8:30a @b 7 @r d &c 3",
+    f"~ repeating and rdates @s {today_date} 1:30p @r d @+ 2:30p, 3:30p",
     f"~ due, tags, description, priority one @p 1 @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
     f"* three datetimes @s {in_ten_minutes()} @e 45m  @+ {in_one_hour()}, {in_one_day()}",
     f"""% long formatted description @s {yesterday_date}
