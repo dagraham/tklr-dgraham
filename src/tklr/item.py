@@ -914,13 +914,25 @@ class Item:
             self.parse_message = message
             print(f"parse failed: {message = }")
             return
-
+        self.mark_grouped_tokens()
         self._parse_tokens(entry)
 
         self.parse_ok = True
         self.previous_entry = entry
         self.previous_tokens = self.relative_tokens.copy()
 
+        # Build rruleset if @r group exists
+        if self.collect_grouped_tokens({"r"}):
+            # log_msg(f"building rruleset {self.item = }")
+            rruleset = self.build_rruleset()
+            log_msg(f"{rruleset = }")
+            if rruleset:
+                self.item["rruleset"] = rruleset
+                self.rruleset = rruleset
+        elif self.rdstart_str is not None:
+            # @s but not @r
+            self.item["rruleset"] = f"{self.rdstart_str}"
+            self.rruleset = self.rdstart_str
         # Only build jobs for projects
         if self.itemtype == "^":
             jobset = self.build_jobs()
@@ -947,7 +959,8 @@ class Item:
         3) process @f entries (&f entries will have been done by finalize_jobs)
 
         """
-        self.finalize_rruleset()
+        pass
+        # self.finalize_rruleset()
 
     def validate(self):
         if len(self.relative_tokens) < 2:
@@ -2663,34 +2676,37 @@ class Item:
         - RDATE:...   (from your rdstart_str or rdate_str)
         - EXDATE:...  (if you track it)
         """
-        # rrule_tokens = self.collect_rruleset_tokens()
-        rrule_tokens = self.rrule_tokens
+        rrule_tokens = self.collect_rruleset_tokens()
+        # rrule_tokens = self.rrule_tokens
         log_msg(f"in build {self.rrule_tokens = }")
         if not self.dtstart:
             return ""
 
         # map @r y/m/w/d → RRULE:FREQ=...
-        # freq_map = {"y": "YEARLY", "m": "MONTHLY", "w": "WEEKLY", "d": "DAILY"}
-        # parts = rrule_tokens[0]["token"].split(maxsplit=1)
-        # freq_abbr = parts[1].strip() if len(parts) > 1 else ""
-        # freq = freq_map.get(freq_abbr.lower())
-        # if not freq:
-        #     return ""
-
-        freq_tok = rrule_tokens.pop(0)
-        k = freq_tok.get("k", "")
-        if not k:
+        freq_map = {"y": "YEARLY", "m": "MONTHLY", "w": "WEEKLY", "d": "DAILY"}
+        parts = rrule_tokens[0]["token"].split(maxsplit=1)
+        freq_abbr = parts[1].strip() if len(parts) > 1 else ""
+        freq = freq_map.get(freq_abbr.lower())
+        if not freq:
             return ""
-        freq = freq_tok.get("token", "")
+
+        # freq_tok = rrule_tokens.pop(0)
+        # k = freq_tok.get("k", "")
+        # if not k:
+        #     return ""
+        # freq = freq_tok.get("token", "")
         rrule_components = {"FREQ": freq}
 
         # &-tokens
-        for tok in rrule_tokens:
+        for tok in rrule_tokens[1:]:
             token_str = tok["token"]
-            key = tok.get("k", "")
-            value = tok.get("v", "")
-            if not (key and value):
-                continue
+            try:
+                key, value = token_str[1:].split(maxsplit=1)  # strip leading '&'
+            except Exception:
+                key = tok.get("k", "")
+                value = tok.get("v", "")
+            # if not (key and value):
+            #     continue
             key = key.upper().strip()
             value = value.strip()
             if key == "M":
@@ -2718,11 +2734,14 @@ class Item:
         if dtstart_str:
             lines.append(dtstart_str)
 
-        log_msg(f"{lines = }")
-
         if rrule_line:
             lines.append(rrule_line)
-
+        # If you keep plus-dates inside rdstart_str, append it here.
+        # (If you also track self.rdate_str and/or self.exdate_str separately,
+        #  prefer to append those explicit lines here instead.)
+        rdstart_str = getattr(self, "rdstart_str", "") or ""
+        if rdstart_str:
+            lines.append(rdstart_str)
         log_msg(f"{lines = }")
 
         # only add the rdates from @+, not @s since we have a rrule_line
@@ -2736,7 +2755,7 @@ class Item:
         if exdate_str:
             lines.append(f"EXDATE:{exdate_str}")
 
-        log_msg(f"{lines = }")
+        log_msg(f"RETURNING {lines = }")
 
         return "\n".join(lines)
 
@@ -3778,7 +3797,7 @@ class Item:
         """
         self.final = True
         self.rebuild_from_tokens(resolve_relative=True)  # force absolute now
-        self.finalize_rruleset()  # RRULE/DTSTART/RDATE/EXDATE strings updated
+        # self.finalize_rruleset()  # RRULE/DTSTART/RDATE/EXDATE strings updated
 
     def rebuild_from_tokens(self, *, resolve_relative: bool) -> None:
         """Recompute DTSTART/RDATE/RRULE/EXDATE + rruleset + jobs from self.relative_tokens."""
