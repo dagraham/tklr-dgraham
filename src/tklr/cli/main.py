@@ -107,9 +107,7 @@ def add(ctx, entry, file, batch):
             print(f"[red]✘ Invalid entry:[/] {entry_str!r}")
             print(f"  [yellow]{item.parse_message}[/]")
             if verbose:
-                print(
-                    f"[blue]Parsed tokens:[/] {format_tokens(item.structured_tokens)}"
-                )
+                print(f"[blue]Parsed tokens:[/] {format_tokens(item.relative_tokens)}")
             return False
 
         dbm.add_item(item)
@@ -184,12 +182,12 @@ def check(ctx, entry):
         if item.parse_ok:
             print("[green]✔ Entry is valid.[/]")
             if verbose:
-                print(f"[blue]Entry:[/] {format_tokens(item.structured_tokens)}")
+                print(f"[blue]Entry:[/] {format_tokens(item.relative_tokens)}")
         else:
             print(f"[red]✘ Invalid entry:[/] {entry!r}")
             print(f"  [yellow]{item.parse_message}[/]")
             if verbose:
-                print(f"[blue]Entry:[/] {format_tokens(item.structured_tokens)}")
+                print(f"[blue]Entry:[/] {format_tokens(item.relative_tokens)}")
             sys.exit(1)
     except Exception as e:
         print(f"[red]✘ Unexpected error:[/] {e}")

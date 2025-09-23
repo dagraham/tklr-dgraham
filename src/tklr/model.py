@@ -19,6 +19,10 @@ from .shared import (
     datetime_from_timestamp,
     duration_in_words,
     datetime_in_words,
+    fmt_local_compact,
+    parse_local_compact,
+    fmt_utc_z,
+    parse_utc_z,
 )
 
 import re
@@ -34,7 +38,7 @@ def regexp(pattern, value):
 
 def utc_now_string():
     """Return current UTC time as 'YYYYMMDDTHHMMSS'."""
-    return datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+    return datetime.utcnow().strftime("%Y%m%dT%H%MZ")
 
 
 def utc_now_to_seconds():
@@ -46,7 +50,7 @@ def is_date(obj):
 
 
 DATE_FMT = "%Y%m%d"
-DT_FMT = "%Y%m%dT%H%M%S"
+DT_FMT = "%Y%m%dT%H%M"
 
 
 def _fmt_date(d: date) -> str:
@@ -74,12 +78,12 @@ def _to_local_naive(dt: datetime) -> datetime:
 
 def _to_key(dt: datetime) -> str:
     """Naive-local datetime -> 'YYYYMMDDTHHMMSS' string key."""
-    return dt.strftime("%Y%m%dT%H%M%S")
+    return dt.strftime("%Y%m%dT%H%M")
 
 
 def _today_key() -> str:
     """'YYYYMMDDTHHMMSS' for now in local time, used for lexicographic comparisons."""
-    return datetime.now().strftime("%Y%m%dT%H%M%S")
+    return datetime.now().strftime("%Y%m%dT%H%M")
 
 
 def _split_span_local_days(
@@ -161,19 +165,19 @@ def dt_str_to_seconds(datetime_str: str) -> int:
     if "T" not in datetime_str:
         datetime_str += "T000000"
     try:
-        return round(datetime.strptime(datetime_str, "%Y%m%dT%H%M%S").timestamp())
+        return round(datetime.strptime(datetime_str[:13], "%Y%m%dT%H%M").timestamp())
 
     except ValueError:
         return round(
-            datetime.strptime(datetime_str, "%Y%m%dT000000").timestamp()
+            datetime.strptime(datetime_str.rstrip("Z"), "%Y%m%dT0000").timestamp()
         )  # Allow date-only
 
 
 def dt_to_dtstr(dt_obj: datetime) -> str:
-    """Convert a datetime object to 'YYYYMMDDTHHMMSS' format."""
+    """Convert a datetime object to 'YYYYMMDDTHHMM' format."""
     if is_date:
         return dt_obj.strftime("%Y%m%d")
-    return dt_obj.strftime("%Y%m%dT%H%M%S")
+    return dt_obj.strftime("%Y%m%dT%H%M")
 
 
 def td_to_tdstr(td_obj: timedelta) -> str:
@@ -212,7 +216,7 @@ def _fmt_compact_local_naive(dt: datetime) -> str:
         dt = dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
     if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
         return dt.strftime("%Y%m%d")
-    return dt.strftime("%Y%m%dT%H%M%S")
+    return dt.strftime("%Y%m%dT%H%M")
 
 
 def _shift_from_parent(parent_dt: datetime, seconds: int) -> datetime:
@@ -568,7 +572,7 @@ class DatabaseManager:
                 jobs              TEXT,
                 tags              TEXT,
                 priority          INTEGER CHECK (priority IN (1,2,3,4,5)),
-                structured_tokens TEXT,                         -- JSON text
+                relative_tokens TEXT,                         -- JSON text
                 processed         INTEGER,
                 created           TEXT,                         -- 'YYYYMMDDTHHMMSS' UTC
                 modified          TEXT                          -- 'YYYYMMDDTHHMMSS' UTC
@@ -747,7 +751,7 @@ class DatabaseManager:
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
                     extent, alerts, beginby, context, jobs, priority, tags,
-                    structured_tokens, processed, created, modified
+                    relative_tokens, processed, created, modified
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
@@ -763,7 +767,7 @@ class DatabaseManager:
                     json.dumps(item.jobs),
                     item.priority,
                     json.dumps(item.tags),
-                    json.dumps(item.structured_tokens),
+                    json.dumps(item.relative_tokens),
                     0,
                     timestamp,  # created
                     timestamp,  # modified (same on insert)
@@ -796,8 +800,8 @@ class DatabaseManager:
                 "context": item.context,
                 "jobs": json.dumps(item.jobs) if item.jobs is not None else None,
                 "tags": json.dumps(item.tags) if item.tags is not None else None,
-                "structured_tokens": json.dumps(item.structured_tokens)
-                if item.structured_tokens is not None
+                "relative_tokens": json.dumps(item.relative_tokens)
+                if item.relative_tokens is not None
                 else None,
                 "processed": 0,  # reset processed
             }
@@ -830,7 +834,7 @@ class DatabaseManager:
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
                     extent, alerts, beginby, context, jobs, tags,
-                    structured_tokens, processed, created, modified
+                    relative_tokens, processed, created, modified
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
@@ -845,7 +849,7 @@ class DatabaseManager:
                     item.context,
                     json.dumps(item.jobs),
                     json.dumps(item.tags),
-                    json.dumps(item.structured_tokens),
+                    json.dumps(item.relative_tokens),
                     0,
                     timestamp,
                     timestamp,
@@ -859,7 +863,7 @@ class DatabaseManager:
                 UPDATE Records
                 SET itemtype = ?, subject = ?, description = ?, rruleset = ?, timezone = ?,
                     extent = ?, alerts = ?, beginby = ?, context = ?, jobs = ?, tags = ?,
-                    structured_tokens = ?, modified = ?
+                    relative_tokens = ?, modified = ?
                 WHERE id = ?
                 """,
                 (
@@ -874,7 +878,7 @@ class DatabaseManager:
                     item.context,
                     json.dumps(item.jobs),
                     json.dumps(item.tags),
-                    json.dumps(item.structured_tokens),
+                    json.dumps(item.relative_tokens),
                     timestamp,
                     record_id,
                 ),
@@ -894,7 +898,7 @@ class DatabaseManager:
     def add_completion(
         self, record_id: int, job_id: int | None = None, due_ts: int | None = None
     ):
-        completed_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        completed_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%MZ")
         self.cursor.execute(
             """
             INSERT INTO Completions (record_id, job_id, due, completed)
@@ -1031,6 +1035,26 @@ class DatabaseManager:
 
         return None
 
+    def get_job_dict(self, record_id: int, job_id: int | None) -> dict | None:
+        """
+        Return the full job dictionary for the given record_id + job_id pair.
+        Returns None if not found.
+        """
+        if job_id is None:
+            return None
+
+        self.cursor.execute("SELECT jobs FROM Records WHERE id=?", (record_id,))
+        row = self.cursor.fetchone()
+        if not row or not row[0]:
+            return None
+
+        jobs = _parse_jobs_json(row[0])
+        for job in jobs:
+            if job.get("job_id") == job_id:
+                return job  # Return the full dictionary
+
+        return None
+
     def get_all_alerts(self):
         """Retrieve all stored alerts for debugging."""
         self.cursor.execute("""
@@ -1052,7 +1076,7 @@ class DatabaseManager:
             alert_id, record_id, record_name, start_dt, td, command = alert
             execution_time = start_dt - td  # When the alert is scheduled to run
             formatted_time = datetime_from_timestamp(execution_time).strftime(
-                "%Y-%m-%d %H:%M:%S"
+                "%Y-%m-%d %H:%M"
             )
 
             results.append([alert_id, record_id, record_name, formatted_time, command])
@@ -1131,25 +1155,25 @@ class DatabaseManager:
             ) in self.cursor.fetchall()
         ]
 
-    def get_structured_tokens(self, record_id: int):
+    def get_relative_tokens(self, record_id: int):
         """
-        Retrieve the structured_tokens field from a record and return it as a list of dictionaries.
+        Retrieve the relative_tokens field from a record and return it as a list of dictionaries.
         Returns an empty list if the field is null, empty, or if the record is not found.
         """
         self.cursor.execute(
-            "SELECT structured_tokens, rruleset, created, modified FROM Records WHERE id = ?",
+            "SELECT relative_tokens, rruleset, created, modified FROM Records WHERE id = ?",
             (record_id,),
         )
         return [
             (
-                # " ".join([t["token"] for t in json.loads(structured_tokens)]),
-                json.loads(structured_tokens),
+                # " ".join([t["token"] for t in json.loads(relative_tokens)]),
+                json.loads(relative_tokens),
                 rruleset,
                 created,
                 modified,
             )
             for (
-                structured_tokens,
+                relative_tokens,
                 rruleset,
                 created,
                 modified,
@@ -1301,7 +1325,7 @@ class DatabaseManager:
                 raise ValueError("empty datetime text")
             if "T" in s:
                 # datetime
-                return datetime.strptime(s, "%Y%m%dT%H%M%S")
+                return datetime.strptime(s, "%Y%m%dT%H%M")
             else:
                 # date-only -> treat as midnight local
                 return datetime.strptime(s, "%Y%m%d")
@@ -1313,7 +1337,7 @@ class DatabaseManager:
             """
             if is_date_only:
                 return dt.strftime("%Y%m%d")
-            return dt.strftime("%Y%m%dT%H%M%S")
+            return dt.strftime("%Y%m%dT%H%M")
 
         def _is_date_only_text(s: str) -> bool:
             return "T" not in (s or "")
@@ -1335,7 +1359,7 @@ class DatabaseManager:
             WHERE trigger_datetime >= ?
             AND trigger_datetime <= ?
             """,
-            (now.strftime("%Y%m%dT%H%M%S"), end_of_day.strftime("%Y%m%dT%H%M%S")),
+            (now.strftime("%Y%m%dT%H%M"), end_of_day.strftime("%Y%m%dT%H%M")),
         )
         self.conn.commit()
 
@@ -1655,6 +1679,9 @@ class DatabaseManager:
 
         itemtype, rruleset, record_extent, jobs_json, processed = row
         rule_str = (rruleset or "").replace("\\N", "\n").replace("\\n", "\n")
+        log_msg(
+            f"generating datetimes for {record_id = } with {rule_str = } and {rruleset = } "
+        )
 
         # Nothing to do without any schedule
         if not rule_str:
@@ -1725,6 +1752,7 @@ class DatabaseManager:
 
         # ---- PATH A: Projects with jobs -> generate job rows only ----
         if has_jobs:
+            log_msg(f"{record_id = } has jobs")
             for parent_dt in _iter_parent_occurrences():
                 parent_local = _to_local_naive(
                     parent_dt
@@ -1884,91 +1912,91 @@ class DatabaseManager:
         self.cursor.execute(sql, (start_key, end_key))
         return self.cursor.fetchall()
 
-    def get_events_for_period(self, start_date: datetime, end_date: datetime):
-        """
-        Retrieve all events that occur or overlap within [start_date, end_date),
-        ordered by start time.
-
-        Returns rows as:
-        (start_datetime, end_datetime, itemtype, resolved_subject, record_id, job_id)
-
-        If dt.job_id is not NULL and Records.jobs contains a matching job with key "i",
-        we use that job's "display_subject" (falling back to "~" or parent subject).
-        """
-        start_key = _to_key(start_date)
-        end_key = _to_key(end_date)
-
-        sql = """
-        SELECT
-            dt.start_datetime,
-            dt.end_datetime,
-            r.itemtype,
-            r.subject,     -- parent subject
-            r.id,
-            dt.job_id,
-            r.jobs         -- JSON array of job dicts (may be NULL)
-        FROM DateTimes dt
-        JOIN Records r ON dt.record_id = r.id
-        WHERE
-            -- normalized end >= period start
-            (
-                CASE
-                    WHEN dt.end_datetime IS NULL THEN
-                        CASE
-                            WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
-                            ELSE dt.start_datetime
-                        END
-                    WHEN LENGTH(dt.end_datetime) = 8 THEN dt.end_datetime || 'T235959'
-                    ELSE dt.end_datetime
-                END
-            ) >= ?
-            AND
-            -- normalized start < period end
-            (
-                CASE
-                    WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
-                    ELSE dt.start_datetime
-                END
-            ) < ?
-        ORDER BY
-            CASE
-                WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
-                ELSE dt.start_datetime
-            END
-        """
-        self.cursor.execute(sql, (start_key, end_key))
-        rows = self.cursor.fetchall()
-
-        resolved = []
-        for (
-            start_dt,
-            end_dt,
-            itemtype,
-            parent_subject,
-            record_id,
-            job_id,
-            jobs_json,
-        ) in rows:
-            subject = parent_subject
-            if job_id is not None and jobs_json:
-                try:
-                    jobs = json.loads(jobs_json)
-                    for job in jobs:
-                        # match job by its "i" field
-                        if job.get("i") == job_id:
-                            subject = (
-                                job.get("display_subject")
-                                or job.get("~")
-                                or parent_subject
-                            )
-                            break
-                except Exception:
-                    # if JSON is malformed, just fall back to parent subject
-                    pass
-
-            resolved.append((start_dt, end_dt, itemtype, subject, record_id, job_id))
-
-        return resolved
+    # def get_events_for_period(self, start_date: datetime, end_date: datetime):
+    #     """
+    #     Retrieve all events that occur or overlap within [start_date, end_date),
+    #     ordered by start time.
+    #
+    #     Returns rows as:
+    #     (start_datetime, end_datetime, itemtype, resolved_subject, record_id, job_id)
+    #
+    #     If dt.job_id is not NULL and Records.jobs contains a matching job with key "i",
+    #     we use that job's "display_subject" (falling back to "~" or parent subject).
+    #     """
+    #     start_key = _to_key(start_date)
+    #     end_key = _to_key(end_date)
+    #
+    #     sql = """
+    #     SELECT
+    #         dt.start_datetime,
+    #         dt.end_datetime,
+    #         r.itemtype,
+    #         r.subject,     -- parent subject
+    #         r.id,
+    #         dt.job_id,
+    #         r.jobs         -- JSON array of job dicts (may be NULL)
+    #     FROM DateTimes dt
+    #     JOIN Records r ON dt.record_id = r.id
+    #     WHERE
+    #         -- normalized end >= period start
+    #         (
+    #             CASE
+    #                 WHEN dt.end_datetime IS NULL THEN
+    #                     CASE
+    #                         WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+    #                         ELSE dt.start_datetime
+    #                     END
+    #                 WHEN LENGTH(dt.end_datetime) = 8 THEN dt.end_datetime || 'T235959'
+    #                 ELSE dt.end_datetime
+    #             END
+    #         ) >= ?
+    #         AND
+    #         -- normalized start < period end
+    #         (
+    #             CASE
+    #                 WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+    #                 ELSE dt.start_datetime
+    #             END
+    #         ) < ?
+    #     ORDER BY
+    #         CASE
+    #             WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+    #             ELSE dt.start_datetime
+    #         END
+    #     """
+    #     self.cursor.execute(sql, (start_key, end_key))
+    #     rows = self.cursor.fetchall()
+    #
+    #     resolved = []
+    #     for (
+    #         start_dt,
+    #         end_dt,
+    #         itemtype,
+    #         parent_subject,
+    #         record_id,
+    #         job_id,
+    #         jobs_json,
+    #     ) in rows:
+    #         subject = parent_subject
+    #         if job_id is not None and jobs_json:
+    #             try:
+    #                 jobs = json.loads(jobs_json)
+    #                 for job in jobs:
+    #                     # match job by its "i" field
+    #                     if job.get("i") == job_id:
+    #                         subject = (
+    #                             job.get("display_subject")
+    #                             or job.get("~")
+    #                             or parent_subject
+    #                         )
+    #                         break
+    #             except Exception:
+    #                 # if JSON is malformed, just fall back to parent subject
+    #                 pass
+    #
+    #         resolved.append((start_dt, end_dt, itemtype, subject, record_id, job_id))
+    #
+    #     return resolved
 
     def generate_datetimes_for_period(self, start_date: datetime, end_date: datetime):
         self.cursor.execute("SELECT id FROM Records")
@@ -2124,13 +2152,12 @@ class DatabaseManager:
         beginby_str = row[0]
 
         self.cursor.execute(
-            "SELECT start_datetime FROM DateTimes WHERE record_id = ?", (record_id,)
+            "SELECT start_datetime FROM DateTimes WHERE record_id = ? ORDER BY start_datetime ASC",
+            (record_id,),
         )
         occurrences = self.cursor.fetchall()
 
         today = date.today()
-        # today_start = datetime.combine(today, datetime.min.time())
-
         offset = td_str_to_td(beginby_str)
 
         for (start_ts,) in occurrences:
@@ -2142,68 +2169,69 @@ class DatabaseManager:
                     "INSERT INTO Beginby (record_id, days_remaining) VALUES (?, ?)",
                     (record_id, days_remaining),
                 )
+                break  # Only insert for the earliest qualifying instance
 
         self.conn.commit()
 
-    def get_last_instances(self) -> List[Tuple[int, str, str, str, datetime]]:
-        """
-        Retrieve the last instances of each record falling before today.
-
-        Returns:
-            List[Tuple[int, str, str, str, datetime]]: List of tuples containing
-                record ID, name, description, type, and the last datetime.
-        """
-        today = int(datetime.now().timestamp())
-        self.cursor.execute(
-            """
-            SELECT r.id, r.subject, r.description, r.itemtype, MAX(d.start_datetime) AS last_datetime
-            FROM Records r
-            JOIN DateTimes d ON r.id = d.record_id
-            WHERE d.start_datetime < ?
-            GROUP BY r.id
-            ORDER BY last_datetime DESC
-            """,
-            (today,),
-        )
-        return self.cursor.fetchall()
-
-    def get_last_instances(self) -> List[Tuple[int, str, str, str, str]]:
-        """
-        Retrieve the last instance *before now* for each record.
-
-        Returns:
-            List of tuples: (record_id, subject, description, itemtype, last_datetime_key)
-            where last_datetime_key is 'YYYYMMDDTHHMMSS'.
-        """
-        today_key = _today_key()
-
-        sql = """
-        WITH norm AS (
-        SELECT
-            r.id            AS record_id,
-            r.subject       AS subject,
-            r.description   AS description,
-            r.itemtype      AS itemtype,
-            CASE
-            WHEN LENGTH(d.start_datetime) = 8 THEN d.start_datetime || 'T000000'
-            ELSE d.start_datetime
-            END             AS start_norm
-        FROM Records r
-        JOIN DateTimes d ON r.id = d.record_id
-        )
-        SELECT
-        n1.record_id,
-        n1.subject,
-        n1.description,
-        n1.itemtype,
-        MAX(n1.start_norm) AS last_datetime
-        FROM norm n1
-        WHERE n1.start_norm < ?
-        GROUP BY n1.record_id
-        ORDER BY last_datetime DESC
-        """
-        self.cursor.execute(sql, (today_key,))
-        return self.cursor.fetchall()
+    # def get_last_instances(self) -> List[Tuple[int, str, str, str, datetime]]:
+    #     """
+    #     Retrieve the last instances of each record falling before today.
+    #
+    #     Returns:
+    #         List[Tuple[int, str, str, str, datetime]]: List of tuples containing
+    #             record ID, name, description, type, and the last datetime.
+    #     """
+    #     today = int(datetime.now().timestamp())
+    #     self.cursor.execute(
+    #         """
+    #         SELECT r.id, r.subject, r.description, r.itemtype, MAX(d.start_datetime) AS last_datetime
+    #         FROM Records r
+    #         JOIN DateTimes d ON r.id = d.record_id
+    #         WHERE d.start_datetime < ?
+    #         GROUP BY r.id
+    #         ORDER BY last_datetime DESC
+    #         """,
+    #         (today,),
+    #     )
+    #     return self.cursor.fetchall()
+    #
+    # def get_last_instances(self) -> List[Tuple[int, str, str, str, str]]:
+    #     """
+    #     Retrieve the last instance *before now* for each record.
+    #
+    #     Returns:
+    #         List of tuples: (record_id, subject, description, itemtype, last_datetime_key)
+    #         where last_datetime_key is 'YYYYMMDDTHHMMSS'.
+    #     """
+    #     today_key = _today_key()
+    #
+    #     sql = """
+    #     WITH norm AS (
+    #     SELECT
+    #         r.id            AS record_id,
+    #         r.subject       AS subject,
+    #         r.description   AS description,
+    #         r.itemtype      AS itemtype,
+    #         CASE
+    #         WHEN LENGTH(d.start_datetime) = 8 THEN d.start_datetime || 'T000000'
+    #         ELSE d.start_datetime
+    #         END             AS start_norm
+    #     FROM Records r
+    #     JOIN DateTimes d ON r.id = d.record_id
+    #     )
+    #     SELECT
+    #     n1.record_id,
+    #     n1.subject,
+    #     n1.description,
+    #     n1.itemtype,
+    #     MAX(n1.start_norm) AS last_datetime
+    #     FROM norm n1
+    #     WHERE n1.start_norm < ?
+    #     GROUP BY n1.record_id
+    #     ORDER BY last_datetime DESC
+    #     """
+    #     self.cursor.execute(sql, (today_key,))
+    #     return self.cursor.fetchall()
 
     def get_last_instances(
         self,
@@ -2215,7 +2243,7 @@ class DatabaseManager:
             List of tuples:
                 (record_id, job_id, subject, description, itemtype, last_datetime)
         """
-        today = datetime.now().strftime("%Y%m%dT%H%M%S")
+        today = datetime.now().strftime("%Y%m%dT%H%M")
         self.cursor.execute(
             """
             SELECT
@@ -2245,7 +2273,7 @@ class DatabaseManager:
             List of tuples:
                 (record_id, job_id, subject, description, itemtype, last_datetime)
         """
-        today = datetime.now().strftime("%Y%m%dT%H%M%S")
+        today = datetime.now().strftime("%Y%m%dT%H%M")
         self.cursor.execute(
             """
             SELECT
@@ -2384,8 +2412,8 @@ class DatabaseManager:
     def update_tags_for_record(self, record_data):
         cur = self.conn.cursor()
         tags = record_data.pop("tags", [])
-        record_data["structured_tokens"] = json.dumps(
-            record_data.get("structured_tokens", [])
+        record_data["relative_tokens"] = json.dumps(
+            record_data.get("relative_tokens", [])
         )
         record_data["jobs"] = json.dumps(record_data.get("jobs", []))
         if "id" in record_data:
@@ -2452,7 +2480,7 @@ class DatabaseManager:
             due_str = rruleset.split(":", 1)[1].split(",")[0]
             try:
                 if "T" in due_str:
-                    dt = datetime.strptime(due_str.strip(), "%Y%m%dT%H%M%SZ")
+                    dt = datetime.strptime(due_str.strip(), "%Y%m%dT%H%MZ")
                 else:
                     dt = datetime.strptime(due_str.strip(), "%Y%m%d")
                 due_seconds = round(dt.timestamp())
