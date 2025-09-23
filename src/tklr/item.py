@@ -921,6 +921,44 @@ class Item:
         self.previous_entry = entry
         self.previous_tokens = self.relative_tokens.copy()
 
+        # # Build rruleset if @r group exists
+        # if self.collect_grouped_tokens({"r"}):
+        #     # log_msg(f"building rruleset {self.item = }")
+        #     rruleset = self.build_rruleset()
+        #     log_msg(f"{rruleset = }")
+        #     if rruleset:
+        #         self.item["rruleset"] = rruleset
+        #         self.rruleset = rruleset
+        # elif self.rdstart_str is not None:
+        #     # @s but not @r
+        #     self.item["rruleset"] = f"{self.rdstart_str}"
+        #     self.rruleset = self.rdstart_str
+        # # Only build jobs for projects
+        # if self.itemtype == "^":
+        #     jobset = self.build_jobs()
+        #     success, finalized = self.finalize_jobs(jobset)
+        #
+        # if self.tags:
+        #     # self.tag_str = "; ".join(self.tags)
+        #     self.item["t"] = self.tags
+        #     print(f"{self.tags = }")
+        # if self.alerts:
+        #     # self.alert_str = "; ".join(self.alerts)
+        #     self.item["a"] = self.alerts
+        #     print(f"{self.alerts = }")
+        # # log_msg(f"{self.item = }")
+        #
+        # self.tokens = self._strip_positions(self.relative_tokens)
+        # log_msg(f"{self.relative_tokens = }; {self.tokens = }")
+
+    def finalize_record(self):
+        """
+        When the entry and token list is complete:
+        1) finalize jobs, processing any &f entries and adding @f when all jobs are finished
+        2) finalize_rruleset so that next instances will be available
+        3) process @f entries (&f entries will have been done by finalize_jobs)
+
+        """
         # Build rruleset if @r group exists
         if self.collect_grouped_tokens({"r"}):
             # log_msg(f"building rruleset {self.item = }")
@@ -950,16 +988,6 @@ class Item:
 
         self.tokens = self._strip_positions(self.relative_tokens)
         log_msg(f"{self.relative_tokens = }; {self.tokens = }")
-
-    def finalize_record(self):
-        """
-        When the entry and token list is complete:
-        1) finalize jobs, processing any &f entries and adding @f when all jobs are finished
-        2) finalize_rruleset so that next instances will be available
-        3) process @f entries (&f entries will have been done by finalize_jobs)
-
-        """
-        pass
         # self.finalize_rruleset()
 
     def validate(self):

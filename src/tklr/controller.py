@@ -1537,7 +1537,7 @@ class Controller:
                     events_by_date.setdefault(today, []).append(
                         (
                             record_id,
-                            f"[{BEGIN_COLOR}]⮕  +{days_remaining}d[/{BEGIN_COLOR}]",
+                            f"[{BEGIN_COLOR}]+{days_remaining}d ⮕ [/{BEGIN_COLOR}]",
                             f"[{BEGIN_COLOR}]{subject}[/{BEGIN_COLOR}]",
                         )
                     )
