@@ -572,7 +572,7 @@ class DatabaseManager:
                 jobs              TEXT,
                 tags              TEXT,
                 priority          INTEGER CHECK (priority IN (1,2,3,4,5)),
-                relative_tokens TEXT,                         -- JSON text
+                tokens TEXT,                         -- JSON text
                 processed         INTEGER,
                 created           TEXT,                         -- 'YYYYMMDDTHHMMSS' UTC
                 modified          TEXT                          -- 'YYYYMMDDTHHMMSS' UTC
@@ -751,7 +751,7 @@ class DatabaseManager:
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
                     extent, alerts, beginby, context, jobs, priority, tags,
-                    relative_tokens, processed, created, modified
+                    tokens, processed, created, modified
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
@@ -767,7 +767,7 @@ class DatabaseManager:
                     json.dumps(item.jobs),
                     item.priority,
                     json.dumps(item.tags),
-                    json.dumps(item.relative_tokens),
+                    json.dumps(item.tokens),
                     0,
                     timestamp,  # created
                     timestamp,  # modified (same on insert)
@@ -800,9 +800,7 @@ class DatabaseManager:
                 "context": item.context,
                 "jobs": json.dumps(item.jobs) if item.jobs is not None else None,
                 "tags": json.dumps(item.tags) if item.tags is not None else None,
-                "relative_tokens": json.dumps(item.relative_tokens)
-                if item.relative_tokens is not None
-                else None,
+                "tokens": json.dumps(item.tokens) if item.tokens is not None else None,
                 "processed": 0,  # reset processed
             }
 
@@ -834,7 +832,7 @@ class DatabaseManager:
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
                     extent, alerts, beginby, context, jobs, tags,
-                    relative_tokens, processed, created, modified
+                    tokens, processed, created, modified
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
@@ -849,7 +847,7 @@ class DatabaseManager:
                     item.context,
                     json.dumps(item.jobs),
                     json.dumps(item.tags),
-                    json.dumps(item.relative_tokens),
+                    json.dumps(item.tokens),
                     0,
                     timestamp,
                     timestamp,
@@ -863,7 +861,7 @@ class DatabaseManager:
                 UPDATE Records
                 SET itemtype = ?, subject = ?, description = ?, rruleset = ?, timezone = ?,
                     extent = ?, alerts = ?, beginby = ?, context = ?, jobs = ?, tags = ?,
-                    relative_tokens = ?, modified = ?
+                    tokens = ?, modified = ?
                 WHERE id = ?
                 """,
                 (
@@ -878,7 +876,7 @@ class DatabaseManager:
                     item.context,
                     json.dumps(item.jobs),
                     json.dumps(item.tags),
-                    json.dumps(item.relative_tokens),
+                    json.dumps(item.tokens),
                     timestamp,
                     record_id,
                 ),
@@ -1155,25 +1153,25 @@ class DatabaseManager:
             ) in self.cursor.fetchall()
         ]
 
-    def get_relative_tokens(self, record_id: int):
+    def get_tokens(self, record_id: int):
         """
-        Retrieve the relative_tokens field from a record and return it as a list of dictionaries.
+        Retrieve the tokens field from a record and return it as a list of dictionaries.
         Returns an empty list if the field is null, empty, or if the record is not found.
         """
         self.cursor.execute(
-            "SELECT relative_tokens, rruleset, created, modified FROM Records WHERE id = ?",
+            "SELECT tokens, rruleset, created, modified FROM Records WHERE id = ?",
             (record_id,),
         )
         return [
             (
-                # " ".join([t["token"] for t in json.loads(relative_tokens)]),
-                json.loads(relative_tokens),
+                # " ".join([t["token"] for t in json.loads(tokens)]),
+                json.loads(tokens),
                 rruleset,
                 created,
                 modified,
             )
             for (
-                relative_tokens,
+                tokens,
                 rruleset,
                 created,
                 modified,
@@ -2412,9 +2410,7 @@ class DatabaseManager:
     def update_tags_for_record(self, record_data):
         cur = self.conn.cursor()
         tags = record_data.pop("tags", [])
-        record_data["relative_tokens"] = json.dumps(
-            record_data.get("relative_tokens", [])
-        )
+        record_data["tokens"] = json.dumps(record_data.get("tokens", []))
         record_data["jobs"] = json.dumps(record_data.get("jobs", []))
         if "id" in record_data:
             record_id = record_data["id"]

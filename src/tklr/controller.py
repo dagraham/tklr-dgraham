@@ -168,7 +168,7 @@ TYPE_TO_COLOR = {
 
 
 def _ensure_tokens_list(value):
-    """Return a list[dict] for relative_tokens whether DB returned JSON str or already-parsed list."""
+    """Return a list[dict] for tokens whether DB returned JSON str or already-parsed list."""
     if value is None:
         return []
     if isinstance(value, (list, tuple)):
@@ -182,7 +182,7 @@ def _ensure_tokens_list(value):
 
 
 def format_tokens(tokens, width):
-    # tokens = json.loads(relative_tokens)
+    # tokens = json.loads(tokens)
     output_lines = []
     current_line = ""
 
@@ -613,7 +613,7 @@ class Controller:
 
     def get_entry(self, record_id, job_id=None):
         lines = []
-        result = self.db_manager.get_relative_tokens(record_id)
+        result = self.db_manager.get_tokens(record_id)
         # log_msg(f"{result = }")
 
         tokens, rruleset, created, modified = result[0]
@@ -656,7 +656,7 @@ class Controller:
             UPDATE Records
             SET itemtype=?, subject=?, description=?, rruleset=?, timezone=?,
                 extent=?, alerts=?, beginby=?, context=?, jobs=?, tags=?,
-                priority=?, relative_tokens=?, modified=?
+                priority=?, tokens=?, modified=?
             WHERE id=?
             """,
             (
@@ -672,7 +672,7 @@ class Controller:
                 json.dumps(item.jobs) if getattr(item, "jobs", None) else None,
                 ";".join(item.item.get("t") or []),
                 item.item.get("priority"),
-                json.dumps(item.relative_tokens),
+                json.dumps(item.tokens),
                 item.item.get("modified"),
                 item.id,
             ),
@@ -1629,12 +1629,12 @@ class Controller:
         if not row:
             raise ValueError(f"No record found for id {record_id}")
 
-        # 0..16 schema like you described; 13 = relative_tokens
-        relative_tokens_value = row[13]
-        tokens = relative_tokens_value
-        if isinstance(relative_tokens_value, str):
+        # 0..16 schema like you described; 13 = tokens
+        tokens_value = row[13]
+        tokens = tokens_value
+        if isinstance(tokens_value, str):
             try:
-                tokens = json.loads(relative_tokens_value)
+                tokens = json.loads(tokens_value)
             except Exception:
                 # already a list or malformed — best effort
                 pass

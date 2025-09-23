@@ -988,7 +988,6 @@ class Item:
 
         self.tokens = self._strip_positions(self.relative_tokens)
         log_msg(f"{self.relative_tokens = }; {self.tokens = }")
-        # self.finalize_rruleset()
 
     def validate(self):
         if len(self.relative_tokens) < 2:
