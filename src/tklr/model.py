@@ -2152,13 +2152,12 @@ class DatabaseManager:
         beginby_str = row[0]
 
         self.cursor.execute(
-            "SELECT start_datetime FROM DateTimes WHERE record_id = ?", (record_id,)
+            "SELECT start_datetime FROM DateTimes WHERE record_id = ? ORDER BY start_datetime ASC",
+            (record_id,),
         )
         occurrences = self.cursor.fetchall()
 
         today = date.today()
-        # today_start = datetime.combine(today, datetime.min.time())
-
         offset = td_str_to_td(beginby_str)
 
         for (start_ts,) in occurrences:
@@ -2170,6 +2169,7 @@ class DatabaseManager:
                     "INSERT INTO Beginby (record_id, days_remaining) VALUES (?, ?)",
                     (record_id, days_remaining),
                 )
+                break  # Only insert for the earliest qualifying instance
 
         self.conn.commit()
 
