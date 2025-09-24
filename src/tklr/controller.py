@@ -131,6 +131,7 @@ SLOT_MINUTES = [x * 60 for x in SLOT_HOURS]
 BUSY = "■"  # U+25A0 this will be busy_bar busy and conflict character
 FREE = "□"  # U+25A1 this will be busy_bar free character
 ADAY = "━"  # U+2501 for all day events ━
+BEGINBY = "⋙"
 
 SELECTED_COLOR = "yellow"
 # SELECTED_COLOR = "bold yellow"
@@ -1537,7 +1538,7 @@ class Controller:
                     events_by_date.setdefault(today, []).append(
                         (
                             record_id,
-                            f"[{BEGIN_COLOR}]+{days_remaining}d ⮕ [/{BEGIN_COLOR}]",
+                            f"[{BEGIN_COLOR}]+{days_remaining}d{BEGINBY}[/{BEGIN_COLOR}]",
                             f"[{BEGIN_COLOR}]{subject}[/{BEGIN_COLOR}]",
                         )
                     )
