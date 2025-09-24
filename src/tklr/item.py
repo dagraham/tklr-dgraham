@@ -814,7 +814,7 @@ class Item:
         self.subject = ""
         self.context = ""
         self.description = ""
-        self.item = {}  # FIXME: unused
+        # self.item = {}  # FIXME: unused
         self.token_map = {}
         self.parse_ok = False
         self.parse_message = ""

@@ -338,9 +338,7 @@ for entry in items:  # + alerts:
     id += 1
     print(f"---\n{entry = }")
     item = Item(raw=entry, env=env, final=True)  # .to_dict()
-    # print(f"{item.relative_tokens = }\n{item.item = }")
-    print(f"{item.item = }")
-    print(f"{item.token_map = }")
+    print(f"{item.tokens = }")
 
     dbm.add_item(item)
 
