@@ -814,7 +814,6 @@ class Item:
         self.subject = ""
         self.context = ""
         self.description = ""
-        # self.item = {}  # FIXME: unused
         self.token_map = {}
         self.parse_ok = False
         self.parse_message = ""
@@ -921,36 +920,6 @@ class Item:
         self.previous_entry = entry
         self.previous_tokens = self.relative_tokens.copy()
 
-        # # Build rruleset if @r group exists
-        # if self.collect_grouped_tokens({"r"}):
-        #     # log_msg(f"building rruleset {self.item = }")
-        #     rruleset = self.build_rruleset()
-        #     log_msg(f"{rruleset = }")
-        #     if rruleset:
-        #         self.item["rruleset"] = rruleset
-        #         self.rruleset = rruleset
-        # elif self.rdstart_str is not None:
-        #     # @s but not @r
-        #     self.item["rruleset"] = f"{self.rdstart_str}"
-        #     self.rruleset = self.rdstart_str
-        # # Only build jobs for projects
-        # if self.itemtype == "^":
-        #     jobset = self.build_jobs()
-        #     success, finalized = self.finalize_jobs(jobset)
-        #
-        # if self.tags:
-        #     # self.tag_str = "; ".join(self.tags)
-        #     self.item["t"] = self.tags
-        #     print(f"{self.tags = }")
-        # if self.alerts:
-        #     # self.alert_str = "; ".join(self.alerts)
-        #     self.item["a"] = self.alerts
-        #     print(f"{self.alerts = }")
-        # # log_msg(f"{self.item = }")
-        #
-        # self.tokens = self._strip_positions(self.relative_tokens)
-        # log_msg(f"{self.relative_tokens = }; {self.tokens = }")
-
     def finalize_record(self):
         """
         When the entry and token list is complete:
@@ -961,30 +930,17 @@ class Item:
         """
         # Build rruleset if @r group exists
         if self.collect_grouped_tokens({"r"}):
-            # log_msg(f"building rruleset {self.item = }")
             rruleset = self.build_rruleset()
             log_msg(f"{rruleset = }")
             if rruleset:
-                # self.item["rruleset"] = rruleset
                 self.rruleset = rruleset
         elif self.rdstart_str is not None:
             # @s but not @r
-            # self.item["rruleset"] = f"{self.rdstart_str}"
             self.rruleset = self.rdstart_str
         # Only build jobs for projects
         if self.itemtype == "^":
             jobset = self.build_jobs()
             success, finalized = self.finalize_jobs(jobset)
-
-        if self.tags:
-            # self.tag_str = "; ".join(self.tags)
-            # self.item["t"] = self.tags
-            print(f"{self.tags = }")
-        if self.alerts:
-            # self.alert_str = "; ".join(self.alerts)
-            # self.item["a"] = self.alerts
-            print(f"{self.alerts = }")
-        # log_msg(f"{self.item = }")
 
         self.tokens = self._strip_positions(self.relative_tokens)
         log_msg(f"{self.relative_tokens = }; {self.tokens = }")
@@ -1295,7 +1251,6 @@ class Item:
             {"token": itemtype, "s": 0, "e": 1, "t": "itemtype"}
         )
         self.itemtype = itemtype
-        # self.item["itemtype"] = self.itemtype
 
         rest = entry[1:].lstrip()
         offset = 1 + len(entry[1:]) - len(rest)
@@ -1311,7 +1266,6 @@ class Item:
                 {"token": subject_token, "s": start, "e": end, "t": "subject"}
             )
             self.subject = subject
-            # self.item["subject"] = self.subject
         else:
             self.errors.append("Missing subject")
 
@@ -1497,8 +1451,6 @@ class Item:
                 elif token_type == "~":
                     self.jobset.append(result)
                     self._dispatch_sub_tokens(sub_tokens, "~")
-                # else:
-                #     self.item[token_type] = result
             else:
                 self.parse_ok = False
                 log_msg(f"Error processing '{token_type}': {result}")
@@ -2653,7 +2605,6 @@ class Item:
             # Assemble + store
             rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
             log_msg(f"{rruleset_str = }, {components = }")
-            # self.item["rruleset"] = rruleset_str
             self.rruleset = rruleset_str
 
             # Prevent double-append in subsequent calls (matches master)
@@ -2672,7 +2623,6 @@ class Item:
             components.append(f"RDATE:{self.rdate_str}")
 
         rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
-        # self.item["rruleset"] = rruleset_str
         self.rruleset = rruleset_str
         return True, rruleset_str
 
@@ -2924,7 +2874,6 @@ class Item:
         num_waiting = len(waiting)
         num_finished = len(finished)
 
-        # task_subject = self.item.get("subject", "")
         task_subject = self.subject
         if len(task_subject) > 12:
             task_subject_display = task_subject[:10] + " …"
@@ -2953,12 +2902,9 @@ class Item:
             )
 
             final.append(job)
-        # if all_prereqs:
-        #     self.item["all_prereqs"] = all_prereqs
 
         self.jobset = json.dumps(final, cls=CustomJSONEncoder)
         self.jobs = final
-        # self.item["jobs"] = self.jobset
 
         return True, final
 
@@ -3075,51 +3021,6 @@ class Item:
         except Exception as e:
             return False, f"invalid &f datetime: {e}", []
 
-    def list_rrule(
-        self,
-        count: Union[None, int] = None,
-        after: Union[datetime, None] = None,
-        to_localtime: bool = False,
-    ) -> List[datetime]:
-        """
-        Generate a list of localized instances from the rruleset stored in the item.
-
-        Args:
-            count: Optional number of instances to limit (e.g., next 10).
-            after: Optional datetime to start after.
-            to_localtime: Whether to convert instances to system local time.
-
-        Returns:
-            A list of localized datetime instances.
-        """
-        rule_string = self.item.get("rruleset")
-        if not rule_string:
-            return []
-        is_date = "VALUE=DATE" in rule_string
-        print(f"list_rrule: {rule_string = }")
-        rule = rrulestr(rule_string)
-
-        timezone = (
-            None if is_date else self.timezone
-        )  # assuming you store ZoneInfo in self.timezone
-
-        if after is None and count is None:
-            # Default: return full localized list
-            return localize_rule_instances(
-                list(rule),
-                timezone,
-                to_localtime=to_localtime,
-            )
-
-        # Use the preview function for controlled output
-        return preview_rule_instances(
-            rule,
-            timezone,
-            count=count or 1000,
-            after=after,
-            to_localtime=to_localtime,
-        )
-
     def _serialize_date(self, d: date) -> str:
         return d.strftime("%Y%m%d")
 
@@ -3141,7 +3042,6 @@ class Item:
     # --- these need attention - they don't take advantage of what's already in Item ---
 
     def _has_s(self) -> bool:
-        # return bool(self.item.get("s", False))
         return any(
             tok.get("t") == "@" and tok.get("k") == "s" for tok in self.relative_tokens
         )
@@ -3216,7 +3116,6 @@ class Item:
         log_msg(f"ending {self.relative_tokens = }")
 
     def _has_r(self) -> bool:
-        # return bool(self.item.get("r", False))
         return any(
             t.get("t") == "@" and t.get("k") == "r" for t in self.relative_tokens
         )
@@ -3327,7 +3226,7 @@ class Item:
 
     def _has_any_future_instances(self, now_dt: datetime | None = None) -> bool:
         """Return True if rruleset/@+ yields at least one occurrence >= now (or at all if now is None)."""
-        rule_str = (self.item.get("rruleset") or "").strip()
+        rule_str = self.rruleset
         if not rule_str and not self._find_all("@", "+"):
             return False
         try:
@@ -3417,14 +3316,13 @@ class Item:
         self._remove_tokens("&")  # if your &-mods only apply to recurrence
         # clear rruleset string
         self.rruleset = ""
-        # self.item["rruleset"] = ""
 
     def _has_any_occurrences_left(self) -> bool:
         """
         Return True if the current schedule (rruleset and/or RDATEs) still yields
         at least one occurrence, irrespective of whether it’s past or future.
         """
-        rule_str = (self.item.get("rruleset") or "").strip()
+        rule_str = self.rruleset
         # If we mirror @+ into RDATE, the rrulestr path below will handle it;
         # but if you keep @+ separate, fall back to parsing @+ directly:
         if not rule_str and self._find_all("@", "+"):
@@ -3479,9 +3377,6 @@ class Item:
             o_tok["token"] = normalized
         else:
             self.relative_tokens.append({"token": normalized, "t": "@", "k": "o"})
-        # Optional mirror on self.item for convenience:
-        # self.item["o_seconds"] = int(td.total_seconds())
-        # self.item["o_learn"] = bool(learn)
 
     # --- drop-in replacement for do_over -----------------------------------
 
@@ -3490,7 +3385,6 @@ class Item:
         Normalize @o (over/offset) token.
         - Accepts '@o 3d', '@o ~3d', '@o learn 3d'
         - Stores a normalized token ('@o 3d ' or '@o ~3d ')
-        - Caches values on self (self.item['o_seconds'], self.item['o_learn'])
         Returns (ok, seconds, messages) so callers can use the numeric interval if needed.
         """
         try:
@@ -3503,10 +3397,6 @@ class Item:
             token["token"] = normalized
             token["t"] = "@"
             token["k"] = "o"
-
-            # Cache for finish()
-            # self.item["o_seconds"] = int(td.total_seconds())
-            # self.item["o_learn"] = bool(learn)
 
             return True, int(td.total_seconds()), []
         except Exception as e:
@@ -3841,9 +3731,6 @@ class Item:
         if self.collect_grouped_tokens({"~"}):
             jobs = self.build_jobs()
             self.finalize_jobs(jobs)
-        # mirror into item dict
-        # self.item["rruleset"] = self.rruleset
-        # self.item["modified"] = datetime.utcnow().strftime("%Y%m%dT%H%MZ")
 
     def _normalize_datetime_tokens(self, *, resolve_relative: bool) -> None:
         """Normalize @s/@+/@-/@f to compact absolute strings; optionally resolve human phrases."""
