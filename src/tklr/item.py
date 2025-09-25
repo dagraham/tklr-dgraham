@@ -932,19 +932,18 @@ class Item:
         3) process @f entries (&f entries will have been done by finalize_jobs)
 
         """
-        # Build rruleset if @r group exists
-        # rruleset is needed to get the next occurrence
+        if self.itemtype == "^":
+            jobset = self.build_jobs()
+            success, finalized = self.finalize_jobs(jobset)
+        # rruleset is needed to get the next two occurrences
         if self.collect_grouped_tokens({"r"}):
-            rruleset = self.build_rruleset()
+            rruleset = self.finalize_rruleset()
             log_msg(f"got rruleset {rruleset = }")
             if rruleset:
                 self.rruleset = rruleset
         elif self.rdstart_str is not None:
             # @s but not @r
             self.rruleset = self.rdstart_str
-        if self.itemtype == "^":
-            jobset = self.build_jobs()
-            success, finalized = self.finalize_jobs(jobset)
 
         self.tokens = self._strip_positions(self.relative_tokens)
         log_msg(f"{self.relative_tokens = }; {self.tokens = }")
@@ -1775,7 +1774,7 @@ class Item:
         """
         Handle an @r ... group. `token` may be a token dict or the raw token string.
         This only validates / records RRULE components; RDATE/EXDATE are added later
-        by build_rruleset().
+        by finalize_rruleset().
         Returns (ok: bool, message: str, extras: list).
         """
         log_msg(f"in do_rrule: {token = }")
@@ -2521,84 +2520,84 @@ class Item:
         except Exception as e:
             return False, f"Invalid @- value: {e}", []
 
-    def finalize_rruleset(self):
-        """
-        Build self.rruleset from current state, mirroring the old 'master' behavior:
-
-        RRULE present (self.rrule_tokens truthy):
-        • prepend self.dtstart_str (if set and well-formed)
-        • for each rrule token, emit 'RRULE:...' line
-        • append RDATE:self.rdate_str (if any explicit @+)
-        • append EXDATE:self.exdate_str (if any explicit @-)
-        • clear self.rrule_tokens/self.rdates/self.exdates to avoid duplicates
-
-        No RRULE:
-        • start with self.rdstart_str (seeded by do_s)
-        • append RDATE:self.rdate_str if present
-        """
-
-        components: list[str] = []
-        log_msg("finalizing_rruleset")
-        log_msg(f"{self.dtstart_str = }, {self.rdstart_str = }")
-        # --- RRULE path ---
-        if self.rrule_tokens:
-            # put dtstart_str first if possible
-            if self.dtstart_str:
-                components.append(self.dtstart_str)
-
-            log_msg(f"{self.rrule_tokens = }")
-
-            # 2) RRULE lines from rrule_tokens (as in the original master code)
-            for token in self.rrule_tokens:
-                # token is typically (anchor_token, params_dict)
-                log_msg(f"{token = }")
-                rrule_params = token
-                rule_parts = []
-
-                freq = rrule_params.pop("FREQ", None)
-                if freq:
-                    rule_parts.append(f"RRULE:FREQ={freq}")
-
-                # remaining params are already like "KEY=VALUE" or "KEY=V1,V2"
-                for _, v in rrule_params.items():
-                    if v:
-                        rule_parts.append(str(v))
-
-                # join with ';' -> RRULE:...
-                if rule_parts:
-                    components.append(";".join(rule_parts))
-
-            # 3) RDATE / EXDATE from strings managed by do_rdate/do_exdate
-            log_msg(f"{self.rdstart_str = }")
-            if getattr(self, "rdstart_str", None) and not self.rrule_tokens:
-                log_msg(f"appending RDATE: and {self.rdstart_str = }")
-                components.append(f"RDATE:{self.rdstart_str}")
-            if getattr(self, "exdate_str", None):
-                components.append(f"EXDATE:{self.exdate_str}")
-
-            # Assemble + store
-            rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
-            log_msg(f"{rruleset_str = }, {components = }")
-            self.rruleset = rruleset_str
-
-            # Prevent double-append in subsequent calls (matches master)
-            self.rrule_tokens = []
-            self.rdates = []
-            self.exdates = []
-            return rruleset_str
-
-        # --- RDATE-only path ---
-
-        # Start with the seed created by do_s()
-        components.append(self.rdstart_str)
-
-        # Then explicit @+ (if any)
-        if getattr(self, "rdate_str", None):
-            components.append(f"RDATE:{self.rdate_str}")
-
-        rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
-        self.rruleset = rruleset_str
-        return rruleset_str
+    # def finalize_rruleset(self):
+    #     """
+    #     Build self.rruleset from current state, mirroring the old 'master' behavior:
+    #
+    #     RRULE present (self.rrule_tokens truthy):
+    #     • prepend self.dtstart_str (if set and well-formed)
+    #     • for each rrule token, emit 'RRULE:...' line
+    #     • append RDATE:self.rdate_str (if any explicit @+)
+    #     • append EXDATE:self.exdate_str (if any explicit @-)
+    #     • clear self.rrule_tokens/self.rdates/self.exdates to avoid duplicates
+    #
+    #     No RRULE:
+    #     • start with self.rdstart_str (seeded by do_s)
+    #     • append RDATE:self.rdate_str if present
+    #     """
+    #
+    #     components: list[str] = []
+    #     log_msg("finalizing_rruleset")
+    #     log_msg(f"{self.dtstart_str = }, {self.rdstart_str = }")
+    #     # --- RRULE path ---
+    #     if self.rrule_tokens:
+    #         # put dtstart_str first if possible
+    #         if self.dtstart_str:
+    #             components.append(self.dtstart_str)
+    #
+    #         log_msg(f"{self.rrule_tokens = }")
+    #
+    #         # 2) RRULE lines from rrule_tokens (as in the original master code)
+    #         for token in self.rrule_tokens:
+    #             # token is typically (anchor_token, params_dict)
+    #             log_msg(f"{token = }")
+    #             rrule_params = token
+    #             rule_parts = []
+    #
+    #             freq = rrule_params.pop("FREQ", None)
+    #             if freq:
+    #                 rule_parts.append(f"RRULE:FREQ={freq}")
+    #
+    #             # remaining params are already like "KEY=VALUE" or "KEY=V1,V2"
+    #             for _, v in rrule_params.items():
+    #                 if v:
+    #                     rule_parts.append(str(v))
+    #
+    #             # join with ';' -> RRULE:...
+    #             if rule_parts:
+    #                 components.append(";".join(rule_parts))
+    #
+    #         # 3) RDATE / EXDATE from strings managed by do_rdate/do_exdate
+    #         log_msg(f"{self.rdstart_str = }")
+    #         if getattr(self, "rdstart_str", None) and not self.rrule_tokens:
+    #             log_msg(f"appending RDATE: and {self.rdstart_str = }")
+    #             components.append(f"RDATE:{self.rdstart_str}")
+    #         if getattr(self, "exdate_str", None):
+    #             components.append(f"EXDATE:{self.exdate_str}")
+    #
+    #         # Assemble + store
+    #         rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
+    #         log_msg(f"{rruleset_str = }, {components = }")
+    #         self.rruleset = rruleset_str
+    #
+    #         # Prevent double-append in subsequent calls (matches master)
+    #         self.rrule_tokens = []
+    #         self.rdates = []
+    #         self.exdates = []
+    #         return rruleset_str
+    #
+    #     # --- RDATE-only path ---
+    #
+    #     # Start with the seed created by do_s()
+    #     components.append(self.rdstart_str)
+    #
+    #     # Then explicit @+ (if any)
+    #     if getattr(self, "rdate_str", None):
+    #         components.append(f"RDATE:{self.rdate_str}")
+    #
+    #     rruleset_str = "\n".join(ln for ln in components if ln and ln != "None")
+    #     self.rruleset = rruleset_str
+    #     return rruleset_str
 
     def collect_rruleset_tokens(self):
         """Return the list of relative tokens used for building the rruleset."""
@@ -2618,7 +2617,7 @@ class Item:
 
         return rruleset_tokens
 
-    def build_rruleset(self) -> str:
+    def finalize_rruleset(self) -> str:
         """
         Build an rruleset string using self.relative_tokens and self.dtstart_str.
         Emits:
@@ -2694,12 +2693,6 @@ class Item:
                 lines.append(rdstart_str)
                 log_msg(f"appdended rdstart_str: {lines = }")
 
-        # # only add the rdates from @+, not @s since we have a rrule_line
-        # if self.rdates:
-        #     lines.append(f"RDATE:{','.join(self.rdates)}")
-        #     log_msg(f"appended RDATE + rdates: {lines = }")
-
-        # Optional: include EXDATE if you’re storing it separately
         exdate_str = getattr(self, "exdate_str", "") or ""
         if exdate_str:
             lines.append(f"EXDATE:{exdate_str}")
