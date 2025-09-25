@@ -1,5 +1,108 @@
 # For ChatGPT
 
+## 25-09-24
+
+I would appreciate your thoughts on the following. I modified this slightly to set self.has_f = True and to add the token "@f" with the max of the finish_dts to self.tokens instead of setting self.project_f:
+
+        if len(finished) == len(job_map):  # all jobs with ids are finished
+            finish_dts = [parse_dt(job["f"]) for job in jobs if "f" in job]
+            if finish_dts:
+                f_dt = max(finish_dts)
+                f_tok = {"token": f"@f {fmt_usr(f_dt)}", "t": "@", "k": "f"}
+                self.add_token(f_tok)
+                self.has_f = True
+            for job in jobs:
+                job.pop("f", None)
+
+This uses these methods:
+
+    def fmt_user(self, dt: datetime) -> str:
+        """
+        User friendly formatting for dates and datetimes using env settings
+        for ampm, yearfirst, dayfirst and two_digit year.
+        """
+        # Simple user-facing formatter; tweak to match your prefs
+        if isinstance(dt, datetime):
+            return dt.strftime(self.datetimefmt)
+        if isinstance(dt, date):
+            return dt.strftime(self.datefmt)
+        raise ValueError(f"Error: {dt} must either be a date or datetime")
+
+
+    def add_token(self, token: dict):
+        """
+        keys: token (entry str), t (type: itemtype, subject, @, &),
+              k (key: a, b, c, d, ... for type @ and &.
+              type itemtype and subject have no key)
+        add_token takes a token dict and
+        1) appends the token as is to self.relative_tokens
+        2) extract the token, t and k fields, expands the datetime value(s) for k in list("sf+-")
+           and appends the resulting dict to self.stored_tokens
+        """
+
+        self.tokens.append(token)
+
+Note that self.tokens is just self.relative_tokens with the "s" and "e" keys removed.
+
+For non-project tasks, I also set "self.has_f = True" if a valid @f token is processed.
+
+I have these methods:
+
+    def parse_input(self, entry: str):
+        """
+        Parses the input string to extract tokens, then processes and validates the tokens.
+        """
+        # digits = "1234567890" * ceil(len(entry) / 10)
+
+        self._tokenize(entry)
+        # NOTE: _tokenize sets self.itemtype and self.subject
+
+        message = self.validate()
+        if message:
+            self.parse_ok = False
+            self.parse_message = message
+            print(f"parse failed: {message = }")
+            return
+        self.mark_grouped_tokens()
+        self._parse_tokens(entry)
+
+        self.parse_ok = True
+        self.previous_entry = entry
+        self.previous_tokens = self.relative_tokens.copy()
+
+        if self.final:
+            self.finalize_record()
+
+    def finalize_record(self):
+        """
+        When the entry and token list is complete:
+        1) finalize jobs, processing any &f entries and adding @f when all jobs are finished
+        2) finalize_rruleset so that next instances will be available
+        3) process @f entries (&f entries will have been done by finalize_jobs)
+
+        """
+        # create a stripped version of relative_tokens since the start and end positions are no
+        # longer needed
+        self.tokens = self._strip_positions(self.relative_tokens)
+        log_msg(f"{self.relative_tokens = }; {self.tokens = }")
+        # Build rruleset if @r group exists
+        # rruleset is needed to get the next occurrence
+        if self.collect_grouped_tokens({"r"}):
+            rruleset = self.build_rruleset()
+            log_msg(f"{rruleset = }")
+            if rruleset:
+                self.rruleset = rruleset
+        elif self.rdstart_str is not None:
+            # @s but not @r
+            self.rruleset = self.rdstart_str
+        # Only build jobs for projects
+        if self.itemtype == "^":
+            jobset = self.build_jobs()
+            success, finalized = self.finalize_jobs(jobset)
+        # do we have @f entries to process?
+        if self.has_f:
+
+
 ## Thinking about tokens
 
 - Want to store tokens with relative dates and datetimes expanded and without positions
