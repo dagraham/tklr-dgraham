@@ -133,7 +133,8 @@ def week(dt: datetime) -> Union[datetime, datetime]:
 
 
 env = TklrEnvironment()
-dbm = DatabaseManager("./example/tklr.db", env, reset=True)
+# dbm = DatabaseManager("./example/tklr.db", env, reset=True)
+ctrl = Controller("./example/tklr.db", env, reset=True)
 # Insert the UTC records into the database
 
 num_items = 20
@@ -292,8 +293,8 @@ items = [
     "~ no due date and priority five @p 5",
     f"~ finished one hour ago @s {in_one_hour()} @f {one_hour_ago()}",
     f"^ no prerequisites @s {today_date} @b 1w @~ this &r 1 &f {today_date}  @~ that &r 2",
-    f"~ do over after 4 days when complete @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o 4d",
-    f"~ do over after approximately 4 days when complete @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o ~4d",
+    f"~ do over with finish @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o 4d",
+    f"~ do over learn with finish  @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o ~4d",
     "? draft reminder - no checks",
     f"~ one date with priority three @s {yesterday_date} @p 3",
     "~ three datetimes @s 9am @+ 10am, 11am",
@@ -334,17 +335,17 @@ while len(items) < num_items:
 
 
 id = 0
-for entry in items:  # + alerts:
+# for entry in items:  # + alerts:
+for entry in items + alerts:
     count += 1
     id += 1
     print(f"---\n{entry = }")
     item = Item(raw=entry, env=env, final=True)  # .to_dict()
-    print(f"{item.tokens = }")
-
-    dbm.add_item(item)
+    record_id = ctrl.add_item(item)  # .to_dict()
+    print(f"{record_id = }, {item.tokens = }")
 
 try:
-    dbm.populate_dependent_tables()
+    ctrl.db_manager.populate_dependent_tables()
 except Exception as e:
     print(f"Error: {e}")
 

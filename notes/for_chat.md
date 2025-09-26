@@ -2,106 +2,164 @@
 
 ## 25-09-24
 
-I would appreciate your thoughts on the following. I modified this slightly to set self.has_f = True and to add the token "@f" with the max of the finish_dts to self.tokens instead of setting self.project_f:
+I would appreciate your thoughts on the following. I modified "finalize_jobs" slightly to set self.has_f = True and to add the token "@f" with the max of the finish_dts to self.tokens instead of setting self.project_f:
 
+```python
+        # If all jobs are finished, set project_f and clear f entries
         if len(finished) == len(job_map):  # all jobs with ids are finished
             finish_dts = [parse_dt(job["f"]) for job in jobs if "f" in job]
             if finish_dts:
-                f_dt = max(finish_dts)
-                f_tok = {"token": f"@f {fmt_usr(f_dt)}", "t": "@", "k": "f"}
-                self.add_token(f_tok)
+                finished_dt = max(finish_dts)
+                finished_tok = {"token": f"@f {fmt_user(finished_dt)}", "t": "@", "k": "f"}
+                self.add_token(finished_tok)
                 self.has_f = True
             for job in jobs:
                 job.pop("f", None)
 
+        return True, final
+```
+
 This uses these methods:
 
-    def fmt_user(self, dt: datetime) -> str:
-        """
-        User friendly formatting for dates and datetimes using env settings
-        for ampm, yearfirst, dayfirst and two_digit year.
-        """
-        # Simple user-facing formatter; tweak to match your prefs
-        if isinstance(dt, datetime):
-            return dt.strftime(self.datetimefmt)
-        if isinstance(dt, date):
-            return dt.strftime(self.datefmt)
-        raise ValueError(f"Error: {dt} must either be a date or datetime")
+````python
+ def fmt_user(self, dt: datetime) -> str:
+     """
+     User friendly formatting for dates and datetimes using env settings
+     for ampm, yearfirst, dayfirst and two_digit year.
+     """
+     # Simple user-facing formatter; tweak to match your prefs
+     if isinstance(dt, datetime):
+         return dt.strftime(self.datetimefmt)
+     if isinstance(dt, date):
+         return dt.strftime(self.datefmt)
+     raise ValueError(f"Error: {dt} must either be a date or datetime")
 
 
-    def add_token(self, token: dict):
-        """
-        keys: token (entry str), t (type: itemtype, subject, @, &),
-              k (key: a, b, c, d, ... for type @ and &.
-              type itemtype and subject have no key)
-        add_token takes a token dict and
-        1) appends the token as is to self.relative_tokens
-        2) extract the token, t and k fields, expands the datetime value(s) for k in list("sf+-")
-           and appends the resulting dict to self.stored_tokens
-        """
+ def add_token(self, token: dict):
+     """
+     keys: token (entry str), t (type: itemtype, subject, @, &),
+           k (key: a, b, c, d, ... for type @ and &.
+           type itemtype and subject have no key)
+     add_token takes a token dict and
+     1) appends the token as is to self.tokens
+     2) extract the token, t and k fields, expands the datetime value(s) for k in list("sf+-")
+        and appends the resulting dict to self.stored_tokens
+     """
+     self.tokens.append(token)
+ ```
 
-        self.tokens.append(token)
 
 Note that self.tokens is just self.relative_tokens with the "s" and "e" keys removed.
 
 For non-project tasks, I also set "self.has_f = True" if a valid @f token is processed.
 
-I have these methods:
+So at this point if the item has an @f entry for either a task or a project, self.has_f will be True.
 
-    def parse_input(self, entry: str):
+I have these fundamental methods - the second is new:
+
+```python
+ def parse_input(self, entry: str):
+     """
+     Parses the input string to extract tokens, then processes and validates the tokens.
+     """
+     # digits = "1234567890" * ceil(len(entry) / 10)
+
+     self._tokenize(entry)
+     # NOTE: _tokenize sets self.itemtype and self.subject
+
+     message = self.validate()
+     if message:
+         self.parse_ok = False
+         self.parse_message = message
+         print(f"parse failed: {message = }")
+         return
+     self.mark_grouped_tokens()
+     self._parse_tokens(entry)
+
+     self.parse_ok = True
+     self.previous_entry = entry
+     self.previous_tokens = self.relative_tokens.copy()
+
+     if self.final:
+         self.finalize_record()
+
+ def finalize_record(self):
+     """
+     When the entry and token list is complete:
+     1) finalize jobs, processing any &f entries and adding @f when all jobs are finished
+     2) finalize_rruleset so that next instances will be available
+     3) process @f entries (&f entries will have been done by finalize_jobs)
+
+     """
+     if self.itemtype == "^":
+         jobset = self.build_jobs()
+         success, finalized = self.finalize_jobs(jobset)
+     # rruleset is needed to get the next two occurrences
+     if self.collect_grouped_tokens({"r"}):
+         rruleset = self.finalize_rruleset()
+         log_msg(f"got rruleset {rruleset = }")
+         if rruleset:
+             self.rruleset = rruleset
+     elif self.rdstart_str is not None:
+         # @s but not @r
+         self.rruleset = self.rdstart_str
+
+     self.tokens = self._strip_positions(self.relative_tokens)
+     log_msg(f"{self.relative_tokens = }; {self.tokens = }")
+
+     if self.has_f:
+         self.finish()
+
+````
+
+Here are my initial thoughts about "finish()":
+
+```python
+    def finish(self) -> None:
         """
-        Parses the input string to extract tokens, then processes and validates the tokens.
-        """
-        # digits = "1234567890" * ceil(len(entry) / 10)
+        Apply a completion to this Item if it has an @f entry.
 
-        self._tokenize(entry)
-        # NOTE: _tokenize sets self.itemtype and self.subject
-
-        message = self.validate()
-        if message:
-            self.parse_ok = False
-            self.parse_message = message
-            print(f"parse failed: {message = }")
+        Behavior:
+        - If @f exists:
+            - completed_dt = datetime specified in @f
+        - else:
+            - return
+        - If @o exists:
+            – fixed interval: set @s = completed_dt + @o
+            – learn interval (~): actual = completed_dt - old_@s; smooth; set @o=new_td; set @s=completed_dt + new_td
+            - remove @f
+            - return
+        - If self.rruleset exists:
+            - get due_dt and next_dt from rruleset. There should always be a due_dt if self.rruleset exists
+            - add (completed_dt, due_dt) to self.completions
+            - remove @f
+            – if next_dt: advance DTSTART to next_dt
+                - if due_dt in RDATES, remove it
+                - elif &c if present, decrement it
+            - else: this was the last occurrence
+                - remove @s
+                - remove @r if it exists
+                - remove @+ if it exists
+                - remove @- if it exists
+                - set itemtype = 'x'
             return
-        self.mark_grouped_tokens()
-        self._parse_tokens(entry)
+        - Without a self.rruleset, this is an undated, single-shot task or project:
+            - add (completed_dt, None) to self.completions
+            - remove @f
+            - set itemtype='x'
 
-        self.parse_ok = True
-        self.previous_entry = entry
-        self.previous_tokens = self.relative_tokens.copy()
-
-        if self.final:
-            self.finalize_record()
-
-    def finalize_record(self):
+        Side effects:
+        – Mutates self.tokens / self.itemtype (tokens only)
+        – Removes applied @f tokens
         """
-        When the entry and token list is complete:
-        1) finalize jobs, processing any &f entries and adding @f when all jobs are finished
-        2) finalize_rruleset so that next instances will be available
-        3) process @f entries (&f entries will have been done by finalize_jobs)
+```
 
-        """
-        # create a stripped version of relative_tokens since the start and end positions are no
-        # longer needed
-        self.tokens = self._strip_positions(self.relative_tokens)
-        log_msg(f"{self.relative_tokens = }; {self.tokens = }")
-        # Build rruleset if @r group exists
-        # rruleset is needed to get the next occurrence
-        if self.collect_grouped_tokens({"r"}):
-            rruleset = self.build_rruleset()
-            log_msg(f"{rruleset = }")
-            if rruleset:
-                self.rruleset = rruleset
-        elif self.rdstart_str is not None:
-            # @s but not @r
-            self.rruleset = self.rdstart_str
-        # Only build jobs for projects
-        if self.itemtype == "^":
-            jobset = self.build_jobs()
-            success, finalized = self.finalize_jobs(jobset)
-        # do we have @f entries to process?
-        if self.has_f:
+When finish() is invoked, tokens corresponding to @f, @s, and @+ are possibly modified and along with them self.dtstart_str, self.rdstart_str, self.rruleset and so forth. My idea is to
 
+1. create a new entry str from the from the modified self.relative_tokens or the stripped version self.tokens which will be devoid of the @f entry that occasioned calling finish.
+2. process the new entry str using the same steps as in parse_input and finalize_record which will make the appropriate changes to self.dtstart_str and friends and, since there will be no @f entry, no further changes will be needed.
+
+Thoughts?
 
 ## Thinking about tokens
 

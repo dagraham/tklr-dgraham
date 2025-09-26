@@ -633,12 +633,11 @@ class DatabaseManager:
         # ---------------- Completions ----------------
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Completions (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id     INTEGER NOT NULL,
-                job_id        INTEGER,          -- nullable; link to a specific job if any
-                due           INTEGER,          -- epoch seconds (nullable for one-shots)
-                completed     TEXT NOT NULL,    -- UTC datetime string, e.g. "20250828T211259Z"
-                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id INTEGER NOT NULL,
+                due INTEGER,        -- timestamp or NULL if undated
+                completed INTEGER NOT NULL,
+                FOREIGN KEY(record_id) REFERENCES Records(id) ON DELETE CASCADE
             );
         """)
 
@@ -742,7 +741,42 @@ class DatabaseManager:
         self.populate_alerts()
         self.populate_beginby()
 
-    def add_item(self, item: Item):
+    # def add_item(self, item: Item):
+    #     print(f"{item.itemtype = }, {item.subject}")
+    #     try:
+    #         timestamp = utc_now_string()
+    #         self.cursor.execute(
+    #             """
+    #             INSERT INTO Records (
+    #                 itemtype, subject, description, rruleset, timezone,
+    #                 extent, alerts, beginby, context, jobs, priority, tags,
+    #                 tokens, processed, created, modified
+    #             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    #             """,
+    #             (
+    #                 item.itemtype,
+    #                 item.subject,
+    #                 item.description,
+    #                 item.rruleset,
+    #                 item.tz_str,
+    #                 item.extent,
+    #                 json.dumps(item.alerts),
+    #                 item.beginby,
+    #                 item.context,
+    #                 json.dumps(item.jobs),
+    #                 item.priority,
+    #                 json.dumps(item.tags),
+    #                 json.dumps(item.tokens),
+    #                 0,
+    #                 timestamp,  # created
+    #                 timestamp,  # modified (same on insert)
+    #             ),
+    #         )
+    #         self.conn.commit()
+    #     except Exception as e:
+    #         print(f"Error adding {item}: {e}")
+
+    def add_item(self, item: Item) -> int:
         print(f"{item.itemtype = }, {item.subject}")
         try:
             timestamp = utc_now_string()
@@ -770,12 +804,14 @@ class DatabaseManager:
                     json.dumps(item.tokens),
                     0,
                     timestamp,  # created
-                    timestamp,  # modified (same on insert)
+                    timestamp,  # modified
                 ),
             )
             self.conn.commit()
+            return self.cursor.lastrowid  # <-- return the new record id
         except Exception as e:
             print(f"Error adding {item}: {e}")
+            raise
 
     def update_item(self, record_id: int, item: Item):
         """
@@ -893,18 +929,98 @@ class DatabaseManager:
         if item.itemtype in ["~", "^"]:
             self.populate_urgency_from_record(record_id)
 
+    # def add_completion(
+    #     self, record_id: int, job_id: int | None = None, due_ts: int | None = None
+    # ):
+    #     completed_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%MZ")
+    #     self.cursor.execute(
+    #         """
+    #         INSERT INTO Completions (record_id, job_id, due, completed)
+    #         VALUES (?, ?, ?, ?)
+    #         """,
+    #         (record_id, job_id, due, completed),
+    #     )
+    #     self.conn.commit()
+
+    # def add_completion(
+    #     self,
+    #     record_id: int,
+    #     job_id: int | None = None,
+    #     completion: tuple[datetime, datetime | None] | None = None,
+    # ) -> None:
+    #     """
+    #     Insert a completion record into the Completions table.
+    #
+    #     Args:
+    #         record_id: the owning record
+    #         job_id: optional job within the record
+    #         completion: (completed_dt, due_dt) tuple from Item.finish()
+    #     """
+    #     if completion is None:
+    #         return
+    #
+    #     completed_dt, due_dt = completion
+    #
+    #     # Convert to compact string or timestamp form
+    #     completed_ts = self.to_timestamp(completed_dt)
+    #     due_ts = self.to_timestamp(due_dt) if due_dt else None
+    #
+    #     self.cursor.execute(
+    #         """
+    #         INSERT INTO Completions (record_id, job_id, due, completed)
+    #         VALUES (?, ?, ?, ?)
+    #         """,
+    #         (record_id, job_id, due_ts, completed_ts),
+    #     )
+    #     self.conn.commit()
+
     def add_completion(
-        self, record_id: int, job_id: int | None = None, due_ts: int | None = None
-    ):
-        completed_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%MZ")
+        self,
+        record_id: int,
+        completion: tuple[int, int] | None,
+    ) -> None:
+        if completion is None:
+            return
+
+        completed_ts, due_ts = completion
+        log_msg(f"{record_id = }, {completed_ts = }, {due_ts = }, {completion = }")
+
         self.cursor.execute(
             """
-            INSERT INTO Completions (record_id, job_id, due, completed)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO Completions (record_id, due, completed)
+            VALUES (?, ?, ?)
             """,
-            (record_id, job_id, due, completed),
+            (record_id, due_ts, completed_ts),
         )
         self.conn.commit()
+
+    def get_completions(
+        self, record_id: int
+    ) -> list[tuple[int, str, str, str, int | None, int]]:
+        """
+        Retrieve all completions for a given record_id.
+
+        Returns:
+            List of tuples:
+                (record_id, subject, description, itemtype, due, completed)
+        """
+        self.cursor.execute(
+            """
+            SELECT
+                r.id,
+                r.subject,
+                r.description,
+                r.itemtype,
+                c.due,
+                c.completed
+            FROM Completions c
+            JOIN Records r ON c.record_id = r.id
+            WHERE r.id = ?
+            ORDER BY c.completed DESC
+            """,
+            (record_id,),
+        )
+        return self.cursor.fetchall()
 
     def touch_record(self, record_id: int):
         """

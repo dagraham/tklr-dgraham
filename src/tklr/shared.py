@@ -4,7 +4,7 @@ import shutil
 import re
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal, Tuple
-
+from dateutil import tz
 
 from tklr.tklr_env import TklrEnvironment
 
@@ -22,6 +22,12 @@ ALERT_COMMANDS = {
 ELLIPSIS_CHAR = "…"
 
 # from shared import fmt_local_compact, parse_local_compact, fmt_local_seconds, parse_local_seconds, fmt_utc_z, parse_utc_z
+
+
+def dt_as_utc_timestamp(dt: datetime) -> int:
+    if not isinstance(dt, datetime):
+        return 0
+    return round(dt.astimezone(tz.UTC).timestamp())
 
 
 def timedelta_str_to_seconds(time_str: str) -> tuple[bool, int]:

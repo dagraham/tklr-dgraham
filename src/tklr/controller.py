@@ -44,6 +44,7 @@ from .shared import (
     log_msg,
     HRS_MINS,
     # ALERT_COMMANDS,
+    dt_as_utc_timestamp,
     format_time_range,
     format_timedelta,
     datetime_from_timestamp,
@@ -515,9 +516,9 @@ def get_busy_bar(events):
 
 
 class Controller:
-    def __init__(self, database_path: str, env: TklrEnvironment):
+    def __init__(self, database_path: str, env: TklrEnvironment, reset: bool = False):
         # Initialize the database manager
-        self.db_manager = DatabaseManager(database_path, env)
+        self.db_manager = DatabaseManager(database_path, env, reset=reset)
 
         self.tag_to_id = {}  # Maps tag numbers to event IDs
         self.list_tag_to_id: dict[str, dict[str, object]] = {}
@@ -545,8 +546,30 @@ class Controller:
     def datetime_in_words(self, fmt_dt: str) -> str:
         return datetime_in_words(fmt_dt, self.AMPM)
 
-    def make_item(self, entry_str: str) -> "Item":
-        return Item(entry_str, env=self.env)  # or config=self.env.load_config()
+    def make_item(self, entry_str: str, final: bool = False) -> "Item":
+        return Item(entry_str, final=final)  # or config=self.env.load_config()
+
+    # def add_item(self, item: Item) -> int:
+    #     record_id = self.db_manager.add_item(item)
+    #     if item.completion:
+    #         completed_dt, due_dt = item.completion
+    #         completed_ts = dt_as_utc_timestamp(completed_dt)
+    #         due_ts = dt_as_utc_timestamp(due_dt) if due_dt else None
+    #         completion = (completed_ts, due_ts)
+    #         self.db_manager.add_completion(record_id, completion)
+    #     return record_id
+
+    def add_item(self, item: Item) -> int:
+        record_id = self.db_manager.add_item(item)
+
+        if item.completion:
+            completed_dt, due_dt = item.completion
+            completed_ts = dt_as_utc_timestamp(completed_dt)
+            due_ts = dt_as_utc_timestamp(due_dt) if due_dt else None
+            completion = (completed_ts, due_ts)
+            self.db_manager.add_completion(record_id, completion)
+
+        return record_id
 
     # --- replace your set_afill with this per-view version ---
     def set_afill(self, details: list, view: str):
@@ -1449,6 +1472,116 @@ class Controller:
             grouped[date].sort(key=lambda x: x[0])
 
         return dict(grouped)
+
+    def get_completions_view(self):
+        """
+        Fetch and format description for all completions, grouped by year.
+        """
+        events = self.db_manager.get_all_completions()
+        header = f"Completions ({len(events)})"
+        display = [header]
+
+        if not events:
+            display.append(f" [{HEADER_COLOR}]Nothing found[/{HEADER_COLOR}]")
+            return display
+
+        year_to_events = {}
+        for record_id, subject, description, itemtype, due_ts, completed_ts in events:
+            completed_dt = datetime_from_timestamp(completed_ts)
+            due_dt = datetime_from_timestamp(due_ts) if due_ts else None
+
+            # Format display string
+            monthday = completed_dt.strftime("%m-%d")
+            completed_str = f"{monthday}{format_hours_mins(completed_dt, HRS_MINS):>8}"
+            type_color = TYPE_TO_COLOR[itemtype]
+            escaped_completed = f"[not bold]{completed_str}[/not bold]"
+
+            extra = f" (due {due_dt.strftime('%m-%d')})" if due_dt else ""
+            row = [
+                record_id,
+                None,  # no job_id for completions
+                f"[{type_color}]{itemtype} {escaped_completed:<12}  {subject}{extra}[/{type_color}]",
+            ]
+
+            year_to_events.setdefault(completed_dt.strftime("%Y"), []).append(row)
+
+        self.set_afill(events, "completions")
+        self.list_tag_to_id.setdefault("completions", {})
+
+        indx = 0
+        for year, events in year_to_events.items():
+            if events:
+                display.append(
+                    f"[not bold][{HEADER_COLOR}]{year}[/{HEADER_COLOR}][/not bold]"
+                )
+                for event in events:
+                    record_id, job_id, event_str = event
+                    tag_fmt, indx = self.add_tag(
+                        "completions", indx, record_id, job_id=job_id
+                    )
+                    display.append(f"{tag_fmt}{event_str}")
+
+        return display
+
+    def get_record_completions(self, record_id: int, width: int = 70):
+        """
+        Fetch and format completion history for a given record.
+        """
+        completions = self.db_manager.get_completions(record_id)
+        header = "Completion history"
+        results = [header]
+
+        if not completions:
+            results.append(f" [{HEADER_COLOR}]no completions recorded[/{HEADER_COLOR}]")
+            return results
+
+        # Column widths similar to alerts
+        completed_width = 14  # space for "YYYY-MM-DD HH:MM"
+        due_width = 14
+        name_width = width - (3 + 3 + completed_width + due_width + 6)
+
+        results.append(
+            f"[bold][dim]{'tag':^3}[/dim]  "
+            f"{'completed':^{completed_width}}  "
+            f"{'due':^{due_width}}   "
+            f"{'subject':<{name_width}}[/bold]"
+        )
+
+        self.set_afill(completions, "record_completions")
+        self.list_tag_to_id.setdefault("record_completions", {})
+        indx = 0
+
+        for (
+            record_id,
+            subject,
+            description,
+            itemtype,
+            due_ts,
+            completed_ts,
+        ) in completions:
+            completed_dt = datetime_from_timestamp(completed_ts)
+            completed_str = self.format_datetime(completed_dt, short=True)
+
+            due_str = (
+                self.format_datetime(datetime_from_timestamp(due_ts), short=True)
+                if due_ts
+                else "-"
+            )
+            subj_fmt = truncate_string(subject, name_width)
+
+            tag_fmt, indx = self.add_tag("record_completions", indx, record_id)
+
+            row = "  ".join(
+                [
+                    f"{tag_fmt}",
+                    f"[{SALMON}]{completed_str:<{completed_width}}[/{SALMON}]",
+                    f"[{PALE_GREEN}]{due_str:<{due_width}}[/{PALE_GREEN}]",
+                    f"[{AVAILABLE_COLOR}]{subj_fmt:<{name_width}}[/{AVAILABLE_COLOR}]",
+                ]
+            )
+            results.append(row)
+
+        return results
 
     def get_agenda_events(self, now: datetime = datetime.now()):
         """
