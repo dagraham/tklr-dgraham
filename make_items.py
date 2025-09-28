@@ -301,6 +301,8 @@ items = [
     "* event spread over multiple days @s 3p fri @e 2d2h30m",
     "* daily datetime @s 3p @e 30m @r d",
     "* gour Tiki Roundtable Meeting @s 1/1 14:00 z UTC @e 1h30m @r m &w +3TH &c 10",
+    "* timezone test for noon CET @s 12p z CET @e 1h",
+    "* timezone test for noon naive @s 12p z none @e 1h",
 ]
 
 alerts = [
@@ -341,8 +343,11 @@ for entry in items + alerts:
     id += 1
     print(f"---\n{entry = }")
     item = Item(raw=entry, env=env, final=True)  # .to_dict()
+    # new_entry = item.to_entry()
+    # print(f">>>\n{new_entry = }")
+    # continue
     record_id = ctrl.add_item(item)  # .to_dict()
-    print(f"{record_id = }, {item.tokens = }")
+    print(f"{record_id = }, {item.tokens = }; {item.rruleset = }")
 
 try:
     ctrl.db_manager.populate_dependent_tables()

@@ -899,6 +899,64 @@ class Item:
             # if self.final:
             #     self.finalize_record()
 
+    def to_entry(self) -> str:
+        """
+        Rebuild a tklr entry string from this Item’s fields.
+        """
+        # --- map itemtype ---
+        itemtype = self.itemtype
+        if itemtype == "-":  # special case: etm task/project split
+            if self.jobs and self.jobs != "[]":
+                itemtype = "^"  # project
+            else:
+                itemtype = "~"  # task
+        else:
+            itemtype = TYPE_MAP.get(itemtype, itemtype)
+
+        # --- start with type and subject ---
+        parts = [f"{itemtype} {self.subject}"]
+
+        # --- description (optional, inline or multi-line) ---
+        if self.description:
+            parts.append(self.description)
+
+        # --- scheduling tokens ---
+        if getattr(self, "dtstart_str", None):
+            dt = self._get_start_dt()
+            if dt:
+                parts.append(f"@s {self.fmt_user(dt)}")
+
+        if getattr(self, "extent", None):
+            parts.append(f"@e {self.extent}")
+
+        if getattr(self, "rruleset", None):
+            parts.append(f"@r {self.rruleset}")
+
+        if getattr(self, "beginby", None):
+            parts.append(f"@b {self.beginby}")
+
+        # --- tags ---
+        if getattr(self, "tags", None):
+            tags = " ".join(f"@t {t}" for t in self.tags)
+            parts.append(tags)
+
+        # --- context ---
+        if getattr(self, "context", None):
+            parts.append(f"@c {self.context}")
+
+        # --- jobs ---
+        if getattr(self, "jobs", None) and self.jobs not in ("[]", None):
+            try:
+                jobs = json.loads(self.jobs)
+            except Exception:
+                jobs = []
+            for j in jobs:
+                subj = j.get("summary") or j.get("subject")
+                if subj:
+                    parts.append(f"@~ {subj}")
+
+        return " ".join(parts)
+
     def parse_input(self, entry: str):
         """
         Parses the input string to extract tokens, then processes and validates the tokens.
