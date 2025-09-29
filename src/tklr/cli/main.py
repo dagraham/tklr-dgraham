@@ -98,7 +98,7 @@ def add(ctx, entry, file, batch):
 
     def process_entry(entry_str: str) -> bool:
         try:
-            item = Item(entry_str)
+            item = Item(entry_str, final=True)
         except Exception as e:
             print(f"[red]✘ Internal error during parsing:[/] {e}")
             return False

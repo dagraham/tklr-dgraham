@@ -696,9 +696,9 @@ class Item:
             "number of days before (-), on (0) or after (+) Easter",
             "do_easterdays",
         ],
-        "rH": ["hours", "list of integers in 0 ... 23", "do_hours"],
+        "rh": ["hours", "list of integers in 0 ... 23", "do_hours"],
         "rm": ["months", "list of integers in 1 ... 12", "do_months"],
-        "rM": ["minutes", "list of integers in 0 ... 59", "do_minutes"],
+        "rn": ["minutes", "list of integers in 0 ... 59", "do_minutes"],
         "rw": [
             "weekdays",
             "list from SU, MO, ..., SA, possibly prepended with a positive or negative integer",

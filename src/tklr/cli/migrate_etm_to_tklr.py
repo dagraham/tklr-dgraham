@@ -155,7 +155,7 @@ def etm_to_tokens(item: dict, rid: str | None = None) -> list[str]:
     tokens.append(f"{itemtype} {subject}")
 
     for key, val in item.items():
-        if key in ("itemtype", "summary", "created", "modified", "h"):
+        if key in ("itemtype", "summary", "created", "modified", "h", "q"):
             continue
 
         if key in ("+", "-", "w"):
@@ -213,22 +213,32 @@ def tokens_to_entry(tokens: list[str]) -> str:
 # ------------------------------------------------------------
 # Migration driver
 # ------------------------------------------------------------
-def migrate(infile: str, outfile: str | None = None) -> None:
+def migrate(
+    infile: str,
+    outfile: str | None = None,
+    include_etm: bool = True,
+    section: str = "both",
+) -> None:
     with open(infile, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    sections = ["items", "archive"]
+    sections = []
+    if section in ("both", "items"):
+        sections.append("items")
+    if section in ("both", "archive"):
+        sections.append("archive")
+
     out_lines = []
 
-    for section in sections:
-        if section not in data:
+    for sec in sections:
+        if sec not in data:
             continue
-        out_lines.append(f"#### {section} ####")
-        for rid, item in data[section].items():
-            tokens = etm_to_tokens(item, rid)
+        out_lines.append(f"#### {sec} ####")
+        for rid, item in data[sec].items():
+            tokens = etm_to_tokens(item, rid if include_etm else None)
             entry = tokens_to_entry(tokens)
             out_lines.append(entry)
-            out_lines.append("")  # blank line between items
+            out_lines.append("")  # blank line
 
     out_text = "\n".join(out_lines)
     if outfile:
@@ -238,11 +248,22 @@ def migrate(infile: str, outfile: str | None = None) -> None:
 
 
 if __name__ == "__main__":
-    import sys
+    import argparse
 
-    if len(sys.argv) < 2:
-        print("Usage: migrate_etm_to_tklr.py infile.json [outfile.txt]")
-    else:
-        infile = sys.argv[1]
-        outfile = sys.argv[2] if len(sys.argv) > 2 else None
-        migrate(infile, outfile)
+    parser = argparse.ArgumentParser(
+        description="Migrate etm.json (TinyDB) records into tklr batch entry format"
+    )
+    parser.add_argument("infile", help="Path to etm.json")
+    parser.add_argument("outfile", nargs="?", help="Optional output file")
+    parser.add_argument("--no-etm", action="store_true", help="Omit @ETM annotations")
+    parser.add_argument(
+        "--section",
+        choices=["items", "archive", "both"],
+        default="both",
+        help="Which section(s) to migrate (default: both)",
+    )
+    args = parser.parse_args()
+
+    migrate(
+        args.infile, args.outfile, include_etm=not args.no_etm, section=args.section
+    )
