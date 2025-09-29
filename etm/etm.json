@@ -1,0 +1,3124 @@
+{
+ "items": {
+  "1": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Quiquia aliquam voluptatem",
+   "s": "{T}:20250925T0400A",
+   "r": [
+    {
+     "r": "w",
+     "i": 2,
+     "u": "{T}:20251001T0400A"
+    }
+   ],
+   "+": [
+    "{T}:20251002T0400A",
+    "{T}:20250927T0400A"
+   ],
+   "t": [
+    "lorem"
+   ],
+   "k": [
+    41,
+    117,
+    126
+   ]
+  },
+  "2": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Aliquam labore tempora porro",
+   "s": "{T}:20250928T0400A",
+   "r": [
+    {
+     "r": "d",
+     "c": 4
+    }
+   ],
+   "+": [
+    "{T}:20250926T0400A",
+    "{T}:20251005T0400A"
+   ],
+   "t": [
+    "lorem"
+   ],
+   "k": [
+    41,
+    157,
+    79
+   ]
+  },
+  "3": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Dolore est sit numquam tempora",
+   "s": "{T}:20250922T0400A",
+   "r": [
+    {
+     "r": "w",
+     "c": 3
+    }
+   ],
+   "+": [
+    "{T}:20250930T0400A",
+    "{T}:20250925T0400A"
+   ],
+   "t": [
+    "lorem"
+   ],
+   "k": [
+    8,
+    9,
+    92,
+    127,
+    126,
+    63
+   ]
+  },
+  "4": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Non voluptatem quisquam quiquia",
+   "s": "{T}:20250925T0400A",
+   "r": [
+    {
+     "r": "w",
+     "i": 2,
+     "u": "{T}:20251001T0400A"
+    }
+   ],
+   "+": [
+    "{T}:20251004T0400A",
+    "{T}:20250923T0400A"
+   ],
+   "t": [
+    "lorem"
+   ]
+  },
+  "5": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Sit, Adipisci",
+   "i": "$billing/Sit, Adipisci/!info",
+   "d": "contact details for Sit, Adipisci go here.\nBecause of the index entry, all client records will be grouped under \"$billing\", then under the name of the relevant client in both index and journal view.  This infomation record will be first among the items for each client since beginning with a \"!info\" will put it at the top of the sorting order for the index entries for each client. Having such a journal entry for each client ensures that the client name will be available for completion of the index entry when other client related items are being created. The choice of \"$billing\" and \"!info\" is, of course, arbitrary but takes advantage of the sorting order that begins with \"!\", \"#\", \"$\" and \"%\".",
+   "t": [
+    "lorem"
+   ],
+   "k": [
+    64,
+    136,
+    111,
+    81,
+    117,
+    127
+   ]
+  },
+  "6": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Aliquam, Tempora",
+   "i": "$billing/Aliquam, Tempora/!info",
+   "d": "contact details for Aliquam, Tempora go here.\nBecause of the index entry, all client records will be grouped under \"$billing\", then under the name of the relevant client in both index and journal view.  This infomation record will be first among the items for each client since beginning with a \"!info\" will put it at the top of the sorting order for the index entries for each client. Having such a journal entry for each client ensures that the client name will be available for completion of the index entry when other client related items are being created. The choice of \"$billing\" and \"!info\" is, of course, arbitrary but takes advantage of the sorting order that begins with \"!\", \"#\", \"$\" and \"%\".",
+   "t": [
+    "lorem"
+   ]
+  },
+  "7": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Numquam, Dolor",
+   "i": "$billing/Numquam, Dolor/!info",
+   "d": "contact details for Numquam, Dolor go here.\nBecause of the index entry, all client records will be grouped under \"$billing\", then under the name of the relevant client in both index and journal view.  This infomation record will be first among the items for each client since beginning with a \"!info\" will put it at the top of the sorting order for the index entries for each client. Having such a journal entry for each client ensures that the client name will be available for completion of the index entry when other client related items are being created. The choice of \"$billing\" and \"!info\" is, of course, arbitrary but takes advantage of the sorting order that begins with \"!\", \"#\", \"$\" and \"%\".",
+   "t": [
+    "lorem"
+   ]
+  },
+  "8": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Dolorem, Voluptatem",
+   "i": "$billing/Dolorem, Voluptatem/!info",
+   "d": "contact details for Dolorem, Voluptatem go here.\nBecause of the index entry, all client records will be grouped under \"$billing\", then under the name of the relevant client in both index and journal view.  This infomation record will be first among the items for each client since beginning with a \"!info\" will put it at the top of the sorting order for the index entries for each client. Having such a journal entry for each client ensures that the client name will be available for completion of the index entry when other client related items are being created. The choice of \"$billing\" and \"!info\" is, of course, arbitrary but takes advantage of the sorting order that begins with \"!\", \"#\", \"$\" and \"%\".",
+   "t": [
+    "lorem"
+   ]
+  },
+  "9": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "!",
+   "summary": "README",
+   "t": [
+    "lorem"
+   ],
+   "d": ".\n1) This inbox item and each of the other 188 internally generated reminders is tagged 'lorem'. All of them can be removed in one step by opening query view (press 'q'), entering the query 'any t lorem | remove' and pressing 'return'.\n2). The examples are generated to fit within a period including the week they were generated together with 5 subsequent and 6 previous weeks. You can remove and regenerate them whenever you like to keep them current."
+  },
+  "10": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-09-02",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Tuesday, September 2 2025\n\n  * 13:24\n    - Sit adipisci neque"
+  },
+  "11": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Neque est ipsum sed",
+   "i": "$billing/Aliquam, Tempora/project b1",
+   "d": "Modi adipisci voluptatem adipisci.",
+   "l": "shop",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "12": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Eius dolor quiquia sit",
+   "s": "{T}:20250921T1530A",
+   "e": "{I}:3h",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "u": [
+    [
+     "{I}:1h15m",
+     "{T}:20250921T1645A"
+    ],
+    [
+     "{I}:30m",
+     "{T}:20250921T1600A"
+    ]
+   ],
+   "d": "Quaerat ut quiquia eius amet consectetur sit.",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "13": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Ipsum neque ut",
+   "s": "{T}:20250211T1900A",
+   "e": "{I}:2h",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "d": "Magnam numquam modi quaerat non velit dolore modi.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "14": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Modi voluptatem aliquam consectetur",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "d": "Tempora porro quaerat velit modi neque quiquia.",
+   "l": "home",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "15": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Velit voluptatem quiquia",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Numquam dolore neque dolor neque quiquia dolor neque.",
+   "l": "shop",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "16": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Dolore quiquia sed",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Labore ut porro neque dolorem modi ut sed.",
+   "l": "office",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "17": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Consectetur velit dolor ut",
+   "s": "{T}:20250611T1045A",
+   "e": "{I}:3h15m",
+   "i": "$billing/Aliquam, Tempora/project b1",
+   "d": "Velit magnam dolorem ut.",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "18": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Quiquia quaerat velit modi",
+   "s": "{T}:20250831T2230A",
+   "e": "{I}:2h",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "u": [
+    [
+     "{I}:1h",
+     "{T}:20250831T2330A"
+    ],
+    [
+     "{I}:1h",
+     "{T}:20250831T2330A"
+    ]
+   ],
+   "d": "Dolor dolor consectetur sed quaerat quisquam quiquia velit.",
+   "t": [
+    "blue",
+    "lorem"
+   ],
+   "k": [
+    110,
+    157,
+    126
+   ]
+  },
+  "19": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Ipsum dolor numquam",
+   "s": "{T}:20250918T0130A",
+   "i": "$billing/Aliquam, Tempora/project b2",
+   "u": [
+    [
+     "{I}:25m",
+     "{T}:20250918T0155A"
+    ]
+   ],
+   "d": "Adipisci numquam quaerat consectetur dolore aliquam modi etincidunt.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "20": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Dolor est dolor sed",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Non quisquam quisquam dolor aliquam dolorem.",
+   "l": "home",
+   "t": [
+    "red",
+    "lorem"
+   ],
+   "k": [
+    66,
+    8,
+    41,
+    47,
+    80,
+    92
+   ]
+  },
+  "21": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Modi sed dolore voluptatem",
+   "s": "{T}:20250611T0145A",
+   "e": "{I}:1h15m",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "d": "Magnam sed adipisci ipsum adipisci amet.",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "22": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Modi quiquia labore",
+   "s": "{T}:20250310T0400A",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "23": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Modi quiquia labore quisquam",
+   "s": "{T}:20250610T1430A",
+   "e": "{I}:1h",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Sit tempora velit porro quisquam neque tempora.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "24": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Consectetur modi ut quiquia",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Etincidunt magnam consectetur labore modi magnam consectetur voluptatem.",
+   "l": "errands",
+   "t": [
+    "red",
+    "lorem"
+   ],
+   "k": [
+    102,
+    49,
+    19,
+    157,
+    95
+   ]
+  },
+  "25": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-08-27",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Wednesday, August 27 2025\n\n  * 07:34\n    - Magnam voluptatem magnam"
+  },
+  "26": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Ut adipisci etincidunt dolore",
+   "s": "{T}:20250917T0400A",
+   "i": "$billing/Aliquam, Tempora/project b3",
+   "u": [
+    [
+     "{I}:1h35m",
+     "{T}:20250917T1805A"
+    ],
+    [
+     "{I}:35m",
+     "{T}:20250917T1705A"
+    ]
+   ],
+   "d": "Est est est etincidunt.",
+   "t": [
+    "lorem"
+   ],
+   "k": [
+    64,
+    52,
+    166
+   ]
+  },
+  "27": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-09-16",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Tuesday, September 16 2025\n\n  * 17:51\n    - Adipisci labore aliquam",
+   "k": [
+    178,
+    75,
+    92
+   ]
+  },
+  "28": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Porro eius labore consectetur tempora",
+   "s": "{T}:20250828T0015A",
+   "e": "{I}:45m",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "u": [
+    [
+     "{I}:1h5m",
+     "{T}:20250828T0120A"
+    ],
+    [
+     "{I}:1h45m",
+     "{T}:20250827T0400A"
+    ]
+   ],
+   "d": "Amet dolore eius neque etincidunt est amet.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "29": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-09-26",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Friday, September 26 2025\n\n  * 15:46\n    - Eius adipisci dolor modi est"
+  },
+  "30": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Sed labore eius ut adipisci",
+   "s": "{T}:20251029T0400A",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Quiquia magnam velit sed modi.",
+   "b": 5,
+   "t": [
+    "lorem"
+   ]
+  },
+  "31": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Dolore dolore ut",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Voluptatem velit sit adipisci.",
+   "l": "home",
+   "t": [
+    "red",
+    "lorem"
+   ],
+   "k": [
+    8,
+    110,
+    81,
+    122,
+    94,
+    127
+   ]
+  },
+  "32": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Eius magnam numquam numquam",
+   "s": "{T}:20250928T1630A",
+   "e": "{I}:2h15m",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "u": [
+    [
+     "{I}:1h45m",
+     "{T}:20250928T1815A"
+    ]
+   ],
+   "d": "Tempora dolore magnam consectetur adipisci consectetur est numquam.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "33": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Dolorem sed modi voluptatem labore",
+   "s": "{T}:20251210T1615A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Eius ipsum adipisci voluptatem.",
+   "b": 9,
+   "t": [
+    "lorem"
+   ]
+  },
+  "34": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Etincidunt dolorem magnam quisquam quiquia",
+   "s": "{T}:20251023T1330A",
+   "i": "$billing/Aliquam, Tempora/project b1",
+   "d": "Neque amet sed sit amet aliquam.",
+   "b": 4,
+   "t": [
+    "lorem"
+   ],
+   "k": [
+    41,
+    178,
+    19,
+    52,
+    28
+   ]
+  },
+  "35": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Dolor neque est velit adipisci",
+   "s": "{T}:20251209T1730A",
+   "e": "{I}:3h15m",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "u": [
+    [
+     "{I}:1h35m",
+     "{T}:20251209T1905A"
+    ]
+   ],
+   "d": "Quisquam non velit voluptatem.",
+   "t": [
+    "green",
+    "lorem"
+   ],
+   "k": [
+    126,
+    51,
+    166
+   ]
+  },
+  "36": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Aliquam non quiquia",
+   "s": "{T}:20250822T1845A",
+   "e": "{I}:45m",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "u": [
+    [
+     "{I}:1h40m",
+     "{T}:20250822T0400A"
+    ],
+    [
+     "{I}:1h35m",
+     "{T}:20250822T0400A"
+    ]
+   ],
+   "d": "Sit modi consectetur dolor tempora.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "37": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Velit quaerat consectetur modi",
+   "s": "{T}:20251019T2345A",
+   "e": "{I}:1h45m",
+   "i": "$billing/Aliquam, Tempora/project b3",
+   "d": "Quiquia non labore magnam aliquam.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "38": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Neque labore modi",
+   "s": "{T}:20250828T1300A",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "f": "{P}:20250828T1300A -> 20250828T1300A",
+   "u": [
+    [
+     "{I}:30m",
+     "{T}:20250828T1330A"
+    ]
+   ],
+   "d": "Ipsum voluptatem consectetur quiquia velit quisquam quiquia.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "39": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Quaerat est dolorem est etincidunt",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Sed sed magnam ut ipsum.",
+   "l": "office",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "40": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Amet quiquia sit est",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "d": "Magnam consectetur eius quiquia neque dolore.",
+   "l": "home",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "41": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Numquam modi magnam adipisci",
+   "s": "{T}:20250411T2030A",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Neque magnam porro sed aliquam dolor dolore tempora.",
+   "b": 10,
+   "t": [
+    "lorem"
+   ],
+   "k": [
+    161,
+    66,
+    136,
+    111,
+    19,
+    117,
+    126
+   ]
+  },
+  "42": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Quisquam sit magnam amet labore",
+   "i": "$billing/Aliquam, Tempora/project b3",
+   "d": "Sed non quisquam eius etincidunt est magnam numquam.",
+   "l": "home",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "43": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Labore magnam dolore neque",
+   "s": "{T}:20250709T2230A",
+   "i": "$billing/Aliquam, Tempora/project b1",
+   "f": "{P}:20250709T2230A -> 20250709T2230A",
+   "u": [
+    [
+     "{I}:1h30m",
+     "{T}:20250710T0000A"
+    ],
+    [
+     "{I}:1h10m",
+     "{T}:20250709T2340A"
+    ]
+   ],
+   "d": "Quisquam etincidunt aliquam ut amet etincidunt consectetur dolorem.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "44": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Sed ipsum dolorem amet sed",
+   "s": "{T}:20250909T0400A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "f": "{P}:20250909T0400A -> 20250510T0400A",
+   "u": [
+    [
+     "{I}:50m",
+     "{T}:20250909T0400A"
+    ]
+   ],
+   "d": "Magnam ut est neque etincidunt ipsum quiquia amet.",
+   "t": [
+    "lorem"
+   ],
+   "k": [
+    136,
+    41,
+    138,
+    19,
+    126,
+    95
+   ]
+  },
+  "45": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-08-28",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Thursday, August 28 2025\n\n  * 08:24\n    - Adipisci quisquam adipisci tempora"
+  },
+  "46": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Amet dolore quaerat quisquam",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Sit quisquam dolor etincidunt tempora.",
+   "l": "office",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "47": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Est quaerat sit modi est",
+   "s": "{T}:20251018T2030A",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Magnam quiquia eius magnam.",
+   "b": 12,
+   "t": [
+    "lorem"
+   ]
+  },
+  "48": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-09-20",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Saturday, September 20 2025\n\n  * 13:45\n    - Dolorem quiquia porro"
+  },
+  "49": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Magnam labore velit",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Sed sed tempora quiquia velit adipisci modi.",
+   "l": "home",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "50": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Sit sed dolorem",
+   "s": "{T}:20250410T0015A",
+   "e": "{I}:30m",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "u": [
+    [
+     "{I}:1h30m",
+     "{T}:20250410T0145A"
+    ]
+   ],
+   "d": "Labore magnam dolore dolorem quaerat.",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "51": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Ut voluptatem dolor",
+   "s": "{T}:20250711T1100A",
+   "e": "{I}:2h45m",
+   "i": "$billing/Aliquam, Tempora/project b2",
+   "d": "Ut tempora ut voluptatem.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "52": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Neque dolore porro sed ipsum",
+   "s": "{T}:20250310T1700A",
+   "e": "{I}:1h45m",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "d": "Dolor sed etincidunt adipisci.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "53": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Adipisci sed ut",
+   "s": "{T}:20250820T0400A",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "54": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Dolor magnam dolorem",
+   "s": "{T}:20250915T1730A",
+   "i": "$billing/Aliquam, Tempora/project b3",
+   "f": "{P}:20250915T1730A -> 20250915T1730A",
+   "u": [
+    [
+     "{I}:1h15m",
+     "{T}:20250915T1845A"
+    ]
+   ],
+   "d": "Voluptatem quaerat etincidunt quaerat adipisci dolore sed.",
+   "t": [
+    "lorem"
+   ],
+   "k": [
+    41,
+    78,
+    80,
+    117,
+    126,
+    94
+   ]
+  },
+  "55": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Sit eius adipisci quaerat",
+   "s": "{T}:20250820T0400A",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "56": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Ipsum sed neque amet",
+   "s": "{T}:20250510T0400A",
+   "t": [
+    "blue",
+    "lorem"
+   ],
+   "k": [
+    161,
+    138,
+    178,
+    122,
+    63
+   ]
+  },
+  "57": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Neque tempora sit",
+   "s": "{T}:20250917T1145A",
+   "e": "{I}:3h15m",
+   "i": "$billing/Aliquam, Tempora/project b2",
+   "u": [
+    [
+     "{I}:35m",
+     "{T}:20250917T1220A"
+    ],
+    [
+     "{I}:1h15m",
+     "{T}:20250917T0400A"
+    ]
+   ],
+   "d": "Voluptatem labore dolore quiquia sit.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "58": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Quisquam labore velit amet",
+   "s": "{T}:20251022T1045A",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Sit ipsum consectetur quisquam voluptatem dolore ut ut.",
+   "b": 1,
+   "t": [
+    "lorem"
+   ]
+  },
+  "59": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Aliquam voluptatem ipsum",
+   "s": "{T}:20250910T1215A",
+   "e": "{I}:30m",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Magnam numquam amet dolore ipsum neque porro quisquam.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "60": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Labore amet tempora sed labore",
+   "s": "{T}:20251010T1200A",
+   "e": "{I}:2h",
+   "i": "$billing/Aliquam, Tempora/project b2",
+   "d": "Dolor quiquia velit aliquam aliquam.",
+   "t": [
+    "red",
+    "lorem"
+   ],
+   "k": [
+    166,
+    41,
+    138,
+    81,
+    49,
+    122,
+    92,
+    157,
+    94,
+    127
+   ]
+  },
+  "61": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Non quisquam aliquam tempora amet",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Quaerat non ut dolorem dolorem modi.",
+   "l": "office",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "62": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Amet eius ipsum",
+   "s": "{T}:20250512T0030A",
+   "e": "{I}:1h",
+   "i": "$billing/Aliquam, Tempora/project b2",
+   "d": "Magnam numquam sit labore quiquia.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "63": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Quaerat consectetur labore dolore",
+   "s": "{T}:20251210T1445A",
+   "e": "{I}:2h30m",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Ipsum amet velit modi labore.",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "64": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Velit velit est",
+   "s": "{T}:20251109T1745A",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "f": "{P}:20251109T1745A -> 20251109T1745A",
+   "u": [
+    [
+     "{I}:1h40m",
+     "{T}:20251109T1925A"
+    ],
+    [
+     "{I}:1h25m",
+     "{T}:20251109T1910A"
+    ]
+   ],
+   "d": "Tempora porro est dolor voluptatem voluptatem numquam.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "65": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Etincidunt numquam aliquam eius",
+   "s": "{T}:20251022T1900A",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Sed dolorem quaerat neque.",
+   "b": 4,
+   "t": [
+    "lorem"
+   ]
+  },
+  "66": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Ipsum est quiquia",
+   "s": "{T}:20251110T1630A",
+   "e": "{I}:1h30m",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Quaerat consectetur ipsum voluptatem magnam sed quiquia ipsum.",
+   "t": [
+    "red",
+    "lorem"
+   ],
+   "k": [
+    9,
+    75,
+    117,
+    126
+   ]
+  },
+  "67": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Quiquia magnam neque velit",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Amet ut ipsum porro quisquam.",
+   "l": "errands",
+   "t": [
+    "red",
+    "lorem"
+   ],
+   "k": [
+    117,
+    126,
+    127
+   ]
+  },
+  "68": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Non quisquam quiquia est",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Amet consectetur aliquam non ipsum quaerat consectetur.",
+   "l": "errands",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "69": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Non numquam est",
+   "s": "{T}:20250923T1930A",
+   "e": "{I}:1h15m",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "u": [
+    [
+     "{I}:25m",
+     "{T}:20250923T0400A"
+    ]
+   ],
+   "d": "Magnam porro sit dolore amet est ut.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "70": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Sed modi porro quisquam",
+   "s": "{T}:20251029T0400A",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "71": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Quisquam sit porro dolore quaerat",
+   "s": "{T}:20250915T1030A",
+   "e": "{I}:2h30m",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "u": [
+    [
+     "{I}:1h15m",
+     "{T}:20250915T0400A"
+    ]
+   ],
+   "d": "Etincidunt eius dolorem etincidunt voluptatem labore quisquam.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "72": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Est adipisci eius voluptatem",
+   "s": "{T}:20251014T2015A",
+   "e": "{I}:45m",
+   "i": "$billing/Aliquam, Tempora/project b2",
+   "d": "Dolorem velit porro labore ut quiquia aliquam.",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "73": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Amet porro dolor dolor etincidunt",
+   "s": "{T}:20250927T1545A",
+   "e": "{I}:2h30m",
+   "i": "$billing/Aliquam, Tempora/project b1",
+   "u": [
+    [
+     "{I}:35m",
+     "{T}:20250927T1620A"
+    ],
+    [
+     "{I}:1h30m",
+     "{T}:20250927T1715A"
+    ]
+   ],
+   "d": "Dolor modi aliquam ut quisquam consectetur etincidunt dolorem.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "74": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Labore sit modi tempora",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Magnam quisquam neque porro eius modi non.",
+   "l": "office",
+   "t": [
+    "green",
+    "lorem"
+   ],
+   "k": [
+    136,
+    81,
+    178,
+    49,
+    117,
+    57
+   ]
+  },
+  "75": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Velit aliquam velit porro",
+   "s": "{T}:20250914T2030A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "f": "{P}:20250914T2030A -> 20250914T2030A",
+   "u": [
+    [
+     "{I}:1h40m",
+     "{T}:20250914T2210A"
+    ],
+    [
+     "{I}:1h40m",
+     "{T}:20250914T2210A"
+    ]
+   ],
+   "d": "Sed quaerat consectetur non velit est.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "76": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Dolore voluptatem sed neque dolore",
+   "s": "{T}:20251021T2000A",
+   "e": "{I}:3h",
+   "i": "$billing/Aliquam, Tempora/project b3",
+   "d": "Ut adipisci dolor ipsum.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "77": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Quaerat porro non labore",
+   "s": "{T}:20250711T1830A",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Numquam numquam dolore amet modi.",
+   "b": 6,
+   "t": [
+    "lorem"
+   ]
+  },
+  "78": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Adipisci sed velit labore dolore",
+   "s": "{T}:20250410T1900A",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Numquam velit dolor quisquam magnam non.",
+   "b": 7,
+   "t": [
+    "lorem"
+   ]
+  },
+  "79": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Tempora voluptatem magnam porro magnam",
+   "s": "{T}:20250927T1830A",
+   "e": "{I}:2h15m",
+   "i": "$billing/Aliquam, Tempora/project b2",
+   "u": [
+    [
+     "{I}:40m",
+     "{T}:20250927T1910A"
+    ]
+   ],
+   "d": "Adipisci magnam porro labore voluptatem est eius quiquia.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "80": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Numquam quiquia quiquia labore",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Magnam adipisci numquam aliquam adipisci ut.",
+   "l": "office",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "81": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Magnam consectetur consectetur quaerat velit",
+   "s": "{T}:20250828T1730A",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "f": "{P}:20250828T1730A -> 20250828T1730A",
+   "u": [
+    [
+     "{I}:30m",
+     "{T}:20250828T1800A"
+    ],
+    [
+     "{I}:45m",
+     "{T}:20250828T1815A"
+    ]
+   ],
+   "d": "Adipisci eius porro sed quaerat adipisci.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "82": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Porro aliquam neque numquam",
+   "s": "{T}:20250211T0500A",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "d": "Est voluptatem amet sed porro etincidunt adipisci.",
+   "b": 9,
+   "t": [
+    "lorem"
+   ]
+  },
+  "83": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Dolore dolore ut",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Dolor quaerat porro quisquam amet neque.",
+   "l": "office",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "84": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Quiquia amet sed",
+   "s": "{T}:20250913T1000A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "f": "{P}:20250913T1000A -> 20250913T1000A",
+   "u": [
+    [
+     "{I}:35m",
+     "{T}:20250913T1035A"
+    ]
+   ],
+   "d": "Non modi aliquam dolorem.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "85": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Quiquia consectetur amet ipsum dolorem",
+   "s": "{T}:20251020T2215A",
+   "e": "{I}:1h30m",
+   "i": "$billing/Aliquam, Tempora/project b3",
+   "d": "Aliquam consectetur sit quisquam dolorem.",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "86": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-09-13",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Saturday, September 13 2025\n\n  * 17:03\n    - Sed ipsum modi velit sed"
+  },
+  "87": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Aliquam sit neque labore dolor",
+   "i": "$billing/Aliquam, Tempora/project b1",
+   "d": "Velit voluptatem sed velit sed ipsum.",
+   "l": "errands",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "88": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Labore modi sed quiquia",
+   "s": "{T}:20250210T2145A",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Modi sit non consectetur dolore magnam dolore.",
+   "b": 2,
+   "t": [
+    "lorem"
+   ]
+  },
+  "89": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Porro tempora ut",
+   "s": "{T}:20250811T1830A",
+   "i": "$billing/Aliquam, Tempora/project b2",
+   "d": "Eius tempora neque ipsum ut quiquia neque magnam.",
+   "b": 4,
+   "t": [
+    "lorem"
+   ]
+  },
+  "90": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-09-24",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Wednesday, September 24 2025\n\n  * 14:52\n    - Modi sit ipsum"
+  },
+  "91": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Est velit consectetur",
+   "s": "{T}:20250921T1415A",
+   "e": "{I}:45m",
+   "i": "$billing/Aliquam, Tempora/project b3",
+   "u": [
+    [
+     "{I}:1h",
+     "{T}:20250921T0400A"
+    ]
+   ],
+   "d": "Quisquam est quaerat eius non neque velit voluptatem.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "92": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Est velit voluptatem quisquam quisquam",
+   "s": "{T}:20250925T1745A",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "u": [
+    [
+     "{I}:1h40m",
+     "{T}:20250925T0400A"
+    ]
+   ],
+   "d": "Labore magnam ipsum non voluptatem eius.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "93": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Consectetur sed sed tempora",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Quisquam ut dolor adipisci dolore.",
+   "l": "errands",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "94": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Sit voluptatem modi dolor sed",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Dolor quisquam labore ut neque amet neque quiquia.",
+   "l": "errands",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "95": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Quaerat quiquia velit",
+   "s": "{T}:20251019T2200A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Consectetur tempora etincidunt non quisquam etincidunt magnam.",
+   "b": 5,
+   "t": [
+    "lorem"
+   ]
+  },
+  "96": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Non ipsum voluptatem dolore",
+   "s": "{T}:20250710T0015A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "f": "{P}:20250710T0015A -> 20250710T0015A",
+   "u": [
+    [
+     "{I}:15m",
+     "{T}:20250710T0030A"
+    ]
+   ],
+   "d": "Etincidunt aliquam voluptatem modi aliquam adipisci ut neque.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "97": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Ut velit sit",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Sed etincidunt quiquia quiquia amet ipsum sit sit.",
+   "l": "home",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "98": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Ut tempora ut voluptatem",
+   "s": "{T}:20251026T0400A",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Dolor consectetur dolore tempora.",
+   "b": 12,
+   "t": [
+    "lorem"
+   ]
+  },
+  "99": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Labore dolore labore",
+   "s": "{T}:20250918T1230A",
+   "i": "$billing/Aliquam, Tempora/project b2",
+   "u": [
+    [
+     "{I}:1h",
+     "{T}:20250918T0400A"
+    ]
+   ],
+   "d": "Quiquia dolore non sed quaerat sed non quaerat.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "100": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-08-31",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Sunday, August 31 2025\n\n  * 11:28\n    - Non tempora sit"
+  },
+  "101": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Eius numquam quaerat quisquam amet",
+   "s": "{T}:20250711T1700A",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "d": "Dolore neque non neque magnam est dolor.",
+   "b": 10,
+   "t": [
+    "lorem"
+   ],
+   "k": [
+    166,
+    136,
+    75,
+    80,
+    117,
+    92
+   ]
+  },
+  "102": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-08-23",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Saturday, August 23 2025\n\n  * 07:34\n    - Quiquia modi sit"
+  },
+  "103": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Ipsum ipsum dolorem labore",
+   "s": "{T}:20250610T1100A",
+   "e": "{I}:1h15m",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Porro amet sed eius.",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "104": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Ipsum eius amet numquam",
+   "s": "{T}:20250923T2330A",
+   "e": "{I}:1h45m",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "u": [
+    [
+     "{I}:25m",
+     "{T}:20250923T2355A"
+    ],
+    [
+     "{I}:45m",
+     "{T}:20250924T0015A"
+    ]
+   ],
+   "d": "Tempora eius aliquam eius sed voluptatem labore dolorem.",
+   "t": [
+    "blue",
+    "lorem"
+   ],
+   "k": [
+    117,
+    141,
+    79
+   ]
+  },
+  "105": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Aliquam voluptatem eius",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Quisquam dolor neque labore dolorem porro non tempora.",
+   "l": "home",
+   "t": [
+    "blue",
+    "lorem"
+   ],
+   "k": [
+    166,
+    9,
+    41,
+    75,
+    138,
+    79,
+    47,
+    178,
+    19,
+    117,
+    122,
+    94
+   ]
+  },
+  "106": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Porro voluptatem ut",
+   "s": "{T}:20251109T0500A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "f": "{P}:20251109T0500A -> 20250827T0400A",
+   "u": [
+    [
+     "{I}:50m",
+     "{T}:20251109T1520A"
+    ]
+   ],
+   "d": "Eius porro dolor velit dolorem quiquia adipisci.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "107": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Quisquam amet magnam quiquia",
+   "i": "$billing/Aliquam, Tempora/project b1",
+   "d": "Neque voluptatem amet etincidunt consectetur tempora.",
+   "l": "errands",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "108": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-08-22",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Friday, August 22 2025\n\n  * 09:46\n    - Velit ipsum dolor quaerat eius",
+   "k": [
+    80,
+    9,
+    122,
+    95
+   ]
+  },
+  "109": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Magnam neque quisquam non",
+   "s": "{T}:20250926T2230A",
+   "e": "{I}:1h45m",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "u": [
+    [
+     "{I}:35m",
+     "{T}:20250926T2305A"
+    ]
+   ],
+   "d": "Dolor est adipisci velit dolor neque.",
+   "t": [
+    "red",
+    "lorem"
+   ],
+   "k": [
+    47,
+    178,
+    117,
+    23,
+    122,
+    157,
+    63
+   ]
+  },
+  "110": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Neque voluptatem etincidunt dolor eius",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "d": "Non neque ipsum numquam amet.",
+   "l": "home",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "111": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Quiquia labore modi",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "d": "Labore ipsum dolore modi amet dolor.",
+   "l": "shop",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "112": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Dolore etincidunt quisquam amet",
+   "s": "{T}:20251109T2345A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "f": "{P}:20251109T2345A -> 20251109T2345A",
+   "u": [
+    [
+     "{I}:40m",
+     "{T}:20251110T0025A"
+    ],
+    [
+     "{I}:50m",
+     "{T}:20251110T0035A"
+    ]
+   ],
+   "d": "Eius etincidunt magnam quisquam modi dolor sed.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "113": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Quiquia porro numquam",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Non dolorem dolor consectetur etincidunt quiquia.",
+   "l": "home",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "114": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Velit eius dolore modi",
+   "s": "{T}:20251015T1845A",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Non magnam sit dolorem neque porro tempora.",
+   "b": 2,
+   "t": [
+    "lorem"
+   ]
+  },
+  "115": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Tempora dolore modi voluptatem ipsum",
+   "s": "{T}:20250928T1400A",
+   "e": "{I}:1h45m",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "u": [
+    [
+     "{I}:1h15m",
+     "{T}:20250928T1515A"
+    ]
+   ],
+   "d": "Neque quaerat etincidunt amet dolorem aliquam quaerat magnam.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "116": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Non est dolor sit",
+   "s": "{T}:20250917T0400A",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "117": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Amet adipisci aliquam non",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Aliquam voluptatem non sed.",
+   "l": "shop",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "118": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Tempora quaerat dolor",
+   "s": "{T}:20251209T1815A",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "f": "{P}:20251209T1815A -> 20251209T1815A",
+   "u": [
+    [
+     "{I}:1h25m",
+     "{T}:20251209T0500A"
+    ]
+   ],
+   "d": "Sit numquam dolor ut tempora dolorem quisquam quisquam.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "119": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Aliquam labore quiquia quiquia dolore",
+   "s": "{T}:20251026T1745A",
+   "e": "{I}:2h30m",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Modi dolor non est.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "120": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Etincidunt adipisci sed numquam",
+   "s": "{T}:20250927T1045A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "u": [
+    [
+     "{I}:45m",
+     "{T}:20250927T0400A"
+    ]
+   ],
+   "d": "Voluptatem quiquia sed magnam labore amet dolorem quaerat.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "121": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-09-12",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Friday, September 12 2025\n\n  * 13:25\n    - Quiquia quiquia etincidunt"
+  },
+  "122": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Modi adipisci consectetur",
+   "s": "{T}:20250209T2200A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "f": "{P}:20250209T2200A -> 20250209T2200A",
+   "u": [
+    [
+     "{I}:1h20m",
+     "{T}:20250209T2320A"
+    ]
+   ],
+   "d": "Aliquam aliquam velit est voluptatem ipsum.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "123": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Dolorem labore dolore dolorem quaerat",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "d": "Adipisci dolore porro est dolor porro porro.",
+   "l": "shop",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "124": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Tempora consectetur voluptatem sit",
+   "s": "{T}:20250924T1945A",
+   "e": "{I}:1h45m",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "u": [
+    [
+     "{I}:1h45m",
+     "{T}:20250924T2130A"
+    ],
+    [
+     "{I}:45m",
+     "{T}:20250924T2030A"
+    ]
+   ],
+   "d": "Etincidunt dolore sit magnam consectetur numquam.",
+   "t": [
+    "blue",
+    "lorem"
+   ],
+   "k": [
+    80,
+    9,
+    66,
+    92
+   ]
+  },
+  "125": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Ipsum neque adipisci ipsum amet",
+   "s": "{T}:20251031T1330A",
+   "e": "{I}:2h",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Sit etincidunt voluptatem tempora consectetur neque.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "126": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-09-25",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Thursday, September 25 2025\n\n  * 13:24\n    - Est aliquam tempora magnam"
+  },
+  "127": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Velit quisquam aliquam ipsum quisquam",
+   "s": "{T}:20250919T2045A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "f": "{P}:20250919T2045A -> 20250919T2045A",
+   "u": [
+    [
+     "{I}:25m",
+     "{T}:20250919T0400A"
+    ],
+    [
+     "{I}:35m",
+     "{T}:20250919T2120A"
+    ]
+   ],
+   "d": "Neque dolorem etincidunt eius sed quaerat est non.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "128": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Sit modi labore est",
+   "s": "{T}:20251031T2130A",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Consectetur magnam dolore sit velit porro dolor.",
+   "b": 3,
+   "t": [
+    "lorem"
+   ]
+  },
+  "129": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Consectetur sed sed",
+   "i": "$billing/Aliquam, Tempora/project b3",
+   "d": "Numquam numquam consectetur amet quiquia velit adipisci.",
+   "l": "home",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "130": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Modi aliquam quisquam quisquam",
+   "s": "{T}:20250809T1245A",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "f": "{P}:20250809T1245A -> 20250809T1245A",
+   "u": [
+    [
+     "{I}:1h15m",
+     "{T}:20250809T0400A"
+    ],
+    [
+     "{I}:15m",
+     "{T}:20250809T1300A"
+    ]
+   ],
+   "d": "Magnam porro amet ipsum ut dolor modi adipisci.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "131": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Etincidunt voluptatem porro",
+   "s": "{T}:20251026T0145A",
+   "e": "{I}:2h",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Consectetur quiquia neque eius aliquam etincidunt.",
+   "t": [
+    "green",
+    "lorem"
+   ],
+   "k": [
+    66,
+    75,
+    79
+   ]
+  },
+  "132": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Dolore neque amet",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Dolore aliquam eius numquam tempora modi quisquam ut.",
+   "l": "office",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "133": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Modi ut dolor",
+   "s": "{T}:20251013T1445A",
+   "e": "{I}:3h15m",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "d": "Magnam porro ut numquam sit ipsum.",
+   "t": [
+    "green",
+    "lorem"
+   ],
+   "k": [
+    75,
+    111,
+    117,
+    126,
+    95
+   ]
+  },
+  "134": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Porro velit dolore",
+   "s": "{T}:20250818T1500A",
+   "e": "{I}:1h",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "u": [
+    [
+     "{I}:1h20m",
+     "{T}:20250818T1620A"
+    ],
+    [
+     "{I}:45m",
+     "{T}:20250818T1545A"
+    ]
+   ],
+   "d": "Aliquam est velit dolore voluptatem.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "135": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-09-18",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Thursday, September 18 2025\n\n  * 15:51\n    - Quisquam magnam neque quisquam",
+   "k": [
+    57,
+    117,
+    157
+   ]
+  },
+  "136": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Numquam quiquia dolor",
+   "s": "{T}:20250924T1745A",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "u": [
+    [
+     "{I}:55m",
+     "{T}:20250924T1840A"
+    ],
+    [
+     "{I}:30m",
+     "{T}:20250924T1815A"
+    ]
+   ],
+   "d": "Neque quaerat numquam porro.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "137": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Neque quaerat aliquam adipisci",
+   "s": "{T}:20250930T1145A",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "d": "Quaerat tempora dolorem porro.",
+   "b": 6,
+   "t": [
+    "lorem"
+   ]
+  },
+  "138": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Amet neque consectetur sit",
+   "s": "{T}:20250829T2115A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "f": "{P}:20250829T2115A -> 20250829T2115A",
+   "u": [
+    [
+     "{I}:35m",
+     "{T}:20250829T0400A"
+    ]
+   ],
+   "d": "Ut est quiquia dolore non.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "139": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Quaerat voluptatem dolor labore",
+   "s": "{T}:20250409T1215A",
+   "e": "{I}:3h15m",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "u": [
+    [
+     "{I}:1h45m",
+     "{T}:20250409T1400A"
+    ]
+   ],
+   "d": "Voluptatem numquam ut dolor ipsum amet.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "140": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Dolor adipisci etincidunt labore",
+   "s": "{T}:20250828T0145A",
+   "e": "{I}:2h15m",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "u": [
+    [
+     "{I}:40m",
+     "{T}:20250828T0225A"
+    ],
+    [
+     "{I}:1h5m",
+     "{T}:20250828T0250A"
+    ]
+   ],
+   "d": "Consectetur etincidunt eius non dolor magnam neque.",
+   "t": [
+    "red",
+    "lorem"
+   ],
+   "k": [
+    136,
+    75,
+    126
+   ]
+  },
+  "141": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Aliquam quiquia adipisci",
+   "s": "{T}:20251017T1115A",
+   "e": "{I}:1h30m",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "d": "Voluptatem aliquam quaerat dolor.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "142": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Magnam quisquam dolorem ut non",
+   "s": "{T}:20251010T1345A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Porro dolorem ut adipisci eius dolorem.",
+   "b": 10,
+   "t": [
+    "lorem"
+   ],
+   "k": [
+    64,
+    81,
+    117
+   ]
+  },
+  "143": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Dolor velit ut sit",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Tempora voluptatem quiquia ut.",
+   "l": "home",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "144": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Porro modi ut",
+   "s": "{T}:20250311T0400A",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "d": "Est ut numquam velit porro dolor.",
+   "b": 12,
+   "t": [
+    "lorem"
+   ],
+   "k": [
+    64,
+    136,
+    9,
+    117,
+    57,
+    28
+   ]
+  },
+  "145": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Labore numquam magnam",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "d": "Ipsum adipisci neque etincidunt.",
+   "l": "office",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "146": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Tempora eius tempora est ipsum",
+   "s": "{T}:20250110T1330A",
+   "e": "{I}:2h30m",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "d": "Sit velit quaerat voluptatem etincidunt est sed.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "147": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Numquam velit eius",
+   "s": "{T}:20250309T1045A",
+   "e": "{I}:1h15m",
+   "i": "$billing/Aliquam, Tempora/project b1",
+   "u": [
+    [
+     "{I}:1h25m",
+     "{T}:20250309T0500A"
+    ],
+    [
+     "{I}:1h25m",
+     "{T}:20250309T1210A"
+    ]
+   ],
+   "d": "Est amet eius numquam quiquia dolorem ut.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "148": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Aliquam ipsum quiquia amet voluptatem",
+   "s": "{T}:20250109T1745A",
+   "i": "$billing/Numquam, Dolor/project c2",
+   "f": "{P}:20250109T1745A -> 20250109T1745A",
+   "u": [
+    [
+     "{I}:55m",
+     "{T}:20250109T1840A"
+    ]
+   ],
+   "d": "Aliquam etincidunt quiquia modi.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "149": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Consectetur non quisquam numquam",
+   "i": "$billing/Aliquam, Tempora/project b1",
+   "d": "Quisquam quiquia amet numquam dolor.",
+   "l": "office",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "150": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Numquam aliquam ut voluptatem",
+   "s": "{T}:20250921T1630A",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "u": [
+    [
+     "{I}:1h40m",
+     "{T}:20250921T1810A"
+    ]
+   ],
+   "d": "Est modi voluptatem eius quisquam ipsum.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "151": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Aliquam ipsum quaerat",
+   "s": "{T}:20250822T0400A",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "152": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Numquam ipsum ut",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Quaerat velit tempora dolore tempora porro amet dolorem.",
+   "l": "errands",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "153": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Dolor consectetur quaerat dolorem",
+   "s": "{T}:20251110T2215A",
+   "e": "{I}:1h30m",
+   "i": "$billing/Aliquam, Tempora/project b2",
+   "d": "Magnam quaerat tempora numquam aliquam numquam dolorem amet.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "154": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-08-25",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Monday, August 25 2025\n\n  * 15:55\n    - Sed ipsum sit"
+  },
+  "155": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-08-21",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Thursday, August 21 2025\n\n  * 13:44\n    - Porro eius sit"
+  },
+  "156": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Tempora ipsum dolor tempora modi",
+   "s": "{T}:20250825T2000A",
+   "e": "{I}:1h30m",
+   "i": "$billing/Aliquam, Tempora/project b3",
+   "u": [
+    [
+     "{I}:25m",
+     "{T}:20250825T2025A"
+    ],
+    [
+     "{I}:50m",
+     "{T}:20250825T2050A"
+    ]
+   ],
+   "d": "Amet adipisci ut etincidunt velit.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "157": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-09-21",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Sunday, September 21 2025\n\n  * 06:03\n    - Consectetur voluptatem aliquam"
+  },
+  "158": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Non ipsum non ipsum labore",
+   "s": "{T}:20251018T2045A",
+   "e": "{I}:45m",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Ut dolor tempora ipsum quiquia.",
+   "t": [
+    "green",
+    "lorem"
+   ],
+   "k": [
+    64,
+    66,
+    102,
+    136,
+    122,
+    92
+   ]
+  },
+  "159": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Ipsum neque adipisci non quisquam",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Etincidunt aliquam ipsum eius dolore modi etincidunt quiquia.",
+   "l": "shop",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "160": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-09-10",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Wednesday, September 10 2025\n\n  * 09:32\n    - Eius porro quisquam aliquam",
+   "k": [
+    81,
+    66,
+    92,
+    23
+   ]
+  },
+  "161": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Tempora quisquam velit quaerat",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Magnam ut ipsum numquam modi.",
+   "l": "home",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "162": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Quiquia amet dolorem",
+   "s": "{T}:20250909T2245A",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "f": "{P}:20250909T2245A -> 20250909T2245A",
+   "u": [
+    [
+     "{I}:50m",
+     "{T}:20250909T2335A"
+    ]
+   ],
+   "d": "Dolore aliquam dolore sit ut dolore.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "163": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Labore sit ipsum",
+   "s": "{T}:20250511T0115A",
+   "e": "{I}:3h15m",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Dolore ut quaerat eius etincidunt quaerat voluptatem.",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "164": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-09-28",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Sunday, September 28 2025\n\n  * 14:48\n    - Non numquam eius sit"
+  },
+  "165": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Dolor etincidunt labore aliquam",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Ut magnam numquam voluptatem sit numquam sit.",
+   "l": "office",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "166": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Sit tempora ipsum amet ut",
+   "s": "{T}:20250310T2230A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Est voluptatem etincidunt etincidunt adipisci.",
+   "b": 9,
+   "t": [
+    "lorem"
+   ]
+  },
+  "167": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Neque velit non",
+   "s": "{T}:20250827T1900A",
+   "e": "{I}:1h",
+   "i": "$billing/Numquam, Dolor/project c1",
+   "u": [
+    [
+     "{I}:1h40m",
+     "{T}:20250827T2040A"
+    ]
+   ],
+   "d": "Neque modi quiquia modi neque.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "168": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Numquam quiquia sed tempora",
+   "s": "{T}:20250822T1345A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "f": "{P}:20250822T1345A -> 20250822T1345A",
+   "u": [
+    [
+     "{I}:1h25m",
+     "{T}:20250822T1510A"
+    ]
+   ],
+   "d": "Consectetur numquam labore ut labore ipsum aliquam.",
+   "t": [
+    "lorem"
+   ]
+  },
+  "169": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Velit magnam magnam",
+   "s": "{T}:20250710T0400A",
+   "i": "$billing/Sit, Adipisci/project a1",
+   "d": "Non etincidunt consectetur quiquia est ut.",
+   "b": 6,
+   "t": [
+    "lorem"
+   ]
+  },
+  "170": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Neque dolore ut",
+   "s": "{T}:20250924T0400A",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "171": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "Eius aliquam eius",
+   "s": "{T}:20251021T1445A",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Amet est adipisci sit sit.",
+   "b": 1,
+   "t": [
+    "lorem"
+   ]
+  },
+  "172": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Porro ut est",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Est quisquam amet quisquam numquam velit porro.",
+   "l": "office",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "173": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Dolor ipsum voluptatem",
+   "s": "{T}:20250928T1500A",
+   "e": "{I}:1h15m",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "u": [
+    [
+     "{I}:1h",
+     "{T}:20250928T1600A"
+    ],
+    [
+     "{I}:30m",
+     "{T}:20250928T1530A"
+    ]
+   ],
+   "d": "Neque porro quaerat voluptatem est quisquam dolor.",
+   "t": [
+    "green",
+    "lorem"
+   ]
+  },
+  "174": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Amet dolore sed sit non",
+   "s": "{T}:20251015T0030A",
+   "e": "{I}:3h",
+   "i": "$billing/Dolorem, Voluptatem/project d1",
+   "d": "Ut eius modi sed dolorem numquam.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "175": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "Modi amet aliquam",
+   "i": "$billing/Sit, Adipisci/project a2",
+   "d": "Consectetur adipisci consectetur ipsum.",
+   "l": "shop",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "176": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Magnam non quaerat quaerat",
+   "s": "{T}:20250609T0400A",
+   "t": [
+    "blue",
+    "lorem"
+   ]
+  },
+  "177": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Aliquam modi neque non",
+   "s": "{T}:20250410T2100A",
+   "e": "{I}:2h",
+   "i": "$billing/Aliquam, Tempora/project b1",
+   "d": "Consectetur dolore quisquam porro magnam numquam non.",
+   "t": [
+    "red",
+    "lorem"
+   ],
+   "k": [
+    64,
+    23,
+    95
+   ]
+  },
+  "178": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Dolorem dolore numquam magnam amet",
+   "s": "{T}:20250928T1115A",
+   "e": "{I}:2h15m",
+   "i": "$billing/Aliquam, Tempora/project b1",
+   "u": [
+    [
+     "{I}:1h10m",
+     "{T}:20250928T0400A"
+    ]
+   ],
+   "d": "Etincidunt ipsum aliquam ipsum voluptatem dolorem.",
+   "t": [
+    "red",
+    "lorem"
+   ]
+  },
+  "179": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "Quisquam adipisci dolorem quiquia",
+   "s": "{T}:20250916T1845A",
+   "e": "{I}:2h30m",
+   "i": "$billing/Aliquam, Tempora/project b1",
+   "u": [
+    [
+     "{I}:15m",
+     "{T}:20250916T1900A"
+    ],
+    [
+     "{I}:1h20m",
+     "{T}:20250916T2005A"
+    ]
+   ],
+   "d": "Eius eius numquam consectetur consectetur eius velit.",
+   "t": [
+    "green",
+    "lorem"
+   ],
+   "k": [
+    161,
+    136,
+    41,
+    79,
+    28,
+    127
+   ]
+  },
+  "180": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "%",
+   "summary": "2025-09-19",
+   "i": "#daily",
+   "t": [
+    "lorem"
+   ],
+   "d": "Friday, September 19 2025\n\n  * 12:36\n    - Dolor est neque porro",
+   "k": [
+    8,
+    9,
+    117,
+    94
+   ]
+  },
+  "181": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "-",
+   "summary": "doghouse",
+   "s": "{T}:20250929T0400A",
+   "e": "{I}:5d",
+   "t": [
+    "lorem"
+   ],
+   "j": [
+    {
+     "j": "purchase materials",
+     "e": "{I}:1d",
+     "status": "-",
+     "summary": "purchase materials: doghouse 1/4/0",
+     "req": [],
+     "i": "a"
+    },
+    {
+     "j": "cut pieces",
+     "s": "{I}:1d",
+     "e": "{I}:1d",
+     "p": [
+      "a"
+     ],
+     "status": "+",
+     "summary": "cut pieces: doghouse 1/4/0",
+     "req": [
+      "a"
+     ],
+     "i": "b"
+    },
+    {
+     "j": "assemble",
+     "s": "{I}:2d",
+     "e": "{I}:1d",
+     "p": [
+      "b"
+     ],
+     "status": "+",
+     "summary": "assemble: doghouse 1/4/0",
+     "req": [
+      "b",
+      "a"
+     ],
+     "i": "c"
+    },
+    {
+     "j": "sand",
+     "s": "{I}:3d",
+     "e": "{I}:1d",
+     "p": [
+      "c"
+     ],
+     "status": "+",
+     "summary": "sand: doghouse 1/4/0",
+     "req": [
+      "c",
+      "a",
+      "b"
+     ],
+     "i": "d"
+    },
+    {
+     "j": "paint",
+     "s": "{I}:4d",
+     "e": "{I}:1d",
+     "p": [
+      "d"
+     ],
+     "status": "+",
+     "summary": "paint: doghouse 1/4/0",
+     "req": [
+      "d",
+      "a",
+      "b",
+      "c"
+     ],
+     "i": "e"
+    }
+   ]
+  },
+  "182": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "~",
+   "summary": "Numquam quaerat amet aliquam porro",
+   "s": "{T}:20250929T0400A",
+   "q": [
+    "2",
+    "w",
+    []
+   ],
+   "t": [
+    "lorem"
+   ]
+  },
+  "183": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "~",
+   "summary": "Est eius sed magnam",
+   "s": "{T}:20250929T0400A",
+   "q": [
+    "7",
+    "w",
+    []
+   ],
+   "t": [
+    "lorem"
+   ]
+  },
+  "184": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "~",
+   "summary": "Magnam aliquam amet dolor dolore",
+   "s": "{T}:20250929T0400A",
+   "q": [
+    "14",
+    "w",
+    [
+     20,
+     21,
+     22,
+     23,
+     24,
+     25,
+     26,
+     27,
+     28,
+     29,
+     30,
+     31,
+     32,
+     33,
+     34,
+     35,
+     36,
+     37,
+     38,
+     39,
+     40
+    ]
+   ],
+   "t": [
+    "lorem"
+   ]
+  },
+  "185": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "~",
+   "summary": "Numquam adipisci neque magnam",
+   "s": "{T}:20250929T0400A",
+   "q": [
+    "2",
+    "m",
+    []
+   ],
+   "t": [
+    "lorem"
+   ]
+  },
+  "186": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "~",
+   "summary": "Etincidunt sed quiquia",
+   "s": "{T}:20250929T0400A",
+   "q": [
+    "28",
+    "m",
+    []
+   ],
+   "t": [
+    "lorem"
+   ]
+  },
+  "187": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "~",
+   "summary": "Numquam non adipisci modi",
+   "s": "{T}:20250929T0400A",
+   "q": [
+    "56",
+    "q",
+    []
+   ],
+   "t": [
+    "lorem"
+   ]
+  },
+  "188": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "~",
+   "summary": "Dolore sed quaerat",
+   "s": "{T}:20250929T0400A",
+   "q": [
+    "10",
+    "q",
+    [
+     1,
+     2
+    ]
+   ],
+   "t": [
+    "lorem"
+   ]
+  },
+  "189": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "~",
+   "summary": "Dolor tempora labore ipsum tempora",
+   "s": "{T}:20250929T0400A",
+   "q": [
+    "10",
+    "q",
+    [
+     3,
+     4
+    ]
+   ],
+   "t": [
+    "lorem"
+   ]
+  },
+  "190": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "~",
+   "summary": "Magnam numquam etincidunt dolorem",
+   "s": "{T}:20250929T0400A",
+   "q": [
+    "4",
+    "y",
+    []
+   ],
+   "t": [
+    "lorem"
+   ]
+  },
+  "191": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "fall daylight -> standard time",
+   "s": "{T}:20250929T0400A",
+   "t": [
+    "lorem"
+   ],
+   "r": [
+    {
+     "r": "y",
+     "M": [
+      11
+     ],
+     "w": [
+      "{W}:1SU"
+     ],
+     "h": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "n": [
+      30
+     ]
+    }
+   ]
+  },
+  "192": {
+   "created": "{T}:20250929T1411A",
+   "itemtype": "*",
+   "summary": "spring standard -> daylight time",
+   "s": "{T}:20250929T0400A",
+   "t": [
+    "lorem"
+   ],
+   "r": [
+    {
+     "r": "y",
+     "M": [
+      3
+     ],
+     "w": [
+      "{W}:2SU"
+     ],
+     "h": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "n": [
+      30
+     ]
+    }
+   ]
+  }
+ }
+}
