@@ -72,29 +72,34 @@ def add(ctx, entry, file, batch):
     verbose = ctx.obj["VERBOSE"]
     dbm = DatabaseManager(db, env)
 
+    def clean_and_split(content: str) -> list[str]:
+        """Remove comment lines and split into entries separated by blank lines."""
+        lines = [
+            line for line in content.splitlines() if not line.strip().startswith("#")
+        ]
+        return [
+            entry.strip() for entry in "\n".join(lines).split("\n\n") if entry.strip()
+        ]
+
     def edit_entry(initial: str = "") -> str | None:
         result = click.edit(initial, extension=".tklr")
         if result is None:
             return None
-        lines = [
-            line for line in result.splitlines() if not line.strip().startswith("#")
-        ]
-        return "\n".join(lines).strip() or None
+        entries = clean_and_split(result)
+        return "\n\n".join(entries) if entries else None
 
     def get_entries_from_editor() -> list[str]:
         result = edit_entry()
-        if not result:
-            return []
-        return [entry.strip() for entry in result.split("\n\n") if entry.strip()]
+        return result.split("\n\n") if result else []
 
     def get_entries_from_file(path: str) -> list[str]:
         with open(path, "r", encoding="utf-8") as f:
             content = f.read()
-        return [entry.strip() for entry in content.split("\n\n") if entry.strip()]
+        return clean_and_split(content)
 
     def get_entries_from_stdin() -> list[str]:
         data = sys.stdin.read().strip()
-        return [entry.strip() for entry in data.split("\n\n") if entry.strip()]
+        return clean_and_split(data)
 
     def process_entry(entry_str: str) -> bool:
         try:
