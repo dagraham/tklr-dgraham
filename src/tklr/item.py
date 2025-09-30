@@ -99,6 +99,21 @@ def _attach_zone(dt: datetime, zone) -> datetime:
     return dt.astimezone(zone)
 
 
+def dtstr_to_compact(dt: str) -> str:
+    obj = parse_dt(dt)
+    if not obj:
+        return False, f"Could not parse {obj = }"
+
+    # If the parser returns a datetime at 00:00:00, treat it as a date (your chosen convention)
+    # if isinstance(obj, datetime) and obj.hour == obj.minute == obj.second == 0:
+    #     return True, obj.strftime("%Y%m%d")
+
+    if isinstance(obj, date) and not isinstance(obj, datetime):
+        return True, obj.strftime("%Y%m%d")
+
+    return True, obj.strftime("%Y%m%dT%H%M")
+
+
 # --- parse a possible trailing " z <tzspec>" directive ---
 def _split_z_directive(text: str) -> tuple[str, str | None]:
     """
@@ -445,22 +460,22 @@ type_keys = {
     "x": "finished",
     # '✓': 'finished',  # more a property of a task than an item type
 }
-common_methods = list("cdgilmnstuxz")
+common_methods = list("cdgilmnstuxz") + ["k", "#"]
 
 repeating_methods = list("o") + [
     "r",
     "rr",
     "rc",
-    "rm",
+    "rd",  # monthdays
+    "rm",  # months
+    "rH",  # hours
+    "rM",  # minutes
     "rE",
-    "rH",
     "ri",
-    "rM",
-    "rn",
     "rs",
     "ru",
-    "rW",
-    "rw",
+    "rW",  # week numbers
+    "rw",  # week days
 ]
 
 datetime_methods = list("abe+-")
@@ -686,6 +701,7 @@ class Item:
             "do_frequency",
         ],
         "ri": ["interval", "positive integer", "do_interval"],
+        "rm": ["months", "list of integers in 1 ... 12", "do_months"],
         "rd": [
             "monthdays",
             "list of integers 1 ... 31, possibly prepended with a minus sign to count backwards from the end of the month",
@@ -696,9 +712,8 @@ class Item:
             "number of days before (-), on (0) or after (+) Easter",
             "do_easterdays",
         ],
-        "rh": ["hours", "list of integers in 0 ... 23", "do_hours"],
-        "rm": ["months", "list of integers in 1 ... 12", "do_months"],
-        "rn": ["minutes", "list of integers in 0 ... 59", "do_minutes"],
+        "rH": ["hours", "list of integers in 0 ... 23", "do_hours"],
+        "rM": ["minutes", "list of integers in 0 ... 59", "do_minutes"],
         "rw": [
             "weekdays",
             "list from SU, MO, ..., SA, possibly prepended with a positive or negative integer",
@@ -743,6 +758,8 @@ class Item:
         ],
         "~u": ["used time", "timeperiod: datetime", "do_usedtime"],
         "~?": ["job &-key", "enter &-key", "do_ampj"],
+        "k": ["konnection", "not implemented", "do_nothing"],
+        "#": ["etm record number", "not implemented", "do_nothing"],
     }
 
     wkd_list = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"]
@@ -757,12 +774,12 @@ class Item:
         c="COUNT",
         s="BYSETPOS",
         u="UNTIL",
-        M="BYMONTH",
-        m="BYMONTHDAY",
+        m="BYMONTH",
+        d="BYMONTHDAY",
         W="BYWEEKNO",
-        w="BYDAY",
-        h="BYHOUR",
-        n="BYMINUTE",
+        w="BYWEEKDAY",
+        H="BYHOUR",
+        M="BYMINUTE",
         E="BYEASTER",
     )
     param_to_key = {v: k for k, v in key_to_param.items()}
@@ -826,6 +843,8 @@ class Item:
         self.extent = ""
         self.rruleset = ""
         self.rrule_tokens = []
+        self.rrule_components = []
+        self.rrule_parts = []
         self.job_tokens = []
         self.token_store = None
         self.rrules = []
@@ -1212,8 +1231,7 @@ class Item:
         self.skip_token_positions = set()
         self.token_group_anchors = {}
 
-        # IMPORTANT: include 's' so @s can carry grouped options like '&z'
-        anchor_keys = {"r", "~", "s"}
+        anchor_keys = {"r", "~"}
 
         groups = self.collect_grouped_tokens(anchor_keys)
 
@@ -1261,6 +1279,8 @@ class Item:
             if pairs:
                 tgm.setdefault(akey, []).extend(pairs)
 
+        log_msg(f"token_group_map {tgm = }")
+
         self.token_group_map = tgm
 
     def add_token(self, token: dict):
@@ -1277,7 +1297,7 @@ class Item:
         self.tokens.append(token)
 
     def _tokenize(self, entry: str):
-        # print(f"_tokenize {entry = }")
+        log_msg(f"_tokenize {entry = }")
 
         self.entry = entry
         self.errors = []
@@ -1495,6 +1515,7 @@ class Item:
         return token not in self.previous_tokens
 
     def _dispatch_token(self, token, start_pos, end_pos, token_type):
+        log_msg(f"dispatch_token {token = }")
         if token_type in self.token_keys:
             method_name = self.token_keys[token_type][2]
             method = getattr(self, method_name)
@@ -1506,7 +1527,7 @@ class Item:
                     self._dispatch_sub_tokens(sub_tokens, "r")
                 elif token_type == "~":
                     self.jobset.append(result)
-                    self._dispatch_sub_tokens(sub_tokens, "~")
+                    ok, res = self._dispatch_sub_tokens(sub_tokens, "~")
             else:
                 self.parse_ok = False
                 log_msg(f"Error processing '{token_type}': {result}")
@@ -1515,6 +1536,7 @@ class Item:
             log_msg(f"No handler for token: {token}")
 
     def _dispatch_sub_tokens(self, sub_tokens, prefix):
+        log_msg(f"dispatch_sub_tokens {sub_tokens = }, {prefix = }")
         for part in sub_tokens:
             if part.startswith("&"):
                 token_type = prefix + part[1:2]  # Prepend prefix to token type
@@ -1526,6 +1548,8 @@ class Item:
                     if is_valid:
                         if prefix == "r":
                             self.rrule_tokens[-1][1][token_type] = result
+                            self.rrule_parts.append(result)
+                            log_msg(f"{self.rrule_parts = }")
                         elif prefix == "~":
                             self.job_tokens[-1][1][token_type] = result
                     else:
@@ -1732,6 +1756,9 @@ class Item:
             return True, description, []
         else:
             return False, description, []
+
+    def do_nothing(self, token):
+        return True, "passed", []
 
     def do_tag(self, token):
         # Process datetime token
@@ -2210,8 +2237,10 @@ class Item:
             obj = None
             rep = minutesstr
         if obj is None:
+            log_msg(f"returning False, {arg = }, {rep = }")
             return False, rep
 
+        log_msg(f"returning True, {arg = }, {rep = },")
         return True, f"BYMINUTE={rep}"
 
     @classmethod
@@ -2714,7 +2743,7 @@ class Item:
         """
         rrule_tokens = self.collect_rruleset_tokens()
         # rrule_tokens = self.rrule_tokens
-        log_msg(f"in build {self.rrule_tokens = }")
+        log_msg(f"in finalize_rruleset {self.rrule_tokens = }")
         if not self.dtstart:
             return ""
 
@@ -2738,24 +2767,23 @@ class Item:
                 value = tok.get("v", "")
             # if not (key and value):
             #     continue
-            key = key.upper().strip()
+            key = key.strip()
             value = value.strip()
-            if key == "M":
-                rrule_components["BYMONTH"] = value
-            elif key == "W":
-                rrule_components["BYDAY"] = value
-            elif key == "D":
-                rrule_components["BYMONTHDAY"] = value
-            elif key == "I":
-                rrule_components["INTERVAL"] = value
-            elif key == "U":
-                rrule_components["UNTIL"] = value.replace("/", "")
-            elif key == "C":
-                rrule_components["COUNT"] = value
+            if key == "u":
+                ok, res = dtstr_to_compact(value)
+                value = res if ok else ""
+            elif ", " in value:
+                value = ",".join(value.split(", "))
+            component = self.key_to_param.get(key, None)
+            log_msg(f"components {key = }, {value = }, {component = }")
+            if component:
+                rrule_components[component] = value
 
         rrule_line = "RRULE:" + ";".join(
             f"{k}={v}" for k, v in rrule_components.items()
         )
+
+        log_msg(f"{self.rrule_components = }")
 
         log_msg(f"{rrule_line = }")
         # Assemble lines safely

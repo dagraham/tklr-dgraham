@@ -2,6 +2,7 @@ import inspect
 import textwrap
 import shutil
 import re
+from rich import print
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal, Tuple
 from dateutil import tz

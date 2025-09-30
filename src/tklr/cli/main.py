@@ -2,7 +2,7 @@ import sys
 import os
 import click
 from pathlib import Path
-from rich import print
+# from rich import print
 
 from tklr.item import Item
 from tklr.controller import Controller
@@ -11,6 +11,7 @@ from tklr.view import DynamicViewApp
 from tklr.tklr_env import TklrEnvironment
 from tklr.view_agenda import run_agenda_view
 from tklr.common import get_version
+from tklr.shared import log_msg, print_msg as print
 
 VERSION = get_version()
 
@@ -88,18 +89,24 @@ def add(ctx, entry, file, batch):
         entries = clean_and_split(result)
         return "\n\n".join(entries) if entries else None
 
+    def split_entries(content: str) -> list[str]:
+        """Split raw text into entries using '...' line as separator."""
+        return [entry.strip() for entry in content.split("\n...\n") if entry.strip()]
+
     def get_entries_from_editor() -> list[str]:
         result = edit_entry()
-        return result.split("\n\n") if result else []
+        if not result:
+            return []
+        return split_entries(result)
 
     def get_entries_from_file(path: str) -> list[str]:
         with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
-        return clean_and_split(content)
+            content = f.read().strip()
+        return split_entries(content)
 
     def get_entries_from_stdin() -> list[str]:
         data = sys.stdin.read().strip()
-        return clean_and_split(data)
+        return split_entries(data)
 
     def process_entry(entry_str: str) -> bool:
         try:
@@ -108,17 +115,21 @@ def add(ctx, entry, file, batch):
             print(f"[red]✘ Internal error during parsing:[/] {e}")
             return False
 
-        if not item.parse_ok:
+        if not item.parse_ok or not item.itemtype:
             print(f"[red]✘ Invalid entry:[/] {entry_str!r}")
             print(f"  [yellow]{item.parse_message}[/]")
             if verbose:
                 print(f"[blue]Parsed tokens:[/] {format_tokens(item.relative_tokens)}")
             return False
 
-        dbm.add_item(item)
-        print(
-            f"[green]✔ Added:[/] {item.subject if hasattr(item, 'subject') else entry_str}"
-        )
+        dry_run = False
+        if dry_run:
+            print(f"[green]would have added:\n {item = }")
+        else:
+            dbm.add_item(item)
+            print(
+                f"[green]✔ Added:[/] {item.subject if hasattr(item, 'subject') else entry_str}"
+            )
         return True
 
     # Determine the source of entries

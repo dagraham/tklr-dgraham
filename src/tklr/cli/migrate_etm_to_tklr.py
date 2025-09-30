@@ -16,10 +16,48 @@ TAG_PATTERNS = {
     "W": re.compile(r"^\{W\}:(.+)$"),
 }
 
+AND_KEY_MAP = {
+    "n": "M",  # minutes -> &M
+    "h": "H",  # hours   -> &H
+    "M": "m",  # months  -> &m
+    # others unchanged
+}
+
+TYPE_MAP = {
+    "*": "*",
+    "-": "~",  # task
+    "%": "%",
+    "!": "?",
+    "~": "+",  # goal
+}
 
 # ------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------
+
+
+def parse_etm_date_or_dt(raw: str):
+    """Parse etm-style encoded values into Python objects (date, dt, td, etc)."""
+    if raw.startswith("{D}:"):
+        dt = datetime.strptime(raw[4:], "%Y%m%d").date()
+        return [format_dt(dt)]
+    if raw.startswith("{T}:"):
+        s = raw[4:]
+        kind = s[-1]  # A or N
+        s = s[:-1]
+        dt = datetime.strptime(s, "%Y%m%dT%H%M")
+        if kind == "A":
+            dt = dt.replace(tzinfo=timezone.utc)
+        return [format_dt(dt)]
+    if raw.startswith("{I}:"):
+        return [raw[4:]]  # timedelta string
+    if raw.startswith("{P}:"):
+        return [raw[4:]]  # completion pair, handled specially
+    if raw.startswith("{W}:"):
+        return [raw[4:]]  # weekday rule
+    return [raw]  # fallback passthrough
+
+
 def format_dt(dt: Any) -> str:
     """Format datetime or date in user-friendly format."""
     if isinstance(dt, datetime):
@@ -69,13 +107,6 @@ def decode_etm_value(val: Any) -> list[str]:
 # ------------------------------------------------------------
 # Conversion logic
 # ------------------------------------------------------------
-TYPE_MAP = {
-    "*": "*",
-    "-": "~",  # task
-    "%": "%",
-    "!": "?",
-    "~": "+",  # goal
-}
 
 
 def etm_completion_to_token(val: str) -> str:
@@ -148,71 +179,207 @@ def encode_for_token(key: str, val: Any) -> str:
     return f"@{key} {','.join(vals)}"
 
 
-def etm_to_tokens(item: dict, rid: str | None = None) -> list[str]:
-    tokens = []
-    itemtype = TYPE_MAP.get(item.get("itemtype"), item.get("itemtype", "?"))
-    subject = item.get("summary", "").strip()
-    tokens.append(f"{itemtype} {subject}")
+def etm_to_tokens(item: dict, key: str | None, include_etm: bool = True) -> list[str]:
+    """Convert an etm JSON entry into a list of tklr tokens."""
 
-    for key, val in item.items():
-        if key in ("itemtype", "summary", "created", "modified", "h", "q"):
+    tokens = []
+    itemtype = item.get("itemtype", "?")
+    mapped_type = TYPE_MAP.get(itemtype, itemtype)  # <-- use TYPE_MAP here
+    summary = item.get("summary", "")
+    tokens.append(f"{mapped_type} {summary}")
+
+    for k, v in item.items():
+        if k in {"itemtype", "summary", "created", "modified", "h", "k", "q"}:
             continue
 
-        if key in ("+", "-", "w"):
-            vals = decode_etm_value(val)
-            tokens.append(f"@{key} {', '.join(vals)}")
+        # description
+        if k == "d":
+            tokens.append(f"@d {v}")
+            continue
 
-        elif key == "a":
-            # multiple alerts allowed
-            for alert in val:  # each is [times, commands]
-                times, cmds = alert
-                timestr = ", ".join(decode_etm_value(times))
-                cmdstr = ", ".join(decode_etm_value(cmds))
-                tokens.append(f"@a {timestr}: {cmdstr}")
+        # start datetime
+        if k == "s":
+            vals = format_subvalue(v)
+            if vals:
+                tokens.append(f"@s {vals[0]}")
+            continue
 
-        elif key == "u":
-            # used-time entries: list of [timedelta, date]
-            for pair in val:
-                if isinstance(pair, list) and len(pair) == 2:
-                    td = decode_etm_value(pair[0])[0]
-                    day = decode_etm_value(pair[1])[0]
-                    tokens.append(f"@u {td}: {day}")
+        # finish/completion
+        if k == "f":
+            vals = format_subvalue(v)
+            if vals:
+                if "->" in vals[0]:
+                    left, right = [s.strip() for s in vals[0].split("->", 1)]
+                    if left != right:
+                        tokens.append(f"@f {left}, {right}")
+                    else:
+                        tokens.append(f"@f {left}")
+                else:
+                    tokens.append(f"@f {vals[0]}")
+            continue
 
-        elif key == "r":
-            tokens.extend(etm_rrule_to_tokens(val))
+        # recurrence rules
+        if k == "r":
+            if isinstance(v, list):
+                for rd in v:
+                    if isinstance(rd, dict):
+                        subparts = []
+                        freq = rd.get("r")
+                        if freq:
+                            subparts.append(freq)
+                        for subk, subv in rd.items():
+                            if subk == "r":
+                                continue
+                            mapped = AND_KEY_MAP.get(subk, subk)
+                            vals = format_subvalue(subv)
+                            if vals:
+                                subparts.append(f"&{mapped} {', '.join(vals)}")
+                        tokens.append(f"@r {' '.join(subparts)}")
+            continue
 
-        elif key == "j":
-            tokens.extend(etm_jobs_to_tokens(val))
+        # jobs
+        if k == "j":
+            if isinstance(v, list):
+                for jd in v:
+                    if isinstance(jd, dict):
+                        subparts = []
+                        job_summary = jd.get("j", "")
+                        if job_summary:
+                            subparts.append(job_summary)
+                        for subk, subv in jd.items():
+                            if subk in {"j", "summary", "status"}:
+                                continue
+                            mapped = AND_KEY_MAP.get(subk, subk)
+                            vals = format_subvalue(subv)
+                            if vals:
+                                subparts.append(f"&{mapped} {', '.join(vals)}")
+                        tokens.append(f"@~ {' '.join(subparts)}")
+            continue
 
-        elif key == "f":
-            tokens.append(etm_completion_to_token(val))
+        # alerts
+        if k == "a":
+            if isinstance(v, list):
+                for adef in v:
+                    if isinstance(adef, list) and len(adef) == 2:
+                        times = [x for part in adef[0] for x in format_subvalue(part)]
+                        cmds = [x for part in adef[1] for x in format_subvalue(part)]
+                        tokens.append(f"@a {','.join(times)}: {','.join(cmds)}")
+            continue
 
-        else:
-            tokens.append(encode_for_token(key, val))
+        # used time
+        if k == "u":
+            if isinstance(v, list):
+                for used in v:
+                    if isinstance(used, list) and len(used) == 2:
+                        td = format_subvalue(used[0])[0]
+                        d = format_subvalue(used[1])[0]
+                        tokens.append(f"@u {td}: {d}")
+            continue
 
-    if rid:
-        tokens.append(f"@ETM {rid}")
+        # multi-datetimes (RDATE/EXDATE/etc.)
+        if k in {"+", "-", "w"}:
+            if isinstance(v, list):
+                vals = []
+                for sub in v:
+                    vals.extend(format_subvalue(sub))
+                if vals:
+                    tokens.append(f"@{k} {', '.join(vals)}")
+            continue
+
+        # everything else
+        vals = format_subvalue(v)
+        if vals:
+            tokens.append(f"@{k} {', '.join(vals)}")
+
+    # only include @ETM if requested
+    if include_etm and key is not None:
+        tokens.append(f"@# {key}")
 
     return tokens
 
 
+def format_subvalue(val) -> list[str]:
+    """
+    Normalize etm json values into lists of strings for tokens.
+    - Always returns a list of strings
+    - Handles atomic values and lists
+    - Runs through parse_etm_date_or_dt when tagged
+    """
+    results: list[str] = []
+    if isinstance(val, list):
+        for v in val:
+            results.extend(format_subvalue(v))
+    elif isinstance(val, str):
+        results.extend(parse_etm_date_or_dt(val))
+    elif val is None:
+        return []
+    else:
+        results.append(str(val))
+    return results
+
+
+# def tokens_to_entry(tokens: list[str]) -> str:
+#     """Format tokens into entry string with indentation."""
+#     entry = [tokens[0]]
+#     for tok in tokens[1:]:
+#         if tok.startswith("@d "):
+#             lines = tok[3:].splitlines()
+#             entry.append("  @d " + lines[0])
+#             for ln in lines[1:]:
+#                 entry.append("     " + ln)
+#         else:
+#             entry.append("  " + tok)
+#     return "\n".join(entry)
+#
+
+
 def tokens_to_entry(tokens: list[str]) -> str:
-    """Format tokens into entry string with indentation."""
-    entry = [tokens[0]]
-    for tok in tokens[1:]:
-        if tok.startswith("@d "):
-            lines = tok[3:].splitlines()
-            entry.append("  @d " + lines[0])
-            for ln in lines[1:]:
-                entry.append("     " + ln)
-        else:
-            entry.append("  " + tok)
-    return "\n".join(entry)
+    """Convert a list of tokens into a formatted entry string."""
+    return "\n".join(tokens)
 
 
 # ------------------------------------------------------------
 # Migration driver
 # ------------------------------------------------------------
+# def migrate(
+#     infile: str,
+#     outfile: str | None = None,
+#     include_etm: bool = True,
+#     section: str = "both",
+# ) -> None:
+#     with open(infile, "r", encoding="utf-8") as f:
+#         data = json.load(f)
+#
+#     sections = []
+#     if section in ("both", "items"):
+#         sections.append("items")
+#     if section in ("both", "archive"):
+#         sections.append("archive")
+#
+#     out_lines = []
+#
+#     for sec in sections:
+#         if sec not in data:
+#             continue
+#         out_lines.append(f"#### {sec} ####")
+#
+#         first = True
+#         for rid, item in data[sec].items():
+#             if not first:
+#                 out_lines.append("")  # blank line *before* next entry
+#             first = False
+#
+#             tokens = etm_to_tokens(item, rid, include_etm=include_etm)
+#             entry = tokens_to_entry(tokens)
+#             out_lines.append(entry)
+#
+#     out_text = "\n".join(out_lines)
+#     if outfile:
+#         Path(outfile).write_text(out_text, encoding="utf-8")
+#     else:
+#         print(out_text)
+
+
 def migrate(
     infile: str,
     outfile: str | None = None,
@@ -234,13 +401,16 @@ def migrate(
         if sec not in data:
             continue
         out_lines.append(f"#### {sec} ####")
+        out_lines.append("")  # blank line after header
+
         for rid, item in data[sec].items():
-            tokens = etm_to_tokens(item, rid if include_etm else None)
+            tokens = etm_to_tokens(item, rid, include_etm=include_etm)
             entry = tokens_to_entry(tokens)
             out_lines.append(entry)
-            out_lines.append("")  # blank line
+            out_lines.append("...")  # end-of-record marker
+            out_lines.append("")  # blank line before next record
 
-    out_text = "\n".join(out_lines)
+    out_text = "\n".join(out_lines).rstrip() + "\n"
     if outfile:
         Path(outfile).write_text(out_text, encoding="utf-8")
     else:
