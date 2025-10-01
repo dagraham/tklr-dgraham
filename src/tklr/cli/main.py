@@ -11,7 +11,8 @@ from tklr.view import DynamicViewApp
 from tklr.tklr_env import TklrEnvironment
 from tklr.view_agenda import run_agenda_view
 from tklr.common import get_version
-from tklr.shared import log_msg, print_msg as print
+from tklr.shared import log_msg
+from tklr.shared import print_msg as print
 
 VERSION = get_version()
 
@@ -73,14 +74,22 @@ def add(ctx, entry, file, batch):
     verbose = ctx.obj["VERBOSE"]
     dbm = DatabaseManager(db, env)
 
+    # def clean_and_split(content: str) -> list[str]:
+    #     """Remove comment lines and split into entries separated by blank lines."""
+    #     lines = [
+    #         line for line in content.splitlines() if not line.strip().startswith("#")
+    #     ]
+    #     return [
+    #         entry.strip() for entry in "\n".join(lines).split("\n\n") if entry.strip()
+    #     ]
+
     def clean_and_split(content: str) -> list[str]:
-        """Remove comment lines and split into entries separated by blank lines."""
+        """Remove comment lines and split into entries separated by '...' markers."""
         lines = [
             line for line in content.splitlines() if not line.strip().startswith("#")
         ]
-        return [
-            entry.strip() for entry in "\n".join(lines).split("\n\n") if entry.strip()
-        ]
+        cleaned = "\n".join(lines)
+        return split_entries(cleaned)
 
     def edit_entry(initial: str = "") -> str | None:
         result = click.edit(initial, extension=".tklr")
@@ -110,9 +119,9 @@ def add(ctx, entry, file, batch):
 
     def process_entry(entry_str: str) -> bool:
         try:
-            item = Item(entry_str, final=True)
+            item = Item(raw=entry_str, final=True)
         except Exception as e:
-            print(f"[red]✘ Internal error during parsing:[/] {e}")
+            print(f"[red]✘ Internal error during parsing:[/] {e}; {entry_str = }")
             return False
 
         if not item.parse_ok or not item.itemtype:

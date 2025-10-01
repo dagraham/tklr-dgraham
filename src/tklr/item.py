@@ -1,4 +1,5 @@
 import re
+from copy import deepcopy
 import shutil
 import json
 
@@ -1039,14 +1040,17 @@ class Item:
         errors = []
 
         self.itemtype = self.relative_tokens[0]["token"]
+        if not self.itemtype:
+            return "no itemtype"
+
         subject = self.relative_tokens[1]["token"]
         allowed_fortype = allowed[self.itemtype]
-        required_fortype = required[self.itemtype]
+        # required_fortype = required[self.itemtype]
+        needed = deepcopy(required[self.itemtype])
 
         current_atkey = None
         used_atkeys = []
         used_ampkeys = []
-        needed = required_fortype
         count = 0
         # print(f"{len(self.relative_tokens) = }")
         for token in self.relative_tokens:
@@ -1107,7 +1111,10 @@ class Item:
 
         if needed:
             needed_keys = ", ".join("@" + k for k in needed)
-            needed_msg = f"Required keys not yet provided: {needed_keys}"
+            needed_msg = (
+                # f"Required keys not yet provided: {needed_keys} in {self.entry = }"
+                f"Required keys not yet provided: {needed_keys = }"
+            )
         else:
             needed_msg = ""
         return needed_msg

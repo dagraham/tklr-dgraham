@@ -2,7 +2,7 @@ import inspect
 import textwrap
 import shutil
 import re
-from rich import print
+from rich import print as rich_print
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal, Tuple
 from dateutil import tz
@@ -227,7 +227,8 @@ def print_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = Fals
 
     # Save the message to the file
     # print("".join(lines))
-    print(lines)
+    for line in lines:
+        rich_print(line)
 
 
 def display_messages(file_path: str = "log_msg.md"):

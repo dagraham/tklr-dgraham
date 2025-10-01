@@ -184,12 +184,15 @@ def etm_to_tokens(item: dict, key: str | None, include_etm: bool = True) -> list
 
     tokens = []
     itemtype = item.get("itemtype", "?")
+    if itemtype == "?":
+        print(f"missing itemtype: {item = }")
+        return []
     mapped_type = TYPE_MAP.get(itemtype, itemtype)  # <-- use TYPE_MAP here
     summary = item.get("summary", "")
     tokens.append(f"{mapped_type} {summary}")
 
     for k, v in item.items():
-        if k in {"itemtype", "summary", "created", "modified", "h", "k", "q"}:
+        if k in {"itemtype", "summary", "created", "modified", "h", "k", "q", "o"}:
             continue
 
         # description
