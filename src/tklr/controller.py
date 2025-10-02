@@ -1692,7 +1692,7 @@ class Controller:
             return {}
 
         self.set_afill(range(total_items), "events")
-        self.afill_by_view["events"] = self.afill
+        # self.afill_by_view["events"] = self.afill
         self.list_tag_to_id.setdefault("events", {})
 
         indexed_events_by_date: dict[date, list[tuple[str, str, str]]] = {}
@@ -1718,6 +1718,7 @@ class Controller:
         # rows: (record_id, job_id, subject, urgency, color, status, weights, pinned_int)
 
         self.set_afill(urgency_records, "tasks")
+        log_msg(f"urgency_records {self.afill_by_view = }, {len(urgency_records) = }")
         indx = 0
         self.list_tag_to_id.setdefault("tasks", {})
 

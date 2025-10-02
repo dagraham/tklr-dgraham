@@ -754,7 +754,7 @@ class Item:
         ],
         "~s": [
             "scheduled",
-            "timeperiod before task scheduled when job is scheduled",
+            "timeperiod after task scheduled when job is scheduled",
             "do_duration",
         ],
         "~u": ["used time", "timeperiod: datetime", "do_usedtime"],
@@ -1172,7 +1172,7 @@ class Item:
             return obj, "date", None
 
         # DATETIME
-        if (zdir or "").lower() == "none":
+        if zdir and zdir.lower() == "none":
             # NAIVE: keep naive (strip tz if present)
             if _is_datetime(obj) and obj.tzinfo is not None:
                 obj = obj.replace(tzinfo=None)
@@ -1354,8 +1354,11 @@ class Item:
 
         remainder = rest[len(subject) :]
 
-        # Token pattern that keeps @ and & together
-        pattern = r"(@[~\w\+\-]+ [^@&]+)|(&\w+ [^@&]+)"
+        # Token pattern that keeps @ and & together - this one courtesy of
+        # ChatGPT and nothing short of magic
+        pattern = (
+            r"(?:(?<=^)|(?<=\s))(@[\w~+\-]+ [^@&\n]+)|(?:(?<=^)|(?<=\s))(&\w+ [^@&\n]+)"
+        )
         for match in re.finditer(pattern, remainder):
             token = match.group(0)
             start_pos = match.start() + offset + len(subject)
@@ -2894,123 +2897,6 @@ class Item:
         print(f"{self.jobs = }")
         return job_entries
 
-    # def finalize_jobs(self, jobs):
-    #     """
-    #     With jobs that have explicit ids and prereqs, build:
-    #     - available jobs (no prereqs or prereqs finished)
-    #     - waiting jobs (unmet prereqs)
-    #     - finished jobs
-    #     """
-    #     if not jobs:
-    #         return False, "No jobs to process"
-    #     if not self.parse_ok:
-    #         return False, "Error parsing job tokens"
-    #
-    #     # map id -> job
-    #     job_map = {job["i"]: job for job in jobs if "i" in job}
-    #
-    #     # determine finished
-    #     finished = {job["i"] for job in jobs if "f" in job}
-    #
-    #     # build transitive prereqs
-    #     all_prereqs = {}
-    #     for job in jobs:
-    #         if "i" not in job:
-    #             continue
-    #         i = job["i"]
-    #         # only include unfinished jobs in deps
-    #         deps = set([j for j in job.get("reqs", []) if j not in finished])
-    #
-    #         # transitively expand:
-    #         transitive = set(deps)
-    #         to_process = list(deps)
-    #         while to_process:
-    #             d = to_process.pop()
-    #             if d in job_map:
-    #                 subdeps = set(job_map[d].get("reqs", []))
-    #                 for sd in subdeps:
-    #                     if sd not in transitive:
-    #                         transitive.add(sd)
-    #                         to_process.append(sd)
-    #         all_prereqs[i] = transitive
-    #
-    #     available = set()
-    #     waiting = set()
-    #     for i, reqs in all_prereqs.items():
-    #         unmet = reqs - finished
-    #         # print(f"{reqs = }, {finished = } => {unmet = }")
-    #         if unmet:
-    #             waiting.add(i)
-    #         elif i in finished:
-    #             continue
-    #         else:
-    #             available.add(i)
-    #
-    #     # jobs with no prereqs:
-    #     for job in jobs:
-    #         if "i" in job and job["i"] not in all_prereqs and job["i"] not in finished:
-    #             available.add(job["i"])
-    #
-    #     # print(f"{available = }")
-    #     # annotate jobs
-    #     blocking = {}
-    #     for i in available:
-    #         blocking[i] = len(waiting) / len(available)
-    #         # blocking[i] = sum(1 for j in waiting if i in all_prereqs.get(j, set()))
-    #
-    #     num_available = len(available)
-    #     num_waiting = len(waiting)
-    #     num_finished = len(finished)
-    #
-    #     task_subject = self.subject
-    #     if len(task_subject) > 12:
-    #         task_subject_display = task_subject[:10] + " …"
-    #     else:
-    #         task_subject_display = task_subject
-    #
-    #     # finalize
-    #     final = []
-    #     for job in jobs:
-    #         if "i" not in job:
-    #             continue
-    #         i = job["i"]
-    #         job["prereqs"] = sorted(all_prereqs.get(i, []))
-    #         if i in available:
-    #             job["status"] = "available"
-    #             job["blocking"] = blocking[i]
-    #         elif i in waiting:
-    #             job["status"] = "waiting"
-    #         elif i in finished:
-    #             job["status"] = "finished"
-    #             self.token_map.setdefault("~f", {})
-    #             self.token_map["~f"][i] = self.fmt_user(parse_dt(job["f"]))
-    #
-    #         job["display_subject"] = (
-    #             f"{job['~']} ∊ {task_subject_display} {num_available}/{num_waiting}/{num_finished}"
-    #         )
-    #
-    #         final.append(job)
-    #
-    #     self.jobset = json.dumps(final, cls=CustomJSONEncoder)
-    #     self.jobs = final
-    #
-    #     # If all jobs are finished, set project_f and clear f entries
-    #     if len(finished) == len(job_map):  # all jobs with ids are finished
-    #         finish_dts = [parse_dt(job["f"]) for job in jobs if "f" in job]
-    #         if finish_dts:
-    #             finished_dt = max(finish_dts)
-    #             finished_tok = {
-    #                 "token": f"@f {fmr_user(finished_dt)}",
-    #                 "t": "@",
-    #                 "k": "f",
-    #             }
-    #             self.add_token(finished_tok)
-    #             self.has_f = True
-    #         for job in jobs:
-    #             job.pop("f", None)
-    #
-    #     return True, final
-
     def finalize_jobs(self, jobs):
         """
         With jobs that have explicit ids and prereqs, build:
@@ -3226,22 +3112,6 @@ class Item:
             return parse(val)
         except Exception:
             return None
-
-    # def _set_start_dt(self, dt: datetime) -> None:
-    #     dt_str = dt.strftime("%Y%m%dT%H%M")
-    #     tok = next(
-    #         (
-    #             t
-    #             for t in self.relative_tokens
-    #             if t.get("t") == "@" and t.get("k") == "s"
-    #         ),
-    #         None,
-    #     )
-    #     if tok:
-    #         tok["token"] = f"@s {dt_str} "
-    #     else:
-    #         self.relative_tokens.append({"token": f"@s {dt_str} ", "t": "@", "k": "s"})
-    #     self.dtstart = dt_str
 
     def _set_start_dt(self, dt):
         """Replace or add an @s token; keep your formatting with trailing space."""
@@ -3803,12 +3673,24 @@ class Item:
                     comps["COUNT"] = value
         return comps
 
+    # def _strip_positions(self, tokens_with_pos: list[dict]) -> list[dict]:
+    #     """Remove 'start'/'end' from editing tokens to store as record tokens."""
+    #     out = []
+    #     for t in tokens_with_pos:
+    #         t2 = dict(t)
+    #         t2.pop("s", None)
+    #         t2.pop("e", None)
+    #         out.append(t2)
+    #     return out
+
     def _strip_positions(self, tokens_with_pos: list[dict]) -> list[dict]:
-        """Remove 'start'/'end' from editing tokens to store as record tokens."""
+        """Remove 'start'/'end' from editing tokens and strip whitespace from 'token'."""
         out = []
         for t in tokens_with_pos:
             t2 = dict(t)
             t2.pop("s", None)
             t2.pop("e", None)
+            if "token" in t2 and isinstance(t2["token"], str):
+                t2["token"] = t2["token"].strip()
             out.append(t2)
         return out

@@ -1464,6 +1464,7 @@ class AgendaScreen(SearchableScreen):
     def show_details_for_tag(self, tag: str) -> None:
         pane_view = self.tasks_view if self.active_pane == "tasks" else self.events_view
         view_name = "tasks" if self.active_pane == "tasks" else "events"
+        log_msg(f"{pane_view = }, {view_name = }")
 
         # ask controller for the pre-rendered lines + side-effect meta
         parts = self.controller.process_tag(tag, view_name, None)
@@ -1873,6 +1874,10 @@ class DynamicViewApp(App):
         )
         if self.view == "week":
             self.afill = self.controller.afill_by_week.get(self.selected_week)
+        elif self.view == "tasks":
+            self.afill = self.controller.afill_by_view["tasks"]
+        elif self.view == "events":
+            self.afill = self.controller.afill_by_view["events"]
         log_msg(
             f"after: {self.afill = }, {event.key = }, {self.view = }, {self.selected_week = }"
         )

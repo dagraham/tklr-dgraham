@@ -2622,7 +2622,7 @@ class DatabaseManager:
                         hide = job_due - b > now_seconds
                         if hide:
                             continue
-                    job_due -= s
+                    job_due += s
 
                 job_extent = td_str_to_seconds(job.get("e", "0m"))
                 blocking = job.get("blocking")  # assume already computed elsewhere
