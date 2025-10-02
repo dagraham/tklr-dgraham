@@ -40,15 +40,15 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
 ### examples
 
-- A _task_, **~**: pick up milk.
+- A _task_ (~) reminder to pick up milk.
 
         ~ pick up milk
 
-- An _event_ reminder, **\***: have lunch with Ed [s]tarting next Tuesday at 12pm with an **e**xtent of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
+- An _event_ (\*) reminder to have lunch with Ed starting (@s) next Tuesday at 12pm with an extent (@e) of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
 
         * Lunch with Ed @s tue 12p @e 1h30m
 
-- A _note_ reminder, **%**: a favorite Churchill quotation that you heard at 2pm today with the quote itself as the **d**etails.
+- A _note_ (%) reminder of a favorite Churchill quotation with the quote itself as the details (@d).
 
         % Give me a pig - Churchill @d Dogs look up at
           you. Cats look down at you. Give me a pig - they
@@ -56,7 +56,7 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
   The _subject_, "Give me a pig - Churchill" in this example, follows the type character and is meant to be brief - analogous to the subject of an email. The optional _details_ follows the "@d" and is meant to be more expansive - analogous to the body of an email.
 
-- A _project_ reminder, **^**: build a dog house, with component **@~** tasks.
+- A _project_ (^) reminder to build a dog house with component tasks (@~).
 
         ^ Build dog house
           @~ pick up materials &r 1 &e 4h
