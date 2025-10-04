@@ -6,6 +6,9 @@ from rich import print as rich_print
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal, Tuple
 from dateutil import tz
+from pathlib import Path
+from dateutil.parser import parse as dateutil_parse
+from dateutil.parser import parserinfo
 
 from tklr.tklr_env import TklrEnvironment
 
@@ -23,6 +26,52 @@ ALERT_COMMANDS = {
 ELLIPSIS_CHAR = "…"
 
 # from shared import fmt_local_compact, parse_local_compact, fmt_local_seconds, parse_local_seconds, fmt_utc_z, parse_utc_z
+
+
+def get_version(pyproject_path: Path | None = None) -> str:
+    """
+    Extract the version from pyproject.toml [project] section.
+
+    Args:
+        pyproject_path (Path or None): Optional override path. If None, searches upward.
+
+    Returns:
+        str: version string (e.g., "0.1.0")
+    """
+    if pyproject_path is None:
+        # Search upward from current working dir
+        current = Path.cwd()
+        while current != current.parent:
+            candidate = current / "pyproject.toml"
+            if candidate.exists():
+                pyproject_path = candidate
+                break
+            current = current.parent
+        else:
+            return "dev"
+
+    try:
+        with open(pyproject_path, "rb") as f:
+            data = tomllib.load(f)
+        return data.get("project", {}).get("version", "dev")
+    except Exception:
+        return "dev"
+
+
+def parse(s, yearfirst: bool = True, dayfirst: bool = False):
+    # enable pi when read by main and settings is available
+    pi = parserinfo(
+        dayfirst=dayfirst, yearfirst=yearfirst
+    )  # FIXME: should come from config
+    # logger.debug(f"parsing {s = } with {kwd = }")
+    dt = dateutil_parse(s, parserinfo=pi)
+    if isinstance(dt, date) and not isinstance(dt, datetime):
+        return dt
+    if isinstance(dt, datetime):
+        if dt.hour == dt.minute == 0:
+            return dt.date()
+        return dt
+    return ""
 
 
 def dt_as_utc_timestamp(dt: datetime) -> int:
@@ -119,36 +168,6 @@ def truncate_string(s: str, max_length: int) -> str:
         return f"{s[: max_length - 2]} {ELLIPSIS_CHAR}"
     else:
         return s
-
-
-# def log_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = False):
-#     """
-#     Log a message and save it directly to a specified file.
-#
-#     Args:
-#         msg (str): The message to log.
-#         file_path (str, optional): Path to the log file. Defaults to "log_msg.txt".
-#     """
-#     caller_name = inspect.stack()[1].function
-#     lines = [
-#         f"- {datetime.now().strftime('%y-%m-%d %H:%M:%S')} " + rf"({caller_name}):  ",
-#     ]
-#     lines.extend(
-#         [
-#             f"\n{x}"
-#             for x in textwrap.wrap(
-#                 msg.strip(),
-#                 width=shutil.get_terminal_size()[0] - 6,
-#                 initial_indent="   ",
-#                 subsequent_indent="   ",
-#             )
-#         ]
-#     )
-#     lines.append("\n\n")
-#
-#     # Save the message to the file
-#     with open(file_path, "a") as f:
-#         f.writelines(lines)
 
 
 def log_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = False):

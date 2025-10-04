@@ -984,7 +984,7 @@ class Controller:
 
         core = self.get_record_core(record_id) or {}
         itemtype = core.get("itemtype") or ""
-        rruleset = core.get("rrulestr") or ""
+        rruleset = core.get("rruleset") or ""
         all_prereqs = core.get("all_prereqs") or ""
 
         # ----- subject selection -----
@@ -1028,6 +1028,7 @@ class Controller:
             "record_id": record_id,
             "job_id": job_id,
             "itemtype": itemtype,
+            "subject": subject,
             "rruleset": rruleset,
             "all_prereqs": all_prereqs,
             "pinned": bool(pinned_now),

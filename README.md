@@ -586,3 +586,17 @@ max = 3.0
 ```
 
 <!-- END CONFIG -->
+
+## Keyboard Shortcuts
+
+| Key       | Context         | Action                       |
+| --------- | --------------- | ---------------------------- |
+| `a` … `z` | Agenda/List     | Show details for tagged item |
+| `ctrl+e`  | Details         | Edit selected item           |
+| `ctrl+f`  | Details (task)  | Finish task / occurrence     |
+| `ctrl+n`  | Anywhere        | Create new item              |
+| `ctrl+r`  | Details (recur) | Show repetitions             |
+| `ctrl+p`  | Details (task)  | Toggle pin                   |
+| `ctrl+t`  | Details         | Touch (update modified time) |
+| `escape`  | Any             | Back / Close screen          |
+| `?`       | Any             | Show help                    |

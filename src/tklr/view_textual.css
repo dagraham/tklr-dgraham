@@ -113,6 +113,31 @@ Footer {
   height: 1fr;
 }
 
+.dim-rule {
+  color: #7f7f7f;
+  height: 1;
+}
+
+/* ---- DatetimePrompt Layout ---- */
+
+.title-class {
+  color: #32cd32; /* LimeGreen for title */
+  text-style: bold;
+  padding-bottom: 1;
+}
+
+#dt_feedback {
+  color: #87cefa; /* Light gray feedback text */
+  padding-bottom: 1;
+}
+
+#dt_input {
+  background: #202020; /* Dark neutral input background */
+  color: #ffffff; /* White input text */
+  border: round #32cd32; /* Green rounded border */
+  padding: 0 1; /* Compact horizontal padding */
+}
+
 /* Container that holds a main list + details list */
 ListWithDetails {
   layout: vertical;

@@ -355,6 +355,7 @@ def migrate(
 
     out_lines = []
 
+    count = 0
     for sec in sections:
         if sec not in data:
             continue
@@ -362,6 +363,7 @@ def migrate(
         out_lines.append("")
 
         for rid, item in data[sec].items():
+            count += 1
             tokens = etm_to_tokens(item, rid, include_etm=include_etm)
             entry = tokens_to_entry(tokens)
             out_lines.append(entry)
@@ -373,6 +375,7 @@ def migrate(
         Path(outfile).write_text(out_text, encoding="utf-8")
     else:
         print(out_text)
+    print(f"processed {count} records")
 
 
 # ------------------------------------------------------------

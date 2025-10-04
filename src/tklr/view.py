@@ -1,8 +1,9 @@
 from __future__ import annotations
 import tklr
 
+from asyncio import create_task
 from importlib.metadata import version
-from .shared import log_msg, display_messages
+from .shared import log_msg, display_messages, parse
 from datetime import datetime, timedelta, date
 from logging import log
 from packaging.version import parse as parse_version
@@ -25,10 +26,12 @@ from textual.widgets import Input
 from textual.widgets import Label
 from textual.widgets import Markdown, Static, Footer, Button, Header
 from textual.widgets import Placeholder
+from textual.widgets import TextArea
 import string
 import shutil
 import asyncio
-from tklr.common import get_version
+from .common import get_version
+
 import re
 
 from rich.panel import Panel
@@ -102,6 +105,41 @@ TYPE_TO_COLOR = {
     ">": BEGIN_COLOR,  # begin
     "!": DRAFT_COLOR,  # draft
 }
+
+
+def build_details_help(meta: dict) -> list[str]:
+    log_msg(f"{meta = }")
+    is_task = meta.get("itemtype") == "~"
+    is_event = meta.get("itemtype") == "*"
+    is_goal = meta.get("itemtype") == "+"
+    is_recurring = bool(meta.get("rruleset"))
+    is_pinned = bool(meta.get("pinned")) if is_task else False
+
+    left, rght = [], []
+    left.append("[bold],e[/bold] Edit             ")
+    left.append("[bold],c[/bold] Copy             ")
+    left.append("[bold],d[/bold] Delete           ")
+    rght.append("[bold],r[/bold] Reschedule       ")
+    rght.append("[bold],n[/bold] Schedule New     ")
+    rght.append("[bold],t[/bold] Touch            ")
+
+    if is_task:
+        left.append("[bold],f[/bold] Finish           ")
+        rght.append("[bold],p[/bold] Toggle Pinned    ")
+    if is_recurring:
+        left.append("[bold]Ctrl+R[/bold] Show Repetitions ")
+
+    m = max(len(left), len(rght))
+    left += [""] * (m - len(left))
+    rght += [""] * (m - len(rght))
+
+    lines = [
+        f"[bold {TITLE_COLOR}]{meta.get('subject', '- Details -')}[/bold {TITLE_COLOR}]",
+        "",
+    ]
+    for l, r in zip(left, rght):
+        lines.append(f"{l}   {r}" if r else l)
+    return lines
 
 
 def _measure_rows(lines: list[str]) -> int:
@@ -407,34 +445,6 @@ class ListWithDetails(Container):
         self._detail_key_handler = handler
 
     def on_key(self, event) -> None:
-        # Only when details are open
-        if not self.has_details_open():
-            return
-
-        k = event.key or ""
-        log_msg(f"{k = }")
-        if k in ("escape"):
-            self.hide_details()
-            event.stop()
-            return
-
-        if not self._detail_key_handler:
-            return
-
-        # Normalize ctrl+r -> 'ctrl+r' so your handler can match
-        if event.key == "ctrl+r":
-            key = "ctrl+r"
-        else:
-            key = k
-
-        try:
-            self._detail_key_handler(key, self.details_meta or {})
-            event.stop()
-        except Exception as e:
-            # up to you if you want to log/notify
-            pass
-
-    def on_key(self, event) -> None:
         """Only handle detail commands; let lowercase tag keys bubble up."""
         if not self.has_details_open():
             return
@@ -522,6 +532,180 @@ class HelpModal(ModalScreen[None]):
         self.app.pop_screen()
 
 
+class DatetimePrompt(ModalScreen[datetime | None]):
+    """Prompt for a datetime, live-parsed with dateutil.parser.parse."""
+
+    def __init__(self, message: str, default: datetime | None = None):
+        super().__init__()
+        self.message = message
+        self.default = default or datetime.now()
+        self.input: Input | None = None
+        self.feedback: Static | None = None
+
+    def compose(self):
+        default_str = self.default.strftime("%Y-%m-%d %H:%M")
+        with Vertical(id="dt_prompt"):
+            yield Static(self.message, classes="title-class")
+            self.feedback = Static(f"(Enter = {default_str})", id="dt_feedback")
+            self.input = Input(value=default_str, id="dt_input")
+            yield self.feedback
+            yield self.input
+            yield Button("OK", id="ok")
+            yield Button("Cancel", id="cancel")
+
+    def on_mount(self):
+        # Focus input so user can type immediately
+        self.query_one("#dt_input", Input).focus()
+        self._update_feedback(self.default.strftime("%Y-%m-%d %H:%M"))
+
+    def on_input_changed(self, event: Input.Changed):
+        self._update_feedback(event.value)
+
+    def _update_feedback(self, text: str):
+        try:
+            parsed = parse(text)
+            if isinstance(parsed, date) and not isinstance(parsed, datetime):
+                self.feedback.update(f"→ {parsed.strftime('%Y-%m-%d')}")
+            elif isinstance(parsed, datetime):
+                self.feedback.update(f"→ {parsed.strftime('%Y-%m-%d %H:%M')}")
+            else:
+                self.feedback.update(f"[red]✘ Did not understand '{text}' [/red]")
+
+        except Exception:
+            self.feedback.update(f"[red]✘ Not yet understood: '{text}' [/red]")
+
+    def on_button_pressed(self, event: Button.Pressed):
+        if event.button.id == "ok":
+            try:
+                value = self.input.value.strip()
+                parsed = parse(value) if value else self.default
+                self.dismiss(parsed)
+            except Exception:
+                self.dismiss(None)
+        else:
+            self.dismiss(None)
+
+    def on_key(self, event):
+        if event.key == "escape":
+            self.dismiss(None)
+        elif event.key == "enter":
+            # Accept current entry
+            try:
+                value = self.input.value.strip()
+                parsed = parser.parse(value) if value else self.default
+                self.dismiss(parsed)
+            except Exception:
+                self.dismiss(None)
+
+
+class DatetimePrompt(ModalScreen[datetime | None]):
+    """
+    Prompt for a datetime, live-parsed with dateutil.parser.parse.
+
+    Title is always "Datetime".
+    Sections divided by horizontal rules for clarity.
+    """
+
+    def __init__(
+        self,
+        message: str,  # top custom lines before fixed footer
+        subject: str | None = None,
+        due: str | None = None,
+        default: datetime | None = None,
+    ):
+        super().__init__()
+        self.title_text = " Datetime"
+        self.message = message.strip()
+        self.subject = subject
+        self.due = due
+        self.default = default or datetime.now()
+
+        # assigned later
+        self.input: Input | None = None
+        self.feedback: Static | None = None
+        self.instructions: Static | None = None
+
+    def compose(self) -> ComposeResult:
+        """Build prompt layout."""
+        default_str = self.default.strftime("%Y-%m-%d %H:%M")
+
+        def rule():
+            return Static("─" * 60, classes="dim-rule")
+
+        with Vertical(id="dt_prompt"):
+            # Title
+            # yield rule()
+            yield Static(self.title_text, classes="title-class")
+            # yield rule()
+
+            # Feedback
+            self.feedback = Static(f"→ {default_str}", id="dt_feedback")
+            yield self.feedback
+            # yield rule()
+
+            # Input
+            self.input = Input(value=default_str, id="dt_input")
+            yield self.input
+            # yield rule()
+
+            # Instructions
+            message_lines = []
+            message_lines.extend(
+                [
+                    "Modify the datetime above if necessary, then press",
+                    "   [bold yellow]ENTER[/bold yellow] to submit or [bold yellow]ESC[/bold yellow] to cancel.",
+                    "",
+                ]
+            )
+            if self.message:
+                message_lines.extend(self.message.splitlines())
+
+            # Context
+            if self.subject or self.due:
+                message_lines.append("")
+                if self.subject:
+                    message_lines.append(f"• subject: {self.subject}")
+                if self.due:
+                    message_lines.append(f"• due:     {self.due}")
+
+            # Universal footer lines
+
+            self.instructions = Static("\n".join(message_lines), id="dt_instructions")
+            yield self.instructions
+            yield rule()
+
+    def on_mount(self) -> None:
+        """Focus the input and show feedback for the initial value."""
+        self.query_one("#dt_input", Input).focus()
+        self._update_feedback(self.input.value)
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Live update feedback as user types."""
+        self._update_feedback(event.value)
+
+    def _update_feedback(self, text: str) -> None:
+        try:
+            parsed = parse(text)
+            if isinstance(parsed, date) and not isinstance(parsed, datetime):
+                self.feedback.update(f" → {parsed.strftime('%Y-%m-%d')}")
+            else:
+                self.feedback.update(f" → {parsed.strftime('%Y-%m-%d %H:%M')}")
+        except Exception:
+            self.feedback.update(f"[red]✘invalid: {text} [/red]")
+
+    def on_key(self, event) -> None:
+        """Handle Enter and Escape."""
+        if event.key == "escape":
+            self.dismiss(None)
+        elif event.key == "enter":
+            try:
+                value = self.input.value.strip()
+                parsed = parse(value) if value else self.default
+                self.dismiss(parsed)
+            except Exception:
+                self.dismiss(None)
+
+
 class EditorScreen(Screen):
     BINDINGS = [
         ("shift+enter", "commit", "Commit"),
@@ -556,7 +740,7 @@ class EditorScreen(Screen):
         ctx = self._build_context()
         self.query_one("#ctx_line", Static).update(ctx)
         # focus the editor
-        self.query_one("#entry_area", Input).focus()
+        self.query_one("#entry_area", TextArea).focus()
         # do an initial parse
         self._parse_live(self.entry_text)
 
@@ -653,18 +837,47 @@ class EditorScreen(Screen):
 
 
 class DetailsScreen(ModalScreen[None]):
-    """
-    Context-aware details viewer (tuple-based meta).
-    - `details`: list[str] from controller.process_tag(); details[0] is the title.
-    - Meta is pulled from controller.get_last_details_meta() on mount.
-    """
-
     BINDINGS = [
         ("escape", "close", "Back"),
         ("?", "show_help", "Help"),
         ("ctrl+q", "quit", "Quit"),
-        # (all your other bindings with show=False if you want the Footer to only show "? Help")
+        ("alt+e", "edit_item", "Edit"),
+        ("alt+c", "copy_item", "Copy"),
+        ("alt+d", "delete_item", "Delete"),
+        ("alt+f", "finish_task", "Finish"),  # tasks only
+        ("alt+p", "toggle_pinned", "Pin/Unpin"),  # tasks only
+        ("alt+n", "schedule_new", "Schedule"),
+        ("alt+r", "reschedule", "Reschedule"),
+        ("alt+t", "touch_item", "Touch"),
+        ("ctrl+r", "show_repetitions", "Show Repetitions"),
     ]
+
+    # Actions mapped to bindings
+    def action_edit_item(self) -> None:
+        self._edit_item()
+
+    def action_copy_item(self) -> None:
+        self._copy_item()
+
+    def action_delete_item(self) -> None:
+        self._delete_item()
+
+    def action_finish_task(self) -> None:
+        if self.is_task:
+            self._finish_task()
+
+    def action_toggle_pinned(self) -> None:
+        if self.is_task:
+            self._toggle_pinned()
+
+    def action_schedule_new(self) -> None:
+        self._schedule_new()
+
+    def action_reschedule(self) -> None:
+        self._reschedule()
+
+    def action_touch_item(self) -> None:
+        self._touch_item()
 
     def __init__(self, details: Iterable[str], showing_help: bool = False):
         super().__init__()
@@ -713,6 +926,7 @@ class DetailsScreen(ModalScreen[None]):
     def on_mount(self) -> None:
         meta = self.app.controller.get_last_details_meta() or {}
         log_msg(f"{meta = }")
+        self.set_focus(self)  # 👈 this makes sure the modal is active for bindings
         self.record_id = meta.get("record_id")
         self.itemtype = meta.get("itemtype") or ""
         self.is_task = self.itemtype == "~"
@@ -730,103 +944,30 @@ class DetailsScreen(ModalScreen[None]):
     def action_close(self) -> None:
         self.app.pop_screen()
 
-    def action_show_help(self) -> None:
-        self.app.push_screen(DetailsHelpScreen(self._build_help_text()))
-
-    # ---------- key handling for detail commands ----------
-    def on_key(self, event) -> None:
-        log_msg(f"{event.key = }")
-        k = (event.key or "").lower()
-
-        if k == "E":  # Edit
-            self._edit_item()
-            return
-        if k == "C":  # Edit Copy
-            self._copy_item()
-            return
-        if k == "D":  # Delete (scope depends on recurrence)
-            self._delete_item()
-            return
-        if k == "F" and self.is_task:  # Finish task
-            self._finish_task()
-            return
-        if k == "P":  # Toggle pinned (task-only; no-op otherwise)
-            self._toggle_pinned()
-            return
-        if k == "N":  # Schedule new
-            self._schedule_new()
-            return
-        if k == "R":  # Reschedule
-            self._reschedule()
-            return
-        if k == "T":  # Touch (update modified)
-            self._touch_item()
-            return
-
-        # ctrl bindings
-        if event.key == "ctrl+r" and self.is_recurring:
+    def action_show_repetitions(self) -> None:
+        if self.is_recurring:
             self._show_repetitions()
-            return
 
-        # if event.key == "ctrl+c" and self.is_task:
-        #     self._show_completions()
-        #     return
+    # def action_show_help(self) -> None:
+    #     self.app.push_screen(DetailsHelpScreen(self._build_help_text()))
+
+    def action_show_help(self) -> None:
+        # Build the specialized details help
+        lines = self._build_help_text().splitlines()
+        self.app.push_screen(HelpScreen(lines))
 
     # ---------- wire these to your controller ----------
     def _edit_item(self) -> None:
         # e.g. self.app.controller.edit_record(self.record_id)
-        pass
+        log_msg("edit_item")
 
     def _copy_item(self) -> None:
         # e.g. self.app.controller.copy_record(self.record_id)
-        pass
+        log_msg("copy_item")
 
     def _delete_item(self) -> None:
         # e.g. self.app.controller.delete_record(self.record_id, scope=...)
-        pass
-
-    # def _finish_task(self) -> None:
-    #     if not self.is_task or self.record_id is None:
-    #         return
-    #
-    #     try:
-    #         res = self.app.controller.finish_current_instance(self.record_id)
-    #         # Nice little confirmation
-    #         title = self._base_title()
-    #         self.app.notify(f"Finished: {title}", timeout=1.5)
-    #
-    #         # If it's now fully finished, update the title glyph too
-    #         # (optional; your finish may flip to itemtype 'x')
-    #         self._apply_pin_glyph()
-    #
-    #         # ★ Refresh any open screen that knows how to reload itself (Agenda, etc.)
-    #
-    #         for scr in list(getattr(self.app, "screen_stack", [])):
-    #             if scr.__class__.__name__ == "AgendaScreen" and getattr(
-    #                 scr, "refresh_data", None
-    #             ):
-    #                 scr.refresh_data()
-    #                 break
-    #
-    #         # Optionally auto-close the details modal
-    #         self.app.pop_screen()
-    #
-    #     except Exception as e:
-    #         self.app.notify(f"Finish failed: {e}", severity="error", timeout=3)
-
-    # def _finish_task(self) -> None:
-    #     if not self.is_task or self.record_id is None:
-    #         return
-    #     try:
-    #         res = self.app.controller.finish_current_instance(self.record_id)
-    #         note = "Finished" + (" (final)" if res.get("final") else "")
-    #         self.app.notify(note, timeout=1.2)
-    #         # Refresh Agenda immediately
-    #         for scr in getattr(self.app, "screen_stack", []):
-    #             if hasattr(scr, "refresh_data"):
-    #                 scr.refresh_data()
-    #     except Exception as e:
-    #         self.app.notify(f"Finish failed: {e}", severity="error")
+        log_msg("delete_item")
 
     def _prompt_finish_datetime(self) -> datetime | None:
         """
@@ -867,6 +1008,9 @@ class DetailsScreen(ModalScreen[None]):
         Called on 'f' from DetailsScreen.
         Gathers record/job context, prompts for completion time, calls controller.
         """
+        log_msg("finish_task")
+        return
+
         meta = self.app.controller.get_last_details_meta() or {}
         record_id = meta.get("record_id")
         job_id = meta.get("job_id")  # may be None for non-project tasks
@@ -875,8 +1019,8 @@ class DetailsScreen(ModalScreen[None]):
             self.app.notify("No record selected.")
             return
 
-        dt = datetime.now()
-        # dt = self._prompt_finish_datetime()
+        # dt = datetime.now()
+        dt = self._prompt_finish_datetime()
         if dt is None:
             self.app.notify("Finish cancelled.")
             return
@@ -899,6 +1043,9 @@ class DetailsScreen(ModalScreen[None]):
             self.app.notify(f"Finish failed: {e}")
 
     def _toggle_pinned(self) -> None:
+        log_msg("toggle_pin")
+        return
+
         if not self.is_task or self.record_id is None:
             return
         new_state = self.app.controller.toggle_pin(self.record_id)
@@ -917,58 +1064,29 @@ class DetailsScreen(ModalScreen[None]):
 
     def _schedule_new(self) -> None:
         # e.g. self.app.controller.schedule_new(self.record_id)
-        pass
+        log_msg("schedule_new")
 
     def _reschedule(self) -> None:
         # e.g. self.app.controller.reschedule(self.record_id)
-        pass
+        log_msg("reschedule")
 
     def _touch_item(self) -> None:
         # e.g. self.app.controller.touch_record(self.record_id)
-        pass
+        log_msg("touch")
 
     def _show_repetitions(self) -> None:
+        log_msg("show_repetitions")
         if not self.is_recurring or self.record_id is None:
             return
         # e.g. rows = self.app.controller.list_repetitions(self.record_id)
         pass
 
     def _show_completions(self) -> None:
+        log_msg("show_completions")
         if not self.is_task or self.record_id is None:
             return
         # e.g. rows = self.app.controller.list_completions(self.record_id)
         pass
-
-    # ---------- contextual help ----------
-    def _build_help_text(self) -> str:
-        left, right = [], []
-
-        left.append("[bold] e[/bold] Edit")
-        left.append("[bold] c[/bold] Edit Copy")
-        left.append("[bold] d[/bold] Delete")
-
-        right.append("[bold] r[/bold] Reschedule")
-        right.append("[bold] s[/bold] Schedule New")
-        right.append("[bold] t[/bold] Touch")
-
-        if self.is_task:
-            left.append("[bold] f[/bold] Finish")
-            right.append("[bold] p[/bold] Toggle Pinned ")
-        if self.is_recurring:
-            left.append("[bold]^r[/bold] Repetitions")
-
-        # balance columns
-        m = max(len(left), len(right))
-        left += [""] * (m - len(left))
-        right += [""] * (m - len(right))
-
-        lines = [
-            f"[bold {GOLD}]{self.title_text}[/bold {GOLD}]",
-            "",
-        ]
-        for l, r in zip(left, right):
-            lines.append(f"{l:<32} {r}" if r else l)
-        return "\n".join(lines)
 
 
 class HelpScreen(Screen):
@@ -979,6 +1097,7 @@ class HelpScreen(Screen):
         self._title = lines[0]
         self._lines = lines[1:]
         self._footer = footer or f"[bold {FOOTER}]esc[/bold {FOOTER}] Back"
+        log_msg(f"{lines = }")
 
     def compose(self):
         yield Vertical(
@@ -1203,6 +1322,7 @@ class WeeksScreen(SearchableScreen):
                 week_provider=lambda: self.app.selected_week,
             )
         )
+        self.app.detail_handler = self.list_with_details._detail_key_handler
         yield self.list_with_details
 
         yield Static(self.footer_content)
@@ -1239,107 +1359,6 @@ class WeeksScreen(SearchableScreen):
         if self.list_with_details:
             self.list_with_details.show_details(title, lines, meta)
 
-    # quality-of-life: Esc hides details
-    # def on_key(self, event):
-    #     if event.key == "escape" and self.list_with_details:
-    #         if self.list_with_details.has_details_open():
-    #             self.list_with_details.hide_details()
-    #             event.stop()
-
-    # def on_key(self, event):
-    #     k = (event.key or "").lower()
-    #     host = self.list_with_details
-    #     if not (host and host.has_details_open()):
-    #         return  # nothing to do
-    #
-    #     if k in ("escape"):
-    #         host.hide_details()
-    #         event.stop()
-    #         return
-    #
-    #     meta = host.details_meta or {}
-    #     record_id = meta.get("record_id")
-    #     if not record_id:
-    #         return
-    #     # ... your e/c/d/f/p/s/r/t bindings using controller ...
-    #
-    #     record_id = meta.get("record_id")
-    #     job_id = meta.get("job_id")
-    #     itemtype = meta.get("itemtype", "")
-    #     is_task = itemtype == "~"
-    #     is_rec = bool(meta.get("rruleset") and "RRULE:" in (meta.get("rruleset") or ""))
-    #     log_msg(f"{meta = }")
-    #
-    #     # Esc always closes details
-    #     if k in ("escape"):
-    #         details_host.hide_details()
-    #         event.stop()
-    #         return
-    #
-    #     # ——— Actions that need the selected record ———
-    #     if not record_id:
-    #         return  # nothing to act on
-    #
-    #     ctrl = self.app.controller  # shorthand
-    #
-    #     if k == "E":  # Edit
-    #         ctrl.edit_record(record_id)  # << hook to your actual API
-    #         self.refresh_data_after_action(details_host)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "C":  # Edit copy
-    #         ctrl.copy_record(record_id)  # <<
-    #         self.refresh_data_after_action(details_host)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "D":  # Delete (scope depends on recurrence)
-    #         # If you support “this instance vs all” you can inspect meta, prompt, etc.
-    #         ctrl.delete_record(record_id)  # << or delete_instance(record_id, when=...)
-    #         self.refresh_data_after_action(details_host)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "F" and is_task:  # Finish task
-    #         ctrl.finish_task(record_id, job_id=job_id)  # << use your finish API
-    #         self.refresh_data_after_action(details_host)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "P":  # Toggle pinned (task-only; no-op otherwise)
-    #         if is_task:
-    #             ctrl.toggle_pinned(record_id)
-    #             # re-open details to reflect new pinned state
-    #             self._reopen_details(details_host, tag_meta=meta)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "S":  # Schedule new
-    #         ctrl.schedule_new(record_id)  # <<
-    #         self.refresh_data_after_action(details_host)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "R":  # Reschedule
-    #         ctrl.reschedule_record(record_id)  # <<
-    #         self.refresh_data_after_action(details_host)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "T":  # Touch (update modified)
-    #         ctrl.touch_record(record_id)  # <<
-    #         self._reopen_details(details_host, tag_meta=meta)
-    #         event.stop()
-    #         return
-    #
-    #     # Ctrl+R: show repetitions (if recurring)
-    #     if event.key == "ctrl+r" and is_rec:
-    #         # maybe open a modal/list with the next few instances
-    #         ctrl.show_repetitions(record_id)  # <<
-    #         event.stop()
-    #         return
-
 
 class AgendaScreen(SearchableScreen):
     BINDINGS = [
@@ -1363,14 +1382,6 @@ class AgendaScreen(SearchableScreen):
         self.events = {}
         self.tasks = []
 
-    # SearchableScreen will call this for search routing
-    def get_search_target(self) -> ScrollableList:
-        return (
-            self.tasks_view._main
-            if self.active_pane == "tasks"
-            else self.events_view._main
-        )
-
     def compose(self) -> ComposeResult:
         self.events_view = ListWithDetails(id="events")
         self.events_view.set_detail_key_handler(
@@ -1380,6 +1391,7 @@ class AgendaScreen(SearchableScreen):
         self.tasks_view.set_detail_key_handler(
             self.app.make_detail_key_handler(view_name="tasks")
         )
+
         yield Vertical(
             Container(
                 Static("Events", id="events_title"),
@@ -1391,9 +1403,20 @@ class AgendaScreen(SearchableScreen):
                 self.tasks_view,
                 id="tasks-pane",
             ),
-            Static(self.footer_text),
+            Static(self.footer_text, id="agenda_footer"),
             id="agenda-layout",
         )
+
+    # 🔑 This gives DynamicViewApp and help detection a uniform interface
+    @property
+    def list_with_details(self) -> ListWithDetails | None:
+        """Expose the active pane’s ListWithDetails so AgendaScreen
+        can be treated like WeeksScreen."""
+        if self.active_pane == "events":
+            return self.events_view
+        elif self.active_pane == "tasks":
+            return self.tasks_view
+        return None
 
     def on_mount(self) -> None:
         self.refresh_data()
@@ -1656,6 +1679,7 @@ class DynamicViewApp(App):
     search_term = reactive("")
 
     BINDINGS = [
+        # global
         (".", "center_week", ""),
         ("space", "current_period", ""),
         ("shift+left", "previous_period", ""),
@@ -1672,6 +1696,7 @@ class DynamicViewApp(App):
         ("S", "show_weeks", "Scheduled"),
         ("?", "show_help", "Help"),
         ("ctrl+q", "quit", "Quit"),
+        ("ctrl+r", "detail_repetitions", "Show Repetitions"),
         ("/", "start_search", "Search"),
         (">", "next_match", "Next Match"),
         ("<", "previous_match", "Previous Match"),
@@ -1687,8 +1712,8 @@ class DynamicViewApp(App):
         self.view = "week"
         self.saved_lines = []
         self.afill = 1
+        self.leader_mode = False
         self.details_drawer: DetailsDrawer | None = None
-        # log_msg(f"{self.afill = }")
 
     def set_afill(self, *_args, **_kwargs):
         # Prefer controller’s chosen width, fallback to infer from existing tags
@@ -1703,28 +1728,6 @@ class DynamicViewApp(App):
             log_msg(f"got {fill = } for {self.view = }")
         log_msg(f"got preliminary {fill = }")
         self.afill = fill if fill else 1
-        # if fill is None:
-        #
-        #     mapping = (
-        #         self.controller.week_tag_to_id.get(self.selected_week, {})
-        #         if self.view == "week"
-        #         else self.controller.list_tag_to_id.get(self.view, {})
-        #     )
-        #     log_msg(f"{mapping.keys() = }")
-        #     if mapping:
-        #         self.afill = len(next(iter(mapping.keys())))  # infer from first key
-        #         log_msg(
-        #             f"using {self.afill = } from keys for {self.view = }, {self.selected_week = }"
-        #         )
-        #     else:
-        #         self.afill = 3
-        #         log_msg(
-        #             f"### fill and mapping failed - using default {self.afill = } ###"
-        #         )
-        #
-        # else:
-        #     self.afill = fill
-        #     log_msg(f"using {self.afill = } from controller for {self.view = }")
 
     async def on_mount(self):
         # mount the drawer (hidden by default)
@@ -1820,58 +1823,211 @@ class DynamicViewApp(App):
         week_provider: callable -> (year, week) if needed (for 'week' context)
         """
         ctrl = self.controller
+        app = self  # DynamicViewApp
 
         def handler(key: str, meta: dict) -> None:
             record_id = meta.get("record_id")
             job_id = meta.get("job_id")
             itemtype = meta.get("itemtype")
             log_msg(f"{key = }, {meta = }")
-            # if not record_id:
-            #     return
 
-            if key == "E":
-                ctrl.edit_item(record_id)
-            elif key == "C":
-                ctrl.copy_item(record_id)
-            elif key == "D":
-                ctrl.delete_item(record_id, job_id=job_id)
-            elif key == "F":
-                if itemtype == "~":
-                    ctrl.finish_task(record_id, job_id=job_id)
-            elif key == "p":
-                if itemtype == "~":
-                    ctrl.toggle_pinned(record_id)
-                    self._reopen_details(details_host, tag_meta=meta)
-            elif key == "P":
-                if itemtype == "~":
-                    ctrl.toggle_pinned(record_id)
-            elif key == "S":
-                ctrl.schedule_new(record_id)
-            elif key == "R":
-                yrwk = week_provider() if week_provider else None
-                ctrl.reschedule(record_id, context=view_name, yrwk=yrwk)
-            elif key == "T":
+            if not record_id:
+                return
+
+            # --- Editing ---
+            if key == "alt+e":
+                log_msg("processing alt-e")
+                row = ctrl.db_manager.get_record(record_id)
+                seed_text = row[2] or ""  # summary
+                app.push_screen(EditorScreen(ctrl, record_id, seed_text=seed_text))
+
+            # --- Copy ---
+            elif key == "alt+c":
+                row = ctrl.db_manager.get_record(record_id)
+                seed_text = row[2] or ""
+                # push EditorScreen with no record_id (new copy)
+                app.push_screen(EditorScreen(ctrl, None, seed_text=seed_text))
+
+            # --- Delete (needs confirmation) ---
+            elif key == "alt+d":
+
+                def confirm_delete():
+                    ctrl.delete_item(record_id, job_id=job_id)
+                    app.notify("Deleted", timeout=1.5)
+
+                app.confirm(
+                    f"Delete item {record_id}? This cannot be undone.",
+                    confirm_delete,
+                    on_cancel=lambda: app.notify("Cancelled", severity="warning"),
+                )
+
+            # --- Finish (needs datetime) ---
+            elif key == "alt+f" and itemtype == "~":
+                dt = app.prompt_datetime(
+                    "Finish when?"
+                )  # small wrapper you can implement
+                if dt:
+                    ctrl.finish_task(record_id, job_id=job_id, when=dt)
+                    app.notify("Finished", timeout=1.5)
+
+            # --- Pin/unpin (immediate toggle) ---
+            elif key == "alt+p" and itemtype == "~":
+                ctrl.toggle_pinned(record_id)
+                if hasattr(app, "_reopen_details"):
+                    app._reopen_details(tag_meta=meta)
+
+            # --- Schedule new (needs datetime) ---
+            elif key == "alt+s":
+                dt = app.prompt_datetime("Schedule when?")
+                if dt:
+                    ctrl.schedule_new(record_id, when=dt)
+                    app.notify("Scheduled", timeout=1.5)
+
+            # --- Reschedule (needs datetime) ---
+            elif key == "alt+r":
+                dt = app.prompt_datetime("Reschedule to?")
+                if dt:
+                    yrwk = week_provider() if week_provider else None
+                    ctrl.reschedule(record_id, when=dt, context=view_name, yrwk=yrwk)
+
+            # --- Touch (no prompt) ---
+            elif key == "alt+t":
                 ctrl.touch_item(record_id)
+                app.notify("Touched", timeout=1.0)
+
+            # --- Show repetitions (ctrl+r kept special) ---
             elif key == "ctrl+r":
                 ctrl.show_repetitions(record_id)
-            # else: ignore unhandled keys
 
         return handler
 
-    # def _open_details_for_tag_on_screen(self, tag: str) -> None:
-    #     # Resolve with your existing controller logic
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     if parts:
-    #         title, lines = parts[0], parts[1:]
-    #         log_msg(f"{lines = }, {len(lines) = }")
-    #         if hasattr(self.screen, "open_details"):
-    #             self.screen.open_details(title, lines)
+    def make_detail_key_handler(self, *, view_name: str, week_provider=None):
+        ctrl = self.controller
+        app = self
+
+        def handler(key: str, meta: dict) -> None:
+            record_id = meta.get("record_id")
+            job_id = meta.get("job_id")
+            itemtype = meta.get("itemtype")
+            log_msg(f"{key = }, {meta = }")
+
+            # First: intercept alt+ combos so they don't fall through
+            if key.startswith("alt+"):
+                log_msg("got alt")
+                if not record_id:
+                    return
+                if key == "alt+e":
+                    log_msg("processing alt+e")
+                    return
+                    row = ctrl.db_manager.get_record(record_id)
+                    seed_text = row[2] or ""
+                    app.push_screen(EditorScreen(ctrl, record_id, seed_text=seed_text))
+                elif key == "alt+c":
+                    row = ctrl.db_manager.get_record(record_id)
+                    seed_text = row[2] or ""
+                    app.push_screen(EditorScreen(ctrl, None, seed_text=seed_text))
+                elif key == "alt+d":
+                    app.confirm(
+                        f"Delete item {record_id}? This cannot be undone.",
+                        lambda: ctrl.delete_item(record_id, job_id=job_id),
+                    )
+                elif key == "alt+f" and itemtype == "~":
+                    dt = app.prompt_datetime("Finish when?")
+                    if dt:
+                        ctrl.finish_task(record_id, job_id=job_id, when=dt)
+                elif key == "alt+p" and itemtype == "~":
+                    ctrl.toggle_pinned(record_id)
+                    if hasattr(app, "_reopen_details"):
+                        app._reopen_details(tag_meta=meta)
+                elif key == "alt+s":
+                    dt = app.prompt_datetime("Schedule when?")
+                    if dt:
+                        ctrl.schedule_new(record_id, when=dt)
+                elif key == "alt+r":
+                    dt = app.prompt_datetime("Reschedule to?")
+                    if dt:
+                        yrwk = week_provider() if week_provider else None
+                        ctrl.reschedule(
+                            record_id, when=dt, context=view_name, yrwk=yrwk
+                        )
+                elif key == "alt+t":
+                    ctrl.touch_item(record_id)
+                return  # <- IMPORTANT: don't fall through
+
+            # ctrl+r special case
+            if key == "ctrl+r" and record_id:
+                ctrl.show_repetitions(record_id)
+                return
+
+            # Otherwise: normal letter keys still mean "open details for tag"
+            # (existing behavior for `a`, `b`, …)
+            # -> you don’t need to reimplement, just let ListWithDetails handle it
+
+        return handler
+
+    def make_detail_key_handler(self, *, view_name: str, week_provider=None):
+        ctrl = self.controller
+        app = self
+
+        async def handler(key: str, meta: dict) -> None:  # chord-aware
+            log_msg(f"in handler with {key = }, {meta = }")
+            record_id = meta.get("record_id")
+            job_id = meta.get("job_id")
+            itemtype = meta.get("itemtype")
+
+            if not record_id:
+                return
+
+            # chord-based actions
+            if key == "comma,f" and itemtype == "~":
+                dt = await app.prompt_datetime("Finish when?")
+                if dt:
+                    ctrl.finish_task(record_id, job_id=job_id, when=dt)
+
+            elif key == "comma,e":
+                row = ctrl.db_manager.get_record(record_id)
+                seed_text = row[2] or ""
+                app.push_screen(EditorScreen(ctrl, record_id, seed_text=seed_text))
+
+            elif key == "comma,c":
+                row = ctrl.db_manager.get_record(record_id)
+                seed_text = row[2] or ""
+                app.push_screen(EditorScreen(ctrl, None, seed_text=seed_text))
+
+            elif key == "comma,d":
+                app.confirm(
+                    f"Delete item {record_id}? This cannot be undone.",
+                    lambda: ctrl.delete_item(record_id, job_id=job_id),
+                )
+
+            elif key == "comma,s":
+                dt = await app.prompt_datetime("Schedule when?")
+                if dt:
+                    ctrl.schedule_new(record_id, when=dt)
+
+            elif key == "comma,r":
+                dt = await app.prompt_datetime("Reschedule to?")
+                if dt:
+                    yrwk = week_provider() if week_provider else None
+                    ctrl.reschedule(record_id, when=dt, context=view_name, yrwk=yrwk)
+
+            elif key == "comma,t":
+                ctrl.touch_item(record_id)
+
+            elif key == "comma,p" and itemtype == "~":
+                ctrl.toggle_pinned(record_id)
+                if hasattr(app, "_reopen_details"):
+                    app._reopen_details(tag_meta=meta)
+
+            # keep ctrl+r for repetitions
+            elif key == "ctrl+r" and itemtype == "~":
+                ctrl.show_repetitions(record_id)
+
+        return handler
 
     def on_key(self, event: events.Key) -> None:
         """Handle global key events (tags, escape, etc.)."""
-        log_msg(
-            f"before: {self.afill = }, {event.key = }, {self.view = }, {self.selected_week = }"
-        )
+        log_msg(f"before: {event.key = }, {self.leader_mode = }")
         if self.view == "week":
             self.afill = self.controller.afill_by_week.get(self.selected_week)
         elif self.view == "tasks":
@@ -1882,20 +2038,31 @@ class DynamicViewApp(App):
             f"after: {self.afill = }, {event.key = }, {self.view = }, {self.selected_week = }"
         )
 
+        if event.key == "comma":
+            self.leader_mode = True
+            log_msg(f"set {self.leader_mode = }")
+            return
+
+        if self.leader_mode:
+            self.leader_mode = False
+            meta = self.controller.get_last_details_meta() or {}
+            handler = getattr(self, "detail_handler", None)
+            log_msg(f"got {event.key = }, {handler = }")
+            if handler:
+                log_msg(f"creating task for {event.key = }, {meta = }")
+                create_task(handler(f"comma,{event.key}", meta))  # <-- async-safe
+            return
+
         if event.key in "abcdefghijklmnopqrstuvwxyz":
             self.digit_buffer.append(event.key)
             log_msg(f"{self.digit_buffer = }, {self.afill = }")
             if len(self.digit_buffer) >= self.afill:
                 base26_tag = "".join(self.digit_buffer)
                 self.digit_buffer.clear()
-                # new: ask the current screen to show details if it supports it
                 screen = self.screen
                 log_msg(f"{base26_tag = }, {screen = }")
                 if hasattr(screen, "show_details_for_tag"):
                     screen.show_details_for_tag(base26_tag)
-                # else:
-                #     # fallback: your older flow
-                #     self.action_show_details(base26_tag)
         else:
             self.digit_buffer.clear()
 
@@ -2070,15 +2237,6 @@ class DynamicViewApp(App):
         log_msg(f"{self.afill = }, {self.selected_week = }")
         self.update_table_and_list()
 
-    # def action_previous_week(self):
-    #     self.selected_week = get_previous_yrwk(*self.selected_week)
-    #     if self.selected_week < tuple(
-    #         (self.current_start_date + timedelta(weeks=4) - ONEDAY).isocalendar()[:2]
-    #     ):
-    #         self.current_start_date += timedelta(weeks=1)
-    #     self.set_afill("week")
-    #     self.update_table_and_list()
-
     def action_center_week(self):
         self.current_start_date = datetime.strptime(
             f"{self.selected_week[0]} {self.selected_week[1]} 1", "%G %V %u"
@@ -2088,21 +2246,67 @@ class DynamicViewApp(App):
     def action_quit(self):
         self.exit()
 
-    def action_show_help(self):
-        self.push_screen(HelpScreen(HelpText))
+    # def action_show_help(self):
+    #     self.push_screen(HelpScreen(HelpText))
 
-    # def action_show_details(self, tag: str):
-    #     record_id, job_id = self._resolve_tag_to_record(tag)
-    #     if not record_id:
-    #         self.notify(f"No item for tag '{tag}'", severity="warning")
-    #         return
-    #
-    #     # process_tag returns [title] + field lines
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     title, lines = parts[0], parts[1:]
-    #
-    #     # Open the drawer with exactly what process_tag produced
-    #     self.details_drawer.open_lines(title=title, lines=lines)
+    def action_show_help(self):
+        scr = self.screen
+        log_msg(
+            f"{scr = }, {self.controller.get_last_details_meta() = }, {hasattr(scr, 'list_with_details') = }"
+        )
+        if (
+            hasattr(scr, "list_with_details")
+            and scr.list_with_details.has_details_open()
+        ):
+            meta = self.controller.get_last_details_meta() or {}
+            lines = build_details_help(meta)
+            self.push_screen(HelpScreen(lines))
+        else:
+            self.push_screen(HelpScreen(HelpText))
+
+    def action_detail_edit(self):
+        self._dispatch_detail_key("/e")
+
+    def action_detail_copy(self):
+        self._dispatch_detail_key("/c")
+
+    def action_detail_delete(self):
+        self._dispatch_detail_key("/d")
+
+    def action_detail_finish(self):
+        self._dispatch_detail_key("/f")
+
+    def action_detail_pin(self):
+        self._dispatch_detail_key("/p")
+
+    def action_detail_schedule(self):
+        self._dispatch_detail_key("/s")
+
+    def action_detail_reschedule(self):
+        self._dispatch_detail_key("/r")
+
+    def action_detail_touch(self):
+        self._dispatch_detail_key("/t")
+
+    def action_detail_repetitions(self):
+        self._dispatch_detail_key("ctrl+r")
+
+    def _dispatch_detail_key(self, key: str) -> None:
+        # Look at the current screen and meta
+        scr = self.screen
+        if (
+            hasattr(scr, "list_with_details")
+            and scr.list_with_details.has_details_open()
+        ):
+            meta = self.controller.get_last_details_meta() or {}
+            handler = self.make_detail_key_handler(view_name=self.view)
+            handler(key, meta)
+
+    async def prompt_datetime(
+        self, message: str, default: datetime | None = None
+    ) -> datetime | None:
+        """Show DatetimePrompt and return parsed datetime or None."""
+        return await self.push_screen_wait(DatetimePrompt(message, default))
 
 
 if __name__ == "__main__":
