@@ -326,28 +326,6 @@ def enforce_date(dt: datetime) -> datetime:
     raise ValueError(f"{dt = } cannot be converted to a date ")
 
 
-# def localize_rule_instances(
-#     rule: Iterable[datetime], timezone: ZoneInfo, to_localtime: bool = False
-# ):
-#     """
-#     Iterate over datetimes from a rule parsed by rrulestr.
-#
-#     - If datetime is naive, attach the given timezone.
-#     - If to_localtime=True, also convert to the system local timezone.
-#     Yields timezone-aware datetime objects.
-#     """
-#     if timezone == "local":
-#         timezone = get_localzone_name()
-#     for dt in rule:
-#         if dt.tzinfo is None:
-#             dt = dt.replace(
-#                 tzinfo=timezone
-#             )  # Attach @z timezone without shifting wall clock
-#         if to_localtime and not is_date(dt):
-#             dt = as_timezone(dt, timezone)  # Convert to system local timezone
-#         yield dt
-
-
 def localize_rule_instances(
     rule: Iterable[Union[datetime, date]],
     timezone: Union[ZoneInfo, None],
@@ -508,18 +486,7 @@ multiple_allowed = [
     "~",
     "~r",
     "~t",
-    # "jj",
-    # "ji",
-    # "js",
-    # "jb",
-    # "jp",
     "~a",
-    # "jd",
-    # "je",
-    # "jf",
-    # "jl",
-    # "jm",
-    # "ju",
 ]
 
 wrap_methods = ["w"]
@@ -1357,10 +1324,10 @@ class Item:
 
         # Token pattern that keeps @ and & together - this one courtesy of
         # ChatGPT and nothing short of magic
-        # pattern = (
-        #     r"(?:(?<=^)|(?<=\s))(@[\w~+\-]+ [^@&\n]+)|(?:(?<=^)|(?<=\s))(&\w+ [^@&\n]+)"
-        # )
-        pattern = r"@[^@]+(?:\s&[^@]+)*(?=(?:\s@|$))"
+        pattern = (
+            r"(?:(?<=^)|(?<=\s))(@[\w~+\-]+ [^@&\n]+)|(?:(?<=^)|(?<=\s))(&\w+ [^@&\n]+)"
+        )
+        # pattern = r"@[^@]+(?:\s&[^@]+)*(?=(?:\s@|$))"
         for match in re.finditer(pattern, remainder):
             token = match.group(0)
             start_pos = match.start() + offset + len(subject)
@@ -1533,14 +1500,22 @@ class Item:
             method = getattr(self, method_name)
             # log_msg(f"{method_name = } returned {method = }")
             is_valid, result, sub_tokens = method(token)
+            log_msg(f"{is_valid = }, {result = }, {sub_tokens = }")
             if is_valid:
-                if token_type == "r":
-                    self.rrules.append(result)
-                    self._dispatch_sub_tokens(sub_tokens, "r")
-                elif token_type == "~":
-                    self.jobset.append(result)
-                    log_msg(f"dispatching {sub_tokens = } in {self.entry = }")
-                    ok, res = self._dispatch_sub_tokens(sub_tokens, "~")
+                self.parse_ok = is_valid
+                # if token_type == "r":
+                #     log_msg(
+                #         f"appending {result = } to self.rrules, dispatching {sub_tokens = } in {self.entry = }"
+                #     )
+                #     self.rrules.append(result)
+                #     self._dispatch_sub_tokens(sub_tokens, "r")
+                # elif token_type == "~":
+                #     log_msg(
+                #         f"appending {result = } to self.jobset, dispatching {sub_tokens = } in {self.entry = }"
+                #     )
+                #     self.jobset.append(result)
+                #     log_msg(f"dispatching {sub_tokens = } in {self.entry = }")
+                #     ok, res, toks = self._dispatch_sub_tokens(sub_tokens, "~")
             else:
                 self.parse_ok = False
                 log_msg(f"Error processing '{token_type}': {result}")
@@ -1548,33 +1523,38 @@ class Item:
             self.parse_ok = False
             log_msg(f"No handler for token: {token}")
 
-    def _dispatch_sub_tokens(self, sub_tokens, prefix):
-        log_msg(f"dispatch_sub_tokens {sub_tokens = }, {prefix = }")
-        for part in sub_tokens:
-            if part.startswith("&"):
-                token_type = prefix + part[1:2]  # Prepend prefix to token type
-                token_value = part[2:].strip()
-                if token_type in self.token_keys:
-                    method_name = self.token_keys[token_type][2]
-                    method = getattr(self, method_name)
-                    is_valid, result, *sub_tokens = method(token_value)
-                    if is_valid:
-                        if prefix == "r":
-                            self.rrule_tokens[-1][1][token_type] = result
-                            self.rrule_parts.append(result)
-                            log_msg(f"{self.rrule_parts = }")
-                        elif prefix == "~":
-                            self.job_tokens[-1][1][token_type] = result
-                    else:
-                        self.parse_ok = False
-                        log_msg(f"Error processing sub-token '{token_type}': {result}")
-                        return False, result, []
-                else:
-                    self.parse_ok = False
-                    log_msg(f"No handler for sub-token: {token_type}")
-                    return False, f"Invalid sub-token: {token_type}", []
+    # def _dispatch_sub_tokens(self, sub_tokens, prefix):
+    #     log_msg(f"dispatch_sub_tokens {sub_tokens = }, {prefix = }")
+    #     return True, "", []
+    #     if not sub_tokens:
+    #         return True, "", []
+    #     for part in sub_tokens:
+    #         if part.startswith("&"):
+    #             token_type = prefix + part[1:2]  # Prepend prefix to token type
+    #             token_value = part[2:].strip()
+    #             if token_type in self.token_keys:
+    #                 method_name = self.token_keys[token_type][2]
+    #                 method = getattr(self, method_name)
+    #                 is_valid, result, *sub_tokens = method(token_value)
+    #                 if is_valid:
+    #                     if prefix == "r":
+    #                         self.rrule_tokens[-1][1][token_type] = result
+    #                         self.rrule_parts.append(result)
+    #                         log_msg(f"{self.rrule_parts = }")
+    #                     elif prefix == "~":
+    #                         self.job_tokens[-1][1][token_type] = result
+    #                         log_msg(f"self.job_tokens = ")
+    #                 else:
+    #                     self.parse_ok = False
+    #                     log_msg(f"Error processing sub-token '{token_type}': {result}")
+    #                     return False, result, []
+    #             else:
+    #                 self.parse_ok = False
+    #                 log_msg(f"No handler for sub-token: {token_type}")
+    #                 return False, f"Invalid sub-token: {token_type}", []
 
     def _extract_job_node_and_summary(self, text):
+        log_msg(f"{text = }")
         match = JOB_PATTERN.match(text)
         if match:
             number = len(match.group(1)) // 2
@@ -1985,29 +1965,12 @@ class Item:
         node, summary, tokens_remaining = self._extract_job_node_and_summary(
             token["token"]
         )
+        log_msg(f"{token = }, {node = }, {summary = }, {tokens_remaining = }")
         job_params = {"~": summary}
         job_params["node"] = node
-        sub_tokens = []
-        if tokens_remaining is not None:
-            parts = self._tokenize(tokens_remaining)
-            log_msg(f"{tokens_remaining = } => {parts = }")
+        log_msg(f"{self.job_tokens = }")
 
-            for part in parts:
-                key, *value = part
-                k = key[1]
-                v = " ".join(value)
-                job_params[k] = v
-
-            # Collect & tokens that follow @~
-            sub_tokens = self._extract_sub_tokens(token, "&")
-            self.job_tokens.append((token, job_params))
-        return True, job_params, sub_tokens
-
-    def _extract_sub_tokens(self, token, delimiter):
-        # Use regex to extract sub-tokens
-        pattern = rf"({delimiter}\w+ \S+)"
-        matches = re.findall(pattern, token)
-        return matches
+        return True, job_params, []
 
     def do_at(self):
         print("TODO: do_at() -> show available @ tokens")

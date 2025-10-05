@@ -264,88 +264,6 @@ details of the item and access related commands.
 """.splitlines()
 
 
-# If you haven’t already defined it, here's the helper:
-# class ListWithDetails(Container):
-#     """Container with a main ScrollableList and a bottom details ScrollableList."""
-#
-#     DEFAULT_CSS = """
-#     ListWithDetails {
-#         layout: vertical;
-#     }
-#     ListWithDetails > #main-list {
-#         height: 1fr;
-#     }
-#     ListWithDetails > #details-list {
-#         height: auto;
-#         max-height: 14;   /* ~14 rows; adjust to taste */
-#         border: none;
-#     }
-#     ListWithDetails > #details-list.hidden {
-#         display: none;
-#     }
-#     """
-#
-#     def __init__(self, *args, match_color: str = "#ffd75f", **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self._main: ScrollableList | None = None
-#         self._details: ScrollableList | None = None
-#         self.match_color = match_color
-#         self.details_meta: Optional[dict] = None  # <- NEW (record_id, job_id, etc.)
-#
-#     def compose(self) -> ComposeResult:
-#         self._main = ScrollableList([], id="main-list")
-#         self._details = ScrollableList([], id="details-list")
-#         self._details.add_class("hidden")
-#         yield self._main
-#         yield self._details
-#
-#     # ---- main list passthroughs ----
-#     def update_list(self, lines: list[str]) -> None:
-#         log_msg(f"{lines = }")
-#         self._main.update_list(lines)
-#
-#     def set_search_term(self, term: str | None) -> None:
-#         self._main.set_search_term(term)
-#
-#     def clear_search(self) -> None:
-#         self._main.clear_search()
-#
-#     def jump_next_match(self) -> None:
-#         self._main.jump_next_match()
-#
-#     def jump_prev_match(self) -> None:
-#         self._main.jump_prev_match()
-#
-#     # ---- details control ----
-#
-#     def show_details(
-#         self, title: str, lines: list[str], *, meta: dict | None = None
-#     ) -> None:
-#         self.details_meta = meta or None  # <- keep meta for key actions
-#         new_lines = _make_rows(lines)
-#         body = [title] + new_lines
-#         self._details.update_list(body)
-#         self._details.remove_class("hidden")
-#         self._details.focus()
-#
-#     def hide_details(self) -> None:
-#         self.details_meta = None  # clear meta on close
-#         if not self._details.has_class("hidden"):
-#             self._details.add_class("hidden")
-#             self._main.focus()
-#
-#     def has_details_open(self) -> bool:
-#         return not self._details.has_class("hidden")
-#
-#     def focus_main(self) -> None:
-#         self._main.focus()
-#
-#     def on_key(self, event):
-#         if event.key == "escape" and self.has_details_open():
-#             self.hide_details()
-#             event.stop()
-
-
 class ListWithDetails(Container):
     """Container with a main ScrollableList and a bottom details ScrollableList."""
 
@@ -1470,20 +1388,6 @@ class AgendaScreen(SearchableScreen):
             task_lines.append(f"{tag} {urgency} {subject}")
         self.tasks_view.update_list(task_lines)
 
-    # called by the app when the user types a tag (base-26)
-    # def show_details_for_tag(self, tag: str) -> None:
-    #     # Which pane are we in?
-    #     pane_view = self.tasks_view if self.active_pane == "tasks" else self.events_view
-    #     view_name = "tasks" if self.active_pane == "tasks" else "events"
-    #
-    #     parts = self.controller.process_tag(tag, view_name, None)
-    #     if not parts:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #     title, lines = parts[0], parts[1:]
-    #     log_msg(f"{title = }, {lines = }")
-    #     pane_view.show_details(title, lines)
-
     def show_details_for_tag(self, tag: str) -> None:
         pane_view = self.tasks_view if self.active_pane == "tasks" else self.events_view
         view_name = "tasks" if self.active_pane == "tasks" else "events"
@@ -1499,103 +1403,6 @@ class AgendaScreen(SearchableScreen):
         # If your screen has two ListWithDetails (one per pane), send to the active one.
         # If you have one ListWithDetails instance named self.events_view / self.tasks_view:
         pane_view.show_details(title, lines, meta)
-
-    # def on_key(self, event):
-    #     k = (event.key or "").lower()
-    #
-    #     # decide which ListWithDetails is showing details
-    #     host = None
-    #     if self.events_view and self.events_view.has_details_open():
-    #         host = self.events_view
-    #     elif self.tasks_view and self.tasks_view.has_details_open():
-    #         host = self.tasks_view
-    #
-    #     if not host:
-    #         return
-    #
-    #     if k in ("escape"):
-    #         host.hide_details()
-    #         event.stop()
-    #         return
-    #
-    #     meta = host.details_meta or {}
-    #     # ... bindings ...
-    #     record_id = meta.get("record_id")
-    #     job_id = meta.get("job_id")
-    #     itemtype = meta.get("itemtype", "")
-    #     is_task = itemtype == "~"
-    #     is_rec = bool(meta.get("rruleset") and "RRULE:" in (meta.get("rruleset") or ""))
-    #     log_msg(f"{meta = }")
-    #
-    #     # Esc always closes details
-    #     if k in ("escape"):
-    #         details_host.hide_details()
-    #         event.stop()
-    #         return
-    #
-    #     # ——— Actions that need the selected record ———
-    #     if not record_id:
-    #         return  # nothing to act on
-    #
-    #     ctrl = self.app.controller  # shorthand
-    #
-    #     if k == "E":  # Edit
-    #         ctrl.edit_record(record_id)  # << hook to your actual API
-    #         self.refresh_data_after_action(details_host)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "C":  # Edit copy
-    #         ctrl.copy_record(record_id)  # <<
-    #         self.refresh_data_after_action(details_host)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "D":  # Delete (scope depends on recurrence)
-    #         # If you support “this instance vs all” you can inspect meta, prompt, etc.
-    #         ctrl.delete_record(record_id)  # << or delete_instance(record_id, when=...)
-    #         self.refresh_data_after_action(details_host)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "F" and is_task:  # Finish task
-    #         ctrl.finish_task(record_id, job_id=job_id)  # << use your finish API
-    #         self.refresh_data_after_action(details_host)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "P":  # Toggle pinned (task-only; no-op otherwise)
-    #         if is_task:
-    #             ctrl.toggle_pinned(record_id)
-    #             # re-open details to reflect new pinned state
-    #             self._reopen_details(details_host, tag_meta=meta)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "S":  # Schedule new
-    #         ctrl.schedule_new(record_id)  # <<
-    #         self.refresh_data_after_action(details_host)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "R":  # Reschedule
-    #         ctrl.reschedule_record(record_id)  # <<
-    #         self.refresh_data_after_action(details_host)
-    #         event.stop()
-    #         return
-    #
-    #     if k == "T":  # Touch (update modified)
-    #         ctrl.touch_record(record_id)  # <<
-    #         self._reopen_details(details_host, tag_meta=meta)
-    #         event.stop()
-    #         return
-    #
-    #     # Ctrl+R: show repetitions (if recurring)
-    #     if event.key == "ctrl+r" and is_rec:
-    #         # maybe open a modal/list with the next few instances
-    #         ctrl.show_repetitions(record_id)  # <<
-    #         event.stop()
-    #         return
 
 
 class FullScreenList(SearchableScreen):
@@ -1790,14 +1597,6 @@ class DynamicViewApp(App):
         # backward compatibility (old mapping was tag -> record_id)
         return meta, None
 
-    # def open_details_for_tag(self, tag: str) -> None:
-    #     drawer = self._ensure_screen_drawer()  # your mount/reuse helper
-    #     parts = self.controller.process_tag(tag, self.view, self.selected_week)
-    #     if not parts:
-    #         self.notify(f"Unknown tag '{tag}'", severity="warning")
-    #         return
-    #     drawer.open_from_parts(parts)  # title = parts[0], lines = parts[1:]
-
     def action_close_details(self):
         screen = self.screen
         drawer = getattr(screen, "details_drawer", None)
@@ -1816,160 +1615,6 @@ class DynamicViewApp(App):
             self.push_screen(DetailsScreen([title] + lines))
 
     def make_detail_key_handler(self, *, view_name: str, week_provider=None):
-        """
-        Returns a handler(key, meta) for ListWithDetails.set_detail_key_handler.
-
-        view_name: 'week' | 'events' | 'tasks' | 'next' | 'last' | 'find' | ...
-        week_provider: callable -> (year, week) if needed (for 'week' context)
-        """
-        ctrl = self.controller
-        app = self  # DynamicViewApp
-
-        def handler(key: str, meta: dict) -> None:
-            record_id = meta.get("record_id")
-            job_id = meta.get("job_id")
-            itemtype = meta.get("itemtype")
-            log_msg(f"{key = }, {meta = }")
-
-            if not record_id:
-                return
-
-            # --- Editing ---
-            if key == "alt+e":
-                log_msg("processing alt-e")
-                row = ctrl.db_manager.get_record(record_id)
-                seed_text = row[2] or ""  # summary
-                app.push_screen(EditorScreen(ctrl, record_id, seed_text=seed_text))
-
-            # --- Copy ---
-            elif key == "alt+c":
-                row = ctrl.db_manager.get_record(record_id)
-                seed_text = row[2] or ""
-                # push EditorScreen with no record_id (new copy)
-                app.push_screen(EditorScreen(ctrl, None, seed_text=seed_text))
-
-            # --- Delete (needs confirmation) ---
-            elif key == "alt+d":
-
-                def confirm_delete():
-                    ctrl.delete_item(record_id, job_id=job_id)
-                    app.notify("Deleted", timeout=1.5)
-
-                app.confirm(
-                    f"Delete item {record_id}? This cannot be undone.",
-                    confirm_delete,
-                    on_cancel=lambda: app.notify("Cancelled", severity="warning"),
-                )
-
-            # --- Finish (needs datetime) ---
-            elif key == "alt+f" and itemtype == "~":
-                subject = meta.get("subject", None)
-                rruleset = meta.get("rruleset", None)
-                if rruleset:
-                    due = rruleset.split(":")[0]
-                dt = app.prompt_datetime(
-                    "Finish when?"
-                )  # small wrapper you can implement
-                if dt:
-                    ctrl.finish_task(record_id, job_id=job_id, when=dt)
-                    app.notify("Finished", timeout=1.5)
-
-            # --- Pin/unpin (immediate toggle) ---
-            elif key == "alt+p" and itemtype == "~":
-                ctrl.toggle_pinned(record_id)
-                if hasattr(app, "_reopen_details"):
-                    app._reopen_details(tag_meta=meta)
-
-            # --- Schedule new (needs datetime) ---
-            elif key == "alt+s":
-                dt = app.prompt_datetime("Schedule when?")
-                if dt:
-                    ctrl.schedule_new(record_id, when=dt)
-                    app.notify("Scheduled", timeout=1.5)
-
-            # --- Reschedule (needs datetime) ---
-            elif key == "alt+r":
-                dt = app.prompt_datetime("Reschedule to?")
-                if dt:
-                    yrwk = week_provider() if week_provider else None
-                    ctrl.reschedule(record_id, when=dt, context=view_name, yrwk=yrwk)
-
-            # --- Touch (no prompt) ---
-            elif key == "alt+t":
-                ctrl.touch_item(record_id)
-                app.notify("Touched", timeout=1.0)
-
-            # --- Show repetitions (ctrl+r kept special) ---
-            elif key == "ctrl+r":
-                ctrl.show_repetitions(record_id)
-
-        return handler
-
-    def make_detail_key_handler(self, *, view_name: str, week_provider=None):
-        ctrl = self.controller
-        app = self
-
-        def handler(key: str, meta: dict) -> None:
-            record_id = meta.get("record_id")
-            job_id = meta.get("job_id")
-            itemtype = meta.get("itemtype")
-            log_msg(f"{key = }, {meta = }")
-
-            # First: intercept alt+ combos so they don't fall through
-            if key.startswith("alt+"):
-                log_msg("got alt")
-                if not record_id:
-                    return
-                if key == "alt+e":
-                    log_msg("processing alt+e")
-                    return
-                    row = ctrl.db_manager.get_record(record_id)
-                    seed_text = row[2] or ""
-                    app.push_screen(EditorScreen(ctrl, record_id, seed_text=seed_text))
-                elif key == "alt+c":
-                    row = ctrl.db_manager.get_record(record_id)
-                    seed_text = row[2] or ""
-                    app.push_screen(EditorScreen(ctrl, None, seed_text=seed_text))
-                elif key == "alt+d":
-                    app.confirm(
-                        f"Delete item {record_id}? This cannot be undone.",
-                        lambda: ctrl.delete_item(record_id, job_id=job_id),
-                    )
-                elif key == "alt+f" and itemtype == "~":
-                    dt = app.prompt_datetime("Finish when?")
-                    if dt:
-                        ctrl.finish_task(record_id, job_id=job_id, when=dt)
-                elif key == "alt+p" and itemtype == "~":
-                    ctrl.toggle_pinned(record_id)
-                    if hasattr(app, "_reopen_details"):
-                        app._reopen_details(tag_meta=meta)
-                elif key == "alt+s":
-                    dt = app.prompt_datetime("Schedule when?")
-                    if dt:
-                        ctrl.schedule_new(record_id, when=dt)
-                elif key == "alt+r":
-                    dt = app.prompt_datetime("Reschedule to?")
-                    if dt:
-                        yrwk = week_provider() if week_provider else None
-                        ctrl.reschedule(
-                            record_id, when=dt, context=view_name, yrwk=yrwk
-                        )
-                elif key == "alt+t":
-                    ctrl.touch_item(record_id)
-                return  # <- IMPORTANT: don't fall through
-
-            # ctrl+r special case
-            if key == "ctrl+r" and record_id:
-                ctrl.show_repetitions(record_id)
-                return
-
-            # Otherwise: normal letter keys still mean "open details for tag"
-            # (existing behavior for `a`, `b`, …)
-            # -> you don’t need to reimplement, just let ListWithDetails handle it
-
-        return handler
-
-    def make_detail_key_handler(self, *, view_name: str, week_provider=None):
         ctrl = self.controller
         app = self
 
@@ -1983,7 +1628,7 @@ class DynamicViewApp(App):
                 return
 
             # chord-based actions
-            if key == "comma,f" and itemtype == "~":
+            if key == "comma,f" and itemtype in "~^":
                 dt = await app.prompt_datetime("Finish when?")
                 if dt:
                     ctrl.finish_task(record_id, job_id=job_id, when=dt)
