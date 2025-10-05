@@ -1863,6 +1863,10 @@ class DynamicViewApp(App):
 
             # --- Finish (needs datetime) ---
             elif key == "alt+f" and itemtype == "~":
+                subject = meta.get("subject", None)
+                rruleset = meta.get("rruleset", None)
+                if rruleset:
+                    due = rruleset.split(":")[0]
                 dt = app.prompt_datetime(
                     "Finish when?"
                 )  # small wrapper you can implement

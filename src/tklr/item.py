@@ -506,7 +506,8 @@ multiple_allowed = [
     "u",
     "r",
     "~",
-    "t",
+    "~r",
+    "~t",
     # "jj",
     # "ji",
     # "js",
@@ -1356,9 +1357,10 @@ class Item:
 
         # Token pattern that keeps @ and & together - this one courtesy of
         # ChatGPT and nothing short of magic
-        pattern = (
-            r"(?:(?<=^)|(?<=\s))(@[\w~+\-]+ [^@&\n]+)|(?:(?<=^)|(?<=\s))(&\w+ [^@&\n]+)"
-        )
+        # pattern = (
+        #     r"(?:(?<=^)|(?<=\s))(@[\w~+\-]+ [^@&\n]+)|(?:(?<=^)|(?<=\s))(&\w+ [^@&\n]+)"
+        # )
+        pattern = r"@[^@]+(?:\s&[^@]+)*(?=(?:\s@|$))"
         for match in re.finditer(pattern, remainder):
             token = match.group(0)
             start_pos = match.start() + offset + len(subject)
@@ -1537,6 +1539,7 @@ class Item:
                     self._dispatch_sub_tokens(sub_tokens, "r")
                 elif token_type == "~":
                     self.jobset.append(result)
+                    log_msg(f"dispatching {sub_tokens = } in {self.entry = }")
                     ok, res = self._dispatch_sub_tokens(sub_tokens, "~")
             else:
                 self.parse_ok = False
@@ -1986,7 +1989,8 @@ class Item:
         job_params["node"] = node
         sub_tokens = []
         if tokens_remaining is not None:
-            parts = self._sub_tokenize(tokens_remaining)
+            parts = self._tokenize(tokens_remaining)
+            log_msg(f"{tokens_remaining = } => {parts = }")
 
             for part in parts:
                 key, *value = part
