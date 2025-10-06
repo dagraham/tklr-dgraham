@@ -316,18 +316,6 @@ def etm_to_tokens(item: dict, key: str | None, include_etm: bool = True) -> list
 # ------------------------------------------------------------
 # Entry formatting
 # ------------------------------------------------------------
-def tokens_to_entry(tokens: list[str]) -> str:
-    """Format tokens into entry string with indentation and @d handling."""
-    entry = [tokens[0]]
-    for tok in tokens[1:]:
-        if tok.startswith("@d "):
-            lines = tok[3:].splitlines()
-            entry.append("  @d " + lines[0])
-            for ln in lines[1:]:
-                entry.append("     " + ln)
-        else:
-            entry.append("  " + tok)
-    return "\n".join(entry)
 
 
 def tokens_to_entry(tokens: list[str]) -> str:

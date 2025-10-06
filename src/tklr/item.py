@@ -247,25 +247,6 @@ def parse(dt_str: str, zone: tzinfo = None):
     return aware.astimezone(tz.UTC)
 
 
-# def parse(dt_str: str, zone: tzinfo = None) -> Union[date, datetime, str]:
-#     obj = parse_dt(dt_str)
-#     if isinstance(obj, date) and not isinstance(obj, datetime):
-#         return obj
-#     if (
-#         isinstance(obj, datetime)
-#         and obj.hour == 0
-#         and obj.minute == 0
-#         and obj.second == 0
-#     ):
-#         return obj.date()
-#     if isinstance(obj, datetime):
-#         if zone is None:
-#             return obj
-#         return obj.replace(tzinfo=zone)
-#     print(f"Error parsing {dt_str}")
-#     return f"Error: could not parse '{dt_str}'"
-
-
 def _parse_compact_dt(s: str) -> datetime:
     """
     Accepts 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (optionally with trailing 'Z')
@@ -483,6 +464,7 @@ multiple_allowed = [
     "a",
     "u",
     "r",
+    "t",
     "~",
     "~r",
     "~t",
@@ -1324,8 +1306,11 @@ class Item:
 
         # Token pattern that keeps @ and & together - this one courtesy of
         # ChatGPT and nothing short of magic
+        # pattern = (
+        #     r"(?:(?<=^)|(?<=\s))(@[\w~+\-]+ [^@&\n]+)|(?:(?<=^)|(?<=\s))(&\w+ [^@&\n]+)"
+        # )
         pattern = (
-            r"(?:(?<=^)|(?<=\s))(@[\w~+\-]+ [^@&\n]+)|(?:(?<=^)|(?<=\s))(&\w+ [^@&\n]+)"
+            r"(?:(?<=^)|(?<=\s))(@[\w~+\-]+ [^@&]+)|(?:(?<=^)|(?<=\s))(&\w+ [^@&]+)"
         )
         # pattern = r"@[^@]+(?:\s&[^@]+)*(?=(?:\s@|$))"
         for match in re.finditer(pattern, remainder):
@@ -1741,6 +1726,7 @@ class Item:
 
     def do_description(self, token):
         description = re.sub("^@. ", "", token["token"])
+        log_msg(f"{token = }, {description = }")
         if not description:
             return False, "missing description", []
         if description:
