@@ -337,6 +337,7 @@ for entry in items + alerts:
     # print(f">>>\n{new_entry = }")
     # continue
     record_id = ctrl.add_item(item)  # .to_dict()
+    log_msg(f"\n{item.entry}\n")
     print(f"{record_id = }, {item.tokens = }; {item.rruleset = }")
 
 try:
