@@ -30,7 +30,7 @@ from textual.widgets import TextArea
 import string
 import shutil
 import asyncio
-from .common import get_version
+from .common import get_version, fmt_user
 
 import re
 
@@ -114,6 +114,7 @@ def build_details_help(meta: dict) -> list[str]:
     is_goal = meta.get("itemtype") == "+"
     is_recurring = bool(meta.get("rruleset"))
     is_pinned = bool(meta.get("pinned")) if is_task else False
+    subject = meta.get("subject")
 
     left, rght = [], []
     left.append("[bold],e[/bold] Edit             ")
@@ -451,72 +452,6 @@ class HelpModal(ModalScreen[None]):
 
 
 class DatetimePrompt(ModalScreen[datetime | None]):
-    """Prompt for a datetime, live-parsed with dateutil.parser.parse."""
-
-    def __init__(self, message: str, default: datetime | None = None):
-        super().__init__()
-        self.message = message
-        self.default = default or datetime.now()
-        self.input: Input | None = None
-        self.feedback: Static | None = None
-
-    def compose(self):
-        default_str = self.default.strftime("%Y-%m-%d %H:%M")
-        with Vertical(id="dt_prompt"):
-            yield Static(self.message, classes="title-class")
-            self.feedback = Static(f"(Enter = {default_str})", id="dt_feedback")
-            self.input = Input(value=default_str, id="dt_input")
-            yield self.feedback
-            yield self.input
-            yield Button("OK", id="ok")
-            yield Button("Cancel", id="cancel")
-
-    def on_mount(self):
-        # Focus input so user can type immediately
-        self.query_one("#dt_input", Input).focus()
-        self._update_feedback(self.default.strftime("%Y-%m-%d %H:%M"))
-
-    def on_input_changed(self, event: Input.Changed):
-        self._update_feedback(event.value)
-
-    def _update_feedback(self, text: str):
-        try:
-            parsed = parse(text)
-            if isinstance(parsed, date) and not isinstance(parsed, datetime):
-                self.feedback.update(f"→ {parsed.strftime('%Y-%m-%d')}")
-            elif isinstance(parsed, datetime):
-                self.feedback.update(f"→ {parsed.strftime('%Y-%m-%d %H:%M')}")
-            else:
-                self.feedback.update(f"[red]✘ Did not understand '{text}' [/red]")
-
-        except Exception:
-            self.feedback.update(f"[red]✘ Not yet understood: '{text}' [/red]")
-
-    def on_button_pressed(self, event: Button.Pressed):
-        if event.button.id == "ok":
-            try:
-                value = self.input.value.strip()
-                parsed = parse(value) if value else self.default
-                self.dismiss(parsed)
-            except Exception:
-                self.dismiss(None)
-        else:
-            self.dismiss(None)
-
-    def on_key(self, event):
-        if event.key == "escape":
-            self.dismiss(None)
-        elif event.key == "enter":
-            # Accept current entry
-            try:
-                value = self.input.value.strip()
-                parsed = parser.parse(value) if value else self.default
-                self.dismiss(parsed)
-            except Exception:
-                self.dismiss(None)
-
-
-class DatetimePrompt(ModalScreen[datetime | None]):
     """
     Prompt for a datetime, live-parsed with dateutil.parser.parse.
 
@@ -534,8 +469,8 @@ class DatetimePrompt(ModalScreen[datetime | None]):
         super().__init__()
         self.title_text = " Datetime"
         self.message = message.strip()
-        self.subject = subject
-        self.due = due
+        # self.subject = subject
+        # self.due = due
         self.default = default or datetime.now()
 
         # assigned later
@@ -552,45 +487,33 @@ class DatetimePrompt(ModalScreen[datetime | None]):
 
         with Vertical(id="dt_prompt"):
             # Title
-            # yield rule()
             yield Static(self.title_text, classes="title-class")
             # yield rule()
 
-            # Feedback
+            # Message (custom, may include subject/due or other contextual info)
+            if self.message:
+                yield Static(self.message.strip(), id="dt_message")
+                # yield rule()
+
+            # Feedback (live parse result)
             self.feedback = Static(f"→ {default_str}", id="dt_feedback")
             yield self.feedback
             # yield rule()
 
-            # Input
+            # Input field
             self.input = Input(value=default_str, id="dt_input")
             yield self.input
             # yield rule()
 
-            # Instructions
-            message_lines = []
-            message_lines.extend(
-                [
-                    "Modify the datetime above if necessary, then press",
-                    "   [bold yellow]ENTER[/bold yellow] to submit or [bold yellow]ESC[/bold yellow] to cancel.",
-                    "",
-                ]
-            )
-            if self.message:
-                message_lines.extend(self.message.splitlines())
-
-            # Context
-            if self.subject or self.due:
-                message_lines.append("")
-                if self.subject:
-                    message_lines.append(f"• subject: {self.subject}")
-                if self.due:
-                    message_lines.append(f"• due:     {self.due}")
-
-            # Universal footer lines
-
-            self.instructions = Static("\n".join(message_lines), id="dt_instructions")
+            # Fixed universal instructions (never change)
+            instructions = [
+                "Modify the datetime above if necessary, then press",
+                "   [bold yellow]ENTER[/bold yellow] to submit or [bold yellow]ESC[/bold yellow] to cancel.",
+            ]
+            self.instructions = Static("\n".join(instructions), id="dt_instructions")
             yield self.instructions
-            yield rule()
+
+            # yield rule()
 
     def on_mount(self) -> None:
         """Focus the input and show feedback for the initial value."""
@@ -609,7 +532,8 @@ class DatetimePrompt(ModalScreen[datetime | None]):
             else:
                 self.feedback.update(f" → {parsed.strftime('%Y-%m-%d %H:%M')}")
         except Exception:
-            self.feedback.update(f"[red]✘invalid: {text} [/red]")
+            _t = f": {text}" if text else ""
+            self.feedback.update(f"[yellow]✘ invalid{_t} [/yellow]")
 
     def on_key(self, event) -> None:
         """Handle Enter and Escape."""
@@ -1622,14 +1546,24 @@ class DynamicViewApp(App):
             log_msg(f"in handler with {key = }, {meta = }")
             record_id = meta.get("record_id")
             job_id = meta.get("job_id")
+            first = meta.get("first")
+            second = meta.get("second")
             itemtype = meta.get("itemtype")
+            subject = meta.get("subject")
 
             if not record_id:
                 return
 
             # chord-based actions
             if key == "comma,f" and itemtype in "~^":
-                dt = await app.prompt_datetime("Finish when?")
+                log_msg(f"{record_id = }, {job_id = }, {first = }")
+                if first is not None:
+                    due = f"\nscheduled for {fmt_user(first)}"
+                else:
+                    due = ""
+                msg = f"Enter the finished datetime for\n  [bold {LIME_GREEN}]{subject}[/bold {LIME_GREEN}]{due}"
+
+                dt = await app.prompt_datetime(msg)
                 if dt:
                     ctrl.finish_task(record_id, job_id=job_id, when=dt)
 

@@ -1014,6 +1014,10 @@ class Controller:
             "",
         ] + self.get_entry(record_id, job_id)
 
+        _dts = self.db_manager.get_next_start_datetimes_for_record(record_id, job_id)
+        first, second = (_dts + [None, None])[:2]
+        log_msg(f"{record_id = }, {job_id = }, {_dts = }, {first = }, {second = }")
+
         # job_suffix = (
         #     f" [{label_color}]job_id:[/{label_color}] [bold]{job_id}[/bold]"
         #     if job_id is not None
@@ -1030,6 +1034,8 @@ class Controller:
             "itemtype": itemtype,
             "subject": subject,
             "rruleset": rruleset,
+            "first": first,
+            "second": second,
             "all_prereqs": all_prereqs,
             "pinned": bool(pinned_now),
             "record": self.db_manager.get_record(record_id),

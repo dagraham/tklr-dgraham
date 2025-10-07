@@ -23,6 +23,7 @@ from .shared import (
     parse_local_compact,
     fmt_utc_z,
     parse_utc_z,
+    get_anchor,
 )
 
 import re
@@ -1813,6 +1814,7 @@ class DatabaseManager:
 
         has_rrule = "RRULE" in rule_str
         is_finite = (not has_rrule) or ("COUNT=" in rule_str) or ("UNTIL=" in rule_str)
+        is_aware = "Z" in rule_str
 
         # Build parent recurrence iterator
         try:
@@ -1826,11 +1828,16 @@ class DatabaseManager:
         def _iter_parent_occurrences():
             if is_finite:
                 anchor = datetime.min
+                anchor = get_anchor(is_aware)
+
                 try:
                     cur = rule.after(anchor, inc=True)
                 except TypeError:
-                    anchor = datetime.min.replace(tzinfo=tz.UTC)
-                    cur = rule.after(anchor, inc=True)
+                    log_msg(
+                        f"exception processing {anchor = } with {is_aware = } in {record_id = }"
+                    )
+                    cur = None
+
                 while cur is not None:
                     yield cur
                     cur = rule.after(cur, inc=False)
@@ -2469,6 +2476,50 @@ class DatabaseManager:
         if row:
             return row[0], row[1]
         return None
+
+    # def get_next_start_datetimes_for_record(self, record_id: int) -> list[str]:
+    #     """
+    #     Return up to 2 upcoming start datetimes (as compact local-naive strings)
+    #     for the given record, sorted ascending.
+    #     """
+    #     self.cursor.execute(
+    #         """
+    #         SELECT start_datetime
+    #         FROM DateTimes
+    #         WHERE record_id = ?
+    #         AND start_datetime >= ?
+    #         ORDER BY start_datetime ASC
+    #         LIMIT 2
+    #         """,
+    #         (record_id, _fmt_naive(datetime.now())),
+    #     )
+    #     return [row[0] for row in self.cursor.fetchall()]
+
+    def get_next_start_datetimes_for_record(
+        self, record_id: int, job_id: int | None = None
+    ) -> list[str]:
+        """
+        Return up to 2 upcoming start datetimes (as compact local-naive strings)
+        for the given record (and optional job), sorted ascending.
+        """
+        sql = """
+            SELECT start_datetime
+            FROM DateTimes
+            WHERE record_id = ?
+        """
+        # params = [record_id, _fmt_naive(datetime.now())]
+        params = [
+            record_id,
+        ]
+
+        if job_id is not None:
+            sql += " AND job_id = ?"
+            params.append(job_id)
+
+        sql += " ORDER BY start_datetime ASC LIMIT 2"
+
+        self.cursor.execute(sql, params)
+        return [row[0] for row in self.cursor.fetchall()]
 
     def find_records(
         self, regex: str

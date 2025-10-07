@@ -194,6 +194,22 @@ period_regex = re.compile(r"((\d+)([wdhms]))+?")
 expanded_period_regex = re.compile(r"((\d+)\s(week|day|hour|minute|second)s?)+?")
 
 
+def fmt_user(dt_str: str) -> str:
+    """
+    User friendly formatting for dates and datetimes using env settings
+    for ampm, yearfirst, dayfirst and two_digit year.
+    """
+    if not dt_str:
+        return "unscheduled"
+    try:
+        dt = dateutil_parse(dt_str)
+    except Exception as e:
+        return f"error parsing {dt_str}: {e}"
+    if dt_str.endswith("T0000"):
+        return dt.strftime("%Y-%m-%d")
+    return dt.strftime("%Y-%m-%d %H:%M")
+
+
 def parse_period(s: str) -> timedelta:
     """\
     Take a period string and return a corresponding timedelta.
@@ -1183,6 +1199,13 @@ normalized_td = normalize_timedelta(td)
 
 td = timedelta(days=1, hours=-2, minutes=-30)
 normalized_td = normalize_timedelta(td)
+
+
+def get_anchor(aware: bool) -> datetime:
+    dt = datetime(1970, 1, 1, 0, 0, 0)
+    if aware:
+        return dt.replace(tzinfo=ZoneInfo("UTC"))
+    return dt
 
 
 def encode_datetime(obj):

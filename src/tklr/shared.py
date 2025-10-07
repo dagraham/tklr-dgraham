@@ -9,6 +9,7 @@ from dateutil import tz
 from pathlib import Path
 from dateutil.parser import parse as dateutil_parse
 from dateutil.parser import parserinfo
+from zoneinfo import ZoneInfo
 
 from tklr.tklr_env import TklrEnvironment
 
@@ -26,6 +27,13 @@ ALERT_COMMANDS = {
 ELLIPSIS_CHAR = "…"
 
 # from shared import fmt_local_compact, parse_local_compact, fmt_local_seconds, parse_local_seconds, fmt_utc_z, parse_utc_z
+
+
+def get_anchor(aware: bool) -> datetime:
+    dt = datetime(1970, 1, 1, 0, 0, 0)
+    if aware:
+        return dt.replace(tzinfo=ZoneInfo("UTC"))
+    return dt
 
 
 def get_version(pyproject_path: Path | None = None) -> str:
