@@ -55,10 +55,10 @@ from .shared import (
     parse_local_compact,
     fmt_utc_z,
     parse_utc_z,
+    get_version,
 )
 from tklr.tklr_env import TklrEnvironment
 
-from tklr.common import get_version
 
 VERSION = get_version()
 

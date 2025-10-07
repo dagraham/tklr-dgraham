@@ -257,34 +257,6 @@ def _parse_jobs_json(jobs_json: str | None) -> list[dict]:
     return jobs
 
 
-# You already have this helper elsewhere; re-use it
-# from tklr.common import td_str_to_seconds
-# def _td_str_to_seconds(s: str) -> int:
-#     # minimal fallback if you don’t want to import: supports d/h/m
-#     s = (s or "").strip().lower()
-#     if not s:
-#         return 0
-#     total = 0
-#     num = ""
-#     for ch in s:
-#         if ch.isdigit():
-#             num += ch
-#         else:
-#             if not num:
-#                 continue
-#             n = int(num)
-#             if ch == "d":
-#                 total += n * 86400
-#             elif ch == "h":
-#                 total += n * 3600
-#             elif ch == "m":
-#                 total += n * 60
-#             # ignore unknown for brevity
-#             num = ""
-#     return total
-#
-
-
 class UrgencyComputer:
     def __init__(self, env: TklrEnvironment):
         self.env = env
@@ -778,7 +750,7 @@ class DatabaseManager:
     #         print(f"Error adding {item}: {e}")
 
     def add_item(self, item: Item) -> int:
-        print(f"{item.itemtype = }, {item.subject}")
+        log_msg(f"{item.itemtype = }, {item.subject}, {item.has_f = }")
         try:
             timestamp = utc_now_string()
             self.cursor.execute(

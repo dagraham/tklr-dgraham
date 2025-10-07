@@ -18,7 +18,7 @@ from textual.containers import Horizontal, Vertical, Grid
 from textual.geometry import Size
 from textual.reactive import reactive
 from textual.screen import ModalScreen
-from textual.screen import Screen
+from textual.screen import Screen, NoMatches
 from textual.scroll_view import ScrollView
 from textual.strip import Strip
 from textual.widget import Widget
@@ -30,7 +30,7 @@ from textual.widgets import TextArea
 import string
 import shutil
 import asyncio
-from .common import get_version, fmt_user
+from .shared import get_version, fmt_user
 
 import re
 
@@ -45,8 +45,8 @@ from textual import events
 from textual.events import Key
 
 
-# tklr_version = version("tklr")
-tklr_version = get_version()
+tklr_version = version("tklr")
+# tklr_version = get_version()
 
 # Color hex values for readability (formerly from prompt_toolkit.styles.named_colors)
 LEMON_CHIFFON = "#FFFACD"

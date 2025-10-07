@@ -438,7 +438,7 @@ repeating_methods = list("o") + [
     "rw",  # week days
 ]
 
-datetime_methods = list("abe+-")
+datetime_methods = list("abew+-")
 
 task_methods = list("ofp")
 
@@ -640,6 +640,7 @@ class Item:
             "priority from 1 (someday), 2 (low), 3 (medium), 4 (high) to 5 (next)",
             "do_priority",
         ],
+        "w": ["wrap", "wrap before, after", "do_wrap"],
         "z": [
             "timezone",
             "a timezone entry such as 'US/Eastern' or 'Europe/Paris' or 'none' to specify a naive datetime, i.e., one without timezone information",
@@ -1638,6 +1639,30 @@ class Item:
             return True, extent_obj, []
         else:
             return False, extent_obj, []
+
+    def do_wrap(self, token):
+        _w = re.sub("^@. ", "", token["token"].strip()).lower()
+        _w_parts = [x.strip() for x in _w.split(",")]
+        if len(_w_parts) != 2:
+            return False, f"Invalid: {_w_parts}", []
+        wrap = []
+        msgs = []
+
+        ok, _b_obj = timedelta_str_to_seconds(_w_parts[0])
+        if ok:
+            wrap.append(_b_obj)
+        else:
+            msgs.append(f"Error parsing before {_b_obj}")
+
+        ok, _a_obj = timedelta_str_to_seconds(_w_parts[1])
+        if ok:
+            wrap.append(_a_obj)
+        else:
+            msgs.append(f"Error parsing after {_a_obj}")
+        if msgs:
+            return False, ", ".join(msgs), []
+        self.wrap = wrap
+        return True, wrap, []
 
     def do_alert(self, token):
         """

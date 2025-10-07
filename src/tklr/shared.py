@@ -66,6 +66,22 @@ def get_version(pyproject_path: Path | None = None) -> str:
         return "dev"
 
 
+def fmt_user(dt_str: str) -> str:
+    """
+    User friendly formatting for dates and datetimes using env settings
+    for ampm, yearfirst, dayfirst and two_digit year.
+    """
+    if not dt_str:
+        return "unscheduled"
+    try:
+        dt = dateutil_parse(dt_str)
+    except Exception as e:
+        return f"error parsing {dt_str}: {e}"
+    if dt_str.endswith("T0000"):
+        return dt.strftime("%Y-%m-%d")
+    return dt.strftime("%Y-%m-%d %H:%M")
+
+
 def parse(s, yearfirst: bool = True, dayfirst: bool = False):
     # enable pi when read by main and settings is available
     pi = parserinfo(
