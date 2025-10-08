@@ -750,7 +750,10 @@ class DatabaseManager:
     #         print(f"Error adding {item}: {e}")
 
     def add_item(self, item: Item) -> int:
-        log_msg(f"{item.itemtype = }, {item.subject}, {item.has_f = }")
+        if item.has_f:
+            log_msg(
+                f"{item.itemtype = }, {item.has_f = } both: {item.itemtype in '~^' and item.has_f = }"
+            )
         try:
             timestamp = utc_now_string()
             self.cursor.execute(
@@ -2592,6 +2595,10 @@ class DatabaseManager:
         return [row[0] for row in cur.fetchall()]
 
     def populate_urgency_from_record(self, record: dict):
+        if record["itemtype"] not in ["^", "~"]:
+            log_msg(f"skipping urgency for {record = }")
+            return
+        log_msg(f"{record['itemtype'] = }")
         record_id = record["id"]
         pinned = self.is_pinned(record_id)
         # log_msg(f"{record_id = }, {pinned = }, {record = }")
@@ -2720,6 +2727,7 @@ class DatabaseManager:
         self.cursor.execute("DELETE FROM Urgency")
         tasks = self.get_all_tasks()
         for task in tasks:
+            log_msg(f"adding to urgency: {task['itemtype'] = }, {task = }")
             self.populate_urgency_from_record(task)
         self.conn.commit()
 

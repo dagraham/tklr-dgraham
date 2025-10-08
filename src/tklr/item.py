@@ -975,6 +975,7 @@ class Item:
             self.rruleset = self.rdstart_str
 
         if self.has_f:
+            self.itemtype = "x"
             self.finish()
 
         self.tokens = self._strip_positions(self.relative_tokens)
@@ -2863,22 +2864,36 @@ class Item:
 
         # Dispatcher passes relative dict for @f and a raw string for &f
         if isinstance(token, dict):  # @f path
-            try:
-                body = token["token"][2:].strip()  # strip "@f"
-                # dt = _parse_compact_dt(body) if body[:4].isdigit() else parse(body)
-                dt = parse(body)
-                # normalize token text to compact
-                token["token"] = f"@f {dt.strftime('%Y%m%dT%H%M')} "
-                token["t"] = "@"
-                token["k"] = "f"
-                # task-level completion
-                self.completions.append((dt, None))
-                log_msg(f"adding {dt = } to token_map")
-                self.token_map["f"] = self.fmt_user(dt)
-                self.has_f = True
-                return True, token["token"], []
-            except Exception as e:
-                return False, f"invalid @f datetime: {e}", []
+            body = token["token"][2:].strip()  # strip "@f"
+            # dt = _parse_compact_dt(body) if body[:4].isdigit() else parse(body)
+            parts = body.split(",")
+            dts = []
+            dt_objs = []
+            msgs = []
+            for part in parts:
+                try:
+                    dt = parse(part)
+                    dt_objs.append(dt)
+                    dts.append(self.fmt_user(dt))
+                except Exception as e:
+                    msgs.append(f"Error parsing {part}: {e}")
+            if msgs:
+                return False, ", ".join(msgs), []
+            token["token"] = f"@f {', '.join(dts)}"
+            token["t"] = "@"
+            token["k"] = "f"
+
+            # dt = parse(body)
+            # # normalize token text to compact
+            # token["token"] = f"@f {dt.strftime('%Y%m%dT%H%M')} "
+            # token["t"] = "@"
+            # token["k"] = "f"
+            # task-level completion
+            self.completions.append(dt_objs)
+            log_msg(f"adding {dts = } to token_map")
+            # self.token_map["f"] = self.fmt_user(dt)
+            self.has_f = True
+            return True, token["token"], []
 
         # &f path: token is the string after "&f "
         try:

@@ -189,6 +189,14 @@ def etm_to_tokens(item: dict, key: str | None, include_etm: bool = True) -> list
             tokens.append(f"@d {v}")
             continue
 
+        if k == "b":  # beginby
+            tokens.append(f"@b {v}d")
+            continue
+
+        if k == "z" and v == "float":
+            tokens.append("@z none")
+            continue
+
         if k == "s":  # start datetime
             vals = format_subvalue(v)
             if vals:

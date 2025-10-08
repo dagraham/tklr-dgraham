@@ -121,9 +121,10 @@ def timedelta_str_to_seconds(time_str: str) -> tuple[bool, int]:
         "d": 24 * 60 * 60,  # Days to seconds
         "h": 60 * 60,  # Hours to seconds
         "m": 60,  # Minutes to seconds
+        "s": 1,  # Seconds to seconds
     }
     # Match all integer-unit pairs (e.g., "3h", "15s")
-    matches = re.findall(r"(\d+)([wdhm])", time_str)
+    matches = re.findall(r"(\d+)([wdhms])", time_str)
     if not matches:
         return (
             False,
