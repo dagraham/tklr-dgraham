@@ -29,10 +29,10 @@ Screen {
 /* Subtle highlight for inactive pane */
 #events_title.inactive,
 #tasks_title.inactive {
-  /* background: #2e2e2e; */
-  border: solid #4b4b4b;
+  border: solid #3a3a3a;
+  /* border: solid #4b4b4b; */
 
-  background: #373737;
+  /* background: #373737; */
   /* color: #32cd32; */
   /* color: #7d7d7d; */
   text-style: dim;
@@ -159,7 +159,8 @@ Footer {
 
 /* Live feedback (“→ parsed datetime”) */
 #dt_feedback {
-  color: #87cefa; /* light sky blue */
+  /* color: lightskyblue;  */
+  color: limegreen;
   /* text-align: center; */
   padding: 0 1;
 }

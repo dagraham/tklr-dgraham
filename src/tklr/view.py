@@ -480,6 +480,7 @@ class DatetimePrompt(ModalScreen[datetime | None]):
 
     def compose(self) -> ComposeResult:
         """Build prompt layout."""
+        ARROW = "↳"
         default_str = self.default.strftime("%Y-%m-%d %H:%M")
 
         def rule():
@@ -495,14 +496,14 @@ class DatetimePrompt(ModalScreen[datetime | None]):
                 yield Static(self.message.strip(), id="dt_message")
                 # yield rule()
 
-            # Feedback (live parse result)
-            self.feedback = Static(f"→ {default_str}", id="dt_feedback")
-            yield self.feedback
-            # yield rule()
-
             # Input field
             self.input = Input(value=default_str, id="dt_input")
             yield self.input
+            # yield rule()
+
+            # Feedback (live parse result)
+            self.feedback = Static(f"️↳ {default_str}", id="dt_feedback")
+            yield self.feedback
             # yield rule()
 
             # Fixed universal instructions (never change)
@@ -528,12 +529,12 @@ class DatetimePrompt(ModalScreen[datetime | None]):
         try:
             parsed = parse(text)
             if isinstance(parsed, date) and not isinstance(parsed, datetime):
-                self.feedback.update(f" → {parsed.strftime('%Y-%m-%d')}")
+                self.feedback.update(f"↳ {parsed.strftime('%Y-%m-%d')}")
             else:
-                self.feedback.update(f" → {parsed.strftime('%Y-%m-%d %H:%M')}")
+                self.feedback.update(f"↳ {parsed.strftime('%Y-%m-%d %H:%M')}")
         except Exception:
-            _t = f": {text}" if text else ""
-            self.feedback.update(f"[yellow]✘ invalid{_t} [/yellow]")
+            _t = f": {text} " if text else ""
+            self.feedback.update(f"[{ORANGE_RED}] invalid{_t}[/{ORANGE_RED}] ")
 
     def on_key(self, event) -> None:
         """Handle Enter and Escape."""
@@ -1558,10 +1559,10 @@ class DynamicViewApp(App):
             if key == "comma,f" and itemtype in "~^":
                 log_msg(f"{record_id = }, {job_id = }, {first = }")
                 if first is not None:
-                    due = f"\nscheduled for {fmt_user(first)}"
+                    due = f"\nscheduled for\n  [{LIME_GREEN}]{fmt_user(first)}[/{LIME_GREEN}]"
                 else:
                     due = ""
-                msg = f"Enter the finished datetime for\n  [bold {LIME_GREEN}]{subject}[/bold {LIME_GREEN}]{due}"
+                msg = f"Enter the finished datetime for\n  [{LIME_GREEN}]{subject}[/{LIME_GREEN}]{due}"
 
                 dt = await app.prompt_datetime(msg)
                 if dt:
