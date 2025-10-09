@@ -10,6 +10,13 @@ from rich import print
 from tklr.tklr_env import TklrEnvironment
 from dateutil import tz
 from dateutil.tz import gettz
+import math
+import numpy as np
+
+# from textwrap import indent
+from rich.console import Console
+from rich.text import Text
+
 
 from .shared import (
     HRS_MINS,
@@ -19,10 +26,10 @@ from .shared import (
     datetime_from_timestamp,
     duration_in_words,
     datetime_in_words,
-    fmt_local_compact,
-    parse_local_compact,
-    fmt_utc_z,
-    parse_utc_z,
+    # fmt_local_compact,
+    # parse_local_compact,
+    # fmt_utc_z,
+    # parse_utc_z,
     get_anchor,
 )
 
@@ -255,6 +262,134 @@ def _parse_jobs_json(jobs_json: str | None) -> list[dict]:
                     }
                 )
     return jobs
+
+
+# 6-hour windows within a day (local-naive)
+# WINDOWS = [
+#     (0, 6),  # bit 1: 00:00 - 06:00
+#     (6, 12),  # bit 2: 06:00 - 12:00
+#     (12, 18),  # bit 3: 12:00 - 18:00
+#     (18, 24),  # bit 4: 18:00 - 24:00
+# ]
+#
+
+
+def bits_to_int(bitstring: str) -> int:
+    """'0000101...' → integer."""
+    return int(bitstring, 2)
+
+
+def int_to_bits(value: int) -> str:
+    """Integer → 35-bit '010...'."""
+    return format(value, "035b")
+
+
+def or_aggregate(values: list[int]) -> int:
+    """Bitwise OR aggregate."""
+    acc = 0
+    for v in values:
+        acc |= v
+    return acc
+
+
+def _parse_local_naive(ts: str) -> datetime:
+    # "YYYYmmddTHHMM" → naive local datetime
+    return datetime.strptime(ts, "%Y%m%dT%H%M")
+
+
+def _iso_year_week(d: datetime) -> str:
+    y, w, _ = d.isocalendar()
+    return f"{y:04d}-{w:02d}"
+
+
+def fine_busy_bits_for_event(
+    start_str: str, end_str: str | None
+) -> dict[str, np.ndarray]:
+    """
+    Return dict of {year_week: 679-slot uint8 array}
+    (7 days × (1 all-day + 96 fifteen-minute blocks))
+    """
+    start = datetime.strptime(start_str, "%Y%m%dT%H%M")
+
+    # --- handle end rules ---
+    if end_str:
+        end = datetime.strptime(end_str, "%Y%m%dT%H%M")
+        if end <= start:
+            return {}
+    else:
+        # all-day only if starts exactly at 00:00
+        if start.hour == 0 and start.minute == 0:
+            end = None
+        else:
+            # zero-extent event: contributes nothing
+            return {}
+
+    slot_minutes = 15
+    slots_per_day = 96
+    slots_per_week = 7 * (1 + slots_per_day)  # 679
+    weeks: dict[str, np.ndarray] = {}
+
+    def yw_key(dt: datetime) -> str:
+        y, w, _ = dt.isocalendar()
+        return f"{y:04d}-{w:02d}"
+
+    cur = start
+    while True:
+        yw = yw_key(cur)
+        if yw not in weeks:
+            weeks[yw] = np.zeros(slots_per_week, dtype=np.uint8)
+
+        day_index = cur.weekday()  # Mon=0
+        base = day_index * (1 + slots_per_day)
+
+        if end is None:
+            # all-day flag only
+            weeks[yw][base] = 1
+        else:
+            day_start = datetime.combine(cur.date(), datetime.min.time())
+            day_end = datetime.combine(cur.date(), datetime.max.time())
+            s = max(start, day_start)
+            e = min(end, day_end)
+
+            s_idx = (s.hour * 60 + s.minute) // slot_minutes
+            e_idx = (e.hour * 60 + e.minute) // slot_minutes
+            weeks[yw][base + 1 + s_idx : base + 1 + e_idx + 1] = 1
+
+        if end is None or cur.date() >= end.date():
+            break
+        cur += timedelta(days=1)
+
+    return weeks
+
+
+def _reduce_to_35_slots(arr: np.ndarray) -> np.ndarray:
+    """
+    Convert 679 fine bits (7 × (1 + 96)) into 35 coarse slots
+    (7 × [1 all-day + 4 × 6-hour blocks]).
+    """
+    days = 7
+    allday_bits = arr.reshape(days, 97)[:, 0]
+    quarters = arr.reshape(days, 97)[:, 1:]  # 7×96
+
+    coarse = np.zeros((days, 5), dtype=np.uint8)
+
+    for d in range(days):
+        # all-day stays as-is
+        coarse[d, 0] = allday_bits[d]
+
+        # 4 six-hour ranges
+        for i in range(4):
+            start = i * 24  # 6h = 24 × 15min
+            end = start + 24
+            chunk = quarters[d, start:end]
+            if np.any(chunk == 2):
+                coarse[d, i + 1] = 2
+            elif np.any(chunk == 1):
+                coarse[d, i + 1] = 1
+            else:
+                coarse[d, i + 1] = 0
+
+    return coarse.flatten()
 
 
 class UrgencyComputer:
@@ -703,7 +838,75 @@ class DatabaseManager:
             );
         """)
 
+        self.setup_busy_tables()
+
         self.conn.commit()
+
+    def setup_busy_tables(self):
+        """
+        Create fine-grained and aggregated busy/conflict tables
+        (15-minute resolution, ternary busy bits stored as BLOBs).
+        """
+
+        # One row per event occurrence per week
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS BusyWeeksFromDateTimes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id INTEGER NOT NULL,
+                year_week TEXT NOT NULL,
+                busybits BLOB NOT NULL,           -- 672 slots (15-min blocks, 0/1)
+                FOREIGN KEY(record_id) REFERENCES DateTimes(record_id)
+            );
+        """)
+
+        self.cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_busy_from_record_week
+                ON BusyWeeksFromDateTimes(record_id, year_week);
+        """)
+
+        # Aggregate layer: one per year-week
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS BusyWeeks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                year_week TEXT UNIQUE NOT NULL,
+                busybits TEXT NOT NULL  -- 35-character string of '0','1','2' (7×[1+4] per day)
+            );
+        """)
+
+        # Update queue table for incremental recomputation
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS BusyUpdateQueue (
+                record_id INTEGER PRIMARY KEY
+            );
+        """)
+
+        # Triggers on DateTimes to enqueue changed record_id
+        self.cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS trig_busy_insert
+            AFTER INSERT ON DateTimes
+            BEGIN
+                INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
+                VALUES (NEW.record_id);
+            END;
+        """)
+
+        self.cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS trig_busy_update
+            AFTER UPDATE ON DateTimes
+            BEGIN
+                INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
+                VALUES (NEW.record_id);
+            END;
+        """)
+
+        self.cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS trig_busy_delete
+            AFTER DELETE ON DateTimes
+            BEGIN
+                INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
+                VALUES (OLD.record_id);
+            END;
+        """)
 
     def populate_dependent_tables(self):
         """Populate all tables derived from current Records (Tags, DateTimes, Alerts, Beginby)."""
@@ -713,41 +916,8 @@ class DatabaseManager:
         self.populate_tags()
         self.populate_alerts()
         self.populate_beginby()
-
-    # def add_item(self, item: Item):
-    #     print(f"{item.itemtype = }, {item.subject}")
-    #     try:
-    #         timestamp = utc_now_string()
-    #         self.cursor.execute(
-    #             """
-    #             INSERT INTO Records (
-    #                 itemtype, subject, description, rruleset, timezone,
-    #                 extent, alerts, beginby, context, jobs, priority, tags,
-    #                 tokens, processed, created, modified
-    #             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    #             """,
-    #             (
-    #                 item.itemtype,
-    #                 item.subject,
-    #                 item.description,
-    #                 item.rruleset,
-    #                 item.tz_str,
-    #                 item.extent,
-    #                 json.dumps(item.alerts),
-    #                 item.beginby,
-    #                 item.context,
-    #                 json.dumps(item.jobs),
-    #                 item.priority,
-    #                 json.dumps(item.tags),
-    #                 json.dumps(item.tokens),
-    #                 0,
-    #                 timestamp,  # created
-    #                 timestamp,  # modified (same on insert)
-    #             ),
-    #         )
-    #         self.conn.commit()
-    #     except Exception as e:
-    #         print(f"Error adding {item}: {e}")
+        self.populate_busy_from_datetimes()  # 👈 new step: source layer
+        self.rebuild_busyweeks_from_source()  # 👈 add this line
 
     def add_item(self, item: Item) -> int:
         if item.has_f:
@@ -904,51 +1074,6 @@ class DatabaseManager:
             self.populate_beginby_for_record(record_id)
         if item.itemtype in ["~", "^"]:
             self.populate_urgency_from_record(record_id)
-
-    # def add_completion(
-    #     self, record_id: int, job_id: int | None = None, due_ts: int | None = None
-    # ):
-    #     completed_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%MZ")
-    #     self.cursor.execute(
-    #         """
-    #         INSERT INTO Completions (record_id, job_id, due, completed)
-    #         VALUES (?, ?, ?, ?)
-    #         """,
-    #         (record_id, job_id, due, completed),
-    #     )
-    #     self.conn.commit()
-
-    # def add_completion(
-    #     self,
-    #     record_id: int,
-    #     job_id: int | None = None,
-    #     completion: tuple[datetime, datetime | None] | None = None,
-    # ) -> None:
-    #     """
-    #     Insert a completion record into the Completions table.
-    #
-    #     Args:
-    #         record_id: the owning record
-    #         job_id: optional job within the record
-    #         completion: (completed_dt, due_dt) tuple from Item.finish()
-    #     """
-    #     if completion is None:
-    #         return
-    #
-    #     completed_dt, due_dt = completion
-    #
-    #     # Convert to compact string or timestamp form
-    #     completed_ts = self.to_timestamp(completed_dt)
-    #     due_ts = self.to_timestamp(due_dt) if due_dt else None
-    #
-    #     self.cursor.execute(
-    #         """
-    #         INSERT INTO Completions (record_id, job_id, due, completed)
-    #         VALUES (?, ?, ?, ?)
-    #         """,
-    #         (record_id, job_id, due_ts, completed_ts),
-    #     )
-    #     self.conn.commit()
 
     def add_completion(
         self,
@@ -1311,96 +1436,6 @@ class DatabaseManager:
     def populate_alerts(self):
         """
         Populate the Alerts table for all records that have alerts defined.
-        Alerts are only added if they are scheduled to trigger today.
-        """
-        # ✅ Step 1: Clear existing alerts
-        self.cursor.execute("DELETE FROM Alerts;")
-        self.conn.commit()
-
-        # ✅ Step 2: Find all records with non-empty alerts
-        self.cursor.execute(
-            """
-            SELECT R.id, R.subject, R.description, R.context, R.alerts, D.start_datetime 
-            FROM Records R
-            JOIN DateTimes D ON R.id = D.record_id
-            WHERE R.alerts IS NOT NULL AND R.alerts != ''
-            """
-        )
-        records = self.cursor.fetchall()
-
-        if not records:
-            print("🔔 No records with alerts found.")
-            return
-        now = round(datetime.now().timestamp())  # Current timestamp
-        midnight = round(
-            (datetime.now().replace(hour=23, minute=59, second=59)).timestamp()
-        )  # Midnight timestamp
-
-        # ✅ Step 3: Process alerts for each record
-        for (
-            record_id,
-            record_name,
-            record_description,
-            record_location,
-            alerts,
-            start_datetime,
-        ) in records:
-            log_msg(f"processing {alerts = }")
-            start_dt = datetime_from_timestamp(
-                start_datetime
-            )  # Convert timestamp to datetime
-            today = date.today()
-
-            # Convert alerts from JSON string to list
-            alert_list = json.loads(alerts)
-
-            for alert in alert_list:
-                if ":" not in alert:
-                    continue  # Ignore malformed alerts
-
-                time_part, command_part = alert.split(":")
-                timedelta_values = [
-                    td_str_to_seconds(t.strip()) for t in time_part.split(",")
-                ]
-                log_msg(f"{timedelta_values = }")
-                commands = [cmd.strip() for cmd in command_part.split(",")]
-
-                for td in timedelta_values:
-                    trigger_datetime = (
-                        start_datetime - td
-                    )  # When the alert should trigger
-
-                    # ✅ Only insert alerts that will trigger before midnight and after now
-                    if now <= trigger_datetime < midnight:
-                        for alert_name in commands:
-                            alert_command = self.create_alert(
-                                alert_name,
-                                td,
-                                start_datetime,
-                                record_id,
-                                record_name,
-                                record_description,
-                                record_location,
-                            )
-
-                            if alert_command:  # ✅ Ensure it's valid before inserting
-                                self.cursor.execute(
-                                    "INSERT INTO Alerts (record_id, record_name, trigger_datetime, start_datetime, alert_name, alert_command) VALUES (?, ?, ?, ?, ?, ?)",
-                                    (
-                                        record_id,
-                                        record_name,
-                                        trigger_datetime,
-                                        start_datetime,
-                                        alert_name,
-                                        alert_command,
-                                    ),
-                                )
-        self.conn.commit()
-        log_msg("✅ Alerts table updated with today's relevant alerts.")
-
-    def populate_alerts(self):
-        """
-        Populate the Alerts table for all records that have alerts defined.
         Inserts alerts that will trigger between now and local end-of-day.
         Uses TEXT datetimes ('YYYYMMDD' or 'YYYYMMDDTHHMMSS', local-naive).
         """
@@ -1728,12 +1763,6 @@ class DatabaseManager:
         results = []
         for start_dt in occurrences:
             end_dt = start_dt + extent if extent else start_dt
-            # while start_dt.date() != end_dt.date():
-            #     day_end = datetime.combine(start_dt.date(), datetime.max.time())
-            #     results.append((start_dt, day_end))
-            #     start_dt = datetime.combine(
-            #         start_dt.date() + timedelta(days=1), datetime.min.time()
-            #     )
             results.append((start_dt, end_dt))
 
         return results
@@ -2008,92 +2037,6 @@ class DatabaseManager:
         self.cursor.execute(sql, (start_key, end_key))
         return self.cursor.fetchall()
 
-    # def get_events_for_period(self, start_date: datetime, end_date: datetime):
-    #     """
-    #     Retrieve all events that occur or overlap within [start_date, end_date),
-    #     ordered by start time.
-    #
-    #     Returns rows as:
-    #     (start_datetime, end_datetime, itemtype, resolved_subject, record_id, job_id)
-    #
-    #     If dt.job_id is not NULL and Records.jobs contains a matching job with key "i",
-    #     we use that job's "display_subject" (falling back to "~" or parent subject).
-    #     """
-    #     start_key = _to_key(start_date)
-    #     end_key = _to_key(end_date)
-    #
-    #     sql = """
-    #     SELECT
-    #         dt.start_datetime,
-    #         dt.end_datetime,
-    #         r.itemtype,
-    #         r.subject,     -- parent subject
-    #         r.id,
-    #         dt.job_id,
-    #         r.jobs         -- JSON array of job dicts (may be NULL)
-    #     FROM DateTimes dt
-    #     JOIN Records r ON dt.record_id = r.id
-    #     WHERE
-    #         -- normalized end >= period start
-    #         (
-    #             CASE
-    #                 WHEN dt.end_datetime IS NULL THEN
-    #                     CASE
-    #                         WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
-    #                         ELSE dt.start_datetime
-    #                     END
-    #                 WHEN LENGTH(dt.end_datetime) = 8 THEN dt.end_datetime || 'T235959'
-    #                 ELSE dt.end_datetime
-    #             END
-    #         ) >= ?
-    #         AND
-    #         -- normalized start < period end
-    #         (
-    #             CASE
-    #                 WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
-    #                 ELSE dt.start_datetime
-    #             END
-    #         ) < ?
-    #     ORDER BY
-    #         CASE
-    #             WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
-    #             ELSE dt.start_datetime
-    #         END
-    #     """
-    #     self.cursor.execute(sql, (start_key, end_key))
-    #     rows = self.cursor.fetchall()
-    #
-    #     resolved = []
-    #     for (
-    #         start_dt,
-    #         end_dt,
-    #         itemtype,
-    #         parent_subject,
-    #         record_id,
-    #         job_id,
-    #         jobs_json,
-    #     ) in rows:
-    #         subject = parent_subject
-    #         if job_id is not None and jobs_json:
-    #             try:
-    #                 jobs = json.loads(jobs_json)
-    #                 for job in jobs:
-    #                     # match job by its "i" field
-    #                     if job.get("i") == job_id:
-    #                         subject = (
-    #                             job.get("display_subject")
-    #                             or job.get("~")
-    #                             or parent_subject
-    #                         )
-    #                         break
-    #             except Exception:
-    #                 # if JSON is malformed, just fall back to parent subject
-    #                 pass
-    #
-    #         resolved.append((start_dt, end_dt, itemtype, subject, record_id, job_id))
-    #
-    #     return resolved
-
     def generate_datetimes_for_period(self, start_date: datetime, end_date: datetime):
         self.cursor.execute("SELECT id FROM Records")
         for (record_id,) in self.cursor.fetchall():
@@ -2185,41 +2128,11 @@ class DatabaseManager:
         grouped_events = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
         for start_ts, end_ts, itemtype, subject, id, job_id in events:
-            start_dt = (
-                datetime_from_timestamp(start_ts)
-                # .replace(tzinfo=gettz("UTC"))
-                # .astimezone()
-                # .replace(tzinfo=None)
-            )
-            end_dt = (
-                datetime_from_timestamp(end_ts)
-                # .replace(tzinfo=gettz("UTC"))
-                # .astimezone()
-                # .replace(tzinfo=None)
-            )
+            start_dt = datetime_from_timestamp(start_ts)
+            end_dt = datetime_from_timestamp(end_ts)
 
             iso_year, iso_week, iso_weekday = start_dt.isocalendar()
             grouped_events[iso_year][iso_week][iso_weekday].append((start_dt, end_dt))
-            # Process and split events across day boundaries
-            # while start_dt.date() <= end_dt.date():
-            #     # Compute the end time for the current day
-            #     day_end = min(
-            #         end_dt,
-            #         datetime.combine(
-            #             start_dt.date(), datetime.max.time()
-            #         ),  # End of the current day
-            #     )
-            #
-            #     # Group by ISO year, week, and weekday
-            #     iso_year, iso_week, iso_weekday = start_dt.isocalendar()
-            #     # grouped_events[iso_year][iso_week][iso_weekday].append((start_dt, day_end, event_type, name))
-            #     grouped_events[iso_year][iso_week][iso_weekday].append(
-            #         (start_dt, day_end)
-            #     )
-            #     # Move to the start of the next day
-            #     start_dt = datetime.combine(
-            #         start_dt.date() + timedelta(days=1), datetime.min.time()
-            #     )
 
         return grouped_events
 
@@ -2269,65 +2182,69 @@ class DatabaseManager:
 
         self.conn.commit()
 
-    # def get_last_instances(self) -> List[Tuple[int, str, str, str, datetime]]:
-    #     """
-    #     Retrieve the last instances of each record falling before today.
-    #
-    #     Returns:
-    #         List[Tuple[int, str, str, str, datetime]]: List of tuples containing
-    #             record ID, name, description, type, and the last datetime.
-    #     """
-    #     today = int(datetime.now().timestamp())
-    #     self.cursor.execute(
-    #         """
-    #         SELECT r.id, r.subject, r.description, r.itemtype, MAX(d.start_datetime) AS last_datetime
-    #         FROM Records r
-    #         JOIN DateTimes d ON r.id = d.record_id
-    #         WHERE d.start_datetime < ?
-    #         GROUP BY r.id
-    #         ORDER BY last_datetime DESC
-    #         """,
-    #         (today,),
-    #     )
-    #     return self.cursor.fetchall()
-    #
-    # def get_last_instances(self) -> List[Tuple[int, str, str, str, str]]:
-    #     """
-    #     Retrieve the last instance *before now* for each record.
-    #
-    #     Returns:
-    #         List of tuples: (record_id, subject, description, itemtype, last_datetime_key)
-    #         where last_datetime_key is 'YYYYMMDDTHHMMSS'.
-    #     """
-    #     today_key = _today_key()
-    #
-    #     sql = """
-    #     WITH norm AS (
-    #     SELECT
-    #         r.id            AS record_id,
-    #         r.subject       AS subject,
-    #         r.description   AS description,
-    #         r.itemtype      AS itemtype,
-    #         CASE
-    #         WHEN LENGTH(d.start_datetime) = 8 THEN d.start_datetime || 'T000000'
-    #         ELSE d.start_datetime
-    #         END             AS start_norm
-    #     FROM Records r
-    #     JOIN DateTimes d ON r.id = d.record_id
-    #     )
-    #     SELECT
-    #     n1.record_id,
-    #     n1.subject,
-    #     n1.description,
-    #     n1.itemtype,
-    #     MAX(n1.start_norm) AS last_datetime
-    #     FROM norm n1
-    #     WHERE n1.start_norm < ?
-    #     GROUP BY n1.record_id
-    #     ORDER BY last_datetime DESC
-    #     """
-    #     self.cursor.execute(sql, (today_key,))
-    #     return self.cursor.fetchall()
+    def populate_busy_from_datetimes(self):
+        """
+        Populate BusyWeeksFromDateTimes from the DateTimes table.
+
+        Uses fine_busy_bits_for_event(start, end) to generate 679-slot bit arrays.
+        Each event produces one or more rows in BusyWeeksFromDateTimes
+        (one per affected year-week).
+        """
+
+        print("🔄 Rebuilding BusyWeeksFromDateTimes from DateTimes...")
+
+        # Clear previous content
+        self.cursor.execute("DELETE FROM BusyWeeksFromDateTimes")
+
+        # Fetch all event-type records from DateTimes joined with Records
+        self.cursor.execute("""
+            SELECT
+                dt.record_id,
+                dt.start_datetime,
+                dt.end_datetime
+            FROM DateTimes AS dt
+            JOIN Records AS r ON r.id = dt.record_id
+            WHERE r.itemtype = '*'
+        """)
+
+        rows = self.cursor.fetchall()
+        total = len(rows)
+        print(f"Found {total} event datetime(s).")
+
+        if not rows:
+            return
+
+        for record_id, start_str, end_str in rows:
+            # Convert from stored compact format
+            start = start_str.strip()
+            end = end_str.strip() if end_str else None
+
+            try:
+                # get per-week bitmaps
+                week_maps = fine_busy_bits_for_event(start, end)
+
+                for year_week, bits in week_maps.items():
+                    # Ensure numpy array type
+                    arr = np.asarray(bits, dtype=np.uint8)
+                    blob = arr.tobytes()
+
+                    # insert or replace
+                    self.cursor.execute(
+                        """
+                        INSERT INTO BusyWeeksFromDateTimes (record_id, year_week, busybits)
+                        VALUES (?, ?, ?)
+                        ON CONFLICT(record_id, year_week)
+                        DO UPDATE SET busybits = excluded.busybits
+                    """,
+                        (record_id, year_week, blob),
+                    )
+
+            except Exception as e:
+                print(f"⚠️ Error building busy bits for record {record_id}: {e}")
+                continue
+
+        self.conn.commit()
+        print("✅ BusyWeeksFromDateTimes population complete.")
 
     def get_last_instances(
         self,
@@ -2389,44 +2306,6 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
-    # def get_next_instances(self) -> List[Tuple[int, int | None, str, str, str, str]]:
-    #     """
-    #     Retrieve the next instance *at or after now* for each record.
-    #
-    #     Returns:
-    #         List of tuples:
-    #             (record_id, job_id, subject, description, itemtype, next_datetime)
-    #     """
-    #     today_key = _today_key()
-    #
-    #     sql = """
-    #     WITH norm AS (
-    #     SELECT
-    #         r.id            AS record_id,
-    #         r.subject       AS subject,
-    #         r.description   AS description,
-    #         r.itemtype      AS itemtype,
-    #         CASE
-    #         WHEN LENGTH(d.start_datetime) = 8 THEN d.start_datetime || 'T000000'
-    #         ELSE d.start_datetime
-    #         END             AS start_norm
-    #     FROM Records r
-    #     JOIN DateTimes d ON r.id = d.record_id
-    #     )
-    #     SELECT
-    #     n1.record_id,
-    #     n1.subject,
-    #     n1.description,
-    #     n1.itemtype,
-    #     MIN(n1.start_norm) AS next_datetime
-    #     FROM norm n1
-    #     WHERE n1.start_norm >= ?
-    #     GROUP BY n1.record_id
-    #     ORDER BY next_datetime ASC
-    #     """
-    #     self.cursor.execute(sql, (today_key,))
-    #     return self.cursor.fetchall()
-
     def get_next_instance_for_record(
         self, record_id: int
     ) -> tuple[str, str | None] | None:
@@ -2452,24 +2331,6 @@ class DatabaseManager:
             return row[0], row[1]
         return None
 
-    # def get_next_start_datetimes_for_record(self, record_id: int) -> list[str]:
-    #     """
-    #     Return up to 2 upcoming start datetimes (as compact local-naive strings)
-    #     for the given record, sorted ascending.
-    #     """
-    #     self.cursor.execute(
-    #         """
-    #         SELECT start_datetime
-    #         FROM DateTimes
-    #         WHERE record_id = ?
-    #         AND start_datetime >= ?
-    #         ORDER BY start_datetime ASC
-    #         LIMIT 2
-    #         """,
-    #         (record_id, _fmt_naive(datetime.now())),
-    #     )
-    #     return [row[0] for row in self.cursor.fetchall()]
-
     def get_next_start_datetimes_for_record(
         self, record_id: int, job_id: int | None = None
     ) -> list[str]:
@@ -2482,7 +2343,6 @@ class DatabaseManager:
             FROM DateTimes
             WHERE record_id = ?
         """
-        # params = [record_id, _fmt_naive(datetime.now())]
         params = [
             record_id,
         ]
@@ -2548,7 +2408,6 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
-    # FIXME: should access record_id
     def update_tags_for_record(self, record_data):
         cur = self.conn.cursor()
         tags = record_data.pop("tags", [])
@@ -2814,3 +2673,161 @@ class DatabaseManager:
         cur = self.conn.cursor()
         cur.execute("SELECT COUNT(*) FROM Records")
         return cur.fetchone()[0]
+
+    def rebuild_busyweeks_from_source(self):
+        """
+        Aggregate all BusyWeeksFromDateTimes → BusyWeeks,
+        collapsing to 35-slot weekly maps:
+        (7 days × [1 all-day + 4 × 6-hour blocks]).
+
+        Ternary encoding:
+        0 = free
+        1 = busy
+        2 = conflict
+        """
+
+        self.cursor.execute("SELECT DISTINCT year_week FROM BusyWeeksFromDateTimes")
+        weeks = [row[0] for row in self.cursor.fetchall()]
+        if not weeks:
+            print("⚠️ No data to aggregate.")
+            return
+
+        print(f"Aggregating {len(weeks)} week(s)...")
+
+        for yw in weeks:
+            # --- Gather all event arrays for this week
+            self.cursor.execute(
+                "SELECT busybits FROM BusyWeeksFromDateTimes WHERE year_week = ?",
+                (yw,),
+            )
+            blobs = [
+                np.frombuffer(row[0], dtype=np.uint8) for row in self.cursor.fetchall()
+            ]
+            if not blobs:
+                continue
+
+            n = len(blobs[0])
+            if any(arr.size != n for arr in blobs):
+                print(f"⚠️ Skipping {yw}: inconsistent array sizes")
+                continue
+
+            # Stack vertically -> shape (num_events, 679)
+            stack = np.vstack(blobs)
+
+            # Count per slot
+            counts = stack.sum(axis=0)
+
+            # Collapse fine bits into ternary (0 free / 1 busy / 2 conflict)
+            merged = np.where(counts >= 2, 2, np.where(counts >= 1, 1, 0)).astype(
+                np.uint8
+            )
+
+            # Reduce 679 fine bits → 35 coarse blocks (7 × [1+4])
+            merged = _reduce_to_35_slots(merged)
+
+            # Serialize
+            blob = merged.tobytes()
+
+            bits_str = "".join(str(int(x)) for x in merged)
+            self.cursor.execute(
+                """
+                INSERT INTO BusyWeeks (year_week, busybits)
+                VALUES (?, ?)
+                ON CONFLICT(year_week)
+                DO UPDATE SET busybits = excluded.busybits
+            """,
+                (yw, bits_str),
+            )
+
+        self.conn.commit()
+        print("✅ BusyWeeks aggregation complete.")
+
+    def show_busy_week(self, year_week: str):
+        """
+        Display the 7×96 busy/conflict map for a given ISO year-week.
+
+        Reads from BusyWeeks, decodes the blob, and prints 7 lines:
+            - one per weekday (Mon → Sun)
+            - each line shows 96 characters (15-min slots)
+            0 = free, 1 = busy, 2 = conflict
+
+        Example:
+            Mon  000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+            Tue  000000000000111100000000...
+            ...
+        """
+        self.cursor.execute(
+            "SELECT busybits FROM BusyWeeks WHERE year_week = ?",
+            (year_week,),
+        )
+        row = self.cursor.fetchone()
+        if not row:
+            print(f"No BusyWeeks entry for {year_week}")
+            return
+
+        # Decode the 672-slot array
+        arr = np.frombuffer(row[0], dtype=np.uint8)
+        if arr.size != 672:
+            print(f"Unexpected busybits length: {arr.size}")
+            return
+
+        # Split into 7 days × 96 slots
+        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        slots_per_day = 96
+
+        print(f"🗓  Busy/conflict map for {year_week}\n")
+        for i, day in enumerate(days):
+            start = i * slots_per_day
+            end = start + slots_per_day
+            line = "".join(str(x) for x in arr[start:end])
+            print(f"{day:<4}{line}")
+
+    def show_busy_week_pretty(self, year_week: str):
+        """
+        Display a 7×96 busy/conflict map for a given ISO year-week with color and hour markers.
+        0 = free, 1 = busy, 2 = conflict (colored red).
+
+        Uses 15-min resolution; 96 slots per day.
+        """
+        console = Console()
+
+        self.cursor.execute(
+            "SELECT busybits FROM BusyWeeks WHERE year_week = ?",
+            (year_week,),
+        )
+        row = self.cursor.fetchone()
+        if not row:
+            console.print(f"[red]No BusyWeeks entry for {year_week}[/red]")
+            return
+
+        arr = np.frombuffer(row[0], dtype=np.uint8)
+        if arr.size != 672:
+            console.print(f"[red]Unexpected busybits length: {arr.size}[/red]")
+            return
+
+        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        slots_per_day = 96  # 96 x 15min = 24h
+        hours = [f"{h:02d}" for h in range(24)]
+
+        # Header row: hour markers
+        header = "    "  # spacing before first hour
+        for h in hours:
+            header += h + " " * 3  # one char per 15 min slot
+        console.print(f"[bold cyan]🗓 Busy/conflict map for {year_week}[/bold cyan]\n")
+        console.print(header)
+
+        for i, day in enumerate(days):
+            start = i * slots_per_day
+            end = start + slots_per_day
+            line_bits = arr[start:end]
+
+            text_line = Text()
+            for bit in line_bits:
+                if bit == 0:
+                    text_line.append("·", style="dim")  # free
+                elif bit == 1:
+                    text_line.append("█", style="yellow")  # busy
+                elif bit == 2:
+                    text_line.append("█", style="bold red")  # conflict
+
+            console.print(f"{day:<4}{text_line}")
