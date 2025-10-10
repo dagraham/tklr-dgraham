@@ -26,10 +26,10 @@ from .shared import (
     datetime_from_timestamp,
     duration_in_words,
     datetime_in_words,
-    # fmt_local_compact,
-    # parse_local_compact,
-    # fmt_utc_z,
-    # parse_utc_z,
+    fmt_local_compact,
+    parse_local_compact,
+    fmt_utc_z,
+    parse_utc_z,
     get_anchor,
 )
 
@@ -265,13 +265,12 @@ def _parse_jobs_json(jobs_json: str | None) -> list[dict]:
 
 
 # 6-hour windows within a day (local-naive)
-# WINDOWS = [
-#     (0, 6),  # bit 1: 00:00 - 06:00
-#     (6, 12),  # bit 2: 06:00 - 12:00
-#     (12, 18),  # bit 3: 12:00 - 18:00
-#     (18, 24),  # bit 4: 18:00 - 24:00
-# ]
-#
+WINDOWS = [
+    (0, 6),  # bit 1: 00:00 - 06:00
+    (6, 12),  # bit 2: 06:00 - 12:00
+    (12, 18),  # bit 3: 12:00 - 18:00
+    (18, 24),  # bit 4: 18:00 - 24:00
+]
 
 
 def bits_to_int(bitstring: str) -> int:
@@ -1075,6 +1074,51 @@ class DatabaseManager:
         if item.itemtype in ["~", "^"]:
             self.populate_urgency_from_record(record_id)
 
+    # def add_completion(
+    #     self, record_id: int, job_id: int | None = None, due_ts: int | None = None
+    # ):
+    #     completed_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%MZ")
+    #     self.cursor.execute(
+    #         """
+    #         INSERT INTO Completions (record_id, job_id, due, completed)
+    #         VALUES (?, ?, ?, ?)
+    #         """,
+    #         (record_id, job_id, due, completed),
+    #     )
+    #     self.conn.commit()
+
+    # def add_completion(
+    #     self,
+    #     record_id: int,
+    #     job_id: int | None = None,
+    #     completion: tuple[datetime, datetime | None] | None = None,
+    # ) -> None:
+    #     """
+    #     Insert a completion record into the Completions table.
+    #
+    #     Args:
+    #         record_id: the owning record
+    #         job_id: optional job within the record
+    #         completion: (completed_dt, due_dt) tuple from Item.finish()
+    #     """
+    #     if completion is None:
+    #         return
+    #
+    #     completed_dt, due_dt = completion
+    #
+    #     # Convert to compact string or timestamp form
+    #     completed_ts = self.to_timestamp(completed_dt)
+    #     due_ts = self.to_timestamp(due_dt) if due_dt else None
+    #
+    #     self.cursor.execute(
+    #         """
+    #         INSERT INTO Completions (record_id, job_id, due, completed)
+    #         VALUES (?, ?, ?, ?)
+    #         """,
+    #         (record_id, job_id, due_ts, completed_ts),
+    #     )
+    #     self.conn.commit()
+
     def add_completion(
         self,
         record_id: int,
@@ -1436,6 +1480,96 @@ class DatabaseManager:
     def populate_alerts(self):
         """
         Populate the Alerts table for all records that have alerts defined.
+        Alerts are only added if they are scheduled to trigger today.
+        """
+        # ✅ Step 1: Clear existing alerts
+        self.cursor.execute("DELETE FROM Alerts;")
+        self.conn.commit()
+
+        # ✅ Step 2: Find all records with non-empty alerts
+        self.cursor.execute(
+            """
+            SELECT R.id, R.subject, R.description, R.context, R.alerts, D.start_datetime 
+            FROM Records R
+            JOIN DateTimes D ON R.id = D.record_id
+            WHERE R.alerts IS NOT NULL AND R.alerts != ''
+            """
+        )
+        records = self.cursor.fetchall()
+
+        if not records:
+            print("🔔 No records with alerts found.")
+            return
+        now = round(datetime.now().timestamp())  # Current timestamp
+        midnight = round(
+            (datetime.now().replace(hour=23, minute=59, second=59)).timestamp()
+        )  # Midnight timestamp
+
+        # ✅ Step 3: Process alerts for each record
+        for (
+            record_id,
+            record_name,
+            record_description,
+            record_location,
+            alerts,
+            start_datetime,
+        ) in records:
+            log_msg(f"processing {alerts = }")
+            start_dt = datetime_from_timestamp(
+                start_datetime
+            )  # Convert timestamp to datetime
+            today = date.today()
+
+            # Convert alerts from JSON string to list
+            alert_list = json.loads(alerts)
+
+            for alert in alert_list:
+                if ":" not in alert:
+                    continue  # Ignore malformed alerts
+
+                time_part, command_part = alert.split(":")
+                timedelta_values = [
+                    td_str_to_seconds(t.strip()) for t in time_part.split(",")
+                ]
+                log_msg(f"{timedelta_values = }")
+                commands = [cmd.strip() for cmd in command_part.split(",")]
+
+                for td in timedelta_values:
+                    trigger_datetime = (
+                        start_datetime - td
+                    )  # When the alert should trigger
+
+                    # ✅ Only insert alerts that will trigger before midnight and after now
+                    if now <= trigger_datetime < midnight:
+                        for alert_name in commands:
+                            alert_command = self.create_alert(
+                                alert_name,
+                                td,
+                                start_datetime,
+                                record_id,
+                                record_name,
+                                record_description,
+                                record_location,
+                            )
+
+                            if alert_command:  # ✅ Ensure it's valid before inserting
+                                self.cursor.execute(
+                                    "INSERT INTO Alerts (record_id, record_name, trigger_datetime, start_datetime, alert_name, alert_command) VALUES (?, ?, ?, ?, ?, ?)",
+                                    (
+                                        record_id,
+                                        record_name,
+                                        trigger_datetime,
+                                        start_datetime,
+                                        alert_name,
+                                        alert_command,
+                                    ),
+                                )
+        self.conn.commit()
+        log_msg("✅ Alerts table updated with today's relevant alerts.")
+
+    def populate_alerts(self):
+        """
+        Populate the Alerts table for all records that have alerts defined.
         Inserts alerts that will trigger between now and local end-of-day.
         Uses TEXT datetimes ('YYYYMMDD' or 'YYYYMMDDTHHMMSS', local-naive).
         """
@@ -1763,6 +1897,12 @@ class DatabaseManager:
         results = []
         for start_dt in occurrences:
             end_dt = start_dt + extent if extent else start_dt
+            # while start_dt.date() != end_dt.date():
+            #     day_end = datetime.combine(start_dt.date(), datetime.max.time())
+            #     results.append((start_dt, day_end))
+            #     start_dt = datetime.combine(
+            #         start_dt.date() + timedelta(days=1), datetime.min.time()
+            #     )
             results.append((start_dt, end_dt))
 
         return results
@@ -2128,11 +2268,41 @@ class DatabaseManager:
         grouped_events = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
         for start_ts, end_ts, itemtype, subject, id, job_id in events:
-            start_dt = datetime_from_timestamp(start_ts)
-            end_dt = datetime_from_timestamp(end_ts)
+            start_dt = (
+                datetime_from_timestamp(start_ts)
+                # .replace(tzinfo=gettz("UTC"))
+                # .astimezone()
+                # .replace(tzinfo=None)
+            )
+            end_dt = (
+                datetime_from_timestamp(end_ts)
+                # .replace(tzinfo=gettz("UTC"))
+                # .astimezone()
+                # .replace(tzinfo=None)
+            )
 
             iso_year, iso_week, iso_weekday = start_dt.isocalendar()
             grouped_events[iso_year][iso_week][iso_weekday].append((start_dt, end_dt))
+            # Process and split events across day boundaries
+            # while start_dt.date() <= end_dt.date():
+            #     # Compute the end time for the current day
+            #     day_end = min(
+            #         end_dt,
+            #         datetime.combine(
+            #             start_dt.date(), datetime.max.time()
+            #         ),  # End of the current day
+            #     )
+            #
+            #     # Group by ISO year, week, and weekday
+            #     iso_year, iso_week, iso_weekday = start_dt.isocalendar()
+            #     # grouped_events[iso_year][iso_week][iso_weekday].append((start_dt, day_end, event_type, name))
+            #     grouped_events[iso_year][iso_week][iso_weekday].append(
+            #         (start_dt, day_end)
+            #     )
+            #     # Move to the start of the next day
+            #     start_dt = datetime.combine(
+            #         start_dt.date() + timedelta(days=1), datetime.min.time()
+            #     )
 
         return grouped_events
 
@@ -2306,6 +2476,44 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
+    # def get_next_instances(self) -> List[Tuple[int, int | None, str, str, str, str]]:
+    #     """
+    #     Retrieve the next instance *at or after now* for each record.
+    #
+    #     Returns:
+    #         List of tuples:
+    #             (record_id, job_id, subject, description, itemtype, next_datetime)
+    #     """
+    #     today_key = _today_key()
+    #
+    #     sql = """
+    #     WITH norm AS (
+    #     SELECT
+    #         r.id            AS record_id,
+    #         r.subject       AS subject,
+    #         r.description   AS description,
+    #         r.itemtype      AS itemtype,
+    #         CASE
+    #         WHEN LENGTH(d.start_datetime) = 8 THEN d.start_datetime || 'T000000'
+    #         ELSE d.start_datetime
+    #         END             AS start_norm
+    #     FROM Records r
+    #     JOIN DateTimes d ON r.id = d.record_id
+    #     )
+    #     SELECT
+    #     n1.record_id,
+    #     n1.subject,
+    #     n1.description,
+    #     n1.itemtype,
+    #     MIN(n1.start_norm) AS next_datetime
+    #     FROM norm n1
+    #     WHERE n1.start_norm >= ?
+    #     GROUP BY n1.record_id
+    #     ORDER BY next_datetime ASC
+    #     """
+    #     self.cursor.execute(sql, (today_key,))
+    #     return self.cursor.fetchall()
+
     def get_next_instance_for_record(
         self, record_id: int
     ) -> tuple[str, str | None] | None:
@@ -2331,6 +2539,24 @@ class DatabaseManager:
             return row[0], row[1]
         return None
 
+    # def get_next_start_datetimes_for_record(self, record_id: int) -> list[str]:
+    #     """
+    #     Return up to 2 upcoming start datetimes (as compact local-naive strings)
+    #     for the given record, sorted ascending.
+    #     """
+    #     self.cursor.execute(
+    #         """
+    #         SELECT start_datetime
+    #         FROM DateTimes
+    #         WHERE record_id = ?
+    #         AND start_datetime >= ?
+    #         ORDER BY start_datetime ASC
+    #         LIMIT 2
+    #         """,
+    #         (record_id, _fmt_naive(datetime.now())),
+    #     )
+    #     return [row[0] for row in self.cursor.fetchall()]
+
     def get_next_start_datetimes_for_record(
         self, record_id: int, job_id: int | None = None
     ) -> list[str]:
@@ -2343,6 +2569,7 @@ class DatabaseManager:
             FROM DateTimes
             WHERE record_id = ?
         """
+        # params = [record_id, _fmt_naive(datetime.now())]
         params = [
             record_id,
         ]
@@ -2408,6 +2635,7 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
+    # FIXME: should access record_id
     def update_tags_for_record(self, record_data):
         cur = self.conn.cursor()
         tags = record_data.pop("tags", [])
@@ -2673,6 +2901,127 @@ class DatabaseManager:
         cur = self.conn.cursor()
         cur.execute("SELECT COUNT(*) FROM Records")
         return cur.fetchone()[0]
+
+    def rebuild_busyweeks_from_source(self):
+        """
+        Aggregate BusyWeeksFromDateTimes → BusyWeeks.
+
+        - Combines all busybit arrays per year_week.
+        - Uses ternary encoding:
+            0 = free
+            1 = busy (exactly one event)
+            2 = conflict (2+ overlapping events)
+        """
+
+        self.cursor.execute("SELECT DISTINCT year_week FROM BusyWeeksFromDateTimes")
+        weeks = [row[0] for row in self.cursor.fetchall()]
+        log_msg(f"{weeks = }")
+        if not weeks:
+            return
+
+        for yw in weeks:
+            # Get all 672-slot arrays for this week
+            self.cursor.execute(
+                "SELECT busybits FROM BusyWeeksFromDateTimes WHERE year_week = ?",
+                (yw,),
+            )
+            rows = self.cursor.fetchall()
+            if not rows:
+                continue
+
+            # Decode each blob back to numpy array
+            arrays = [np.frombuffer(row[0], dtype=np.uint8) for row in rows]
+
+            # Sum them elementwise
+            summed = np.sum(arrays, axis=0)
+
+            # Convert summed counts → ternary busy/conflict encoding
+            # 0 = free, 1 = busy (exactly 1), 2 = conflict (≥2)
+            merged = np.where(summed == 0, 0, np.where(summed == 1, 1, 2)).astype(
+                np.uint8
+            )
+
+            # Store back as BLOB
+            blob = merged.tobytes()
+            self.cursor.execute(
+                """
+                INSERT INTO BusyWeeks (year_week, busybits)
+                VALUES (?, ?)
+                ON CONFLICT(year_week)
+                DO UPDATE SET busybits = excluded.busybits
+                """,
+                (yw, blob),
+            )
+
+        self.conn.commit()
+
+    def rebuild_busyweeks_from_source(self):
+        """
+        Aggregate all BusyWeeksFromDateTimes → BusyWeeks.
+
+        Rules:
+        - busybits are 679-slot uint8 arrays per (record_id, year_week)
+        - if any slot has 2 or more overlapping events → 2 (conflict)
+        - else if >=1 event → 1 (busy)
+        - else 0 (free)
+        """
+
+        self.cursor.execute("SELECT DISTINCT year_week FROM BusyWeeksFromDateTimes")
+        weeks = [row[0] for row in self.cursor.fetchall()]
+        if not weeks:
+            print("⚠️ No data to aggregate.")
+            return
+
+        print(f"Aggregating {len(weeks)} week(s)...")
+
+        for yw in weeks:
+            # --- Gather all event arrays for this week
+            self.cursor.execute(
+                "SELECT busybits FROM BusyWeeksFromDateTimes WHERE year_week = ?",
+                (yw,),
+            )
+            blobs = [
+                np.frombuffer(row[0], dtype=np.uint8) for row in self.cursor.fetchall()
+            ]
+            if not blobs:
+                continue
+
+            # Ensure all same length (safety)
+            n = len(blobs[0])
+            if any(arr.size != n for arr in blobs):
+                print(f"⚠️ Skipping {yw}: inconsistent array sizes")
+                continue
+
+            # Stack vertically -> shape (num_events, 679)
+            stack = np.vstack(blobs)
+
+            # Sum across events
+            counts = stack.sum(axis=0)
+
+            # Collapse:
+            # ≥2 overlapping → 2
+            # ≥1 → 1
+            # 0 → 0
+            merged = np.where(counts >= 2, 2, np.where(counts >= 1, 1, 0)).astype(
+                np.uint8
+            )
+
+            # Serialize as BLOB
+            blob = merged.tobytes()
+
+            # Upsert into BusyWeeks
+            self.cursor.execute(
+                """
+                INSERT INTO BusyWeeks (year_week, busybits)
+                VALUES (?, ?)
+                ON CONFLICT(year_week)
+                DO UPDATE SET busybits = excluded.busybits
+                """,
+                (yw, blob),
+            )
+
+        self.conn.commit()
+        print("✅ BusyWeeks aggregation complete.")
 
     def rebuild_busyweeks_from_source(self):
         """

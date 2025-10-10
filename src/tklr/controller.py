@@ -1113,11 +1113,11 @@ class Controller:
                     and iso_week == today_week
                     and weekday == today_weekday
                 )
-                tomorrow = (
-                    iso_year == tomorrow_year
-                    and iso_week == tomorrow_week
-                    and weekday == tomorrow_day
-                )
+                # tomorrow = (
+                #     iso_year == tomorrow_year
+                #     and iso_week == tomorrow_week
+                #     and weekday == tomorrow_day
+                # )
 
                 # mday = monthday_str
                 mday = f"{monthday_str:>2}"
@@ -1200,7 +1200,7 @@ class Controller:
         events = self.db_manager.get_events_for_period(start_datetime, end_datetime)
         # log_msg(f"from get_events_for_period:\n{events = }")
         this_week = format_date_range(start_datetime, end_datetime - ONEDAY)
-        terminal_width = shutil.get_terminal_size().columns
+        # terminal_width = shutil.get_terminal_size().columns
 
         header = f"{this_week} #{yr_wk[1]} ({len(events)})"
         description = [header]
