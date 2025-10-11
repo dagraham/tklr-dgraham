@@ -308,20 +308,31 @@ def fine_busy_bits_for_event(
     Return dict of {year_week: 679-slot uint8 array}
     (7 days × (1 all-day + 96 fifteen-minute blocks))
     """
-    start = datetime.strptime(start_str, "%Y%m%dT%H%M")
+    # start = datetime.strptime(start_str, "%Y%m%dT%H%M")
+    # start = (
+    #     datetime.strptime(start_str, "%Y%m%dT%H%M")
+    #     if "T" in start_str
+    #     else datetime.strptime(start_str, "%Y%m%d")
+    # )
+    start = parse(start_str)
 
     # --- handle end rules ---
-    if end_str:
-        end = datetime.strptime(end_str, "%Y%m%dT%H%M")
-        if end <= start:
-            return {}
-    else:
-        # all-day only if starts exactly at 00:00
-        if start.hour == 0 and start.minute == 0:
-            end = None
-        else:
-            # zero-extent event: contributes nothing
-            return {}
+    # if end_str:
+    #     end = datetime.strptime(end_str, "%Y%m%dT%H%M")
+    #     if end <= start:
+    #         return {}
+    # else:
+    #     # all-day only if starts exactly at 00:00
+    #     if start.hour == 0 and start.minute == 0:
+    #         end = None
+    #     else:
+    #         # zero-extent event: contributes nothing
+    #         return {}
+    end = parse(end_str) if end_str else None
+
+    if end is None and (start.hour != 0 or start.minute != 0):
+        # zero-extent event: contributes nothing
+        return {}
 
     slot_minutes = 15
     slots_per_day = 96
@@ -333,6 +344,7 @@ def fine_busy_bits_for_event(
         return f"{y:04d}-{w:02d}"
 
     cur = start
+    busy_count = 0
     while True:
         yw = yw_key(cur)
         if yw not in weeks:
@@ -352,12 +364,14 @@ def fine_busy_bits_for_event(
 
             s_idx = (s.hour * 60 + s.minute) // slot_minutes
             e_idx = (e.hour * 60 + e.minute) // slot_minutes
+            log_msg(f"{s_idx = }, {e_idx = }, {e_idx - s_idx = } ")
             weeks[yw][base + 1 + s_idx : base + 1 + e_idx + 1] = 1
+            busy_count += np.count_nonzero(weeks[yw])
 
         if end is None or cur.date() >= end.date():
             break
         cur += timedelta(days=1)
-
+    log_msg(f"{start_str = }, {end_str = }, {busy_count = }")
     return weeks
 
 
@@ -389,6 +403,38 @@ def _reduce_to_35_slots(arr: np.ndarray) -> np.ndarray:
                 coarse[d, i + 1] = 0
 
     return coarse.flatten()
+
+    def _reduce_to_35_slots(arr: np.ndarray) -> np.ndarray:
+        """
+        Convert 672 or 679 fine bits into 35 coarse slots
+        (7 × [1 all-day + 4 × 6-hour blocks]).
+        If 672: treat all-day bit as 0 for all days.
+        """
+        days = 7
+        slots_per_day = arr.size // days
+
+        if slots_per_day == 97:
+            allday_bits = arr.reshape(days, 97)[:, 0]
+            quarters = arr.reshape(days, 97)[:, 1:]
+        elif slots_per_day == 96:
+            allday_bits = np.zeros(days, dtype=np.uint8)
+            quarters = arr.reshape(days, 96)
+        else:
+            raise ValueError(f"Unexpected array size: {arr.size}")
+
+        coarse = np.zeros((days, 5), dtype=np.uint8)
+
+        for d in range(days):
+            coarse[d, 0] = allday_bits[d]
+            for i in range(4):  # 4 six-hour blocks
+                start = i * 24
+                end = start + 24
+                chunk = quarters[d, start:end]
+                coarse[d, i + 1] = (
+                    2 if np.any(chunk == 2) else 1 if np.any(chunk == 1) else 0
+                )
+
+        return coarse.flatten()
 
 
 class UrgencyComputer:
@@ -2385,6 +2431,7 @@ class DatabaseManager:
             return
 
         for record_id, start_str, end_str in rows:
+            log_msg(f"{record_id = }, {start_str = }, {end_str = }")
             # Convert from stored compact format
             start = start_str.strip()
             end = end_str.strip() if end_str else None
@@ -2415,6 +2462,57 @@ class DatabaseManager:
 
         self.conn.commit()
         print("✅ BusyWeeksFromDateTimes population complete.")
+
+    def populate_busy_from_datetimes(self):
+        """
+        Build BusyWeeksFromDateTimes from DateTimes.
+        For each (record_id, year_week) pair, accumulate busybits
+        across all event segments — merging with np.maximum().
+        """
+        import numpy as np
+
+        print("🧩 Rebuilding BusyWeeksFromDateTimes…")
+        self.cursor.execute("DELETE FROM BusyWeeksFromDateTimes")
+
+        # fetch all events
+        self.cursor.execute(
+            "SELECT record_id, start_datetime, end_datetime FROM DateTimes"
+        )
+        rows = self.cursor.fetchall()
+        if not rows:
+            print("⚠️ No DateTimes entries found.")
+            return
+
+        total_inserted = 0
+        for record_id, start_str, end_str in rows:
+            weeks = fine_busy_bits_for_event(start_str, end_str)
+            for yw, arr in weeks.items():
+                # check if a row already exists for (record_id, week)
+                self.cursor.execute(
+                    "SELECT busybits FROM BusyWeeksFromDateTimes WHERE record_id=? AND year_week=?",
+                    (record_id, yw),
+                )
+                row = self.cursor.fetchone()
+                if row:
+                    existing = np.frombuffer(row[0], dtype=np.uint8)
+                    merged = np.maximum(existing, arr)
+                else:
+                    merged = arr
+
+                # upsert
+                self.cursor.execute(
+                    """
+                    INSERT INTO BusyWeeksFromDateTimes (record_id, year_week, busybits)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(record_id, year_week)
+                    DO UPDATE SET busybits = excluded.busybits
+                    """,
+                    (record_id, yw, merged.tobytes()),
+                )
+                total_inserted += 1
+
+        self.conn.commit()
+        print(f"✅ BusyWeeksFromDateTimes populated ({total_inserted} week-records).")
 
     def get_last_instances(
         self,
@@ -2931,6 +3029,8 @@ class DatabaseManager:
 
             # Decode each blob back to numpy array
             arrays = [np.frombuffer(row[0], dtype=np.uint8) for row in rows]
+            for array in arrays:
+                log_msg(f"{yw = }, {array.sum() = }")
 
             # Sum them elementwise
             summed = np.sum(arrays, axis=0)
@@ -3180,3 +3280,24 @@ class DatabaseManager:
                     text_line.append("█", style="bold red")  # conflict
 
             console.print(f"{day:<4}{text_line}")
+
+    def get_busy_bits_for_week(self, year_week: str) -> list[int]:
+        """
+        Return a list of 35 ternary busy bits (0=free, 1=busy, 2=conflict)
+        for the given ISO year-week string (e.g. '2025-41').
+        """
+        self.cursor.execute(
+            "SELECT busybits FROM BusyWeeks WHERE year_week = ?", (year_week,)
+        )
+        row = self.cursor.fetchone()
+        if not row:
+            return [0] * 35
+
+        bits_str = row[0]
+        if isinstance(bits_str, bytes):
+            bits_str = bits_str.decode("utf-8")
+
+        bits = [int(ch) for ch in bits_str if ch in "012"]
+        if len(bits) != 35:
+            bits = (bits + [0] * 35)[:35]
+        return bits

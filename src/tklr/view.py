@@ -27,6 +27,7 @@ from textual.widgets import Label
 from textual.widgets import Markdown, Static, Footer, Button, Header
 from textual.widgets import Placeholder
 from textual.widgets import TextArea
+from textual import on
 import string
 import shutil
 import asyncio
@@ -243,16 +244,16 @@ HelpText = f"""\
 [bold][{HEADER_COLOR}]View[/{HEADER_COLOR}][/bold]
  [bold]A[/bold]        Agenda          [bold]R[/bold]    Remaining Alerts 
  [bold]G[/bold]        Goals           [bold]F[/bold]    Find 
- [bold]N[/bold]        Notes           [bold]P[/bold]    Prior 
+ [bold]L[/bold]        Last            [bold]N[/bold]    Next  
  [bold]S[/bold]        Scheduled       [bold]U[/bold]    Upcoming 
 [bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
  [bold]/[/bold]        Set search      empty search clears
  [bold]>[/bold]        Next match      [bold]<[/bold]    Previous match
-[bold][{HEADER_COLOR}]Weeks Navigation[/{HEADER_COLOR}][/bold]
+[bold][{HEADER_COLOR}]Scheduled Navigation[/{HEADER_COLOR}][/bold]
  [bold]Left[/bold]     previous week   [bold]Up[/bold]   up in the list
  [bold]Right[/bold]    next week       [bold]Down[/bold] down in the list
- [bold]S+Left[/bold]   prior 4-weeks   [bold]"."[/bold]  center week
- [bold]S+Right[/bold]  next 4-weeks    [bold]" "[/bold]  current 4-weeks 
+ [bold]S+Left[/bold]   4 weeks back    [bold]" "[/bold]  current week 
+ [bold]S+Right[/bold]  4 weeks forward [bold]" "[/bold]  current week 
 [bold][{HEADER_COLOR}]Agenda Navigation[/{HEADER_COLOR}][/bold]
  [bold]tab[/bold]      switch between events and tasks 
 [bold][{HEADER_COLOR}]Tags and Item Details[/{HEADER_COLOR}][/bold] 
@@ -263,6 +264,48 @@ with a tag sequentially generated from 'a', 'b',
 keys of the tag on your keyboard to see the
 details of the item and access related commands. 
 """.splitlines()
+
+
+class BusyWeekBar(Widget):
+    """Renders a 7×5 weekly busy bar with aligned day labels."""
+
+    day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    colors = {0: "grey35", 1: "yellow", 2: "red"}
+
+    def __init__(self, segments: list[int]):
+        assert len(segments) == 35, "Expected 35 slots (7×5)"
+        super().__init__()
+        self.segments = segments
+
+    def render(self) -> Text:
+        # Row 1: labels
+        text = Text()
+        for d, lbl in enumerate(self.day_labels):
+            text.append(f"| {lbl} |", style="bold cyan")
+            if d < 6:
+                text.append(" ")  # space between columns
+        text.append("\n")
+
+        # Row 2: busy/conflict visualization
+        for d in range(7):
+            day_bits = self.segments[d * 5 : (d + 1) * 5]
+            for val in day_bits:
+                ch = "█" if val else "░"
+                text.append(ch, style=self.colors.get(val, "grey35"))
+            if d < 6:
+                text.append(" ")  # one space between columns
+
+        return text
+
+
+class SafeScreen(Screen):
+    """Base class that runs post-mount setup safely (after layout is complete)."""
+
+    async def on_mount(self) -> None:
+        # Automatically schedule the post-mount hook if defined
+        if hasattr(self, "after_mount"):
+            # Run a tiny delay to ensure all widgets are fully realized
+            self.set_timer(0.01, self.after_mount)
 
 
 class ListWithDetails(Container):
@@ -1115,21 +1158,19 @@ class SearchableScreen(Screen):
             pass
 
 
-class WeeksScreen(SearchableScreen):
+class WeeksScreen(SearchableScreen, SafeScreen):
     """4-week grid with a bottom details panel, powered by ListWithDetails."""
 
     def __init__(
         self,
         title: str,
         table: str,
-        list_title: str,
         details: list[str],
         footer_content: str,
     ):
         super().__init__()
         self.table_title = title
         self.table = table
-        self.list_title = list_title
         self.details = details
         self.footer_content = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         self.list_with_details: ListWithDetails | None = None
@@ -1144,20 +1185,35 @@ class WeeksScreen(SearchableScreen):
             else self.list_with_details._main
         )
 
+    def after_mount(self) -> None:
+        """Fill the list with the initially provided details once layout is ready."""
+        if self.list_with_details and self.details:
+            self.list_with_details.update_list(self.details[1:])
+
+    # async def on_mount(self) -> None:
+    #     # Schedule population *after* first render cycle
+    #     self.set_timer(0.01, self._populate_initial_list)
+
+    # def _populate_initial_list(self) -> None:
+    #     """Fill the list with the initially provided details once the layout is ready."""
+    #     if self.list_with_details and self.details:
+    #         self.list_with_details.update_list(self.details[1:])
+
     def compose(self) -> ComposeResult:
         yield Static(
             self.table_title or "Untitled",
             id="table_title",
             classes="title-class",
         )
+
         yield Static(
             self.table or "[i]No data[/i]",
             id="table",
-            classes="weeks-table",
+            classes="busy-bar",
+            markup=True,
         )
-        yield Static(self.list_title, id="list_title", classes="title-class")
 
-        # Main list + bottom details (scrollable) in one container
+        # Single list (no separate list title)
         self.list_with_details = ListWithDetails(id="list")
         self.list_with_details.set_detail_key_handler(
             self.app.make_detail_key_handler(
@@ -1170,24 +1226,16 @@ class WeeksScreen(SearchableScreen):
 
         yield Static(self.footer_content)
 
-    async def on_mount(self) -> None:
-        # seed list content
-        if self.list_with_details:
-            # details[0] is the list title; details[1:] are lines
-            self.list_with_details.update_list(self.details[1:] if self.details else [])
-
     def update_table_and_list(self):
-        # Rebuild from controller (called when week changes / navigations)
-        title, table, details = self.app.controller.get_table_and_list(
+        title, busy_bar, details = self.app.controller.get_table_and_list(
             self.app.current_start_date, self.app.selected_week
         )
+
         self.query_one("#table_title", Static).update(title)
-        self.query_one("#table", Static).update(table)
-        self.query_one("#list_title", Static).update(details[0])
+        self.query_one("#table", Static).update(busy_bar)
 
         if self.list_with_details:
-            # refresh main lines and hide any open details
-            self.list_with_details.update_list(details[1:])
+            self.list_with_details.update_list(details[1:] if details else [])
             if self.list_with_details.has_details_open():
                 self.list_with_details.hide_details()
 
@@ -1676,14 +1724,11 @@ class DynamicViewApp(App):
         title, table, details = self.controller.get_table_and_list(
             self.current_start_date, self.selected_week
         )
-        list_title = details[0] if details else "Untitled"
-        # details = details[0:] if details else []
-        # log_msg(f"{len(details) = }")
-        # self.set_afill(details, "action_show_weeks")
-        self.set_afill("week")
-        # self.set_afill(self.view)
         footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
-        self.push_screen(WeeksScreen(title, table, list_title, details, footer))
+        self.set_afill("week")
+
+        screen = WeeksScreen(title, table, details, footer)
+        self.push_screen(screen)
 
     def action_show_agenda(self):
         self.view = "events"

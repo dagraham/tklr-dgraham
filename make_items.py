@@ -18,72 +18,73 @@ from dateutil.parser import parse
 
 
 ONEDAY = timedelta(days=1)
+ONEWEEK = timedelta(days=7)
 
 
 # in_one_hour = (
 #     datetime.now().replace(second=0, microsecond=0) + timedelta(hours=1)
-# ).strftime("%y-%m-%d %H:%M00")
+# ).strftime("%Y-%m-%d %H:%M00")
 def in_five_minutes():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 5 + (5 - now.minute % 10)
     next = now + timedelta(minutes=delta_minutes)
-    return next.strftime("%y-%m-%d %H:%M")
+    return next.strftime("%Y-%m-%d %H:%M")
 
 
 def in_ten_minutes():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 10 + (10 - now.minute % 10)
     next = now + timedelta(minutes=delta_minutes)
-    return next.strftime("%y-%m-%d %H:%M")
+    return next.strftime("%Y-%m-%d %H:%M")
 
 
 def one_hour_ago():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now - timedelta(minutes=delta_minutes)
-    return next.strftime("%y-%m-%d %H:%M")
+    return next.strftime("%Y-%m-%d %H:%M")
 
 
 def in_one_hour():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now + timedelta(minutes=delta_minutes)
-    return next.strftime("%y-%m-%d %H:%M")
+    return next.strftime("%Y-%m-%d %H:%M")
 
 
 def in_one_day():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now + timedelta(days=1, minutes=delta_minutes)
-    return next.strftime("%y-%m-%d %H:%M")
+    return next.strftime("%Y-%m-%d %H:%M")
 
 
 def in_two_days():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now + timedelta(days=2, minutes=delta_minutes)
-    return next.strftime("%y-%m-%d %H:%M")
+    return next.strftime("%Y-%m-%d %H:%M")
 
 
 def in_five_days():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now + timedelta(days=5, minutes=delta_minutes)
-    return next.strftime("%y-%m-%d %H:%M")
+    return next.strftime("%Y-%m-%d %H:%M")
 
 
 def five_days_ago():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now - timedelta(days=5, minutes=delta_minutes)
-    return next.strftime("%y-%m-%d %H:%M")
+    return next.strftime("%Y-%m-%d %H:%M")
 
 
 def in_two_weeks():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now + timedelta(days=2 * 7, minutes=delta_minutes)
-    return next.strftime("%y-%m-%d %H:%M")
+    return next.strftime("%Y-%m-%d %H:%M")
 
 
 def local_dtstr_to_utc_str(local_dt_str: str) -> str:
@@ -102,7 +103,7 @@ def local_dtstr_to_utc_str(local_dt_str: str) -> str:
     local_dt = parser.parse(local_dt_str).astimezone()
     utc_dt = local_dt.astimezone(tz=gettz("UTC")).replace(tzinfo=None)
     # return utc_dt.isoformat()
-    return utc_dt.strftime("%y-%m-%d %H:%M")
+    return utc_dt.strftime("%Y-%m-%d %H:%M")
 
 
 def to_tdstr(seconds: int) -> str:
@@ -234,11 +235,29 @@ freq = [
 
 count = [f"COUNT={n}" for n in range(2, 5)]
 
-first_of_month = now.replace(day=1).strftime("%y-%m-%d")
-yesterday_date = (now - ONEDAY).strftime("%y-%m-%d")
-today_date = now.strftime("%y-%m-%d")
-tomorrow_date = (now + ONEDAY).strftime("%y-%m-%d")
+first_of_month = now.replace(day=1).strftime("%Y-%m-%d")
+yesterday_date = (now - ONEDAY).strftime("%Y-%m-%d")
+today_date = now.strftime("%Y-%m-%d")
+tomorrow_date = (now + ONEDAY).strftime("%Y-%m-%d")
+one_week_ago = (now - ONEWEEK).strftime("%Y-%m-%d")
+in_one_week = (now + ONEWEEK).strftime("%Y-%m-%d")
 # type, name, details, rrulestr, extent, alerts, location
+
+
+busy = [
+    f"* all-day yesterday @d all day event @s {yesterday_date}",
+    f"* all-day today @d all day event @s {today_date}",
+    f"* all-day tomorrow @d all day event @s {tomorrow_date}",
+    f"* one hour yesterday @s {yesterday_date} 9a @e 1h",
+    f"* one hour today @s {today_date} 10a @e 1h",
+    f"* one hour tomorrow @s {tomorrow_date} 11a @e 1h",
+    "* all-day every Tuesday @s tue @r w &c 3",
+    "* all-day every fourth day @s wed @r d &i 3 &c 5",
+    f"* 2-hours every third day @s {in_one_week} 9a @e 2h @r d &i 3 &c 5",
+    "* spanning 3 days @s sat 7p @e 2d2h30m",
+    f"* 1-hour last, this and next week @s {one_week_ago} 4p @e 1h  @+ {today_date} 4p, {in_one_week} 4p",
+]
+
 
 items = [
     f"* first of the month @d all day event @s {first_of_month}",
@@ -315,7 +334,7 @@ while len(items) < num_items:
         # all day if event else end of day
         dts = start.strftime("%Y%m%d") if t == "*" else start.strftime("%Y%m%dT235959")
     else:
-        dts = start.strftime("%y-%m-%d %H:%M00")
+        dts = start.strftime("%Y-%m-%d %H:%M00")
     dtstart = local_dtstr_to_utc_str(dts)
     extent = random.choice(duration)
     if random.choice(repeat):
@@ -328,7 +347,8 @@ while len(items) < num_items:
 
 id = 0
 # for entry in items:  # + alerts:
-for entry in items + alerts:
+# for entry in items + alerts:
+for entry in busy + items:
     count += 1
     id += 1
     print(f"---\n{entry = }")

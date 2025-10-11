@@ -3,7 +3,7 @@ from packaging.version import parse as parse_version
 from importlib.metadata import version
 
 # TODO: Keep the display part - the model part will be in model.py
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 # from logging import log
 from sre_compile import dis
@@ -51,6 +51,7 @@ from .shared import (
     format_datetime,
     datetime_in_words,
     truncate_string,
+    parse,
     fmt_local_compact,
     parse_local_compact,
     fmt_utc_z,
@@ -157,16 +158,6 @@ TYPE_TO_COLOR = {
     "!": GOAL_COLOR,  # draft
     "?": DRAFT_COLOR,  # draft
 }
-
-
-# def _to_local_naive(dt: datetime) -> datetime:
-#     """
-#     Convert aware -> local-naive; leave naive unchanged.
-#     Assumes dt is datetime (not date).
-#     """
-#     if dt.tzinfo is not None:
-#         dt = dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
-#     return dt
 
 
 def _ensure_tokens_list(value):
@@ -346,6 +337,19 @@ def format_date_range(start_dt: datetime, end_dt: datetime):
         return f"{start_dt.strftime('%b %-d, %Y')} - {end_dt.strftime('%b %-d, %Y')}"
 
 
+def format_iso_week(monday_date: datetime):
+    start_dt = monday_date.date()
+    end_dt = start_dt + timedelta(days=6)
+    iso_yr, iso_wk, _ = start_dt.isocalendar()
+    yr_wk = f"{iso_yr} #{iso_wk}"
+    same_month = start_dt.month == end_dt.month
+    # same_day = start_dt.day == end_dt.day
+    if same_month:
+        return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%-d')}, {yr_wk}"
+    else:
+        return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%b %-d')}, {yr_wk}"
+
+
 def get_previous_yrwk(year, week):
     """
     Get the previous (year, week) from an ISO calendar (year, week).
@@ -515,6 +519,47 @@ def get_busy_bar(events):
     return aday_str, busy_str
 
 
+def ordinal(n: int) -> str:
+    """Return ordinal representation of an integer (1 -> 1st)."""
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def set_anniversary(subject: str, start: date, instance: date, freq: str) -> str:
+    """
+    Replace {XXX} in subject with ordinal count of periods since start.
+    freq ∈ {'y','m','w','d'}.
+    """
+    has_xxx = "{XXX}" in subject
+    log_msg(f"set_anniversary {subject = }, {has_xxx = }")
+    if not has_xxx:
+        return subject
+
+    if isinstance(start, datetime):
+        start = start.date()
+    if isinstance(instance, datetime):
+        instance = instance.date()
+
+    diff = instance - start
+    if freq == "y":
+        n = instance.year - start.year
+    elif freq == "m":
+        n = (instance.year - start.year) * 12 + (instance.month - start.month)
+    elif freq == "w":
+        n = diff.days // 7
+    else:  # 'd'
+        n = diff.days
+
+    n = max(n, 0) + 1  # treat first instance as "1st"
+
+    new_subject = subject.replace("{XXX}", ordinal(n))
+    log_msg(f"{subject = }, {new_subject = }")
+    return new_subject
+
+
 class Controller:
     def __init__(self, database_path: str, env: TklrEnvironment, reset: bool = False):
         # Initialize the database manager
@@ -549,16 +594,6 @@ class Controller:
     def make_item(self, entry_str: str, final: bool = False) -> "Item":
         return Item(entry_str, final=final)  # or config=self.env.load_config()
 
-    # def add_item(self, item: Item) -> int:
-    #     record_id = self.db_manager.add_item(item)
-    #     if item.completion:
-    #         completed_dt, due_dt = item.completion
-    #         completed_ts = dt_as_utc_timestamp(completed_dt)
-    #         due_ts = dt_as_utc_timestamp(due_dt) if due_dt else None
-    #         completion = (completed_ts, due_ts)
-    #         self.db_manager.add_completion(record_id, completion)
-    #     return record_id
-
     def add_item(self, item: Item) -> int:
         if item.itemtype in "~^x" and item.has_f:
             log_msg(
@@ -574,6 +609,61 @@ class Controller:
             self.db_manager.add_completion(record_id, completion)
 
         return record_id
+
+    def apply_anniversary_if_needed(
+        self, record_id: int, subject: str, instance: datetime
+    ) -> str:
+        """
+        If this record is a recurring event with a {XXX} placeholder,
+        replace it with the ordinal number of this instance.
+        """
+        if "{XXX}" not in subject:
+            return subject
+
+        row = self.db_manager.get_record(record_id)
+        if not row:
+            return subject
+
+        # The rruleset text is column 4 (based on your tuple)
+        rruleset = row[4]
+        if not rruleset:
+            return subject
+
+        # --- Extract DTSTART and FREQ ---
+        start_dt = None
+        freq = None
+
+        for line in rruleset.splitlines():
+            if line.startswith("DTSTART"):
+                # Handles both VALUE=DATE and VALUE=DATETIME
+                if ":" in line:
+                    val = line.split(":")[1].strip()
+                    try:
+                        if "T" in val:
+                            start_dt = datetime.strptime(val, "%Y%m%dT%H%M%S")
+                        else:
+                            start_dt = datetime.strptime(val, "%Y%m%d")
+                    except Exception:
+                        pass
+            elif line.startswith("RRULE"):
+                # look for FREQ=YEARLY etc.
+                parts = line.split(":")[-1].split(";")
+                for p in parts:
+                    if p.startswith("FREQ="):
+                        freq_val = p.split("=")[1].strip().lower()
+                        freq = {
+                            "daily": "d",
+                            "weekly": "w",
+                            "monthly": "m",
+                            "yearly": "y",
+                        }.get(freq_val)
+                        break
+
+        if not start_dt or not freq:
+            return subject
+
+        # --- Compute ordinal replacement ---
+        return set_anniversary(subject, start_dt, instance, freq)
 
     # --- replace your set_afill with this per-view version ---
     def set_afill(self, details: list, view: str):
@@ -1050,154 +1140,289 @@ class Controller:
             " ",
         ] + fields
 
-    def generate_table(self, start_date, selected_week, grouped_events):
+    # def generate_table(self, start_date, selected_week, grouped_events):
+    #     """
+    #     Generate a Rich table displaying events for the specified 4-week period.
+    #     """
+    #     selected_week = self.selected_week
+    #     end_date = start_date + timedelta(weeks=4) - ONEDAY  # End on a Sunday
+    #     start_date = start_date
+    #     today_year, today_week, today_weekday = datetime.now().isocalendar()
+    #     tomorrow_year, tomorrow_week, tomorrow_day = (
+    #         datetime.now() + ONEDAY
+    #     ).isocalendar()
+    #     title = f"Schedule for {format_iso_week(start_date)}"
+    #
+    #     table = Table(
+    #         show_header=True,
+    #         header_style=HEADER_STYLE,
+    #         show_lines=True,
+    #         style=FRAME_COLOR,
+    #         expand=True,
+    #         box=box.SQUARE,
+    #         # title=title,
+    #         # title_style="bold",
+    #     )
+    #
+    #     weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    #     for day in weekdays:
+    #         table.add_column(
+    #             day,
+    #             justify="center",
+    #             style=DAY_COLOR,
+    #             width=8,
+    #             ratio=1,
+    #         )
+    #
+    #     self.rownum_to_details = {}  # Reset for this period
+    #     current_date = start_date
+    #     weeks = []
+    #     row_num = 0
+    #     while current_date <= end_date:
+    #         yr_wk = current_date.isocalendar()[:2]
+    #         iso_year, iso_week = yr_wk
+    #         if yr_wk not in weeks:
+    #             weeks.append(yr_wk)
+    #         # row_num += 1
+    #         row_num = f"{yr_wk[1]:>2}"
+    #         self.rownum_to_yrwk[row_num] = yr_wk
+    #         # row = [f"[{DIM_COLOR}]{row_num}[{DIM_COLOR}]\n"]
+    #         SELECTED = yr_wk == selected_week
+    #         row = []
+    #
+    #         for weekday in range(1, 8):  # ISO weekdays: 1 = Monday, 7 = Sunday
+    #             date = datetime.strptime(f"{iso_year} {iso_week} {weekday}", "%G %V %u")
+    #             monthday_str = date.strftime(
+    #                 "%-d"
+    #             )  # Month day as string without leading zero
+    #             events = (
+    #                 grouped_events.get(iso_year, {}).get(iso_week, {}).get(weekday, [])
+    #             )
+    #             today = (
+    #                 iso_year == today_year
+    #                 and iso_week == today_week
+    #                 and weekday == today_weekday
+    #             )
+    #             # tomorrow = (
+    #             #     iso_year == tomorrow_year
+    #             #     and iso_week == tomorrow_week
+    #             #     and weekday == tomorrow_day
+    #             # )
+    #
+    #             # mday = monthday_str
+    #             mday = f"{monthday_str:>2}"
+    #             if today:
+    #                 mday = (
+    #                     f"[bold][{TODAY_COLOR}]{monthday_str:>2}[/{TODAY_COLOR}][/bold]"
+    #                 )
+    #
+    #             if events:
+    #                 tups = [event_tuple_to_minutes(ev[0], ev[1]) for ev in events]
+    #                 aday_str, busy_str = get_busy_bar(tups)
+    #                 # log_msg(f"{date = }, {tups = }, {busy_str = }")
+    #                 if aday_str:
+    #                     row.append(f"{aday_str + mday + aday_str:>4}{busy_str}")
+    #                 else:
+    #                     row.append(f"{mday:>2}{busy_str}")
+    #             else:
+    #                 row.append(f"{mday}\n")
+    #
+    #             if SELECTED:
+    #                 row = [
+    #                     f"[{SELECTED_COLOR}]{cell}[/{SELECTED_COLOR}]" for cell in row
+    #                 ]
+    #         if SELECTED:
+    #             table.add_row(*row, style=f"on {SELECTED_BACKGROUND}")
+    #
+    #         else:
+    #             table.add_row(*row)
+    #         self.yrwk_to_details[yr_wk] = self.get_week_details((iso_year, iso_week))
+    #         current_date += timedelta(weeks=1)
+    #
+    #     return title, table
+    #
+    # def get_table_and_list(self, start_date: datetime, selected_week: Tuple[int, int]):
+    #     """
+    #     - rich_display(start_datetime, selected_week)
+    #         - sets:
+    #             self.tag_to_id = {}  # Maps tag numbers to event IDs
+    #             self.yrwk_to_details = {}  # Maps (iso_year, iso_week), to the description for that week
+    #             self.rownum_to_yrwk = {}  # Maps row numbers to (iso_year, iso_week) for the current period
+    #         - return title
+    #         - return table
+    #         - return description for selected_week
+    #     """
+    #     log_msg(f"Getting table for {start_date = }, {selected_week = }")
+    #     self.selected_week = selected_week
+    #     current_start_year, current_start_week, _ = start_date.isocalendar()
+    #     self.db_manager.extend_datetimes_for_weeks(
+    #         current_start_year, current_start_week, 4
+    #     )
+    #     grouped_events = self.db_manager.process_events(
+    #         start_date, start_date + timedelta(weeks=4)
+    #     )
+    #
+    #     # Generate the table
+    #     title, table = self.generate_table(start_date, selected_week, grouped_events)
+    #     log_msg(
+    #         f"Generated table for {title}, {selected_week = }, {self.afill_by_week.get(selected_week) = }"
+    #     )
+    #
+    #     if selected_week in self.yrwk_to_details:
+    #         description = self.yrwk_to_details[selected_week]
+    #     else:
+    #         description = "No week selected."
+    #     return title, table, description
+
+    def get_table_and_list(self, start_date: datetime, selected_week: tuple[int, int]):
         """
-        Generate a Rich table displaying events for the specified 4-week period.
+        Return the header title, busy bar (as text), and event list details
+        for the given ISO week.
+
+        Returns: (title, busy_bar_str, details_list)
         """
-        selected_week = self.selected_week
-        end_date = start_date + timedelta(weeks=4) - ONEDAY  # End on a Sunday
-        start_date = start_date
-        today_year, today_week, today_weekday = datetime.now().isocalendar()
-        tomorrow_year, tomorrow_week, tomorrow_day = (
-            datetime.now() + ONEDAY
-        ).isocalendar()
-        title = f"Schedule for {format_date_range(start_date, end_date)}"
+        year, week = selected_week
+        year_week = f"{year:04d}-{week:02d}"
 
-        table = Table(
-            show_header=True,
-            header_style=HEADER_STYLE,
-            show_lines=True,
-            style=FRAME_COLOR,
-            expand=True,
-            box=box.SQUARE,
-            # title=title,
-            # title_style="bold",
-        )
+        # --- 1. Busy bits from BusyWeeks table
+        busy_bits = self.db_manager.get_busy_bits_for_week(year_week)
+        busy_bar = self._format_busy_bar(busy_bits)
 
-        weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        for day in weekdays:
-            table.add_column(
-                day,
-                justify="center",
-                style=DAY_COLOR,
-                width=8,
-                ratio=1,
-            )
+        # --- 2. Week events using your existing method
+        start_dt = datetime.strptime(f"{year} {week} 1", "%G %V %u")
+        end_dt = start_dt + timedelta(weeks=1)
+        details = self.get_week_details(selected_week)
 
-        self.rownum_to_details = {}  # Reset for this period
-        current_date = start_date
-        weeks = []
-        row_num = 0
-        while current_date <= end_date:
-            yr_wk = current_date.isocalendar()[:2]
-            iso_year, iso_week = yr_wk
-            if yr_wk not in weeks:
-                weeks.append(yr_wk)
-            # row_num += 1
-            row_num = f"{yr_wk[1]:>2}"
-            self.rownum_to_yrwk[row_num] = yr_wk
-            # row = [f"[{DIM_COLOR}]{row_num}[{DIM_COLOR}]\n"]
-            SELECTED = yr_wk == selected_week
-            row = []
+        # title = f"{format_date_range(start_dt, end_dt)} #{start_dt.isocalendar().week}"
+        title = format_iso_week(start_dt)
+        # --- 3. Title for the week header
+        # title = f"Week {week} — {start_dt.strftime('%b %d')} to {(end_dt - timedelta(days=1)).strftime('%b %d')}"
 
-            for weekday in range(1, 8):  # ISO weekdays: 1 = Monday, 7 = Sunday
-                date = datetime.strptime(f"{iso_year} {iso_week} {weekday}", "%G %V %u")
-                monthday_str = date.strftime(
-                    "%-d"
-                )  # Month day as string without leading zero
-                events = (
-                    grouped_events.get(iso_year, {}).get(iso_week, {}).get(weekday, [])
-                )
-                today = (
-                    iso_year == today_year
-                    and iso_week == today_week
-                    and weekday == today_weekday
-                )
-                # tomorrow = (
-                #     iso_year == tomorrow_year
-                #     and iso_week == tomorrow_week
-                #     and weekday == tomorrow_day
-                # )
+        return title, busy_bar, details
 
-                # mday = monthday_str
-                mday = f"{monthday_str:>2}"
-                if today:
-                    mday = (
-                        f"[bold][{TODAY_COLOR}]{monthday_str:>2}[/{TODAY_COLOR}][/bold]"
-                    )
+    # def _format_busy_bar(self, bits: list[int]) -> str:
+    #     """
+    #     Render 35 busy bits (7×[1 all-day + 4×6h blocks]) as a two-row week bar.
+    #     """
+    #     DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    #     assert len(bits) == 35, "expected 35 bits (7×5)"
+    #     chars = {0: " ", 1: "█", 2: "▓"}  # free, busy, conflict
+    #     rows = []
+    #     # top: day headers, centered in 5 columns
+    #     # headers = " ".join(f" {d:^5} " for d in DAYS)
+    #     headers = "|".join(f" {d:^3} " for d in DAYS)
+    #     log_msg(f"{headers = }")
+    #     rows.append(f"|{headers}|")
+    #
+    #     # bottom: 5-slot cells under each header
+    #     for block in range(5):  # all-day + 4×6h blocks
+    #         row = ""
+    #         for day in range(7):
+    #             idx = day * 5 + block
+    #             row += f"{chars[bits[idx]] * 5}"
+    #         rows.append(row)
+    #
+    #     return "\n".join(rows)
+    #
+    # def _format_busy_bar(self, bits: list[int]) -> str:
+    #     """
+    #     Render 35 busy bits (7×[1 all-day + 4×6h blocks])
+    #     as a compact one-row week bar under the weekday headers.
+    #     """
+    #     DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    #     assert len(bits) == 35, "expected 35 bits (7×5)"
+    #     chars = {0: " ", 1: "█", 2: "▓"}  # free, busy, conflict
+    #     rows = []
+    #
+    #     # header line
+    #     headers = "|".join(f" {d:^3} " for d in DAYS)
+    #     rows.append(f"|{headers}|")
+    #
+    #     # single busy row
+    #     day_blocks = []
+    #     for day in range(7):
+    #         start = day * 5
+    #         segment = "".join(chars[bits[start + i]] for i in range(5))
+    #         day_blocks.append(segment)
+    #
+    #     busy_line = "|".join(day_blocks)
+    #     rows.append(f"|{busy_line}|")
+    #
+    #     return "\n".join(rows)
 
-                if events:
-                    tups = [event_tuple_to_minutes(ev[0], ev[1]) for ev in events]
-                    aday_str, busy_str = get_busy_bar(tups)
-                    # log_msg(f"{date = }, {tups = }, {busy_str = }")
-                    if aday_str:
-                        row.append(f"{aday_str + mday + aday_str:>4}{busy_str}")
-                    else:
-                        row.append(f"{mday:>2}{busy_str}")
-                else:
-                    row.append(f"{mday}\n")
+    def _format_busy_bar(
+        self,
+        bits: list[int],
+        *,
+        busy_color: str = "green",
+        conflict_color: str = "red",
+        allday_color: str = "yellow",
+    ) -> str:
+        """
+        Render 35 busy bits (7×[1 all-day + 4×6h blocks])
+        as a compact single-row week bar with color markup.
 
-                if SELECTED:
-                    row = [
-                        f"[{SELECTED_COLOR}]{cell}[/{SELECTED_COLOR}]" for cell in row
-                    ]
-            if SELECTED:
-                table.add_row(*row, style=f"on {SELECTED_BACKGROUND}")
+        Layout:
+            | Mon | Tue | Wed | Thu | Fri | Sat | Sun |
+            |■██▓▓|     |▓███ | ... |
 
+        Encoding:
+            0 = free       → " "
+            1 = busy       → colored block
+            2 = conflict   → colored block
+            (first of 5 per day is the all-day bit → colored "■" if set)
+        """
+        DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        assert len(bits) == 35, "expected 35 bits (7×5)"
+
+        # --- Header line
+        header = "│".join(f" {d:^3} " for d in DAYS)
+        lines = [f"│{header}│"]
+
+        # --- Busy row
+        day_segments = []
+        for day in range(7):
+            start = day * 5
+            all_day_bit = bits[start]
+            block_bits = bits[start + 1 : start + 5]
+
+            # --- all-day symbol
+            if all_day_bit:
+                all_day_char = f"[{allday_color}]■[/{allday_color}]"
             else:
-                table.add_row(*row)
-            self.yrwk_to_details[yr_wk] = self.get_week_details((iso_year, iso_week))
-            current_date += timedelta(weeks=1)
+                all_day_char = " "
 
-        return title, table
+            # --- 4×6h blocks
+            blocks = ""
+            for b in block_bits:
+                if b == 1:
+                    blocks += f"[{busy_color}]█[/{busy_color}]"
+                elif b == 2:
+                    blocks += f"[{conflict_color}]▓[/{conflict_color}]"
+                else:
+                    blocks += " "
 
-    def get_table_and_list(self, start_date: datetime, selected_week: Tuple[int, int]):
-        """
-        - rich_display(start_datetime, selected_week)
-            - sets:
-                self.tag_to_id = {}  # Maps tag numbers to event IDs
-                self.yrwk_to_details = {}  # Maps (iso_year, iso_week), to the description for that week
-                self.rownum_to_yrwk = {}  # Maps row numbers to (iso_year, iso_week) for the current period
-            - return title
-            - return table
-            - return description for selected_week
-        """
-        log_msg(f"Getting table for {start_date = }, {selected_week = }")
-        self.selected_week = selected_week
-        current_start_year, current_start_week, _ = start_date.isocalendar()
-        self.db_manager.extend_datetimes_for_weeks(
-            current_start_year, current_start_week, 4
-        )
-        grouped_events = self.db_manager.process_events(
-            start_date, start_date + timedelta(weeks=4)
-        )
+            day_segments.append(all_day_char + blocks)
 
-        # Generate the table
-        title, table = self.generate_table(start_date, selected_week, grouped_events)
-        log_msg(
-            f"Generated table for {title}, {selected_week = }, {self.afill_by_week.get(selected_week) = }"
-        )
-
-        if selected_week in self.yrwk_to_details:
-            description = self.yrwk_to_details[selected_week]
-        else:
-            description = "No week selected."
-        return title, table, description
+        lines.append(f"│{'│'.join(day_segments)}│")
+        return "\n".join(lines)
 
     def get_week_details(self, yr_wk):
         """
         Fetch and format description for a specific week.
         """
         # log_msg(f"Getting description for week {yr_wk}")
-        today_year, today_week, today_weekday = datetime.now().isocalendar()
-        tomorrow_year, tomorrow_week, tomorrow_day = (
-            datetime.now() + ONEDAY
-        ).isocalendar()
+        today = datetime.now()
+        tomorrow = today + ONEDAY
+        today_year, today_week, today_weekday = today.isocalendar()
+        tomorrow_year, tomorrow_week, tomorrow_day = tomorrow.isocalendar()
 
         self.selected_week = yr_wk
+
         start_datetime = datetime.strptime(f"{yr_wk[0]} {yr_wk[1]} 1", "%G %V %u")
         end_datetime = start_datetime + timedelta(weeks=1)
         events = self.db_manager.get_events_for_period(start_datetime, end_datetime)
+
         # log_msg(f"from get_events_for_period:\n{events = }")
         this_week = format_date_range(start_datetime, end_datetime - ONEDAY)
         # terminal_width = shutil.get_terminal_size().columns
@@ -1222,7 +1447,12 @@ class Controller:
         for start_ts, end_ts, itemtype, subject, id, job_id in events:
             start_dt = datetime_from_timestamp(start_ts)
             end_dt = datetime_from_timestamp(end_ts)
-            log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
+            if itemtype == "*":  # event
+                # 🪄 new line: replace {XXX} with ordinal instance
+                subject = self.apply_anniversary_if_needed(id, subject, start_dt)
+                log_msg(
+                    f"Week description {itemtype = }, {subject = }, {start_dt = }, {end_dt = }"
+                )
             status = "available"
 
             if start_dt == end_dt:
@@ -1292,7 +1522,14 @@ class Controller:
         # NOTE: maybe return list for scrollable view?
         # details_str = "\n".join(description)
         self.yrwk_to_details[yr_wk] = description
+        log_msg(f"{description = }")
         return description
+
+    def get_busy_bits_for_week(self, selected_week: tuple[int, int]) -> list[int]:
+        """Convert (year, week) tuple to 'YYYY-WW' and delegate to model."""
+        year, week = selected_week
+        year_week = f"{year:04d}-{week:02d}"
+        return self.db_manager.get_busy_bits_for_week(year_week)
 
     def get_next(self):
         """
@@ -1660,7 +1897,7 @@ class Controller:
                 label = format_time_range(start_ts, end_ts, self.AMPM)
                 if end_ts.endswith("T000000"):
                     color = ALLDAY_COLOR
-                elif end_ts <= now_ts:
+                elif end_ts <= now_ts and end_ts != start_ts:
                     color = PASSED_EVENT
                 elif start_ts <= now_ts:
                     color = ACTIVE_EVENT
