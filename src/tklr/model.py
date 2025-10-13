@@ -36,6 +36,8 @@ from .shared import (
 import re
 from tklr.item import Item
 
+anniversary_regex = re.compile(r"!(\d{4})!")
+
 
 def regexp(pattern, value):
     try:
@@ -788,8 +790,8 @@ class DatabaseManager:
             CREATE TABLE IF NOT EXISTS Completions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 record_id INTEGER NOT NULL,
-                due INTEGER,        -- timestamp or NULL if undated
                 completed INTEGER NOT NULL,
+                due INTEGER,        -- timestamp or NULL if undated
                 FOREIGN KEY(record_id) REFERENCES Records(id) ON DELETE CASCADE
             );
         """)
@@ -1120,56 +1122,16 @@ class DatabaseManager:
         if item.itemtype in ["~", "^"]:
             self.populate_urgency_from_record(record_id)
 
-    # def add_completion(
-    #     self, record_id: int, job_id: int | None = None, due_ts: int | None = None
-    # ):
-    #     completed_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%MZ")
-    #     self.cursor.execute(
-    #         """
-    #         INSERT INTO Completions (record_id, job_id, due, completed)
-    #         VALUES (?, ?, ?, ?)
-    #         """,
-    #         (record_id, job_id, due, completed),
-    #     )
-    #     self.conn.commit()
-
-    # def add_completion(
-    #     self,
-    #     record_id: int,
-    #     job_id: int | None = None,
-    #     completion: tuple[datetime, datetime | None] | None = None,
-    # ) -> None:
-    #     """
-    #     Insert a completion record into the Completions table.
-    #
-    #     Args:
-    #         record_id: the owning record
-    #         job_id: optional job within the record
-    #         completion: (completed_dt, due_dt) tuple from Item.finish()
-    #     """
-    #     if completion is None:
-    #         return
-    #
-    #     completed_dt, due_dt = completion
-    #
-    #     # Convert to compact string or timestamp form
-    #     completed_ts = self.to_timestamp(completed_dt)
-    #     due_ts = self.to_timestamp(due_dt) if due_dt else None
-    #
-    #     self.cursor.execute(
-    #         """
-    #         INSERT INTO Completions (record_id, job_id, due, completed)
-    #         VALUES (?, ?, ?, ?)
-    #         """,
-    #         (record_id, job_id, due_ts, completed_ts),
-    #     )
-    #     self.conn.commit()
-
     def add_completion(
         self,
         record_id: int,
-        completion: tuple[int, int] | None,
+        completion: tuple[int | None, int | None] | None,
     ) -> None:
+        """
+        Add a completion record for a given record_id.
+
+        completion: (completed_ts, due_ts | None)
+        """
         if completion is None:
             return
 
@@ -1178,22 +1140,21 @@ class DatabaseManager:
 
         self.cursor.execute(
             """
-            INSERT INTO Completions (record_id, due, completed)
+            INSERT INTO Completions (record_id, completed, due)
             VALUES (?, ?, ?)
             """,
-            (record_id, due_ts, completed_ts),
+            (record_id, completed_ts, due_ts),
         )
         self.conn.commit()
 
     def get_completions(
         self, record_id: int
-    ) -> list[tuple[int, str, str, str, int | None, int]]:
+    ) -> list[tuple[int, str, str, str, int | None, int | None]]:
         """
         Retrieve all completions for a given record_id.
 
-        Returns:
-            List of tuples:
-                (record_id, subject, description, itemtype, due, completed)
+        Returns list of tuples:
+            (record_id, subject, description, itemtype, completed, due)
         """
         self.cursor.execute(
             """
@@ -1202,8 +1163,8 @@ class DatabaseManager:
                 r.subject,
                 r.description,
                 r.itemtype,
-                c.due,
-                c.completed
+                c.completed,
+                c.due
             FROM Completions c
             JOIN Records r ON c.record_id = r.id
             WHERE r.id = ?

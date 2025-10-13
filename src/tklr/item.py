@@ -134,7 +134,7 @@ def _split_z_directive(text: str) -> tuple[str, str | None]:
     return (main or s), (tail or None)
 
 
-# --- helpers used by do_over / finish ---------------------------------
+# --- helpers used by do_offset / finish ---------------------------------
 
 
 def td_str_to_td(s: str) -> timedelta:
@@ -180,6 +180,21 @@ def _parse_o_body(body: str) -> tuple[timedelta, bool]:
     return td, learn
 
 
+def parse_f_token(f_token):
+    """
+    Return (completion_dt, due_dt) from a single @f token.
+    The second value may be None if not provided.
+    """
+    try:
+        token_str = f_token["token"].split(maxsplit=1)[1]
+        parts = [p.strip() for p in token_str.split(",", 1)]
+        completion = parse_dt(parts[0])
+        due = parse_dt(parts[1]) if len(parts) > 1 else None
+        return completion, due
+    except Exception:
+        return None, None
+
+
 def parse(dt_str: str, zone: tzinfo = None):
     """
     User-facing parser with a trailing 'z' directive:
@@ -206,7 +221,8 @@ def parse(dt_str: str, zone: tzinfo = None):
     try:
         # Parse the main date/time text. (If you have dayfirst/yearfirst config, add it here.)
         obj = parse_dt(s)
-    except Exception:
+    except Exception as e:
+        log_msg(f"error: {e}, {s = }")
         return None
 
     # If the parser returns a datetime at 00:00:00, treat it as a date (your chosen convention)
@@ -245,6 +261,23 @@ def parse(dt_str: str, zone: tzinfo = None):
         aware = obj.astimezone(zone)
 
     return aware.astimezone(tz.UTC)
+
+
+# def parse_pair(dt_pair_str: str) -> str:
+#     """ """
+#     dt_strs = [x.strip() for x in dt_pair_str.split(",")]
+#     return [parse(x) for x in dt_strs]
+
+
+def parse_completion_value(v: str) -> tuple[datetime | None, datetime | None]:
+    """
+    Parse '@f' or '&f' value text entered in *user format* (e.g. '2024-3-1 12a, 2024-3-1 10a')
+    into (finished_dt, due_dt).
+    """
+    parts = [p.strip() for p in v.split(",")]
+    completed = parse_dt(parts[0]) if parts and parts[0] else None
+    due = parse_dt(parts[1]) if len(parts) > 1 and parts[1] else None
+    return completed, due
 
 
 def _parse_compact_dt(s: str) -> datetime:
@@ -482,7 +515,7 @@ allowed = {
     "~": common_methods + datetime_methods + task_methods + repeating_methods,
     "+": common_methods + datetime_methods + task_methods,
     "^": common_methods + datetime_methods + job_methods + repeating_methods,
-    "%": common_methods,
+    "%": common_methods + datetime_methods,
     "?": all_keys,
 }
 
@@ -490,6 +523,7 @@ allowed = {
 requires = {
     "a": ["s"],
     "b": ["s"],
+    "o": ["s"],
     "+": ["s"],
     "q": ["s"],
     "-": ["rr"],
@@ -610,7 +644,7 @@ class Item:
         "s": ["scheduled", "starting date or datetime", "do_s"],
         "t": ["tag", "tag name", "do_tag"],
         "r": ["recurrence", "recurrence rule", "do_rrule"],
-        "o": ["over", "recurrence rule", "do_over"],
+        "o": ["offset", "offset rule", "do_offset"],
         "~": ["job", "job entry", "do_job"],
         "+": ["rdate", "recurrence dates", "do_rdate"],
         "-": ["exdate", "exception dates", "do_exdate"],
@@ -876,13 +910,13 @@ class Item:
         """
         # --- map itemtype ---
         itemtype = self.itemtype
-        if itemtype == "-":  # special case: etm task/project split
-            if self.jobs and self.jobs != "[]":
-                itemtype = "^"  # project
-            else:
-                itemtype = "~"  # task
-        else:
-            itemtype = TYPE_MAP.get(itemtype, itemtype)
+        # if itemtype == "-":  # special case: etm task/project split
+        #     if self.jobs and self.jobs != "[]":
+        #         itemtype = "^"  # project
+        #     else:
+        #         itemtype = "~"  # task
+        # else:
+        #     itemtype = TYPE_MAP.get(itemtype, itemtype)
 
         # --- start with type and subject ---
         parts = [f"{itemtype} {self.subject}"]
@@ -1007,7 +1041,7 @@ class Item:
         # print(f"{len(self.relative_tokens) = }")
         for token in self.relative_tokens:
             count += 1
-            if token.get("incomplete", False) == True:
+            if token.get("incomplete", False):
                 type = token["t"]
                 need = (
                     f"required: {', '.join(needed)}\n" if needed and type == "@" else ""
@@ -1022,12 +1056,14 @@ class Item:
                 return fmt_error(f"{token['t']} incomplete, {need}{optional}")
             if token["t"] == "@":
                 # print(f"{token['token']}; {used_atkeys = }")
+                used_ampkeys = []
                 this_atkey = token["k"]
+                log_msg(f"{this_atkey = }")
                 if this_atkey not in all_keys:
                     return fmt_error(f"@{this_atkey}, Unrecognized @-key")
                 if this_atkey not in allowed_fortype:
                     return fmt_error(
-                        f"@{this_atkey}, The use of this @-key is not supported in type '{itemtype}' reminders"
+                        f"@{this_atkey}, The use of this @-key is not supported in type '{self.itemtype}' reminders"
                     )
                 if this_atkey in used_atkeys and this_atkey not in multiple_allowed:
                     return fmt_error(
@@ -1036,7 +1072,7 @@ class Item:
                 current_atkey = this_atkey
                 used_atkeys.append(current_atkey)
                 if this_atkey in ["r", "~"]:
-                    # reset for this use
+                    used_atkeys.append(f"{current_atkey}{current_atkey}")
                     used_ampkeys = []
                 if current_atkey in needed:
                     needed.remove(current_atkey)
@@ -1046,6 +1082,7 @@ class Item:
                             needed.append(_key)
             elif token["t"] == "&":
                 this_ampkey = f"{current_atkey}{token['k']}"
+                log_msg(f"{current_atkey = }, {this_ampkey = }")
                 if current_atkey not in ["r", "~"]:
                     return fmt_error(
                         f"&{token['k']}, The use of &-keys is not supported for @{current_atkey}"
@@ -1057,7 +1094,7 @@ class Item:
                     )
                 if this_ampkey in used_ampkeys and this_ampkey not in multiple_allowed:
                     return fmt_error(
-                        f"&{current_ampkey}, Multiple instances of this &-key are not supported"
+                        f"&{this_ampkey}, Multiple instances of this &-key are not supported"
                     )
                 used_ampkeys.append(this_ampkey)
 
@@ -1065,7 +1102,7 @@ class Item:
             needed_keys = ", ".join("@" + k for k in needed)
             needed_msg = (
                 # f"Required keys not yet provided: {needed_keys} in {self.entry = }"
-                f"Required keys not yet provided: {needed_keys = }"
+                f"Required keys not yet provided: {needed_keys = }\n {used_atkeys = }, {used_ampkeys = }"
             )
         else:
             needed_msg = ""
@@ -1106,7 +1143,6 @@ class Item:
         On error: (None, 'error', <message>)
         """
         core, zdir = _split_z_directive(user_text)
-        print(f"{core = }, {zdir = }")
 
         try:
             obj = parse_dt(core, dayfirst=self.dayfirst, yearfirst=self.yearfirst)
@@ -1232,7 +1268,8 @@ class Item:
                 try:
                     _, v = tok["token"].split(" ", 1)
                     v = v.strip()
-                except Exception:
+                except Exception as e:
+                    log_msg(f"error: {e = }")
                     v = ""
                 pairs.append((k, v))
             if pairs:
@@ -1793,7 +1830,8 @@ class Item:
                     res = str(p)
                     obj_lst.append(res)
                     rep_lst.append(res)
-                except Exception:
+                except Exception as e:
+                    log_msg(f"error: {e}")
                     all_ok = False
                     rep_lst.append(f"~{arg}~")
 
@@ -1828,7 +1866,8 @@ class Item:
                     res = str(arg)
                     obj_lst.append(res)
                     rep_lst.append(res)
-                except Exception:
+                except Exception as e:
+                    log_msg(f"error: {e}")
                     all_ok = False
                     rep_lst.append(f"~{arg}~")
             obj = obj_lst if all_ok else None
@@ -1856,9 +1895,9 @@ class Item:
         try:
             self.timezone = ZoneInfo(tz_str)
             self.tz_str = self.timezone.key
-            print(f"{self.timezone = } {tz_str = }, {self.timezone.key = }")
             return True, self.timezone, []
-        except Exception:
+        except Exception as e:
+            log_msg(f"error: {e}")
             self.timezone = None
             self.tz_str = ""
             return False, f"Invalid timezone: '{tz_str}'", []
@@ -1922,7 +1961,8 @@ class Item:
                 key, value = tstr[1:].split(maxsplit=1)  # strip leading '&'
                 key = key.upper().strip()
                 value = value.strip()
-            except Exception:
+            except Exception as e:
+                log_msg(f"error: {e}")
                 continue
 
             self.rrule_tokens.append({"token": tstr, "t": "&", "k": key, "v": value})
@@ -2673,34 +2713,98 @@ class Item:
 
         return "\n".join(lines)
 
+    # def build_jobs(self):
+    #     """
+    #     Build self.jobset from @~ + &... token groups in self.relative_tokens.
+    #     In the new explicit &r format:
+    #     - parse &r for job id and immediate prereqs
+    #     - keep job name
+    #     """
+    #     job_groups = self.collect_grouped_tokens({"~"})
+    #     # print(f"{job_groups = }")
+    #     job_entries = []
+    #
+    #     count = 0
+    #     for group in job_groups:
+    #         anchor = group[0]
+    #         token_str = anchor["token"]
+    #
+    #         # get job name up to first &
+    #         job_portion = token_str[3:].strip()
+    #         split_index = job_portion.find("&")
+    #         if split_index != -1:
+    #             job_name = job_portion[:split_index].strip()
+    #         else:
+    #             job_name = job_portion
+    #
+    #         job = {"~": job_name}
+    #         count += 1
+    #
+    #         # process &-keys
+    #         for token in group[1:]:
+    #             try:
+    #                 k, v = token["token"][1:].split(maxsplit=1)
+    #                 k = k.strip()
+    #                 v = v.strip()
+    #
+    #                 if k == "r":
+    #                     ok, primary, dependencies = self.do_requires(
+    #                         {"token": f"&r {v}"}
+    #                     )
+    #                     if not ok:
+    #                         self.errors.append(primary)
+    #                         continue
+    #                     job["i"] = primary
+    #                     job["reqs"] = dependencies
+    #                 elif k == "f":  # finished
+    #                     log_msg(f"processing job finished for {v = }")
+    #                     try:
+    #                         dts = parse_pair(v)
+    #                         log_msg(f"got {dts = } for {count = }")
+    #                         job["f"] = ",".join([self.fmt_compact(dt) for dt in dts])
+    #                         log_msg(f"{job['f'] = }")
+    #                         log_msg(f"adding to {self.token_map = }")
+    #                         self.token_map.setdefault("~f", {})
+    #                         self.token_map["~f"][count] = ", ".join(
+    #                             [self.fmt_user(dt) for dt in dts]
+    #                         )
+    #                         log_msg(f"added to {self.token_map = }")
+    #                     except Exception as e:
+    #                         log_msg(f"Error: {e = }")
+    #                         job["f"] = v
+    #                 else:
+    #                     job[k] = v
+    #             except Exception as e:
+    #                 self.errors.append(
+    #                     f"Failed to parse job metadata token: {token['token']} ({e})"
+    #                 )
+    #
+    #         job_entries.append(job)
+    #
+    #     self.jobs = job_entries
+    #     return job_entries
+
     def build_jobs(self):
         """
-        Build self.jobset from @~ + &... token groups in self.relative_tokens.
-        In the new explicit &r format:
-        - parse &r for job id and immediate prereqs
-        - keep job name
+        Build self.jobs from @~ + &... token groups.
+        Handles &r id: prereq1, prereq2, …  and &f completion pairs.
         """
         job_groups = self.collect_grouped_tokens({"~"})
-        # print(f"{job_groups = }")
         job_entries = []
 
-        count = 0
-        for group in job_groups:
+        for idx, group in enumerate(job_groups, start=1):
             anchor = group[0]
             token_str = anchor["token"]
 
-            # get job name up to first &
+            # job name before first &
             job_portion = token_str[3:].strip()
             split_index = job_portion.find("&")
-            if split_index != -1:
-                job_name = job_portion[:split_index].strip()
-            else:
-                job_name = job_portion
+            job_name = (
+                job_portion[:split_index].strip() if split_index != -1 else job_portion
+            )
 
             job = {"~": job_name}
-            count += 1
 
-            # process &-keys
             for token in group[1:]:
                 try:
                     k, v = token["token"][1:].split(maxsplit=1)
@@ -2708,30 +2812,27 @@ class Item:
                     v = v.strip()
 
                     if k == "r":
-                        ok, primary, dependencies = self.do_requires(
-                            {"token": f"&r {v}"}
-                        )
+                        ok, primary, deps = self.do_requires({"token": f"&r {v}"})
                         if not ok:
                             self.errors.append(primary)
                             continue
-                        job["i"] = primary
-                        job["reqs"] = dependencies
-                    elif k == "f":  # finished
-                        log_msg(f"processing job finished for {v = }")
-                        try:
-                            dt = parse(v)
-                            log_msg(f"got {dt = } for {count = }")
-                            job["f"] = self.fmt_compact(dt)
-                            log_msg(f"{job['f'] = }")
-                            log_msg(f"adding to {self.token_map = }")
+                        job["id"] = primary
+                        job["reqs"] = deps
+
+                    elif k == "f":  # completion
+                        completed, due = parse_completion_value(v)
+                        if completed:
+                            job["f"] = self.fmt_compact(completed)
                             self.token_map.setdefault("~f", {})
-                            self.token_map["~f"][count] = self.fmt_user(dt)
-                            log_msg(f"added to {self.token_map = }")
-                        except Exception as e:
-                            log_msg(f"Error: {e = }")
-                            job["f"] = v
+                            self.token_map["~f"][job.get("id", idx)] = self.fmt_user(
+                                completed
+                            )
+                        if due:
+                            job["due"] = self.fmt_compact(due)
+
                     else:
                         job[k] = v
+
                 except Exception as e:
                     self.errors.append(
                         f"Failed to parse job metadata token: {token['token']} ({e})"
@@ -2740,179 +2841,302 @@ class Item:
             job_entries.append(job)
 
         self.jobs = job_entries
-        print(f"{self.jobs = }")
         return job_entries
+
+    # def finalize_jobs(self, jobs):
+    #     """
+    #     With jobs that have explicit ids and prereqs, build:
+    #     - available jobs (no prereqs or prereqs finished)
+    #     - waiting jobs (unmet prereqs)
+    #     - finished jobs
+    #     """
+    #
+    #     if not jobs:
+    #         return False, "No jobs to process"
+    #     if not self.parse_ok:
+    #         return False, "Error parsing job tokens"
+    #
+    #     # map id -> job
+    #     job_map = {job["i"]: job for job in jobs if "i" in job}
+    #
+    #     # determine finished
+    #     finished = {job["i"] for job in jobs if "f" in job}
+    #
+    #     # build transitive prereqs
+    #     all_prereqs = {}
+    #     for job in jobs:
+    #         if "i" not in job:
+    #             continue
+    #         i = job["i"]
+    #         deps = set([j for j in job.get("reqs", []) if j not in finished])
+    #
+    #         transitive = set(deps)
+    #         to_process = list(deps)
+    #         while to_process:
+    #             d = to_process.pop()
+    #             if d in job_map:
+    #                 subdeps = set(job_map[d].get("reqs", []))
+    #                 for sd in subdeps:
+    #                     if sd not in transitive:
+    #                         transitive.add(sd)
+    #                         to_process.append(sd)
+    #         all_prereqs[i] = transitive
+    #
+    #     available = set()
+    #     waiting = set()
+    #     for i, reqs in all_prereqs.items():
+    #         unmet = reqs - finished
+    #         if unmet:
+    #             waiting.add(i)
+    #         elif i in finished:
+    #             continue
+    #         else:
+    #             available.add(i)
+    #
+    #     for job in jobs:
+    #         if "i" in job and job["i"] not in all_prereqs and job["i"] not in finished:
+    #             available.add(job["i"])
+    #
+    #     blocking = {}
+    #     for i in available:
+    #         blocking[i] = len(waiting) / len(available) if available else 0.0
+    #
+    #     num_available = len(available)
+    #     num_waiting = len(waiting)
+    #     num_finished = len(finished)
+    #
+    #     task_subject = self.subject
+    #     if len(task_subject) > 12:
+    #         task_subject_display = task_subject[:10] + " …"
+    #     else:
+    #         task_subject_display = task_subject
+    #
+    #     final = []
+    #     for job in jobs:
+    #         if "i" not in job:
+    #             continue
+    #         i = job["i"]
+    #         job["prereqs"] = sorted(all_prereqs.get(i, []))
+    #         if i in available:
+    #             job["status"] = "available"
+    #             job["blocking"] = blocking[i]
+    #         elif i in waiting:
+    #             job["status"] = "waiting"
+    #         elif i in finished:
+    #             job["status"] = "finished"
+    #             self.token_map.setdefault("~f", {})
+    #             self.token_map["~f"][i] = self.fmt_user(parse_dt(job["f"]))
+    #
+    #         job["display_subject"] = (
+    #             f"{job['~']} ∊ {task_subject_display} {num_available}/{num_waiting}/{num_finished}"
+    #         )
+    #         final.append(job)
+    #
+    #     self.jobset = json.dumps(final, cls=CustomJSONEncoder)
+    #     self.jobs = final
+    #
+    #     # 🔑 unified injection of @f
+    #     if len(finished) == len(job_map) and finished:
+    #         finish_dts = [parse_dt(job["f"]) for job in jobs if "f" in job]
+    #         if finish_dts:
+    #             finished_dt = max(finish_dts)
+    #             finished_tok = {
+    #                 "token": f"@f {self.fmt_user(finished_dt)}",
+    #                 "t": "@",
+    #                 "k": "f",
+    #             }
+    #             self.add_token(finished_tok)
+    #             self.has_f = True
+    #         for job in jobs:
+    #             job.pop("f", None)
+    #
+    #     return True, final
 
     def finalize_jobs(self, jobs):
         """
-        With jobs that have explicit ids and prereqs, build:
-        - available jobs (no prereqs or prereqs finished)
-        - waiting jobs (unmet prereqs)
-        - finished jobs
+        Compute job status (finished / available / waiting)
+        using new &r id: prereqs format and propagate @f if all are done.
         """
-
         if not jobs:
             return False, "No jobs to process"
         if not self.parse_ok:
             return False, "Error parsing job tokens"
 
-        # map id -> job
-        job_map = {job["i"]: job for job in jobs if "i" in job}
+        # index by id
+        job_map = {j["id"]: j for j in jobs if "id" in j}
+        finished = {jid for jid, j in job_map.items() if j.get("f")}
 
-        # determine finished
-        finished = {job["i"] for job in jobs if "f" in job}
-
-        # build transitive prereqs
+        # --- transitive dependency expansion ---
         all_prereqs = {}
-        for job in jobs:
-            if "i" not in job:
-                continue
-            i = job["i"]
-            deps = set([j for j in job.get("reqs", []) if j not in finished])
-
-            transitive = set(deps)
-            to_process = list(deps)
-            while to_process:
-                d = to_process.pop()
+        for jid, job in job_map.items():
+            deps = set(job.get("reqs", []))
+            trans = set(deps)
+            stack = list(deps)
+            while stack:
+                d = stack.pop()
                 if d in job_map:
-                    subdeps = set(job_map[d].get("reqs", []))
-                    for sd in subdeps:
-                        if sd not in transitive:
-                            transitive.add(sd)
-                            to_process.append(sd)
-            all_prereqs[i] = transitive
+                    for sd in job_map[d].get("reqs", []):
+                        if sd not in trans:
+                            trans.add(sd)
+                            stack.append(sd)
+            all_prereqs[jid] = trans
 
-        available = set()
-        waiting = set()
-        for i, reqs in all_prereqs.items():
-            unmet = reqs - finished
+        # --- classify ---
+        available, waiting = set(), set()
+        for jid, deps in all_prereqs.items():
+            unmet = deps - finished
+            if jid in finished:
+                continue
             if unmet:
-                waiting.add(i)
-            elif i in finished:
-                continue
+                waiting.add(jid)
             else:
-                available.add(i)
+                available.add(jid)
 
-        for job in jobs:
-            if "i" in job and job["i"] not in all_prereqs and job["i"] not in finished:
-                available.add(job["i"])
-
-        blocking = {}
-        for i in available:
-            blocking[i] = len(waiting) / len(available) if available else 0.0
-
-        num_available = len(available)
-        num_waiting = len(waiting)
-        num_finished = len(finished)
-
-        task_subject = self.subject
-        if len(task_subject) > 12:
-            task_subject_display = task_subject[:10] + " …"
-        else:
-            task_subject_display = task_subject
-
-        final = []
-        for job in jobs:
-            if "i" not in job:
-                continue
-            i = job["i"]
-            job["prereqs"] = sorted(all_prereqs.get(i, []))
-            if i in available:
-                job["status"] = "available"
-                job["blocking"] = blocking[i]
-            elif i in waiting:
-                job["status"] = "waiting"
-            elif i in finished:
+        # annotate job objects
+        for jid, job in job_map.items():
+            if jid in finished:
                 job["status"] = "finished"
-                self.token_map.setdefault("~f", {})
-                self.token_map["~f"][i] = self.fmt_user(parse_dt(job["f"]))
+            elif jid in available:
+                job["status"] = "available"
+            elif jid in waiting:
+                job["status"] = "waiting"
+            else:
+                job["status"] = "standalone"
 
-            job["display_subject"] = (
-                f"{job['~']} ∊ {task_subject_display} {num_available}/{num_waiting}/{num_finished}"
-            )
-            final.append(job)
+        # --- propagate @f if all jobs finished ---
+        if finished and len(finished) == len(job_map):
+            completed_dts = []
+            for job in job_map.values():
+                if "f" in job:
+                    cdt, _ = parse_completion_value(job["f"])
+                    if cdt:
+                        completed_dts.append(cdt)
 
-        self.jobset = json.dumps(final, cls=CustomJSONEncoder)
-        self.jobs = final
-
-        # 🔑 unified injection of @f
-        if len(finished) == len(job_map) and finished:
-            finish_dts = [parse_dt(job["f"]) for job in jobs if "f" in job]
-            if finish_dts:
-                finished_dt = max(finish_dts)
-                finished_tok = {
+            if completed_dts:
+                finished_dt = max(completed_dts)
+                tok = {
                     "token": f"@f {self.fmt_user(finished_dt)}",
                     "t": "@",
                     "k": "f",
                 }
-                self.add_token(finished_tok)
+                self.add_token(tok)
                 self.has_f = True
-            for job in jobs:
+
+            for job in job_map.values():
                 job.pop("f", None)
 
-        return True, final
+        # --- finalize ---
+        self.jobs = list(job_map.values())
+        self.jobset = json.dumps(self.jobs, cls=CustomJSONEncoder)
+        return True, self.jobs
 
-    def do_completion(self, token, *, job_id: int | None = None):
+    # def do_completion(self, token, *, job_id: int | None = None):
+    #     """
+    #     Handle both:
+    #     - @f <datetime>  (task-wide)  -> add (dt, None) to self.completions
+    #     - &f <datetime>  (job-level)  -> add (dt, job_id) to self.completions
+    #     """
+    #     # Ensure store exists
+    #     if not hasattr(self, "completions"):
+    #         self.completions = []  # list[(datetime, job_id|None)]
+    #
+    #     # Dispatcher passes relative dict for @f and a raw string for &f
+    #     if isinstance(token, dict):  # @f path
+    #         body = token["token"][2:].strip()  # strip "@f"
+    #         # dt = _parse_compact_dt(body) if body[:4].isdigit() else parse(body)
+    #         parts = body.split(",")
+    #         dts = []
+    #         dt_objs = []
+    #         msgs = []
+    #         for part in parts:  # NOTE: there should be at most 2 parts
+    #             try:
+    #                 dt = parse(part)
+    #                 dt_objs.append(dt)
+    #                 dts.append(self.fmt_user(dt))
+    #             except Exception as e:
+    #                 msgs.append(f"Error parsing {part}: {e}")
+    #         if msgs:
+    #             log_msg(f"completion error {msgs = }")
+    #             return False, ", ".join(msgs), []
+    #         token["token"] = f"@f {', '.join(dts)}"
+    #         token["t"] = "@"
+    #         token["k"] = "f"
+    #
+    #         # dt = parse(body)
+    #         # # normalize token text to compact
+    #         # token["token"] = f"@f {dt.strftime('%Y%m%dT%H%M')} "
+    #         # token["t"] = "@"
+    #         # token["k"] = "f"
+    #         # task-level completion
+    #         self.completions.append(dt_objs)
+    #         log_msg(f"adding {dts = } to token_map")
+    #         # self.token_map["f"] = self.fmt_user(dt)
+    #         self.has_f = True
+    #         return True, token["token"], []
+    #
+    #     # &f path: token is the string after "&f "
+    #     try:
+    #         log_msg(f"processing completion for {job_id = }")
+    #         body = str(token).strip()
+    #         # dt = _parse_compact_dt(body) if body[:4].isdigit() else parse(body)
+    #         dt = parse(body)
+    #         self.completions.append((dt, job_id))
+    #         log_msg(f"adding {dt = } to token_map for {job_id = }")
+    #         log_msg(f"got here {self.token_map = }")
+    #         self.token_map.setdefault("~f", {})
+    #         log_msg(f"got here {self.token_map = }")
+    #         self.token_map["~f"][job_id] = self.fmt_user(dt)
+    #         log_msg(f"got here {self.token_map = }")
+    #         # If you also mirror &f into tokens, you can return normalized text here,
+    #         # but typically &f lives in jobs JSON, not the top-level tokens.
+    #         return True, int(dt.timestamp()), []
+    #     except Exception as e:
+    #         log_msg(f"error: {e = }")
+    #         return False, f"invalid &f datetime: {e}, {body = }", []
+
+    def do_completion(self, token: dict | str, *, job_id: str | None = None):
         """
         Handle both:
-        - @f <datetime>  (task-wide)  -> add (dt, None) to self.completions
-        - &f <datetime>  (job-level)  -> add (dt, job_id) to self.completions
+        @f <datetime>[, <datetime>]  (task-level)
+        &f <datetime>[, <datetime>]  (job-level)
         """
-        # Ensure store exists
         if not hasattr(self, "completions"):
-            self.completions = []  # list[(datetime, job_id|None)]
+            self.completions = []  # list[(completed_dt, due_dt, job_id|None)]
 
-        # Dispatcher passes relative dict for @f and a raw string for &f
-        if isinstance(token, dict):  # @f path
-            body = token["token"][2:].strip()  # strip "@f"
-            # dt = _parse_compact_dt(body) if body[:4].isdigit() else parse(body)
-            parts = body.split(",")
-            dts = []
-            dt_objs = []
-            msgs = []
-            for part in parts:
-                try:
-                    dt = parse(part)
-                    dt_objs.append(dt)
-                    dts.append(self.fmt_user(dt))
-                except Exception as e:
-                    msgs.append(f"Error parsing {part}: {e}")
-            if msgs:
-                return False, ", ".join(msgs), []
-            token["token"] = f"@f {', '.join(dts)}"
-            token["t"] = "@"
-            token["k"] = "f"
-
-            # dt = parse(body)
-            # # normalize token text to compact
-            # token["token"] = f"@f {dt.strftime('%Y%m%dT%H%M')} "
-            # token["t"] = "@"
-            # token["k"] = "f"
-            # task-level completion
-            self.completions.append(dt_objs)
-            log_msg(f"adding {dts = } to token_map")
-            # self.token_map["f"] = self.fmt_user(dt)
-            self.has_f = True
-            return True, token["token"], []
-
-        # &f path: token is the string after "&f "
         try:
-            log_msg(f"processing completion for {job_id = }")
-            body = str(token).strip()
-            # dt = _parse_compact_dt(body) if body[:4].isdigit() else parse(body)
-            dt = parse(body)
-            self.completions.append((dt, job_id))
-            log_msg(f"adding {dt = } to token_map for {job_id = }")
-            log_msg(f"got here {self.token_map = }")
-            self.token_map.setdefault("~f", {})
-            log_msg(f"got here {self.token_map = }")
-            self.token_map["~f"][job_id] = self.fmt_user(dt)
-            log_msg(f"got here {self.token_map = }")
-            # If you also mirror &f into tokens, you can return normalized text here,
-            # but typically &f lives in jobs JSON, not the top-level tokens.
-            return True, int(dt.timestamp()), []
+            if isinstance(token, dict):  # task-level @f
+                val = token["token"][2:].strip()
+            else:  # job-level &f
+                val = str(token).strip()
+
+            completed, due = parse_completion_value(val)
+            if not completed:
+                return False, f"Invalid completion value: {val}", []
+
+            self.completions.append((completed, due, job_id))
+
+            # ---- update token_map ----
+            if job_id is None:
+                # top-level task completion
+                text = (
+                    f"@f {self.fmt_user(completed)}, {self.fmt_user(due)}"
+                    if due
+                    else f"@f {self.fmt_user(completed)}"
+                )
+                self.token_map["f"] = text
+                self.has_f = True
+                token["token"] = text
+                token["t"] = "@"
+                token["k"] = "f"
+                return True, text, []
+            else:
+                # job-level completion
+                self.token_map.setdefault("~f", {})
+                self.token_map["~f"][job_id] = self.fmt_user(completed)
+                return True, f"&f {self.fmt_user(completed)}", []
+
         except Exception as e:
-            return False, f"invalid &f datetime: {e}", []
+            return False, f"Error parsing completion token: {e}", []
 
     def _serialize_date(self, d: date) -> str:
         return d.strftime("%Y%m%d")
@@ -3176,8 +3400,8 @@ class Item:
                     body = (tok.get("token") or "")[2:].strip()  # drop "@f"
                     dt = parse(body)
                     comps.append(dt)
-                except Exception:
-                    pass
+                except Exception as e:
+                    log_msg(f"error: {e}")
 
         self.completions = comps
 
@@ -3257,7 +3481,7 @@ class Item:
 
     # --- drop-in replacement for do_over -----------------------------------
 
-    def do_over(self, token):
+    def do_offset(self, token):
         """
         Normalize @o (over/offset) token.
         - Accepts '@o 3d', '@o ~3d', '@o learn 3d'
@@ -3280,11 +3504,13 @@ class Item:
             return False, f"invalid @o interval: {e}", []
 
     def finish(self) -> None:
-        ...
         f_tokens = [t for t in self.relative_tokens if t.get("k") == "f"]
         if not f_tokens:
             return
-        completed_dt = max(parse_dt(t["token"].split(maxsplit=1)[1]) for t in f_tokens)
+        log_msg(f"{f_tokens = }")
+
+        # completed_dt = max(parse_dt(t["token"].split(maxsplit=1)[1]) for t in f_tokens)
+        completed_dt, was_due_dt = parse_f_token(f_tokens[0])
 
         due_dt = None  # default
 
@@ -3507,7 +3733,7 @@ class Item:
         anchor = group[0]["token"]  # "@r d" etc.
         parts = anchor.split(maxsplit=1)
         if len(parts) > 1:
-            freq_abbr = parts[1].strip().lower()
+            freq_abbr = parts[1].strip()
             freq = freq_map.get(freq_abbr)
             if freq:
                 comps["FREQ"] = freq

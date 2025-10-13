@@ -2,7 +2,7 @@ import sys
 import os
 import click
 from pathlib import Path
-# from rich import print
+from rich import print
 
 from tklr.item import Item
 from tklr.controller import Controller
@@ -12,20 +12,36 @@ from tklr.tklr_env import TklrEnvironment
 from tklr.view_agenda import run_agenda_view
 from tklr.shared import get_version
 from tklr.shared import log_msg
-from tklr.shared import print_msg as print
+# from tklr.shared import print_msg as print
 
 VERSION = get_version()
 
 
 def ensure_database(db_path: str, env: TklrEnvironment):
     if not Path(db_path).exists():
-        print(f"[yellow]⚠️ Database not found. Creating new database at {db_path}[/]")
+        print(
+            f"[yellow]⚠️ [/yellow]Database not found. Creating new database at {db_path}"
+        )
         dbm = DatabaseManager(db_path, env)
         dbm.setup_database()
 
 
 def format_tokens(tokens, width=80):
     return " ".join([f"{t['token'].strip()}" for t in tokens])
+
+
+def get_raw_from_file(path: str) -> str:
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def get_raw_from_editor() -> str:
+    result = edit_entry()
+    return result or ""
+
+
+def get_raw_from_stdin() -> str:
+    return sys.stdin.read().strip()
 
 
 @click.group()
@@ -72,31 +88,37 @@ def add(ctx, entry, file, batch):
     env = ctx.obj["ENV"]
     db = ctx.obj["DB"]
     verbose = ctx.obj["VERBOSE"]
+    bad_items = []
     dbm = DatabaseManager(db, env)
 
     # def clean_and_split(content: str) -> list[str]:
-    #     """Remove comment lines and split into entries separated by blank lines."""
+    #     """Remove comment lines and split into entries separated by '...' markers."""
     #     lines = [
     #         line for line in content.splitlines() if not line.strip().startswith("#")
     #     ]
-    #     return [
-    #         entry.strip() for entry in "\n".join(lines).split("\n\n") if entry.strip()
-    #     ]
+    #     cleaned = "\n".join(lines)
+    #     return split_entries(cleaned)
 
     def clean_and_split(content: str) -> list[str]:
-        """Remove comment lines and split into entries separated by '...' markers."""
-        lines = [
-            line for line in content.splitlines() if not line.strip().startswith("#")
-        ]
+        """
+        Remove comment-like lines (starting with any '#', regardless of spacing)
+        and split into entries separated by '...' lines.
+        """
+        lines = []
+        for line in content.splitlines():
+            stripped = line.lstrip()  # remove leading whitespace
+            if not stripped.startswith("#"):
+                lines.append(line)
         cleaned = "\n".join(lines)
         return split_entries(cleaned)
 
-    def edit_entry(initial: str = "") -> str | None:
-        result = click.edit(initial, extension=".tklr")
-        if result is None:
-            return None
-        entries = clean_and_split(result)
-        return "\n\n".join(entries) if entries else None
+        def edit_entry(initial: str = "") -> str | None:
+            result = click.edit(initial, extension=".tklr")
+            if result is None:
+                return None
+            entries = clean_and_split(result)
+            return "\n\n".join(entries) if entries else None
+            # return "\n".join(entries) if entries else None
 
     def split_entries(content: str) -> list[str]:
         """Split raw text into entries using '...' line as separator."""
@@ -118,17 +140,22 @@ def add(ctx, entry, file, batch):
         return split_entries(data)
 
     def process_entry(entry_str: str) -> bool:
+        exception = False
+        msg = None
         try:
             item = Item(raw=entry_str, final=True)
+            if not item.parse_ok or not item.itemtype:
+                # pm = "\n".join(item.parse_message)
+                # tks = "\n".join(item.relative_tokens)
+                msg = f"\n[red]✘ Invalid entry[/red] \nentry: {entry_str}\nparse_message: {item.parse_message}\ntokens: {item.relative_tokens}"
         except Exception as e:
-            print(f"[red]✘ Internal error during parsing:[/] {e}; {entry_str = }")
-            return False
+            msg = f"\n[red]✘ Internal error during parsing:[/red]\nentry: {entry_str}\nexception: {e}"
 
-        if not item.parse_ok or not item.itemtype:
-            print(f"[red]✘ Invalid entry:[/] {entry_str!r}")
-            print(f"  [yellow]{item.parse_message}[/]")
+        if msg:
             if verbose:
-                print(f"[blue]Parsed tokens:[/] {format_tokens(item.relative_tokens)}")
+                print(f"{msg}")
+            else:
+                bad_items.append(msg)
             return False
 
         dry_run = False
@@ -136,40 +163,48 @@ def add(ctx, entry, file, batch):
             print(f"[green]would have added:\n {item = }")
         else:
             dbm.add_item(item)
-            print(
-                f"[green]✔ Added:[/] {item.subject if hasattr(item, 'subject') else entry_str}"
-            )
+            # print(
+            #     f"[green]✔ Added:[/green] {item.subject if hasattr(item, 'subject') else entry_str}"
+            # )
         return True
 
     # Determine the source of entries
     if file:
-        entries = get_entries_from_file(file)
+        entries = clean_and_split(get_raw_from_file(file))
     elif batch:
-        entries = get_entries_from_editor()
+        entries = clean_and_split(get_raw_from_editor())
     elif entry:
-        entries = [" ".join(entry).strip()]
+        entries = clean_and_split(" ".join(entry).strip())
     elif not sys.stdin.isatty():
-        entries = get_entries_from_stdin()
+        entries = clean_and_split(get_raw_from_stdin())
     else:
-        print("[bold yellow]No entry provided.[/]")
+        print("[bold yellow]No entry provided.[/bold yellow]")
         if click.confirm("Create one or more entries in your editor?", default=True):
-            entries = get_entries_from_editor()
+            entries = clean_and_split(get_entries_from_editor())
         else:
-            print("[yellow]✘ Cancelled.[/]")
+            print("[yellow]✘ Cancelled.[/yellow]")
             sys.exit(1)
 
     if not entries:
-        print("[red]✘ No valid entries to add.[/]")
+        print("[red]✘ No valid entries to add.[/red]")
         sys.exit(1)
 
-    print(f"[blue]➤ Adding {len(entries)} entr{'y' if len(entries) == 1 else 'ies'}[/]")
+    print(
+        f"[blue]➤ Adding {len(entries)} entr{'y' if len(entries) == 1 else 'ies'}[/blue]"
+    )
     count = 0
     for e in entries:
         if process_entry(e):
             count += 1
 
     dbm.populate_dependent_tables()
-    print(f"[green]✔ Added {count} entr{'y' if count == 1 else 'ies'} successfully.[/]")
+    print(
+        f"[green]✔ Added {count} entr{'y' if count == 1 else 'ies'} successfully.[/green]"
+    )
+    if bad_items:
+        print("\n\n=== Invalid items ===\n")
+        for item in bad_items:
+            print(item)
 
 
 @cli.command()
@@ -181,7 +216,7 @@ def ui(ctx):
     verbose = ctx.obj["VERBOSE"]
 
     if verbose:
-        print(f"[blue]Launching UI with database:[/] {db}")
+        print(f"[blue]Launching UI with database:[/blue] {db}")
     controller = Controller(db, env)
     DynamicViewApp(controller).run()
 
@@ -199,23 +234,23 @@ def check(ctx, entry):
         entry = " ".join(entry).strip()
 
     if not entry:
-        print("[bold red]✘ No entry provided. Use argument or pipe.[/]")
+        print("[bold red]✘ No entry provided. Use argument or pipe.[/bold red]")
         sys.exit(1)
 
     try:
         item = Item(entry)
         if item.parse_ok:
-            print("[green]✔ Entry is valid.[/]")
+            print("[green]✔ Entry is valid.[/green]")
             if verbose:
-                print(f"[blue]Entry:[/] {format_tokens(item.relative_tokens)}")
+                print(f"[blue]Entry:[/blue] {format_tokens(item.relative_tokens)}")
         else:
-            print(f"[red]✘ Invalid entry:[/] {entry!r}")
-            print(f"  [yellow]{item.parse_message}[/]")
+            print(f"[red]✘ Invalid entry:[/red] {entry!r}")
+            print(f"  {item.parse_message}")
             if verbose:
-                print(f"[blue]Entry:[/] {format_tokens(item.relative_tokens)}")
+                print(f"[blue]Entry:[/blue] {format_tokens(item.relative_tokens)}")
             sys.exit(1)
     except Exception as e:
-        print(f"[red]✘ Unexpected error:[/] {e}")
+        print(f"[red]✘ Unexpected error:[/red] {e}")
         sys.exit(1)
 
 
@@ -228,7 +263,7 @@ def agenda(ctx):
     verbose = ctx.obj["VERBOSE"]
 
     if verbose:
-        print(f"[blue]Launching agenda view with database:[/] {db}")
+        print(f"[blue]Launching agenda view with database:[/blue] {db}")
 
     controller = Controller(db, env)
     run_agenda_view(controller)
