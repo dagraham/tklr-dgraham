@@ -553,7 +553,8 @@ def set_anniversary(subject: str, start: date, instance: date, freq: str) -> str
     else:  # 'd'
         n = diff.days
 
-    n = max(n, 0) + 1  # treat first instance as "1st"
+    # n = max(n, 0) + 1  # treat first instance as "1st"
+    n = max(n, 0)  # treat first instance as "1st"
 
     new_subject = subject.replace("{XXX}", ordinal(n))
     log_msg(f"{subject = }, {new_subject = }")

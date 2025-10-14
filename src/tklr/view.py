@@ -245,11 +245,11 @@ HelpText = f"""\
  [bold]A[/bold]        Agenda          [bold]R[/bold]    Remaining Alerts 
  [bold]G[/bold]        Goals           [bold]F[/bold]    Find 
  [bold]L[/bold]        Last            [bold]N[/bold]    Next  
- [bold]S[/bold]        Scheduled       [bold]U[/bold]    Upcoming 
+ [bold]W[/bold]        Weeks           [bold]U[/bold]    Upcoming 
 [bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
  [bold]/[/bold]        Set search      empty search clears
  [bold]>[/bold]        Next match      [bold]<[/bold]    Previous match
-[bold][{HEADER_COLOR}]Scheduled Navigation[/{HEADER_COLOR}][/bold]
+[bold][{HEADER_COLOR}]Weeks Navigation [/{HEADER_COLOR}][/bold]
  [bold]Left[/bold]     previous week   [bold]Up[/bold]   up in the list
  [bold]Right[/bold]    next week       [bold]Down[/bold] down in the list
  [bold]S+Left[/bold]   4 weeks back    [bold]" "[/bold]  current week 
@@ -1473,7 +1473,7 @@ class DynamicViewApp(App):
         ("L", "show_last", "Show Last"),
         ("N", "show_next", "Show Next"),
         ("F", "show_find", "Find"),
-        ("S", "show_weeks", "Scheduled"),
+        ("W", "show_weeks", "Weeks"),
         ("?", "show_help", "Help"),
         ("ctrl+q", "quit", "Quit"),
         ("ctrl+r", "detail_repetitions", "Show Repetitions"),
