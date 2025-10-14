@@ -603,9 +603,9 @@ class Controller:
 
         if item.completion:
             completed_dt, due_dt = item.completion
-            completed_ts = dt_as_utc_timestamp(completed_dt)
-            due_ts = dt_as_utc_timestamp(due_dt) if due_dt else None
-            completion = (completed_ts, due_ts)
+            # completed_ts = dt_as_utc_timestamp(completed_dt)
+            # due_ts = dt_as_utc_timestamp(due_dt) if due_dt else None
+            completion = (completed_dt, due_dt)
             self.db_manager.add_completion(record_id, completion)
 
         return record_id
@@ -1549,6 +1549,7 @@ class Controller:
 
         for id, job_id, subject, description, itemtype, start_ts in events:
             start_dt = datetime_from_timestamp(start_ts)
+            subject = self.apply_anniversary_if_needed(id, subject, start_dt)
             if job_id is not None:
                 try:
                     js = self.db_manager.get_job_display_subject(id, job_id)
@@ -1606,6 +1607,7 @@ class Controller:
 
         for id, job_id, subject, description, itemtype, start_ts in events:
             start_dt = datetime_from_timestamp(start_ts)
+            subject = self.apply_anniversary_if_needed(id, subject, start_dt)
             # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
             if job_id is not None:
                 try:

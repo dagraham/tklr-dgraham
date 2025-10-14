@@ -72,7 +72,6 @@ def _fmt_naive(dt: datetime) -> str:
 
 
 def _fmt_utc(dt_aware_utc: datetime) -> str:
-    # aware in UTC -> 'YYYYMMDDTHHMMSSZ'
     return dt_aware_utc.astimezone(tz.UTC).strftime(DT_FMT) + "Z"
 
 
@@ -790,9 +789,9 @@ class DatabaseManager:
             CREATE TABLE IF NOT EXISTS Completions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 record_id INTEGER NOT NULL,
-                completed INTEGER NOT NULL,
-                due INTEGER,        -- timestamp or NULL if undated
-                FOREIGN KEY(record_id) REFERENCES Records(id) ON DELETE CASCADE
+                completed TEXT NOT NULL,  -- UTC-aware: "YYYYMMDDTHHMMZ"
+                due TEXT,                 -- optional UTC-aware: "YYYYMMDDTHHMMZ"
+                FOREIGN KEY(record_id) REFERENCES Records(id)
             );
         """)
 
@@ -1122,39 +1121,87 @@ class DatabaseManager:
         if item.itemtype in ["~", "^"]:
             self.populate_urgency_from_record(record_id)
 
+    # def add_completion(
+    #     self,
+    #     record_id: int,
+    #     completion: tuple[int | None, int | None] | None,
+    # ) -> None:
+    #     """
+    #     Add a completion record for a given record_id.
+    #
+    #     completion: (completed_ts, due_ts | None)
+    #     """
+    #     if completion is None:
+    #         return
+    #
+    #     completed_ts, due_ts = completion
+    #     log_msg(f"{record_id = }, {completed_ts = }, {due_ts = }, {completion = }")
+    #
+    #     self.cursor.execute(
+    #         """
+    #         INSERT INTO Completions (record_id, completed, due)
+    #         VALUES (?, ?, ?)
+    #         """,
+    #         (record_id, completed_ts, due_ts),
+    #     )
+    #     self.conn.commit()
+
     def add_completion(
         self,
         record_id: int,
-        completion: tuple[int | None, int | None] | None,
+        completion: tuple[datetime, datetime | None],
     ) -> None:
-        """
-        Add a completion record for a given record_id.
-
-        completion: (completed_ts, due_ts | None)
-        """
+        """Store a completion record as UTC-aware compact strings."""
         if completion is None:
             return
 
-        completed_ts, due_ts = completion
-        log_msg(f"{record_id = }, {completed_ts = }, {due_ts = }, {completion = }")
-
+        completed_dt, due_dt = completion
         self.cursor.execute(
             """
             INSERT INTO Completions (record_id, completed, due)
             VALUES (?, ?, ?)
             """,
-            (record_id, completed_ts, due_ts),
+            (
+                record_id,
+                _fmt_utc(completed_dt),
+                _fmt_utc(due_dt) if due_dt else None,
+            ),
         )
         self.conn.commit()
 
-    def get_completions(
-        self, record_id: int
-    ) -> list[tuple[int, str, str, str, int | None, int | None]]:
-        """
-        Retrieve all completions for a given record_id.
+    # def get_completions(
+    #     self, record_id: int
+    # ) -> list[tuple[int, str, str, str, int | None, int | None]]:
+    #     """
+    #     Retrieve all completions for a given record_id.
+    #
+    #     Returns list of tuples:
+    #         (record_id, subject, description, itemtype, completed, due)
+    #     """
+    #     self.cursor.execute(
+    #         """
+    #         SELECT
+    #             r.id,
+    #             r.subject,
+    #             r.description,
+    #             r.itemtype,
+    #             c.completed,
+    #             c.due
+    #         FROM Completions c
+    #         JOIN Records r ON c.record_id = r.id
+    #         WHERE r.id = ?
+    #         ORDER BY c.completed DESC
+    #         """,
+    #         (record_id,),
+    #     )
+    #     return self.cursor.fetchall()
 
-        Returns list of tuples:
-            (record_id, subject, description, itemtype, completed, due)
+    def get_completions(self, record_id: int):
+        """
+        Return all completions for a given record, sorted newest first.
+
+        Returns:
+            [(record_id, subject, description, itemtype, due_dt, completed_dt)]
         """
         self.cursor.execute(
             """
@@ -1163,8 +1210,8 @@ class DatabaseManager:
                 r.subject,
                 r.description,
                 r.itemtype,
-                c.completed,
-                c.due
+                c.due,
+                c.completed
             FROM Completions c
             JOIN Records r ON c.record_id = r.id
             WHERE r.id = ?
@@ -1172,7 +1219,18 @@ class DatabaseManager:
             """,
             (record_id,),
         )
-        return self.cursor.fetchall()
+        rows = self.cursor.fetchall()
+        return [
+            (
+                rid,
+                subj,
+                desc,
+                itype,
+                parse_utc(due) if due else None,
+                parse_utc(comp),
+            )
+            for (rid, subj, desc, itype, due, comp) in rows
+        ]
 
     def touch_record(self, record_id: int):
         """
