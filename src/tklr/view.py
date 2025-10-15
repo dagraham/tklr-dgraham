@@ -336,6 +336,7 @@ class ListWithDetails(Container):
         self._details: ScrollableList | None = None
         self.match_color = match_color
         self._detail_key_handler: callable | None = None  # ← inject this
+        self._details_active = False
         self.details_meta: dict = {}  # ← you already have this
 
     def compose(self) -> ComposeResult:
@@ -382,11 +383,13 @@ class ListWithDetails(Container):
         body = [title] + _make_rows(lines)
         self._details.update_list(body)
         self._details.remove_class("hidden")
+        self._details_active = True
         self._details.focus()
 
     def hide_details(self) -> None:
         self.details_meta = {}  # clear meta on close
         if not self._details.has_class("hidden"):
+            self._details_active = False
             self._details.add_class("hidden")
             self._main.focus()
 
@@ -420,7 +423,8 @@ class ListWithDetails(Container):
 
         # 2) Close details with Escape (but not 'q')
         if k == "escape":
-            self.hide_details()
+            if self.has_details_open():
+                self.hide_details()
             event.stop()
             return
 
@@ -1331,8 +1335,13 @@ class AgendaScreen(SearchableScreen):
         self._activate_pane("events" if self.active_pane == "tasks" else "tasks")
 
     def action_hide_details(self):
-        target = self.tasks_view if self.active_pane == "tasks" else self.events_view
-        target.hide_details()
+        if self.active_pane == "tasks" and hasattr(self.tasks_view, "hide_details"):
+            self.tasks_view.hide_details()
+
+        elif self.active_pane == "events" and hasattr(self.events_view, "hide_details"):
+            self.events_view.hide_details()
+
+        return
 
     def action_refresh(self):
         self.refresh_data()
@@ -1449,6 +1458,127 @@ class FullScreenList(SearchableScreen):
     #             event.stop()
 
 
+class BinScreen(SearchableScreen):
+    """Top: tagged list of bins/reminders. Bottom: details pane."""
+
+    def __init__(self, bin_id: int | None = None):
+        super().__init__()
+        self.bin_id = bin_id or 1  # root by default
+        self.tag_map: dict[str, tuple[str, int]] = {}
+        self.rows = []
+        self.details = None
+
+    def compose(self) -> ComposeResult:
+        yield Static("", id="bin_header", classes="title-class")
+        yield Static("", id="bin_list", classes="scrollable")
+        yield Static("", id="bin_details", classes="details-pane")
+
+    def on_mount(self) -> None:
+        self.show_bin(self.bin_id)
+
+    def show_bin(self, bin_id: int) -> None:
+        """Refresh the display for the given bin."""
+        self.bin_id = bin_id
+        self.tag_map.clear()
+
+        name = self.app.controller.get_bin_name(bin_id)
+        parent = self.app.controller.get_parent_bin(bin_id)
+        subbins = self.app.controller.get_subbins(bin_id)
+        reminders = self.app.controller.get_reminders(bin_id)
+
+        header = f"[bold cyan]Bin:[/] {name}"
+        self.query_one("#bin_header", Static).update(header)
+
+        lines = []
+        tag_iter = iter("abcdefghijklmnopqrstuvwxyz")
+
+        # parent link (“..”)
+        if parent:
+            t = next(tag_iter)
+            lines.append(f"[bold]{t}[/bold]  .. ({parent['name']})")
+            self.tag_map[t] = ("bin", parent["id"])
+
+        # sub-bins (folders)
+        for b in subbins:
+            t = next(tag_iter)
+            child_bins = len(b.get("subbins", []))
+            child_rem = len(b.get("reminders", []))
+            counts = f" [{child_bins}/{child_rem}]"
+            lines.append(
+                f"[bold {BIN_COLOR}]{t}[/bold {BIN_COLOR}]  {b['name']}{counts}"
+            )
+            self.tag_map[t] = ("bin", b["id"])
+
+        # reminders
+        for r in reminders:
+            t = next(tag_iter)
+            color = TYPE_TO_COLOR.get(r["itemtype"], "white")
+            lines.append(f"[bold {color}]{t}[/bold {color}]  {r['subject']}")
+            self.tag_map[t] = ("reminder", r["id"])
+
+        self.query_one("#bin_list", Static).update("\n".join(lines))
+        self.query_one("#bin_details", Static).update("[dim]Select a tag…[/dim]")
+
+
+class BinTree(Screen):
+    """Hierarchical bin/reminder browser view."""
+
+    def __init__(self, controller):
+        super().__init__()
+        self.controller = controller
+        self.tag_map = {}
+        self.tag_chars = "abcdefghijklmnopqrstuvwxyz"
+        self.expanded = set()
+        self.last_prefix = ""
+
+    def compose(self):
+        yield Static("[bold cyan]Bin Tree[/bold cyan]", id="bintree_header")
+        yield Static("", id="bintree_body")
+
+    def on_mount(self):
+        self.refresh_tree()
+
+    def refresh_tree(self):
+        self.tag_map.clear()
+        lines = self.render_tree()
+        self.query_one("#bintree_body", Static).update("\n".join(lines))
+
+    def render_tree(self, parent_id=None, prefix=""):
+        lines = []
+        root_id = self.controller.root_id
+        parent_id = parent_id or root_id
+
+        subbins = sorted(
+            self.controller.get_subbins(parent_id),
+            key=lambda b: b["name"].lower(),
+        )
+        reminders = sorted(
+            self.controller.get_reminders(parent_id),
+            key=lambda r: r["subject"].lower(),
+        )
+
+        tag_iter = iter(self.tag_chars)
+
+        for b in subbins:
+            t = next(tag_iter)
+            name = b["name"]
+            num_subbins = b.get("num_subbins", 0)
+            num_reminders = b.get("num_reminders", 0)
+            lines.append(
+                f"{prefix}[bold yellow]{t}[/bold yellow]  {name} ({num_subbins}/{num_reminders})"
+            )
+            self.tag_map[t] = ("bin", b["id"])
+            if b["id"] in self.expanded:
+                lines.extend(self.render_tree(b["id"], prefix + "   "))
+
+        for r in reminders:
+            t = next(tag_iter)
+            lines.append(f"{prefix}   [bold]{t}[/bold]  🗒️ {r['subject']}")
+            self.tag_map[t] = ("reminder", r["id"])
+
+        return lines
+
+
 class DynamicViewApp(App):
     """A dynamic app that supports temporary and permanent view changes."""
 
@@ -1470,6 +1600,7 @@ class DynamicViewApp(App):
         ("escape", "close_details", "Close details"),
         ("R", "show_alerts", "Show Alerts"),
         ("A", "show_agenda", "Show Agenda"),
+        ("B", "show_bintree", "Bins"),
         ("L", "show_last", "Show Last"),
         ("N", "show_next", "Show Next"),
         ("F", "show_find", "Find"),
@@ -1657,19 +1788,70 @@ class DynamicViewApp(App):
 
         return handler
 
+    # def on_key(self, event: events.Key) -> None:
+    #     """Handle global key events (tags, escape, etc.)."""
+    #     log_msg(f"before: {event.key = }, {self.leader_mode = }")
+    #     if self.view == "week":
+    #         self.afill = self.controller.afill_by_week.get(self.selected_week)
+    #     elif self.view == "tasks":
+    #         self.afill = self.controller.afill_by_view["tasks"]
+    #     elif self.view == "events":
+    #         self.afill = self.controller.afill_by_view["events"]
+    #     log_msg(
+    #         f"after: {self.afill = }, {event.key = }, {self.view = }, {self.selected_week = }"
+    #     )
+    #
+    #     if event.key == "comma":
+    #         self.leader_mode = True
+    #         log_msg(f"set {self.leader_mode = }")
+    #         return
+    #
+    #     if self.leader_mode:
+    #         self.leader_mode = False
+    #         meta = self.controller.get_last_details_meta() or {}
+    #         handler = getattr(self, "detail_handler", None)
+    #         log_msg(f"got {event.key = }, {handler = }")
+    #         if handler:
+    #             log_msg(f"creating task for {event.key = }, {meta = }")
+    #             create_task(handler(f"comma,{event.key}", meta))  # <-- async-safe
+    #         return
+    #
+    #     if event.key in "abcdefghijklmnopqrstuvwxyz":
+    #         self.digit_buffer.append(event.key)
+    #         log_msg(f"{self.digit_buffer = }, {self.afill = }")
+    #         if len(self.digit_buffer) >= self.afill:
+    #             base26_tag = "".join(self.digit_buffer)
+    #             self.digit_buffer.clear()
+    #             screen = self.screen
+    #             log_msg(f"{base26_tag = }, {screen = }")
+    #             if hasattr(screen, "show_details_for_tag"):
+    #                 screen.show_details_for_tag(base26_tag)
+    #     else:
+    #         self.digit_buffer.clear()
+
     def on_key(self, event: events.Key) -> None:
         """Handle global key events (tags, escape, etc.)."""
         log_msg(f"before: {event.key = }, {self.leader_mode = }")
+
+        # --- View-specific setup ---
         if self.view == "week":
             self.afill = self.controller.afill_by_week.get(self.selected_week)
-        elif self.view == "tasks":
-            self.afill = self.controller.afill_by_view["tasks"]
-        elif self.view == "events":
-            self.afill = self.controller.afill_by_view["events"]
+        elif self.view in ("tasks", "events"):
+            self.afill = self.controller.afill_by_view[self.view]
+
         log_msg(
             f"after: {self.afill = }, {event.key = }, {self.view = }, {self.selected_week = }"
         )
+        if event.key == "escape":
+            if self.leader_mode:
+                self.leader_mode = False
+                return
+            if self.view == "bin":
+                self.pop_screen()
+                self.view = "bintree"
+                return
 
+        # --- Leader (comma) mode ---
         if event.key == "comma":
             self.leader_mode = True
             log_msg(f"set {self.leader_mode = }")
@@ -1682,9 +1864,72 @@ class DynamicViewApp(App):
             log_msg(f"got {event.key = }, {handler = }")
             if handler:
                 log_msg(f"creating task for {event.key = }, {meta = }")
-                create_task(handler(f"comma,{event.key}", meta))  # <-- async-safe
+                create_task(handler(f"comma,{event.key}", meta))
             return
 
+        # --------------------------------------------------------------------- #
+        # Forest View Logic
+        # --------------------------------------------------------------------- #
+        if self.view == "bintree":
+            screen = self.screen
+            key = event.key.lower()
+
+            if key == ">":
+                screen.last_prefix = ">"
+                return
+
+            if key not in screen.tag_map:
+                screen.last_prefix = ""
+                return
+
+            kind, target_id = screen.tag_map[key]
+
+            if screen.last_prefix == ">" and kind == "bin":
+                if target_id in screen.expanded:
+                    screen.expanded.remove(target_id)
+                else:
+                    screen.expanded.add(target_id)
+                screen.last_prefix = ""
+                screen.refresh_tree()
+                return
+
+            if kind == "bin":
+                self.view = "bin"  # <-- update here
+                self.push_screen(BinScreen(bin_id=target_id))
+
+            elif kind == "reminder":
+                details = self.controller.get_record_details(target_id)
+                self.show_details(details)
+
+            screen.last_prefix = ""
+            return
+
+        # --------------------------------------------------------------------- #
+        # Bin View Logic
+        # --------------------------------------------------------------------- #
+        if self.view == "bin":
+            screen = self.screen
+            key = event.key.lower()
+
+            if event.key == "escape":
+                self.pop_screen()
+                self.view = "bintree"  # <-- go back
+                return
+
+            if key not in screen.tag_map:
+                return
+
+            kind, target_id = screen.tag_map[key]
+
+            if kind == "bin":
+                screen.show_bin(target_id)
+            elif kind == "reminder":
+                details = self.controller.get_record_details(target_id)
+                screen.query_one("#bin_details", Static).update(details)
+
+        # --------------------------------------------------------------------- #
+        # Default behavior for tagged views (weeks/tasks/events)
+        # --------------------------------------------------------------------- #
         if event.key in "abcdefghijklmnopqrstuvwxyz":
             self.digit_buffer.append(event.key)
             log_msg(f"{self.digit_buffer = }, {self.afill = }")
@@ -1736,6 +1981,11 @@ class DynamicViewApp(App):
         self.set_afill(self.view)
         log_msg(f"opening agenda view, {self.view = }")
         self.push_screen(AgendaScreen(self.controller))
+
+    def action_show_bintree(self) -> None:
+        """Open the BinTree (forest) view."""
+        self.view = "bintree"
+        self.push_screen(BinTree(controller=self.controller))
 
     def action_show_last(self):
         self.view = "last"

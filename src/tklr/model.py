@@ -884,6 +884,36 @@ class DatabaseManager:
             );
         """)
 
+        # bins themselves
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Bins (
+                id INTEGER PRIMARY KEY,
+                name TEXT UNIQUE NOT NULL
+            );
+        """)
+
+        # parent-child relationships among bins
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS BinLinks (
+                bin_id INTEGER NOT NULL,
+                container_id INTEGER,
+                FOREIGN KEY (bin_id) REFERENCES Bins(id) ON DELETE CASCADE,
+                FOREIGN KEY (container_id) REFERENCES Bins(id) ON DELETE SET NULL,
+                UNIQUE(bin_id)
+            );
+        """)
+
+        # link reminders to bins (many-to-many)
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ReminderLinks (
+                reminder_id INTEGER NOT NULL,
+                bin_id INTEGER NOT NULL,
+                FOREIGN KEY (reminder_id) REFERENCES Records(id) ON DELETE CASCADE,
+                FOREIGN KEY (bin_id) REFERENCES Bins(id) ON DELETE CASCADE,
+                UNIQUE(reminder_id, bin_id)
+            );
+        """)
+
         self.setup_busy_tables()
 
         self.conn.commit()
@@ -964,6 +994,7 @@ class DatabaseManager:
         self.populate_beginby()
         self.populate_busy_from_datetimes()  # 👈 new step: source layer
         self.rebuild_busyweeks_from_source()  # 👈 add this line
+        self.ensure_system_bins()
 
     def add_item(self, item: Item) -> int:
         if item.has_f:
@@ -3320,3 +3351,197 @@ class DatabaseManager:
         if len(bits) != 35:
             bits = (bits + [0] * 35)[:35]
         return bits
+
+    def move_bin(self, bin_name: str, new_parent_name: str) -> bool:
+        """
+        Move a bin under a new parent bin.
+
+        Example:
+            move_bin("whatever", "journal")
+
+        Ensures both bins exist, removes any previous parent link,
+        and inserts a new (bin_id → new_parent_id) link.
+        Prevents cycles and self-parenting.
+        """
+        try:
+            # Ensure the root/unlinked bins exist first
+            root_id, unlinked_id = self.ensure_system_bins()
+
+            # Resolve both bin IDs (creating them if needed)
+            bin_id = self.ensure_bin_exists(bin_name)
+            new_parent_id = self.ensure_bin_exists(new_parent_name)
+
+            # ⚡ Efficiency check: prevent self-parenting before DB recursion
+            if bin_id == new_parent_id:
+                raise ValueError(f"Cannot move {bin_name!r} under itself.")
+
+            # 🌀 Recursive acyclicity check
+            if self.is_descendant(bin_id, new_parent_id):
+                raise ValueError(
+                    f"Cannot move {bin_name!r} under {new_parent_name!r}: "
+                    "would create a cycle."
+                )
+
+            # Remove any existing parent link(s)
+            self.cursor.execute("DELETE FROM BinLinks WHERE bin_id = ?", (bin_id,))
+
+            # Insert the new parent link
+            self.cursor.execute(
+                """
+                INSERT OR REPLACE INTO BinLinks (bin_id, container_id)
+                VALUES (?, ?)
+                """,
+                (bin_id, new_parent_id),
+            )
+
+            self.conn.commit()
+            print(f"[move_bin] Moved {bin_name!r} → {new_parent_name!r}")
+            return True
+
+        except Exception as e:
+            print(f"[move_bin] Error moving {bin_name!r} → {new_parent_name!r}: {e}")
+            return False
+
+    def is_descendant(self, ancestor_id: int, candidate_id: int) -> bool:
+        """
+        Return True if candidate_id is a descendant of ancestor_id.
+        """
+        self.cursor.execute(
+            """
+            WITH RECURSIVE descendants(id) AS (
+                SELECT bin_id FROM BinLinks WHERE container_id = ?
+                UNION
+                SELECT BinLinks.bin_id
+                FROM BinLinks JOIN descendants ON BinLinks.container_id = descendants.id
+            )
+            SELECT 1 FROM descendants WHERE id = ? LIMIT 1
+        """,
+            (ancestor_id, candidate_id),
+        )
+        return self.cursor.fetchone() is not None
+
+    def ensure_bin_exists(self, name: str) -> int:
+        """Return id for existing bin or create a new one."""
+        self.cursor.execute("SELECT id FROM Bins WHERE name=?", (name,))
+        row = self.cursor.fetchone()
+        if row:
+            return row[0]
+        self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (name,))
+        self.conn.commit()
+        return self.cursor.lastrowid
+
+    def ensure_bin_path(self, path: str) -> int:
+        """
+        Ensure the given bin path exists.
+        Example:
+            "personal/quotations" will create:
+                - personal → root
+                - quotations → personal
+        If single-level, link under 'unlinked'.
+        Returns the final (leaf) bin_id.
+        """
+        root_id, unlinked_id = self.ensure_system_bins()
+        parts = [p.strip() for p in path.split("/") if p.strip()]
+        if not parts:
+            return root_id
+
+        parent_id = root_id  # start at root
+        if len(parts) == 1:
+            parent_id = unlinked_id  # single bin goes under 'unlinked'
+
+        for name in parts:
+            bin_id = self.ensure_bin_exists(name)
+            self.cursor.execute(
+                """
+                INSERT OR IGNORE INTO BinLinks (bin_id, container_id)
+                VALUES (?, ?)
+            """,
+                (bin_id, parent_id),
+            )
+            parent_id = bin_id
+
+        self.conn.commit()
+        return parent_id
+
+    def ensure_system_bins(self) -> tuple[int, int]:
+        """Guarantee that root and unlinked bins exist and are properly linked."""
+        root_id = self.ensure_bin_exists("root")
+        unlinked_id = self.ensure_bin_exists("unlinked")
+
+        # link unlinked → root (if not already)
+        self.cursor.execute(
+            """
+            INSERT OR IGNORE INTO BinLinks (bin_id, container_id)
+            VALUES (?, ?)
+        """,
+            (unlinked_id, root_id),
+        )
+
+        # Ensure root has no parent (NULL)
+        self.cursor.execute(
+            """
+            INSERT OR IGNORE INTO BinLinks (bin_id, container_id)
+            VALUES (?, NULL)
+        """,
+            (root_id,),
+        )
+
+        self.conn.commit()
+        return root_id, unlinked_id
+
+    # === Bin access helpers ===
+    def get_bin_name(self, bin_id: int) -> str:
+        """Return bin name by id."""
+        self.cursor.execute("SELECT name FROM Bins WHERE id=?", (bin_id,))
+        row = self.cursor.fetchone()
+        return row[0] if row else f"[unknown #{bin_id}]"
+
+    def get_parent_bin(self, bin_id: int) -> dict | None:
+        """Return parent bin as {'id': ..., 'name': ...} or None if root."""
+        self.cursor.execute(
+            """
+            SELECT b2.id, b2.name
+            FROM BinLinks bl
+            JOIN Bins b2 ON bl.container_id = b2.id
+            WHERE bl.bin_id = ?
+        """,
+            (bin_id,),
+        )
+        row = self.cursor.fetchone()
+        return {"id": row[0], "name": row[1]} if row else None
+
+    def get_subbins(self, bin_id: int) -> list[dict]:
+        """Return bins contained in this bin, with counts of subbins/reminders."""
+        self.cursor.execute(
+            """
+            SELECT b.id, b.name,
+                (SELECT COUNT(*) FROM BinLinks sub WHERE sub.container_id = b.id) AS subbins,
+                (SELECT COUNT(*) FROM ReminderLinks rl WHERE rl.bin_id = b.id) AS reminders
+            FROM BinLinks bl
+            JOIN Bins b ON bl.bin_id = b.id
+            WHERE bl.container_id = ?
+            ORDER BY b.name COLLATE NOCASE
+        """,
+            (bin_id,),
+        )
+        return [
+            {"id": row[0], "name": row[1], "subbins": row[2], "reminders": row[3]}
+            for row in self.cursor.fetchall()
+        ]
+
+    def get_reminders_in_bin(self, bin_id: int) -> list[dict]:
+        """Return reminders linked to this bin."""
+        self.cursor.execute(
+            """
+            SELECT r.id, r.subject, r.itemtype
+            FROM ReminderLinks rl
+            JOIN Records r ON rl.reminder_id = r.id
+            WHERE rl.bin_id = ?
+            ORDER BY r.subject COLLATE NOCASE
+        """,
+            (bin_id,),
+        )
+        return [
+            {"id": row[0], "subject": row[1], "itemtype": row[2]}
+            for row in self.cursor.fetchall()
+        ]

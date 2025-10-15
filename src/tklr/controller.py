@@ -586,6 +586,18 @@ class Controller:
         self.afill = 1
         self._agenda_dirty = False
 
+    @property
+    def root_id(self) -> int:
+        """Return the id of the root bin, creating it if necessary."""
+        self.db_manager.ensure_system_bins()
+        self.db_manager.cursor.execute("SELECT id FROM Bins WHERE name = 'root'")
+        row = self.db_manager.cursor.fetchone()
+        if not row:
+            raise RuntimeError(
+                "Root bin not found — database not initialized correctly."
+            )
+        return row[0]
+
     def format_datetime(self, fmt_dt: str) -> str:
         return format_datetime(fmt_dt, self.AMPM)
 
@@ -2086,3 +2098,26 @@ class Controller:
             "completed_ts": int(completed_dt.timestamp()),
             "new_rruleset": item.rruleset or "",
         }
+
+    def get_bin_name(self, bin_id: int) -> str:
+        return self.db_manager.get_bin_name(bin_id)
+
+    def get_parent_bin(self, bin_id: int) -> dict | None:
+        return self.db_manager.get_parent_bin(bin_id)
+
+    def get_subbins(self, bin_id: int) -> list[dict]:
+        return self.db_manager.get_subbins(bin_id)
+
+    def get_reminders(self, bin_id: int) -> list[dict]:
+        return self.db_manager.get_reminders_in_bin(bin_id)
+
+    def get_record_details(self, record_id: int) -> str:
+        """Fetch record details formatted for the details pane."""
+        record = self.db_manager.get_record(record_id)
+        if not record:
+            return "[red]No details found[/red]"
+
+        subject = record[2]
+        desc = record[3] or ""
+        itemtype = record[1]
+        return f"[bold]{itemtype}[/bold]  {subject}\n\n{desc}"
