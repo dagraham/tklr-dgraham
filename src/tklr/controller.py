@@ -23,6 +23,7 @@ from rich import box
 from rich.text import Text
 from typing import List, Tuple, Optional, Dict, Any
 from bisect import bisect_left, bisect_right
+from typing import Iterator
 
 import string
 import shutil
@@ -114,7 +115,7 @@ FINISHED_COLOR = DARK_GREY
 GOAL_COLOR = GOLDENROD
 CHORE_COLOR = KHAKI
 PASTDUE_COLOR = DARK_ORANGE
-BEGIN_COLOR = GOLD
+NOTICE_COLOR = GOLD
 DRAFT_COLOR = ORANGE_RED
 TODAY_COLOR = TOMATO
 SELECTED_BACKGROUND = "#566573"
@@ -133,7 +134,7 @@ SLOT_MINUTES = [x * 60 for x in SLOT_HOURS]
 BUSY = "■"  # U+25A0 this will be busy_bar busy and conflict character
 FREE = "□"  # U+25A1 this will be busy_bar free character
 ADAY = "━"  # U+2501 for all day events ━
-BEGINBY = "⋙"
+NOTICE = "⋙"
 
 SELECTED_COLOR = "yellow"
 # SELECTED_COLOR = "bold yellow"
@@ -154,7 +155,7 @@ TYPE_TO_COLOR = {
     "+": WAITING_COLOR,  # waiting task
     "%": NOTE_COLOR,  # note
     "<": PASTDUE_COLOR,  # past due task
-    ">": BEGIN_COLOR,  # begin
+    ">": NOTICE_COLOR,  # begin
     "!": GOAL_COLOR,  # draft
     "?": DRAFT_COLOR,  # draft
 }
@@ -203,7 +204,7 @@ def format_tokens(tokens, width):
             continue
 
         if token.startswith("@~"):
-            # Begin component tasks on a new line
+            # notice component tasks on a new line
             output_lines.append(current_line)
             current_line = " "
 
@@ -678,6 +679,25 @@ class Controller:
         # --- Compute ordinal replacement ---
         return set_anniversary(subject, start_dt, instance, freq)
 
+    # def get_tag_iterator(self, view: str, count: int) -> Iterator[str]:
+    #     """
+    #     Return an iterator over tags (a, b, ..., z, aa, ab, ..., aaa, ...),
+    #     consistent with existing set_afill() and add_tag() logic.
+    #     """
+    #     # determine tag width for this view
+    #     self.set_afill([None] * count, view)
+    #     fill = self.afill_by_view[view]
+    #
+    #     for i in range(count):
+    #         yield indx_to_tag(i, fill)
+
+    def get_tag_iterator(self, view: str, count: int) -> Iterator[str]:
+        if view not in self.afill_by_view:
+            self.set_afill([None] * count, view)
+        fill = self.afill_by_view[view]
+        for i in range(count):
+            yield indx_to_tag(i, fill)
+
     # --- replace your set_afill with this per-view version ---
     def set_afill(self, details: list, view: str):
         n = len(details)
@@ -786,7 +806,7 @@ class Controller:
             """
             UPDATE Records
             SET itemtype=?, subject=?, description=?, rruleset=?, timezone=?,
-                extent=?, alerts=?, beginby=?, context=?, jobs=?, tags=?,
+                extent=?, alerts=?, notice=?, context=?, jobs=?, tags=?,
                 priority=?, tokens=?, modified=?
             WHERE id=?
             """,
@@ -798,7 +818,7 @@ class Controller:
                 item.timezone or "",
                 item.extent or "",
                 json.dumps(item.alerts or []),
-                item.beginby or "",
+                item.notice or "",
                 item.context or "",
                 json.dumps(item.jobs or None),
                 ";".join(item.tags or []),
@@ -828,6 +848,64 @@ class Controller:
             "rruleset": row[4],
             "record": row,
         }
+
+    def get_details_for_record(
+        self,
+        record_id: int,
+        job_id: int | None = None,
+        view: str = "bin",
+        selected_week: tuple[int, int] | None = None,
+    ):
+        """
+        Return list: [title, '', ... lines ...] same as process_tag would.
+        Use the same internal logic as process_tag but accept ids directly.
+        """
+        # If you have a general helper that returns fields for a record, reuse it.
+        # Here we replicate the important parts used by process_tag()
+        core = self.get_record_core(record_id) or {}
+        itemtype = core.get("itemtype") or ""
+        rruleset = core.get("rruleset") or ""
+        all_prereqs = core.get("all_prereqs") or ""
+
+        subject = core.get("subject") or "(untitled)"
+        if job_id is not None:
+            try:
+                js = self.db_manager.get_job_display_subject(record_id, job_id)
+                if js:
+                    subject = js
+            except Exception:
+                pass
+
+        try:
+            pinned_now = (
+                self.db_manager.is_task_pinned(record_id) if itemtype == "~" else False
+            )
+        except Exception:
+            pinned_now = False
+
+        fields = [
+            "",
+        ] + self.get_entry(record_id, job_id)
+
+        _dts = self.db_manager.get_next_start_datetimes_for_record(record_id)
+        first, second = (_dts + [None, None])[:2]
+
+        title = f"[bold]{subject:^{self.width}}[/bold]"
+
+        self._last_details_meta = {
+            "record_id": record_id,
+            "job_id": job_id,
+            "itemtype": itemtype,
+            "subject": subject,
+            "rruleset": rruleset,
+            "first": first,
+            "second": second,
+            "all_prereqs": all_prereqs,
+            "pinned": bool(pinned_now),
+            "record": self.db_manager.get_record(record_id),
+        }
+
+        return [title, ""] + fields
 
     def get_record(self, record_id):
         return self.db_manager.get_record(record_id)
@@ -862,8 +940,8 @@ class Controller:
     def populate_alerts(self):
         self.db_manager.populate_alerts()
 
-    def populate_beginby(self):
-        self.db_manager.populate_beginby()
+    def populate_notice(self):
+        self.db_manager.populate_notice()
 
     def refresh_alerts(self):
         self.db_manager.populate_alerts()
@@ -1851,11 +1929,11 @@ class Controller:
         Returns dict: date -> list of (tag, label, subject) for up to three days.
         Rules:
         • Pick the first 3 days that have events.
-        • Also include TODAY if it has beginby/drafts even with no events.
+        • Also include TODAY if it has notice/drafts even with no events.
         • If nothing to display at all, return {}.
         """
-        begin_records = (
-            self.db_manager.get_beginby_for_events()
+        notice_records = (
+            self.db_manager.get_notice_for_events()
         )  # (record_id, days_remaining, subject)
         draft_records = self.db_manager.get_drafts()  # (record_id, subject)
 
@@ -1883,8 +1961,8 @@ class Controller:
             if len(allowed_dates) == 3:
                 break
 
-        # 2) If today has begin/draft items, include it even if it has no events
-        has_today_meta = bool(begin_records or draft_records)
+        # 2) If today has notice/draft items, include it even if it has no events
+        has_today_meta = bool(notice_records or draft_records)
         if has_today_meta and today not in allowed_dates:
             # Prepend today; keep max three days
             allowed_dates = [today] + allowed_dates
@@ -1927,15 +2005,15 @@ class Controller:
                 )
 
         # 5) If TODAY is in allowed_dates (either because it had events or we added it)
-        #    attach beginby + draft markers even if it had no events
+        #    attach notice + draft markers even if it had no events
         if today in allowed_dates:
-            if begin_records:
-                for record_id, days_remaining, subject in begin_records:
+            if notice_records:
+                for record_id, days_remaining, subject in notice_records:
                     events_by_date.setdefault(today, []).append(
                         (
                             record_id,
-                            f"[{BEGIN_COLOR}]+{days_remaining}d{BEGINBY}[/{BEGIN_COLOR}]",
-                            f"[{BEGIN_COLOR}]{subject}[/{BEGIN_COLOR}]",
+                            f"[{NOTICE_COLOR}]+{days_remaining}d{notice}[/{NOTICE_COLOR}]",
+                            f"[{NOTICE_COLOR}]{subject}[/{NOTICE_COLOR}]",
                         )
                     )
             if draft_records:

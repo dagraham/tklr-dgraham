@@ -689,11 +689,11 @@ class DatabaseManager:
 
         self.populate_tags()  # NEW: Populate Tags + RecordTags
         self.populate_alerts()  # Populate today's alerts
-        log_msg("calling beginby")
-        self.populate_beginby()
+        log_msg("calling notice")
+        self.populate_notice()
         self.populate_all_urgency()
 
-        log_msg("back from beginby")
+        log_msg("back from notice")
 
     def format_datetime(self, fmt_dt: str) -> str:
         return format_datetime(fmt_dt, self.ampm)
@@ -721,7 +721,7 @@ class DatabaseManager:
                 timezone          TEXT,
                 extent            TEXT,
                 alerts            TEXT,
-                beginby           TEXT,
+                notice           TEXT,
                 context           TEXT,
                 jobs              TEXT,
                 tags              TEXT,
@@ -874,9 +874,9 @@ class DatabaseManager:
             ON Alerts(trigger_datetime)
         """)
 
-        # ---------------- Beginby (days remaining notices) ----------------
+        # ---------------- notice (days remaining notices) ----------------
         self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Beginby (
+            CREATE TABLE IF NOT EXISTS Notice (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
                 record_id     INTEGER NOT NULL,
                 days_remaining INTEGER NOT NULL,
@@ -985,13 +985,13 @@ class DatabaseManager:
         """)
 
     def populate_dependent_tables(self):
-        """Populate all tables derived from current Records (Tags, DateTimes, Alerts, Beginby)."""
+        """Populate all tables derived from current Records (Tags, DateTimes, Alerts, notice)."""
         yr, wk = datetime.now().isocalendar()[:2]
         log_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
         self.extend_datetimes_for_weeks(yr, wk, 12)
         self.populate_tags()
         self.populate_alerts()
-        self.populate_beginby()
+        self.populate_notice()
         self.populate_busy_from_datetimes()  # 👈 new step: source layer
         self.rebuild_busyweeks_from_source()  # 👈 add this line
         self.ensure_system_bins()
@@ -1007,7 +1007,7 @@ class DatabaseManager:
                 """
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
-                    extent, alerts, beginby, context, jobs, priority, tags,
+                    extent, alerts, notice, context, jobs, priority, tags,
                     tokens, processed, created, modified
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -1019,7 +1019,7 @@ class DatabaseManager:
                     item.tz_str,
                     item.extent,
                     json.dumps(item.alerts),
-                    item.beginby,
+                    item.notice,
                     item.context,
                     json.dumps(item.jobs),
                     item.priority,
@@ -1031,7 +1031,12 @@ class DatabaseManager:
                 ),
             )
             self.conn.commit()
-            return self.cursor.lastrowid  # <-- return the new record id
+            record_id = self.cursor.lastrowid  # <-- return the new record id
+            if hasattr(item, "bin_path") and item.bin_path:
+                log_msg(f"linking bin_path {item.bin_path =  } for {record_id = }")
+                self.link_record_to_bin_path(record_id, item.bin_path)
+            return record_id
+
         except Exception as e:
             print(f"Error adding {item}: {e}")
             raise
@@ -1055,7 +1060,7 @@ class DatabaseManager:
                 "timezone": item.tz_str,
                 "extent": item.extent,
                 "alerts": json.dumps(item.alerts) if item.alerts is not None else None,
-                "beginby": item.beginby,
+                "notice": item.notice,
                 "context": item.context,
                 "jobs": json.dumps(item.jobs) if item.jobs is not None else None,
                 "tags": json.dumps(item.tags) if item.tags is not None else None,
@@ -1090,7 +1095,7 @@ class DatabaseManager:
                 """
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
-                    extent, alerts, beginby, context, jobs, tags,
+                    extent, alerts, notice, context, jobs, tags,
                     tokens, processed, created, modified
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
@@ -1102,7 +1107,7 @@ class DatabaseManager:
                     item.tz_str,
                     item.extent,
                     json.dumps(item.alerts),
-                    item.beginby,
+                    item.notice,
                     item.context,
                     json.dumps(item.jobs),
                     json.dumps(item.tags),
@@ -1119,7 +1124,7 @@ class DatabaseManager:
                 """
                 UPDATE Records
                 SET itemtype = ?, subject = ?, description = ?, rruleset = ?, timezone = ?,
-                    extent = ?, alerts = ?, beginby = ?, context = ?, jobs = ?, tags = ?,
+                    extent = ?, alerts = ?, notice = ?, context = ?, jobs = ?, tags = ?,
                     tokens = ?, modified = ?
                 WHERE id = ?
                 """,
@@ -1131,7 +1136,7 @@ class DatabaseManager:
                     item.tz_str,
                     item.extent,
                     json.dumps(item.alerts),
-                    item.beginby,
+                    item.notice,
                     item.context,
                     json.dumps(item.jobs),
                     json.dumps(item.tags),
@@ -1147,8 +1152,8 @@ class DatabaseManager:
         self.update_tags_for_record(record_id)
         self.generate_datetimes_for_record(record_id)
         self.populate_alerts_for_record(record_id)
-        if item.beginby:
-            self.populate_beginby_for_record(record_id)
+        if item.notice:
+            self.populate_notice_for_record(record_id)
         if item.itemtype in ["~", "^"]:
             self.populate_urgency_from_record(record_id)
 
@@ -1488,12 +1493,12 @@ class DatabaseManager:
         log_msg(f"formatted alert {alert_command = }")
         return alert_command
 
-    def get_beginby_for_today(self):
+    def get_notice_for_today(self):
         self.cursor.execute("""
-            SELECT Records.itemtype, Records.subject, Beginby.days_remaining
-            FROM Beginby
-            JOIN Records ON Beginby.record_id = Records.id
-            ORDER BY Beginby.days_remaining ASC
+            SELECT Records.itemtype, Records.subject, notice.days_remaining
+            FROM notice
+            JOIN Records ON notice.record_id = Records.id
+            ORDER BY notice.days_remaining ASC
         """)
         return [
             (
@@ -2282,9 +2287,9 @@ class DatabaseManager:
                 clear_existing=True,
             )
 
-    def get_beginby_for_events(self):
+    def get_notice_for_events(self):
         """
-        Retrieve (record_id, days_remaining, subject) from Beginby joined with Records
+        Retrieve (record_id, days_remaining, subject) from notice joined with Records
         for events only (itemtype '*').
 
         Returns:
@@ -2293,7 +2298,7 @@ class DatabaseManager:
         self.cursor.execute(
             """
             SELECT b.record_id, b.days_remaining, r.subject
-            FROM Beginby b
+            FROM notice b
             JOIN Records r ON b.record_id = r.id
             WHERE r.itemtype = '*'
             ORDER BY b.days_remaining
@@ -2402,29 +2407,29 @@ class DatabaseManager:
 
         return grouped_events
 
-    def populate_beginby(self):
+    def populate_notice(self):
         """
-        Populate the Beginby table for all records with valid beginby entries.
+        Populate the notice table for all records with valid notice entries.
         This clears existing entries and recomputes them from current record data.
         """
-        self.cursor.execute("DELETE FROM Beginby;")
+        self.cursor.execute("DELETE FROM Notice;")
         self.conn.commit()
 
-        # Fetch both record_id and beginby value
+        # Fetch both record_id and notice value
         self.cursor.execute(
-            "SELECT id, beginby FROM Records WHERE beginby IS NOT NULL AND beginby != ''"
+            "SELECT id, notice FROM Records WHERE notice IS NOT NULL AND notice != ''"
         )
-        for record_id, beginby in self.cursor.fetchall():
-            self.populate_beginby_for_record(record_id)
+        for record_id, notice in self.cursor.fetchall():
+            self.populate_notice_for_record(record_id)
 
         self.conn.commit()
 
-    def populate_beginby_for_record(self, record_id: int):
-        self.cursor.execute("SELECT beginby FROM Records WHERE id = ?", (record_id,))
+    def populate_notice_for_record(self, record_id: int):
+        self.cursor.execute("SELECT notice FROM Records WHERE id = ?", (record_id,))
         row = self.cursor.fetchone()
         if not row or not row[0]:
-            return  # no beginby for this record
-        beginby_str = row[0]
+            return  # no notice for this record
+        notice_str = row[0]
 
         self.cursor.execute(
             "SELECT start_datetime FROM DateTimes WHERE record_id = ? ORDER BY start_datetime ASC",
@@ -2433,15 +2438,15 @@ class DatabaseManager:
         occurrences = self.cursor.fetchall()
 
         today = date.today()
-        offset = td_str_to_td(beginby_str)
+        offset = td_str_to_td(notice_str)
 
         for (start_ts,) in occurrences:
             scheduled_dt = datetime_from_timestamp(start_ts)
-            beginby_dt = scheduled_dt - offset
-            if beginby_dt.date() <= today < scheduled_dt.date():
+            notice_dt = scheduled_dt - offset
+            if notice_dt.date() <= today < scheduled_dt.date():
                 days_remaining = (scheduled_dt.date() - today).days
                 self.cursor.execute(
-                    "INSERT INTO Beginby (record_id, days_remaining) VALUES (?, ?)",
+                    "INSERT INTO notice (record_id, days_remaining) VALUES (?, ?)",
                     (record_id, days_remaining),
                 )
                 break  # Only insert for the earliest qualifying instance
@@ -2840,8 +2845,8 @@ class DatabaseManager:
         now_seconds = utc_now_to_seconds()
         modified_seconds = dt_str_to_seconds(record["modified"])
         extent_seconds = td_str_to_seconds(record.get("extent", "0m"))
-        # beginby_seconds will be 0 in the absence of beginby
-        beginby_seconds = td_str_to_seconds(record.get("beginby", "0m"))
+        # notice_seconds will be 0 in the absence of notice
+        notice_seconds = td_str_to_seconds(record.get("notice", "0m"))
         rruleset = record.get("rruleset", "")
         tags = len(json.loads(record.get("tags", "[]")))
         jobs = json.loads(record.get("jobs", "[]"))
@@ -2863,10 +2868,10 @@ class DatabaseManager:
                 due_seconds = round(dt.timestamp())
             except Exception as e:
                 log_msg(f"Invalid RDATE value: {due_str}\n{e}")
-        if due_seconds and not beginby_seconds:
+        if due_seconds and not notice_seconds:
             # treat due_seconds as the default for a missing @b, i.e.,
             # make the default to hide a task with an @s due entry before due - interval
-            beginby_seconds = due_seconds
+            notice_seconds = due_seconds
 
         self.cursor.execute("DELETE FROM Urgency WHERE record_id = ?", (record_id,))
 
@@ -2924,8 +2929,8 @@ class DatabaseManager:
         else:
             hide = (
                 due_seconds
-                and beginby_seconds
-                and due_seconds - beginby_seconds > now_seconds
+                and notice_seconds
+                and due_seconds - notice_seconds > now_seconds
             )
             if not hide:
                 urgency, color, weights = self.compute_urgency.from_args_and_weights(
@@ -3488,6 +3493,24 @@ class DatabaseManager:
 
         self.conn.commit()
         return root_id, unlinked_id
+
+    def link_record_to_bin_path(self, record_id: int, path: str) -> None:
+        """
+        Ensure the bin path exists and link the record to its leaf bin.
+        Example:
+            record_id = 42, path = "personal/quotations"
+            → ensures bins, links 42 → quotations
+        """
+        leaf_bin_id = self.ensure_bin_path(path)
+
+        self.cursor.execute(
+            """
+            INSERT OR IGNORE INTO ReminderLinks (reminder_id, bin_id)
+            VALUES (?, ?)
+            """,
+            (record_id, leaf_bin_id),
+        )
+        self.conn.commit()
 
     # === Bin access helpers ===
     def get_bin_name(self, bin_id: int) -> str:

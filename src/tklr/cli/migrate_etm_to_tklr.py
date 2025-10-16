@@ -486,7 +486,11 @@ def etm_to_tokens(item: dict, key: str | None, include_etm: bool = True) -> list
             continue
 
         if k == "b":
-            tokens.append(f"@b {v}d")
+            tokens.append(f"@n {v}d")
+            continue
+
+        if k == "i":
+            tokens.append(f"@b {v}")
             continue
 
         if k == "z" and v == "float":

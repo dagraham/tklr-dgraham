@@ -453,7 +453,7 @@ type_keys = {
     "x": "finished",
     # '✓': 'finished',  # more a property of a task than an item type
 }
-common_methods = list("cdgilmnstuxz") + ["k", "#"]
+common_methods = list("cdgblmnstuxz") + ["k", "#"]
 
 repeating_methods = list("o") + [
     "r",
@@ -471,7 +471,7 @@ repeating_methods = list("o") + [
     "rw",  # week days
 ]
 
-datetime_methods = list("abew+-")
+datetime_methods = list("anew+-")
 
 task_methods = list("ofp")
 
@@ -522,7 +522,7 @@ allowed = {
 
 requires = {
     "a": ["s"],
-    "b": ["s"],
+    "n": ["s"],
     "o": ["s"],
     "+": ["s"],
     "q": ["s"],
@@ -649,7 +649,7 @@ class Item:
         "+": ["rdate", "recurrence dates", "do_rdate"],
         "-": ["exdate", "exception dates", "do_exdate"],
         "a": ["alerts", "list of alerts", "do_alert"],
-        "b": ["beginby", "period for beginby notices", "do_beginby"],
+        "n": ["notice", "period for notice notices", "do_notice"],
         "c": ["context", "context", "do_string"],
         "d": ["description", "item description", "do_description"],
         "e": ["extent", "timeperiod", "do_extent"],
@@ -661,7 +661,7 @@ class Item:
             "list of completion datetimes",
             "do_completions",
         ],
-        "i": ["index", "forward slash delimited string", "do_string"],
+        "b": ["bin", "forward slash delimited string", "do_b"],
         "l": [
             "label",
             "label for job clone",
@@ -724,7 +724,7 @@ class Item:
             "list of timeperiods before job is scheduled followed by a colon and a list of commands",
             "do_alert",
         ],
-        # "~b": ["beginby", " beginby period", "do_beginby"],
+        # "~b": ["notice", " notice period", "do_notice"],
         "~c": ["context", " string", "do_string"],
         "~d": ["description", " string", "do_description"],
         "~e": ["extent", " timeperiod", "do_extent"],
@@ -839,7 +839,7 @@ class Item:
         self.priority = None
         self.tags = []
         self.alerts = []
-        self.beginby = ""
+        self.notice = ""
 
         # --- date/time collections (strings) ---
         self.s_kind = ""
@@ -937,8 +937,8 @@ class Item:
         if getattr(self, "rruleset", None):
             parts.append(f"@r {self.rruleset}")
 
-        if getattr(self, "beginby", None):
-            parts.append(f"@b {self.beginby}")
+        if getattr(self, "notice", None):
+            parts.append(f"@n {self.notice}")
 
         # --- tags ---
         if getattr(self, "tags", None):
@@ -1656,16 +1656,16 @@ class Item:
             print(f"failed priority {token = }, {x = }")
             return False, x, []
 
-    def do_beginby(self, token):
+    def do_notice(self, token):
         # Process datetime token
-        beginby = re.sub("^@. ", "", token["token"].strip()).lower()
+        notice = re.sub("^@. ", "", token["token"].strip()).lower()
 
-        ok, beginby_obj = timedelta_str_to_seconds(beginby)
+        ok, notice_obj = timedelta_str_to_seconds(notice)
         if ok:
-            self.beginby = beginby
-            return True, beginby_obj, []
+            self.notice = notice
+            return True, notice_obj, []
         else:
-            return False, beginby_obj, []
+            return False, notice_obj, []
 
     def do_extent(self, token):
         # Process datetime token
@@ -2011,6 +2011,18 @@ class Item:
 
         except Exception as e:
             return False, f"Invalid @s value: {e}", []
+
+    def do_b(self, token: dict) -> tuple[bool, str, list]:
+        """
+        Handle @b <bin_path> (index/bin linkage)
+        """
+        path = token["token"][2:].strip()  # strip "@b"
+        if not path:
+            return False, "Missing bin path after @i", []
+
+        self.bin_path = path  # store temporarily for later linking
+        log_msg(f"saved {self.bin_path = }")
+        return True, f"Linked to bin path '{path}'", []
 
     def do_job(self, token):
         # Process journal token
