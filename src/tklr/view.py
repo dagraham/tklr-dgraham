@@ -325,6 +325,37 @@ class SafeScreen(Screen):
             self.set_timer(0.01, self.after_mount)
 
 
+class PageTagger:
+    """Assigns 1-char tags with page handling."""
+
+    def __init__(self, items, page_size=26):
+        self.items = items
+        self.page_size = page_size
+        self.current_page = 0
+
+    def total_pages(self) -> int:
+        return math.ceil(len(self.items) / self.page_size)
+
+    def get_current_page_items(self) -> list:
+        start = self.current_page * self.page_size
+        end = start + self.page_size
+        return self.items[start:end]
+
+    def tag_map(self) -> dict:
+        """Returns mapping {'a': item1, 'b': item2, ...} for current page."""
+        tags = {}
+        for i, item in enumerate(self.get_current_page_items()):
+            tag_char = chr(ord("a") + i)
+            tags[tag_char] = item
+        return tags
+
+    def next_page(self):
+        self.current_page = min(self.current_page + 1, self.total_pages() - 1)
+
+    def prev_page(self):
+        self.current_page = max(self.current_page - 1, 0)
+
+
 class ListWithDetails(Container):
     """Container with a main ScrollableList and a bottom details ScrollableList."""
 
@@ -1211,15 +1242,6 @@ class WeeksScreen(SearchableScreen, SafeScreen):
         if self.list_with_details and self.details:
             self.list_with_details.update_list(self.details[1:])
 
-    # async def on_mount(self) -> None:
-    #     # Schedule population *after* first render cycle
-    #     self.set_timer(0.01, self._populate_initial_list)
-
-    # def _populate_initial_list(self) -> None:
-    #     """Fill the list with the initially provided details once the layout is ready."""
-    #     if self.list_with_details and self.details:
-    #         self.list_with_details.update_list(self.details[1:])
-
     def compose(self) -> ComposeResult:
         yield Static(
             self.table_title or "Untitled",
@@ -1405,13 +1427,11 @@ class AgendaScreen(SearchableScreen):
 
 
 class FullScreenList(SearchableScreen):
-    """Reusable full-screen list for Last, Next, and Find views."""
-
-    def __init__(
-        self,
-        details: list[str],
-        footer_content: str = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search",
-    ):
+    def __init__(self, details: list[str], footer_content: str = "..."):
+        # self.lines will hold only the items for the current page
+        all_items = details[2:] if len(details) > 2 else []
+        self.page_tagger = PageTagger(all_items, page_size=26)
+        self.lines = self.page_tagger.get_current_page_items()
         super().__init__()
         if details:
             self.title = details[0]
@@ -1421,6 +1441,24 @@ class FullScreenList(SearchableScreen):
             self.title, self.header, self.lines = "Untitled", "", []
         self.footer_content = footer_content
         self.list_with_details: ListWithDetails | None = None
+
+    def _render_page_indicator(self) -> str:
+        total_pages = self.page_tagger.total_pages()
+        bullets = " ".join(
+            "●" if i == self.page_tagger.current_page else "○"
+            for i in range(total_pages)
+        )
+        return bullets
+
+    def refresh_list(self) -> None:
+        # Called whenever page changes or after search filters
+        self.lines = self.page_tagger.get_current_page_items()
+        if self.list_with_details:
+            self.list_with_details.update_list(self.lines)
+        # Update header/footer with bullets as needed
+        self.query_one("#scroll_title", Static).update(
+            f"{self.title}\n{self._render_page_indicator()}"
+        )
 
     # let global search target the currently-focused list
     def get_search_target(self):
@@ -1468,71 +1506,92 @@ class FullScreenList(SearchableScreen):
             self.list_with_details.show_details(title, lines, meta)
 
 
-# class BinScreen(SearchableScreen):
-#     """Top: tagged list of bins/reminders. Bottom: details pane."""
-#
-#     def __init__(self, bin_id: int | None = None):
-#         super().__init__()
-#         self.bin_id = bin_id or 1  # root by default
-#         self.tag_map: dict[str, tuple[str, int]] = {}
-#         self.rows = []
-#         self.details = None
-#
-#     def compose(self) -> ComposeResult:
-#         yield Static("", id="bin_header", classes="title-class")
-#         yield Static("", id="bin_list", classes="scrollable")
-#         yield Static("", id="bin_details", classes="details-pane")
-#
-#     def on_mount(self) -> None:
-#         self.show_bin(self.bin_id)
-#
-#     def show_bin(self, bin_id: int) -> None:
-#         """Refresh the display for the given bin."""
-#         self.bin_id = bin_id
-#         self.tag_map.clear()
-#
-#         name = self.app.controller.get_bin_name(bin_id)
-#         parent = self.app.controller.get_parent_bin(bin_id)
-#         subbins = self.app.controller.get_subbins(bin_id)
-#         reminders = self.app.controller.get_reminders(bin_id)
-#         log_msg(f"{subbins = }, {reminders = }")
-#
-#         header = f"[bold cyan]Bin:[/] {name}"
-#         self.query_one("#bin_header", Static).update(header)
-#
-#         lines = []
-#         total_items = (1 if parent else 0) + len(subbins) + len(reminders)
-#         self.app.controller.set_afill([None] * total_items, "bin")
-#         tag_iter = self.app.controller.get_tag_iterator("bin", total_items)
-#         # parent link (“..”)
-#         if parent:
-#             t = next(tag_iter)
-#             lines.append(f"[bold]{t}[/bold]  .. ({parent['name']})")
-#             self.tag_map[t] = ("bin", parent["id"])
-#
-#         # sub-bins (folders)
-#         for b in subbins:
-#             t = next(tag_iter)
-#             # child_bins = len(b.get("subbins", []))
-#             # child_rem = len(b.get("reminders", []))
-#             child_bins = b.get("subbins", [])
-#             child_rem = b.get("reminders", [])
-#             counts = f" [{child_bins}/{child_rem}]"
-#             lines.append(
-#                 f"[bold {BIN_COLOR}]{t}[/bold {BIN_COLOR}]  {b['name']}{counts}"
-#             )
-#
-#             self.tag_map[t] = ("bin", b["id"])
-#
-#         # reminders
-#         for r in reminders:
-#             t = next(tag_iter)
-#             color = TYPE_TO_COLOR.get(r["itemtype"], "white")
-#             lines.append(f"[bold {color}]{t}[/bold {color}]  {r['subject']}")
-#             self.tag_map[t] = ("reminder", r["id"])
-#
-#         self.query_one("#bin_list", Static).update("\n".join(lines))
-#         self.query_one("#bin_details", Static).update("[dim]Select a tag…[/dim]")
+class FullScreenList(SearchableScreen):
+    """Full-screen list view with paged navigation and tag support."""
+
+    def __init__(self, pages, title, header="", footer_content="..."):
+        super().__init__()
+        self.pages = pages  # list of (rows, tag_map)
+        self.title = title
+        self.header = header
+        self.footer_content = footer_content
+        self.current_page = 0
+        self.lines, self.tag_map = self.pages[0]
+        self.list_with_details: ListWithDetails | None = None
+
+    # --- Page Navigation ----------------------------------------------------
+    def next_page(self):
+        if self.current_page < len(self.pages) - 1:
+            self.current_page += 1
+            self.refresh_list()
+
+    def previous_page(self):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.refresh_list()
+
+    # --- Tag Lookup ---------------------------------------------------------
+    def get_record_for_tag(self, tag: str):
+        """Return the record_id corresponding to a tag on the current page."""
+        _, tag_map = self.pages[self.current_page]
+        return tag_map.get(tag)
+
+    # --- Page Indicator -----------------------------------------------------
+    def _render_page_indicator(self) -> str:
+        total_pages = len(self.pages)
+        return " ".join(
+            "●" if i == self.current_page else "○" for i in range(total_pages)
+        )
+
+    # --- Refresh Display ----------------------------------------------------
+    def refresh_list(self):
+        page_rows, tag_map = self.pages[self.current_page]
+        self.lines = page_rows
+        self.tag_map = tag_map
+        if self.list_with_details:
+            self.list_with_details.update_list(self.lines)
+        # Update header/title with bullet indicator
+        header_text = f"{self.header}\n{self._render_page_indicator()}"
+        self.query_one("#scroll_title", Static).update(header_text)
+
+    # --- Compose ------------------------------------------------------------
+    def compose(self) -> ComposeResult:
+        yield Static(self.title, id="scroll_title", expand=True, classes="title-class")
+        if self.header:
+            yield Static(
+                self.header, id="scroll_header", expand=True, classes="header-class"
+            )
+        self.list_with_details = ListWithDetails(id="list")
+        self.list_with_details.set_detail_key_handler(
+            self.app.make_detail_key_handler(view_name="next")
+        )
+        yield self.list_with_details
+        yield Static(self.footer_content, id="custom_footer")
+
+    def on_mount(self) -> None:
+        if self.list_with_details:
+            self.list_with_details.update_list(self.lines)
+        # Add the initial page indicator after mount
+        self.query_one("#scroll_title", Static).update(
+            f"{self.title}\n{self._render_page_indicator()}"
+        )
+
+    # --- Tag Activation -----------------------------------------------------
+    # def show_details_for_tag(self, tag: str) -> None:
+    #     """Called by DynamicViewApp when a tag key is pressed."""
+    #     app = self.app
+    #     record_id = self.get_record_for_tag(tag)
+    #     if not record_id:
+    #         return
+    #     parts = app.controller.process_tag(
+    #         tag, app.view, getattr(app, "selected_week", (0, 0))
+    #     )
+    #     if not parts:
+    #         return
+    #     title, lines = parts[0], parts[1:]
+    #     meta = getattr(app.controller, "_last_details_meta", None) or {}
+    #     if self.list_with_details:
+    #         self.list_with_details.show_details(title, lines, meta)
 
 
 class BinScreen(Screen):
@@ -2309,12 +2368,11 @@ class DynamicViewApp(App):
 
     def action_show_next(self):
         self.view = "next"
-        self.set_afill(self.view)
-        details = self.controller.get_next()
-        self.set_afill(details, "action_show_next")
+        details, title = self.controller.get_next()
+        log_msg(f"{details = }, {title = }")
 
         footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
-        self.push_screen(FullScreenList(details, footer))
+        self.push_screen(FullScreenList(details, title, "", footer))
 
     def action_show_find(self):
         self.view = "find"

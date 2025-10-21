@@ -314,10 +314,17 @@ def format_hours_mins(dt: datetime, mode: Literal["24", "12"]) -> str:
     """
     Format a datetime object as hours and minutes.
     """
-    fmt = {
-        "24": "%H:%M",
-        "12": "%I:%M%p",
-    }
+    if dt.minute > 0:
+        fmt = {
+            "24": "%H:%M",
+            "12": "%-I:%M%p",
+        }
+    else:
+        fmt = {
+            "24": "%H:%M",
+            "12": "%-I%p",
+        }
+
     if mode == "12":
         return dt.strftime(fmt[mode]).lower().rstrip("m")
     return f"{dt.strftime(fmt[mode])}"
@@ -560,6 +567,114 @@ def set_anniversary(subject: str, start: date, instance: date, freq: str) -> str
     new_subject = subject.replace("{XXX}", ordinal(n))
     log_msg(f"{subject = }, {new_subject = }")
     return new_subject
+
+
+# class PageTagger:
+#     """Assigns single-letter tags and produces paginated data sets.
+#     Only taggable rows (records) count toward the -page_size limit."""
+#
+#     def __init__(self, items: list[dict], page_size: int = 26):
+#         """
+#         items: a list of dicts each with either
+#            - { 'record_id': int, job_id: int | None, 'text': str }  (a taggable record row)
+#            - { 'record_id': None, job_id: None, 'text': str }  (a non-taggable header row)
+#         page_size: number of taggable rows per page
+#         """
+#         self.items = items
+#
+#         self.page_size = page_size
+#
+#     def pages(self) -> list[tuple[list[str], dict[str, tuple[int, int | None]]]]:
+#         """
+#         Splits the items list into pages.
+#         Returns a list where each page is a tuple:
+#           (page_rows: list[str], page_tag_map: dict{tag → (record_id, job_id)})
+#         On each page:
+#           • All rows (headers + record rows) appear in order.
+#           • Tag letters (a, b, …) are assigned only to record rows.
+#           • Exactly `page_size` records get tags on each page (except maybe last page).
+#         """
+#         pages = []
+#         page_rows: list[str] = []
+#         tag_map: dict[str, tuple[int, int | None]] = {}
+#         tag_counter = 0
+#
+#         for item in self.items:
+#             if item["record_id"] is None:
+#                 # header or non-taggable row: included directly
+#                 page_rows.append(item["text"])
+#             else:
+#                 # a record row: tagable
+#                 # If we've reached page_size tags, start a new page
+#                 if tag_counter >= self.page_size:
+#                     # finalize current page
+#                     pages.append((page_rows, tag_map))
+#                     # reset for next page
+#                     page_rows = []
+#                     tag_map = {}
+#                     tag_counter = 0
+#
+#                 # assign the next tag
+#                 tag = chr(ord("a") + tag_counter)
+#                 tag_counter += 1
+#                 tag_map[tag] = (item["record_id"], item.get("job_id", None))
+#                 page_rows.append(f"[dim]{tag}[/dim]  {item['text']}")
+#
+#             # continue collecting rows
+#
+#         # after loop, add the last page if any rows present
+#         if page_rows:
+#             pages.append((page_rows, tag_map))
+#
+#         return pages
+
+
+def page_tagger(items: list[dict]):
+    """
+    Splits the items list into pages.
+    Returns a list where each page is a tuple:
+        (page_rows: list[str], page_tag_map: dict{tag → (record_id, job_id)})
+    On each page:
+        • All rows (headers + record rows) appear in order.
+        • Tag letters (a, b, …) are assigned only to record rows.
+        • Exactly `page_size` records get tags on each page (except maybe last page).
+    """
+    pages = []
+    page_size = 26
+    page_rows: list[str] = []
+    tag_map: dict[str, tuple[int, int | None]] = {}
+    tag_counter = 0
+
+    for item in items:
+        if (
+            item["record_id"] is None and tag_counter < page_size - 1
+        ):  # don't end page on a header
+            # header or non-taggable row: included directly
+            page_rows.append(item["text"])
+        else:
+            # a record row: tagable
+            # If we've reached page_size tags, start a new page
+            if tag_counter >= page_size:
+                # finalize current page
+                pages.append((page_rows, tag_map))
+                # reset for next page
+                page_rows = []
+                tag_map = {}
+                tag_counter = 0
+
+            # assign the next tag
+            tag = chr(ord("a") + tag_counter)
+            tag_counter += 1
+            tag_map[tag] = (item["record_id"], item.get("job_id", None))
+            page_rows.append(f" [dim]{tag}[/dim]  {item['text']}")
+
+        # continue collecting rows
+
+    # after loop, add the last page if any rows present
+    if page_rows:
+        pages.append((page_rows, tag_map))
+
+    return pages
 
 
 class Controller:
@@ -1627,7 +1742,7 @@ class Controller:
         Fetch and format description for the next instances.
         """
         events = self.db_manager.get_next_instances()
-        header = f"next instances ({len(events)})"
+        header = f"Next Instances ({len(events)})"
         # description = [f"[not bold][{header_color}]{header}[/{header_color}][/not bold]"]
         display = [header]
 
@@ -1651,33 +1766,44 @@ class Controller:
                     # fail-safe: keep the record subject
                     log_msg(f"{e = }")
                     pass
-            monthday = start_dt.strftime("%m-%d")
-            start_end = f"{monthday}{format_hours_mins(start_dt, HRS_MINS):>8}"
+            monthday = start_dt.strftime("%-d")
+            start_end = f"{monthday:>2} {format_hours_mins(start_dt, HRS_MINS)}"
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = f"[not bold]{start_end}[/not bold]"
-            row = [
-                id,
-                job_id,
-                f"[{type_color}]{itemtype} {escaped_start_end:<12}  {subject}[/{type_color}]",
-            ]
+            item = {
+                "record_id": id,
+                "job_id": job_id,
+                "text": f"[{type_color}]{itemtype} {escaped_start_end} {subject}[/{type_color}]",
+            }
             # yr_mnth_to_events.setdefault(start_dt.strftime("%B %Y"), []).append(row)
-            year_to_events.setdefault(start_dt.strftime("%Y"), []).append(row)
+            year_to_events.setdefault(start_dt.strftime("%b %Y"), []).append(item)
 
-        self.set_afill(events, "next")
+        # self.list_tag_to_id.setdefault("next", {})
+        # indx = 0
+        """
+        rows: a list of dicts each with either
+           - { 'record_id': int, 'text': str }  (a taggable record row)
+           - { 'record_id': None, 'text': str }  (a non-taggable header row)
+        page_size: number of taggable rows per page
+        """
 
-        self.list_tag_to_id.setdefault("next", {})
-        indx = 0
-
+        rows = []
         for ym, events in year_to_events.items():
             if events:
-                display.append(
-                    f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]"
+                rows.append(
+                    {
+                        "record_id": None,
+                        "job_id": None,
+                        "text": f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]",
+                    }
                 )
                 for event in events:
-                    event_id, job_id, event_str = event
-                    tag_fmt, indx = self.add_tag("next", indx, event_id, job_id=job_id)
-                    display.append(f"{tag_fmt}{event_str}")
-        return display
+                    rows.append(event)
+
+        # build 'rows' as a list of dicts with record_id and text
+        pages = page_tagger(rows)
+        log_msg(f"{pages = }")
+        return pages, header
 
     def get_last(self):
         """
@@ -1710,16 +1836,16 @@ class Controller:
                     # fail-safe: keep the record subject
                     log_msg(f"{e = }")
                     pass
-            monthday = start_dt.strftime("%m-%d")
-            start_end = f"{monthday}{format_hours_mins(start_dt, HRS_MINS):>8}"
+            monthday = start_dt.strftime("%-d")
+            start_end = f"{monthday:>2} {format_hours_mins(start_dt, HRS_MINS)}"
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = f"[not bold]{start_end}[/not bold]"
             row = [
                 id,
                 job_id,
-                f"[{type_color}]{itemtype} {escaped_start_end:<12}  {subject}[/{type_color}]",
+                f"[{type_color}]{itemtype} {escaped_start_end} {subject}[/{type_color}]",
             ]
-            year_to_events.setdefault(start_dt.strftime("%Y"), []).append(row)
+            year_to_events.setdefault(start_dt.strftime("%b %Y"), []).append(row)
 
         self.set_afill(events, "last")
         self.list_tag_to_id.setdefault("last", {})
