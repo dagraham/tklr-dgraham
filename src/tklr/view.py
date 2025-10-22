@@ -325,37 +325,6 @@ class SafeScreen(Screen):
             self.set_timer(0.01, self.after_mount)
 
 
-class PageTagger:
-    """Assigns 1-char tags with page handling."""
-
-    def __init__(self, items, page_size=26):
-        self.items = items
-        self.page_size = page_size
-        self.current_page = 0
-
-    def total_pages(self) -> int:
-        return math.ceil(len(self.items) / self.page_size)
-
-    def get_current_page_items(self) -> list:
-        start = self.current_page * self.page_size
-        end = start + self.page_size
-        return self.items[start:end]
-
-    def tag_map(self) -> dict:
-        """Returns mapping {'a': item1, 'b': item2, ...} for current page."""
-        tags = {}
-        for i, item in enumerate(self.get_current_page_items()):
-            tag_char = chr(ord("a") + i)
-            tags[tag_char] = item
-        return tags
-
-    def next_page(self):
-        self.current_page = min(self.current_page + 1, self.total_pages() - 1)
-
-    def prev_page(self):
-        self.current_page = max(self.current_page - 1, 0)
-
-
 class ListWithDetails(Container):
     """Container with a main ScrollableList and a bottom details ScrollableList."""
 
@@ -1086,8 +1055,8 @@ class ScrollableList(ScrollView):
 
     def update_list(self, new_lines: List[str]) -> None:
         """Replace the list content and refresh."""
-        # log_msg(f"{new_lines = }")
-        self.lines = [Text.from_markup(line) for line in new_lines]
+        log_msg(f"{new_lines = }")
+        self.lines = [Text.from_markup(line) for line in new_lines if line]
         # log_msg(f"{self.lines = }")
         width = shutil.get_terminal_size().columns - 3
         self.virtual_size = Size(width, len(self.lines))
@@ -1427,86 +1396,6 @@ class AgendaScreen(SearchableScreen):
 
 
 class FullScreenList(SearchableScreen):
-    def __init__(self, details: list[str], footer_content: str = "..."):
-        # self.lines will hold only the items for the current page
-        all_items = details[2:] if len(details) > 2 else []
-        self.page_tagger = PageTagger(all_items, page_size=26)
-        self.lines = self.page_tagger.get_current_page_items()
-        super().__init__()
-        if details:
-            self.title = details[0]
-            self.header = details[1] if len(details) > 1 else ""
-            self.lines = details[2:] if len(details) > 2 else []
-        else:
-            self.title, self.header, self.lines = "Untitled", "", []
-        self.footer_content = footer_content
-        self.list_with_details: ListWithDetails | None = None
-
-    def _render_page_indicator(self) -> str:
-        total_pages = self.page_tagger.total_pages()
-        bullets = " ".join(
-            "●" if i == self.page_tagger.current_page else "○"
-            for i in range(total_pages)
-        )
-        return bullets
-
-    def refresh_list(self) -> None:
-        # Called whenever page changes or after search filters
-        self.lines = self.page_tagger.get_current_page_items()
-        if self.list_with_details:
-            self.list_with_details.update_list(self.lines)
-        # Update header/footer with bullets as needed
-        self.query_one("#scroll_title", Static).update(
-            f"{self.title}\n{self._render_page_indicator()}"
-        )
-
-    # let global search target the currently-focused list
-    def get_search_target(self):
-        if not self.list_with_details:
-            return None
-        # if details is open, search/scroll that; otherwise main list
-        return (
-            self.list_with_details._details
-            if self.list_with_details.has_details_open()
-            else self.list_with_details._main
-        )
-
-    def compose(self) -> ComposeResult:
-        yield Static(self.title, id="scroll_title", expand=True, classes="title-class")
-        if self.header:
-            yield Static(
-                self.header, id="scroll_header", expand=True, classes="header-class"
-            )
-        self.list_with_details = ListWithDetails(id="list")
-        # self.list_view = ListWithDetails(id="list")
-        self.list_with_details.set_detail_key_handler(
-            self.app.make_detail_key_handler(view_name="next")  # or 'last' / 'find'
-        )
-
-        yield self.list_with_details
-        yield Static(self.footer_content, id="custom_footer")
-
-    def on_mount(self) -> None:
-        if self.list_with_details:
-            self.list_with_details.update_list(self.lines)
-
-    # Called by DynamicViewApp.on_key -> screen.show_details_for_tag(tag)
-    def show_details_for_tag(self, tag: str) -> None:
-        app = self.app  # DynamicViewApp
-        parts = app.controller.process_tag(
-            tag,
-            app.view,
-            getattr(app, "selected_week", (0, 0)),  # ignored for these views
-        )
-        if not parts:
-            return
-        title, lines = parts[0], parts[1:]
-        meta = getattr(self.app.controller, "_last_details_meta", None) or {}
-        if self.list_with_details:
-            self.list_with_details.show_details(title, lines, meta)
-
-
-class FullScreenList(SearchableScreen):
     """Full-screen list view with paged navigation and tag support."""
 
     def __init__(self, pages, title, header="", footer_content="..."):
@@ -1516,7 +1405,10 @@ class FullScreenList(SearchableScreen):
         self.header = header
         self.footer_content = footer_content
         self.current_page = 0
-        self.lines, self.tag_map = self.pages[0]
+        self.lines = []
+        self.tag_map = {}
+        if self.pages:
+            self.lines, self.tag_map = self.pages[0]
         self.list_with_details: ListWithDetails | None = None
 
     # --- Page Navigation ----------------------------------------------------
@@ -1536,12 +1428,38 @@ class FullScreenList(SearchableScreen):
         _, tag_map = self.pages[self.current_page]
         return tag_map.get(tag)
 
+    def show_details_for_tag(self, tag: str) -> None:
+        app = self.app  # DynamicViewApp
+        record_id, job_id = self.get_record_for_tag(tag)
+        if not record_id:
+            return
+
+        title, lines, meta = app.controller.get_details_for_record(record_id, job_id)
+        log_msg(f"{title = }, {lines = }, {meta = }")
+        # if not parts:
+        #     return
+        # title, lines = parts[0], parts[1:]
+        # meta = getattr(self.app.controller, "_last_details_meta", None) or {}
+        if self.list_with_details:
+            self.list_with_details.show_details(title, lines, meta)
+
     # --- Page Indicator -----------------------------------------------------
+    # def _render_page_indicator(self) -> str:
+    #     total_pages = len(self.pages)
+    #     return " ".join(
+    #         "●" if i == self.current_page else "○" for i in range(total_pages)
+    #     )
+
     def _render_page_indicator(self) -> str:
         total_pages = len(self.pages)
-        return " ".join(
-            "●" if i == self.current_page else "○" for i in range(total_pages)
-        )
+        if total_pages <= 1:
+            return ""
+        # if total_pages < 10:
+        #     bullets = " ".join(
+        #         "●" if i == self.current_page else "○" for i in range(total_pages)
+        #     )
+        #     return bullets
+        return f"{self.current_page + 1} / {total_pages}"
 
     # --- Refresh Display ----------------------------------------------------
     def refresh_list(self):
@@ -2222,97 +2140,170 @@ class DynamicViewApp(App):
                 create_task(handler(f"comma,{event.key}", meta))
             return
 
+        # inside DynamicViewApp.on_key, after handling leader/escape etc.
+        screen = self.screen  # current active Screen (FullScreenList, WeeksScreen, ...)
+        key = event.key.lower()
+
+        # --- Page navigation (left / right) for any view that provides it ----------
+        if key in (
+            "right",
+            "l",
+            "full_stop",
+        ):  # pick whichever keys you bind for next page
+            if hasattr(screen, "next_page"):
+                try:
+                    screen.next_page()
+                    return
+                except Exception as e:
+                    log_msg(f"next_page error: {e}")
+        # previous page
+        if key in ("left", "h", "comma"):  # your left binding(s)
+            if hasattr(screen, "previous_page"):
+                try:
+                    screen.previous_page()
+                    return
+                except Exception as e:
+                    log_msg(f"previous_page error: {e}")
+
+        # --- Single-letter tag press handling for paged views ----------------------
+        # (Note: we assume tags are exactly one lower-case ASCII letter 'a'..'z')
+        if key in "abcdefghijklmnopqrstuvwxyz":
+            # If the view supplies a per-page tag lookup, use it
+            if hasattr(screen, "show_details_for_tag"):
+                screen.show_details_for_tag(key)
+                #
+                # try:
+                #     payload = screen.show_details_for_tag(key)
+                #     # payload expected to be either None or (record_id, job_id|None)
+                #     if payload:
+                #         # unpack
+                #         if isinstance(payload, tuple):
+                #             record_id, job_id = (
+                #                 payload[0],
+                #                 payload[1] if len(payload) > 1 else None,
+                #             )
+                #         else:
+                #             # be flexible if view returns just an int
+                #             record_id, job_id = payload, None
+                #
+                #         # Obtain the formatted details for the record (see Controller helper below)
+                #         # Prefer a Controller helper so the logic for making detail lines is centralized.
+                #         title = lines = meta = None
+                #         try:
+                #             title, lines, meta = self.controller.get_details_for_record(
+                #                 record_id, job_id=job_id
+                #             )
+                #         except Exeception as e:
+                #             log_msg(f"error: {e = }")
+                #             return
+                #
+                #         log_msg(f"{title = }, {lines = }, {meta = }")
+                #         if hasattr(screen, "show_details_for_tag"):
+                #         if self.screen.ha:
+                #             # central place that displays details in your app
+                #             # (you already use self.show_details(details) in other places)
+                #             self.show_details(details)
+                #         return
+                #
+                # except Exception as e:
+                #     log_msg(f"get_record_for_tag error: {e}")
+        return
+
+        # If not handled above, fall back to the default 'tag buffer' handling for
+        # multi-character tags / older behavior (if you still use it).
+        # ... existing digit_buffer logic ...
+
         # --------------------------------------------------------------------- #
         # Forest View Logic
         # --------------------------------------------------------------------- #
-        if self.view == "bintree":
-            log_msg(f"in bintree {self.view = }")
-            screen = self.screen
-            key = event.key.lower()
-
-            # --- handle prefix
-            if key == "full_stop":
-                screen.last_prefix = "full_stop"
-                return
-
-            # --- accumulate tag characters
-            if key in "abcdefghijklmnopqrstuvwxyz":
-                self.digit_buffer.append(key)
-                fill = self.controller.afill_by_view.get("bintree", 1)
-                if len(self.digit_buffer) < fill:
-                    return  # wait for more characters
-                tag = "".join(self.digit_buffer)
-                self.digit_buffer.clear()
-            else:
-                self.digit_buffer.clear()
-                return
-
-            # --- now we have a full tag to resolve
-            if tag not in screen.tag_map:
-                screen.last_prefix = ""
-                return
-
-            kind, target_id = screen.tag_map[tag]
-            log_msg(f"{kind = }, {target_id = }")
-
-            # --- handle expansion toggle
-            if screen.last_prefix == "full_stop" and kind == "bin":
-                if target_id in screen.expanded:
-                    screen.expanded.remove(target_id)
-                else:
-                    screen.expanded.add(target_id)
-                screen.last_prefix = ""
-                screen.refresh_tree()
-                return
-
-            # --- open bin or show reminder
-            if kind == "bin":
-                self.view = "bin"
-                self.push_screen(BinScreen(bin_id=target_id))
-            elif kind == "reminder":
-                details = self.controller.get_record_details(target_id)
-                self.show_details(details)
-
-            screen.last_prefix = ""
-            return
-        # --------------------------------------------------------------------- #
-        # Bin View Logic
-        # --------------------------------------------------------------------- #
-        if self.view == "bin":
-            log_msg(f" in bin {self.view = }")
-            screen = self.screen
-            key = event.key.lower()
-
-            # Escape returns to the BinTree view
-            if event.key == "escape":
-                parent = self.app.controller.get_parent_bin(self.bin_id)
-                if parent:
-                    # show parent bin in-place (stay on same screen)
-                    self.show_bin(parent["id"])
-                else:
-                    # no parent -> go back to the tree
-                    self.app.pop_screen()
-                    self.app.view = "bintree"
-                return
-
-        # --------------------------------------------------------------------- #
-        # Default behavior for tagged views (weeks/tasks/events)
-        # --------------------------------------------------------------------- #
-
-        if event.key in "abcdefghijklmnopqrstuvwxyz":
-            self.digit_buffer.append(event.key)
-            log_msg(f"{self.digit_buffer = }, {self.afill = }")
-
-            # Wait until the number of chars matches the required fill
-            if len(self.digit_buffer) >= self.afill:
-                base26_tag = "".join(self.digit_buffer)
-                self.digit_buffer.clear()
-                screen = self.screen
-
-                if hasattr(screen, "show_details_for_tag"):
-                    screen.show_details_for_tag(base26_tag)
-        else:
-            self.digit_buffer.clear()
+        # if self.view == "bintree":
+        #     log_msg(f"in bintree {self.view = }")
+        #     screen = self.screen
+        #     key = event.key.lower()
+        #
+        #     # --- handle prefix
+        #     if key == "full_stop":
+        #         screen.last_prefix = "full_stop"
+        #         return
+        #
+        #     # --- accumulate tag characters
+        #     if key in "abcdefghijklmnopqrstuvwxyz":
+        #         self.digit_buffer.append(key)
+        #         fill = self.controller.afill_by_view.get("bintree", 1)
+        #         if len(self.digit_buffer) < fill:
+        #             return  # wait for more characters
+        #         tag = "".join(self.digit_buffer)
+        #         self.digit_buffer.clear()
+        #     else:
+        #         self.digit_buffer.clear()
+        #         return
+        #
+        #     # --- now we have a full tag to resolve
+        #     if tag not in screen.tag_map:
+        #         screen.last_prefix = ""
+        #         return
+        #
+        #     kind, target_id = screen.tag_map[tag]
+        #     log_msg(f"{kind = }, {target_id = }")
+        #
+        #     # --- handle expansion toggle
+        #     if screen.last_prefix == "full_stop" and kind == "bin":
+        #         if target_id in screen.expanded:
+        #             screen.expanded.remove(target_id)
+        #         else:
+        #             screen.expanded.add(target_id)
+        #         screen.last_prefix = ""
+        #         screen.refresh_tree()
+        #         return
+        #
+        #     # --- open bin or show reminder
+        #     if kind == "bin":
+        #         self.view = "bin"
+        #         self.push_screen(BinScreen(bin_id=target_id))
+        #     elif kind == "reminder":
+        #         details = self.controller.get_record_details(target_id)
+        #         self.show_details(details)
+        #
+        #     screen.last_prefix = ""
+        #     return
+        # # --------------------------------------------------------------------- #
+        # # Bin View Logic
+        # # --------------------------------------------------------------------- #
+        # if self.view == "bin":
+        #     log_msg(f" in bin {self.view = }")
+        #     screen = self.screen
+        #     key = event.key.lower()
+        #
+        #     # Escape returns to the BinTree view
+        #     if event.key == "escape":
+        #         parent = self.app.controller.get_parent_bin(self.bin_id)
+        #         if parent:
+        #             # show parent bin in-place (stay on same screen)
+        #             self.show_bin(parent["id"])
+        #         else:
+        #             # no parent -> go back to the tree
+        #             self.app.pop_screen()
+        #             self.app.view = "bintree"
+        #         return
+        #
+        # # --------------------------------------------------------------------- #
+        # # Default behavior for tagged views (weeks/tasks/events)
+        # # --------------------------------------------------------------------- #
+        #
+        # if event.key in "abcdefghijklmnopqrstuvwxyz":
+        #     self.digit_buffer.append(event.key)
+        #     log_msg(f"{self.digit_buffer = }, {self.afill = }")
+        #
+        #     # Wait until the number of chars matches the required fill
+        #     if len(self.digit_buffer) >= self.afill:
+        #         base26_tag = "".join(self.digit_buffer)
+        #         self.digit_buffer.clear()
+        #         screen = self.screen
+        #
+        #         if hasattr(screen, "show_details_for_tag"):
+        #             screen.show_details_for_tag(base26_tag)
+        # else:
+        #     self.digit_buffer.clear()
 
     def action_take_screenshot(self):
         """Save a screenshot of the current app state."""
@@ -2361,10 +2352,9 @@ class DynamicViewApp(App):
     def action_show_last(self):
         self.view = "last"
         self.set_afill(self.view)
-        details = self.controller.get_last()
-        self.set_afill(details, "action_show_last")
+        details, title = self.controller.get_last()
         footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
-        self.push_screen(FullScreenList(details, footer))
+        self.push_screen(FullScreenList(details, title, "", footer))
 
     def action_show_next(self):
         self.view = "next"
@@ -2376,7 +2366,6 @@ class DynamicViewApp(App):
 
     def action_show_find(self):
         self.view = "find"
-        self.set_afill(self.view)
         search_input = Input(placeholder="Enter search term...", id="find_input")
         self.mount(search_input)
         self.set_focus(search_input)
@@ -2399,10 +2388,9 @@ class DynamicViewApp(App):
 
         if event.input.id == "find_input":
             self.view = "find"
-            results = self.controller.find_records(search_term)
-            self.set_afill(results, "on_input_submitted")
+            results, title = self.controller.find_records(search_term)
             footer = "[bold yellow]?[/bold yellow] Help ESC Back / Search"
-            self.push_screen(FullScreenList(results, footer))
+            self.push_screen(FullScreenList(results, title, "", footer))
 
         elif event.input.id == "search":
             self.perform_search(search_term)

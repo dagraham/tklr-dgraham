@@ -307,7 +307,7 @@ def format_rruleset_for_details(
         out.append(line)
     # prepend = " " * (len("rruleset: ")) + "\n"
     log_msg(f"{out = }")
-    return "\n           ".join(out)
+    return "\n          ".join(out)
 
 
 def format_hours_mins(dt: datetime, mode: Literal["24", "12"]) -> str:
@@ -569,109 +569,76 @@ def set_anniversary(subject: str, start: date, instance: date, freq: str) -> str
     return new_subject
 
 
-# class PageTagger:
-#     """Assigns single-letter tags and produces paginated data sets.
-#     Only taggable rows (records) count toward the -page_size limit."""
-#
-#     def __init__(self, items: list[dict], page_size: int = 26):
-#         """
-#         items: a list of dicts each with either
-#            - { 'record_id': int, job_id: int | None, 'text': str }  (a taggable record row)
-#            - { 'record_id': None, job_id: None, 'text': str }  (a non-taggable header row)
-#         page_size: number of taggable rows per page
-#         """
-#         self.items = items
-#
-#         self.page_size = page_size
-#
-#     def pages(self) -> list[tuple[list[str], dict[str, tuple[int, int | None]]]]:
-#         """
-#         Splits the items list into pages.
-#         Returns a list where each page is a tuple:
-#           (page_rows: list[str], page_tag_map: dict{tag → (record_id, job_id)})
-#         On each page:
-#           • All rows (headers + record rows) appear in order.
-#           • Tag letters (a, b, …) are assigned only to record rows.
-#           • Exactly `page_size` records get tags on each page (except maybe last page).
-#         """
-#         pages = []
-#         page_rows: list[str] = []
-#         tag_map: dict[str, tuple[int, int | None]] = {}
-#         tag_counter = 0
-#
-#         for item in self.items:
-#             if item["record_id"] is None:
-#                 # header or non-taggable row: included directly
-#                 page_rows.append(item["text"])
-#             else:
-#                 # a record row: tagable
-#                 # If we've reached page_size tags, start a new page
-#                 if tag_counter >= self.page_size:
-#                     # finalize current page
-#                     pages.append((page_rows, tag_map))
-#                     # reset for next page
-#                     page_rows = []
-#                     tag_map = {}
-#                     tag_counter = 0
-#
-#                 # assign the next tag
-#                 tag = chr(ord("a") + tag_counter)
-#                 tag_counter += 1
-#                 tag_map[tag] = (item["record_id"], item.get("job_id", None))
-#                 page_rows.append(f"[dim]{tag}[/dim]  {item['text']}")
-#
-#             # continue collecting rows
-#
-#         # after loop, add the last page if any rows present
-#         if page_rows:
-#             pages.append((page_rows, tag_map))
-#
-#         return pages
-
-
-def page_tagger(items: list[dict]):
+def page_tagger(
+    items: List[dict], page_size: int = 26
+) -> List[Tuple[List[str], Dict[str, Tuple[int, Optional[int]]]]]:
     """
-    Splits the items list into pages.
-    Returns a list where each page is a tuple:
-        (page_rows: list[str], page_tag_map: dict{tag → (record_id, job_id)})
-    On each page:
-        • All rows (headers + record rows) appear in order.
-        • Tag letters (a, b, …) are assigned only to record rows.
-        • Exactly `page_size` records get tags on each page (except maybe last page).
+    Split `items` into pages, returning a list of pages where each page is:
+        (page_rows: list[str], page_tag_map: dict[tag -> (record_id, job_id)])
+
+    Input `items` is a list of dicts with keys:
+        - "text": str         (line to display; header or record text)
+        - "record_id": int|None
+        - "job_id": int|None  (optional; used for tagged record rows)
+
+    Behavior:
+    - Only records (record_id not None) receive tags 'a'..'z' and count toward page_size.
+    - Headers (record_id is None) don't count toward page_size.
+    - If the tag quota is exhausted while distributing records within a header's block,
+      the header is duplicated at the start of the next page so the block context is preserved.
     """
-    pages = []
-    page_size = 26
-    page_rows: list[str] = []
-    tag_map: dict[str, tuple[int, int | None]] = {}
-    tag_counter = 0
+    pages: List[Tuple[List[str], Dict[str, Tuple[int, Optional[int]]]]] = []
+
+    # current page buffers
+    page_rows: List[str] = []
+    tag_map: Dict[str, Tuple[int, Optional[int]]] = {}
+    tag_counter = 0  # number of tags used on current page (0..page_size-1)
+
+    current_header_text: Optional[str] = (
+        None  # most recent header text (applies to subsequent records)
+    )
 
     for item in items:
-        if (
-            item["record_id"] is None and tag_counter < page_size - 1
-        ):  # don't end page on a header
-            # header or non-taggable row: included directly
-            page_rows.append(item["text"])
-        else:
-            # a record row: tagable
-            # If we've reached page_size tags, start a new page
-            if tag_counter >= page_size:
-                # finalize current page
+        is_record = item.get("record_id") is not None
+
+        if not is_record:
+            # it's a header
+            # if current page already has filled the tag quota, finalize it first
+            if tag_counter >= page_size and (page_rows or tag_map):
                 pages.append((page_rows, tag_map))
-                # reset for next page
                 page_rows = []
                 tag_map = {}
                 tag_counter = 0
 
-            # assign the next tag
-            tag = chr(ord("a") + tag_counter)
-            tag_counter += 1
-            tag_map[tag] = (item["record_id"], item.get("job_id", None))
-            page_rows.append(f" [dim]{tag}[/dim]  {item['text']}")
+            # append header to current page and remember it as current header
+            header_text = item["text"]
+            page_rows.append(header_text)
+            current_header_text = header_text
+            continue
 
-        # continue collecting rows
+        # it's a record row (taggable)
+        # If the page is full, finalize it and start new page. In that case,
+        # duplicate the current_header_text (if any) at the top of the new page
+        if tag_counter >= page_size:
+            pages.append((page_rows, tag_map))
+            page_rows = []
+            tag_map = {}
+            tag_counter = 0
+            if current_header_text is not None:
+                page_rows.append(
+                    current_header_text
+                )  # duplicate header at top of new page
 
-    # after loop, add the last page if any rows present
-    if page_rows:
+        # assign tag a..z for this record on the current page
+        tag = chr(ord("a") + tag_counter)
+        tag_map[tag] = (item["record_id"], item.get("job_id"))
+        tag_counter += 1
+
+        # formatted display row — dim tag then the text (you can change formatting)
+        page_rows.append(f" [dim]{tag}[/dim]  {item['text']}")
+
+    # finalize last page if it has content
+    if page_rows or tag_map:
         pages.append((page_rows, tag_map))
 
     return pages
@@ -893,9 +860,9 @@ class Controller:
         rr_line = ""
         if rruleset:
             formatted_rr = format_rruleset_for_details(
-                rruleset, width=self.width - 11, subsequent_indent=11
+                rruleset, width=self.width - 10, subsequent_indent=9
             )
-            rr_line = f"[{label_color}]rruleset:[/{label_color}]  {formatted_rr}"
+            rr_line = f"[{label_color}]rruleset:[/{label_color}] {formatted_rr}"
 
         job = (
             f" [{label_color}]job_id:[/{label_color}] [bold]{job_id}[/bold]"
@@ -907,10 +874,10 @@ class Controller:
                 # f"[{label_color}]entry:[/{label_color}] {entry}",
                 entry,
                 " ",
-                f"[{label_color}]record_id:[/{label_color}] {record_id}{job}",
                 rr_line,
-                f"[{label_color}]created:[/{label_color}]   {created}",
-                f"[{label_color}]modified:[/{label_color}]  {modified}",
+                f"[{label_color}]details:[/{label_color}] {record_id}{job} / {created} / {modified}",
+                # f"[{label_color}]created:[/{label_color}]   {created}",
+                # f"[{label_color}]modified:[/{label_color}]  {modified}",
             ]
         )
 
@@ -968,8 +935,8 @@ class Controller:
         self,
         record_id: int,
         job_id: int | None = None,
-        view: str = "bin",
-        selected_week: tuple[int, int] | None = None,
+        # view: str = "bin",
+        # selected_week: tuple[int, int] | None = None,
     ):
         """
         Return list: [title, '', ... lines ...] same as process_tag would.
@@ -1007,7 +974,7 @@ class Controller:
 
         title = f"[bold]{subject:^{self.width}}[/bold]"
 
-        self._last_details_meta = {
+        meta = {
             "record_id": record_id,
             "job_id": job_id,
             "itemtype": itemtype,
@@ -1019,8 +986,10 @@ class Controller:
             "pinned": bool(pinned_now),
             "record": self.db_manager.get_record(record_id),
         }
+        self._last_details_meta = meta
 
-        return [title, ""] + fields
+        # return [title, ""] + fields
+        return title, fields, meta
 
     def get_record(self, record_id):
         return self.db_manager.get_record(record_id)
@@ -1167,85 +1136,6 @@ class Controller:
             )
             results.append(row)
         return results
-
-    # def process_tag(self, tag: str, view: str, selected_week: tuple[int, int]):
-    #     if view == "week":
-    #         log_msg(
-    #             f"{selected_week = }, {tag = }, {self.week_tag_to_id[selected_week] = }"
-    #         )
-    #         payload = self.week_tag_to_id[selected_week].get(tag)
-    #         if payload is None:
-    #             return [f"There is no item corresponding to tag '{tag}'."]
-    #         if isinstance(payload, dict):
-    #             log_msg(f"{payload = }")
-    #             record_id = payload.get("record_id")
-    #             job_id = payload.get("job_id")
-    #         else:
-    #             # backward compatibility (old mapping was tag -> record_id)
-    #             log_msg(f"{payload = }")
-    #             record_id, job_id = payload, None
-    #
-    #     elif view in [
-    #         "next",
-    #         "last",
-    #         "find",
-    #         "events",
-    #         "tasks",
-    #         "agenda-events",
-    #         "agenda-tasks",
-    #         "alerts",
-    #     ]:
-    #         payload = self.list_tag_to_id.get(view, {}).get(tag)
-    #         log_msg(f"{payload = }")
-    #         if payload is None:
-    #             return [f"There is no item corresponding to tag '{tag}'."]
-    #         if isinstance(payload, dict):
-    #             record_id = payload.get("record_id")
-    #             job_id = payload.get("job_id")
-    #         else:
-    #             # backward compatibility (old mapping was tag -> record_id)
-    #             record_id, job_id = payload, None
-    #     else:
-    #         return ["Invalid view."]
-    #
-    #     # log_msg(f"got {record_id = } for {tag = }")
-    #     core = self.get_record_core(record_id) or {}
-    #     log_msg(f"{core = }")
-    #     subject = core.get("subject") or "(untitled)"
-    #     itemtype = core.get("itemtype") or ""
-    #     rruleset = core.get("rrulestr") or ""
-    #     all_prereqs = core.get("all_prereqs") or ""
-    #
-    #     try:
-    #         pinned_now = (
-    #             self.db_manager.is_task_pinned(record_id) if itemtype == "~" else False
-    #         )
-    #     except Exception:
-    #         pinned_now = False
-    #
-    #     fields = self.get_entry(record_id, job_id)
-    #     # if job_id is not None:
-    #     #     fields = [f"[{label_color}]job_id:[/{label_color}] {job_id}"] + fields
-    #     job = (
-    #         f" [{label_color}]job_id:[/{label_color}] [bold]{job_id}[/bold]"
-    #         if job_id
-    #         else ""
-    #     )
-    #     title = f"[{label_color}]details for:[/{label_color}] [bold]{subject}[/bold]"
-    #     ids = f"[{label_color}]id:[/{label_color}] [bold]{record_id}[/bold]{job}"
-    #
-    #     # <-- this is your existing single source of truth for DetailsScreen
-    #     self._last_details_meta = {
-    #         "record_id": record_id,
-    #         "job_id": job_id,
-    #         "itemtype": itemtype,  # "~" task, "*" event, etc.
-    #         "rruleset": rruleset,
-    #         "all_prereqs": all_prereqs,
-    #         "pinned": bool(pinned_now),
-    #         "record": self.db_manager.get_record(record_id),
-    #     }
-    #
-    #     return [title, ids] + fields
 
     def process_tag(self, tag: str, view: str, selected_week: tuple[int, int]):
         job_id = None
@@ -1744,13 +1634,10 @@ class Controller:
         events = self.db_manager.get_next_instances()
         header = f"Next Instances ({len(events)})"
         # description = [f"[not bold][{header_color}]{header}[/{header_color}][/not bold]"]
-        display = [header]
 
         if not events:
-            display.append(f" [{HEADER_COLOR}]nothing found[/{HEADER_COLOR}]")
-            return display
+            return [], header
 
-        # use a, ..., z if len(events) <= 26 else use aa, ..., zz
         year_to_events = {}
 
         for id, job_id, subject, description, itemtype, start_ts in events:
@@ -1812,12 +1699,9 @@ class Controller:
         events = self.db_manager.get_last_instances()
         header = f"Last instances ({len(events)})"
         # description = [f"[not bold][{HEADER_COLOR}]{header}[/{HEADER_COLOR}][/not bold]"]
-        display = [header]
 
         if not events:
-            display.append(f" [{HEADER_COLOR}]Nothing found[/{HEADER_COLOR}]")
-            # return "\n".join(display)
-            return display
+            return [], header
 
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
         year_to_events = {}
@@ -1840,33 +1724,28 @@ class Controller:
             start_end = f"{monthday:>2} {format_hours_mins(start_dt, HRS_MINS)}"
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = f"[not bold]{start_end}[/not bold]"
-            row = [
-                id,
-                job_id,
-                f"[{type_color}]{itemtype} {escaped_start_end} {subject}[/{type_color}]",
-            ]
-            year_to_events.setdefault(start_dt.strftime("%b %Y"), []).append(row)
+            item = {
+                "record_id": id,
+                "job_id": job_id,
+                "text": f"[{type_color}]{itemtype} {escaped_start_end} {subject}[/{type_color}]",
+            }
+            year_to_events.setdefault(start_dt.strftime("%b %Y"), []).append(item)
 
-        self.set_afill(events, "last")
-        self.list_tag_to_id.setdefault("last", {})
-
-        indx = 0
-
+        rows = []
         for ym, events in year_to_events.items():
             if events:
-                display.append(
-                    # f" [bold][yellow]{day.strftime('%A, %B %-d')}[/yellow][/bold]"
-                    f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]"
+                rows.append(
+                    {
+                        "record_id": None,
+                        "job_id": None,
+                        "text": f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]",
+                    }
                 )
                 for event in events:
-                    event_id, job_id, event_str = event
-                    # log_msg(f"{event_str = }")
-                    # tag = indx_to_tag(indx, self.afill)
-                    # tag_fmt, indx = self.add_tag("last", indx, event_id)
-                    tag_fmt, indx = self.add_tag("last", indx, event_id, job_id=job_id)
-                    # self.list_tag_to_id["last"][tag] = event_id
-                    display.append(f"{tag_fmt}{event_str}")
-        return display
+                    rows.append(event)
+        pages = page_tagger(rows)
+        log_msg(f"{pages = }")
+        return pages, header
 
     def find_records(self, search_str: str):
         """
@@ -1874,22 +1753,14 @@ class Controller:
         """
         events = self.db_manager.find_records(search_str)
         header = f"Items ({len(events)})\n containing a match for [{SELECTED_COLOR}]{search_str}[/{SELECTED_COLOR}] "
-        description = header.split("\n")
 
         if not events:
-            description.append(f" [{HEADER_COLOR}]Nothing found[/{HEADER_COLOR}]")
-            # return "\n".join(description)
-            return description
+            return [], header
 
-        # use a, ..., z if len(events) <= 26 else use aa, ..., zz
-        self.set_afill(events, "find")
-
-        self.list_tag_to_id.setdefault("find", {})
-
-        indx = 0
+        rows = []
 
         for record_id, subject, _, itemtype, last_ts, next_ts in events:
-            subject = f"{truncate_string(subject, 30):<30}"
+            subject = f"{truncate_string(subject, 32):<34}"
             last_dt = (
                 datetime_from_timestamp(last_ts).strftime("%y-%m-%d %H:%M")
                 if last_ts
@@ -1905,10 +1776,16 @@ class Controller:
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_last = f"[not bold]{last_fmt}[/not bold]"
             escaped_next = f"[not bold]{next_fmt}[/not bold]"
-            row = f"[{type_color}]{itemtype} {subject} {escaped_last} {escaped_next}[/{type_color}]"
-            tag_fmt, indx = self.add_tag("find", indx, record_id)
-            description.append(f"{tag_fmt} {row}")
-        return description
+            rows.append(
+                {
+                    "record_id": record_id,
+                    "job_id": None,
+                    "text": f"[{type_color}]{itemtype} {subject} {escaped_next}[/{type_color}]",
+                }
+            )
+        pages = page_tagger(rows)
+        log_msg(f"{pages = }")
+        return pages, header
 
     def group_events_by_date_and_time(self, events):
         """
