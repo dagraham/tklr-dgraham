@@ -571,73 +571,69 @@ def set_anniversary(subject: str, start: date, instance: date, freq: str) -> str
 
 def page_tagger(
     items: List[dict], page_size: int = 26
-) -> List[Tuple[List[str], Dict[str, Tuple[int, Optional[int]]]]]:
+) -> List[Tuple[List[str], Dict[str, Tuple[int, int | None]]]]:
     """
-    Split `items` into pages, returning a list of pages where each page is:
-        (page_rows: list[str], page_tag_map: dict[tag -> (record_id, job_id)])
+    Split 'items' into pages. Each item is a dict:
+        { "record_id": int | None, "job_id": int | None, "text": str }
 
-    Input `items` is a list of dicts with keys:
-        - "text": str         (line to display; header or record text)
-        - "record_id": int|None
-        - "job_id": int|None  (optional; used for tagged record rows)
+    Returns a list of pages. Each page is a tuple:
+        (page_rows: list[str], page_tag_map: dict[str -> (record_id, job_id|None)])
 
-    Behavior:
-    - Only records (record_id not None) receive tags 'a'..'z' and count toward page_size.
-    - Headers (record_id is None) don't count toward page_size.
-    - If the tag quota is exhausted while distributing records within a header's block,
-      the header is duplicated at the start of the next page so the block context is preserved.
+    Rules:
+      - Only record rows (record_id != None) receive single-letter tags 'a'..'z'.
+      - Exactly `page_size` records are tagged per page (except the last page).
+      - Headers (record_id is None) are kept in order.
+      - If a header's block of records spans pages, the header is duplicated at the
+        start of the next page with " (continued)" appended.
     """
-    pages: List[Tuple[List[str], Dict[str, Tuple[int, Optional[int]]]]] = []
+    pages: List[Tuple[List[str], Dict[str, Tuple[int, int | None]]]] = []
 
-    # current page buffers
     page_rows: List[str] = []
-    tag_map: Dict[str, Tuple[int, Optional[int]]] = {}
-    tag_counter = 0  # number of tags used on current page (0..page_size-1)
+    tag_map: Dict[str, Tuple[int, int | None]] = {}
+    tag_counter = 0  # number of record-tags on current page
+    last_header_text = None  # text of the most recent header seen (if any)
 
-    current_header_text: Optional[str] = (
-        None  # most recent header text (applies to subsequent records)
-    )
+    def finalize_page(new_page_rows=None):
+        """Close out the current page and start a fresh one optionally seeded with
+        new_page_rows (e.g., duplicated header)."""
+        nonlocal page_rows, tag_map, tag_counter
+        pages.append((page_rows, tag_map))
+        page_rows = new_page_rows[:] if new_page_rows else []
+        tag_map = {}
+        tag_counter = 0
 
     for item in items:
-        is_record = item.get("record_id") is not None
-
-        if not is_record:
-            # it's a header
-            # if current page already has filled the tag quota, finalize it first
-            if tag_counter >= page_size and (page_rows or tag_map):
-                pages.append((page_rows, tag_map))
-                page_rows = []
-                tag_map = {}
-                tag_counter = 0
-
-            # append header to current page and remember it as current header
-            header_text = item["text"]
-            page_rows.append(header_text)
-            current_header_text = header_text
+        # header row
+        if not isinstance(item, dict):
+            log_msg(f"error: {item} is not a dict")
+            continue
+        if item.get("record_id") is None:
+            hdr_text = item.get("text", "")
+            last_header_text = hdr_text
+            page_rows.append(hdr_text)
+            # continue; headers do not affect tag_counter
             continue
 
-        # it's a record row (taggable)
-        # If the page is full, finalize it and start new page. In that case,
-        # duplicate the current_header_text (if any) at the top of the new page
+        # record row (taggable)
+        # If current page is already full (page_size tags), start a new page.
+        # IMPORTANT: when we create the new page, we want to preseed it with a
+        # duplicated header (if one exists) and mark it as "(continued)".
         if tag_counter >= page_size:
-            pages.append((page_rows, tag_map))
-            page_rows = []
-            tag_map = {}
-            tag_counter = 0
-            if current_header_text is not None:
-                page_rows.append(
-                    current_header_text
-                )  # duplicate header at top of new page
+            # If we have a last_header_text, duplicate it at top of next page with continued.
+            if last_header_text:
+                continued_header = f"{last_header_text} (continued)"
+                finalize_page(new_page_rows=[continued_header])
+            else:
+                finalize_page()
 
-        # assign tag a..z for this record on the current page
+        # assign next tag on current page
         tag = chr(ord("a") + tag_counter)
-        tag_map[tag] = (item["record_id"], item.get("job_id"))
+        tag_map[tag] = (item["record_id"], item.get("job_id", None))
+        # Use small/dim tag formatting to match your UI style; adapt if needed
+        page_rows.append(f" [dim]{tag}[/dim]  {item.get('text', '')}")
         tag_counter += 1
 
-        # formatted display row — dim tag then the text (you can change formatting)
-        page_rows.append(f" [dim]{tag}[/dim]  {item['text']}")
-
-    # finalize last page if it has content
+    # At end, still need to push the last page if it has any rows
     if page_rows or tag_map:
         pages.append((page_rows, tag_map))
 
@@ -652,7 +648,7 @@ class Controller:
         self.tag_to_id = {}  # Maps tag numbers to event IDs
         self.list_tag_to_id: dict[str, dict[str, object]] = {}
 
-        self.yrwk_to_details = {}  # Maps (iso_year, iso_week) to week description
+        self.yrwk_to_pages = {}  # Maps (iso_year, iso_week) to week description
         self.rownum_to_yrwk = {}  # Maps row numbers to (iso_year, iso_week)
         self.start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
@@ -871,13 +867,10 @@ class Controller:
         )
         lines.extend(
             [
-                # f"[{label_color}]entry:[/{label_color}] {entry}",
                 entry,
                 " ",
                 rr_line,
                 f"[{label_color}]details:[/{label_color}] {record_id}{job} / {created} / {modified}",
-                # f"[{label_color}]created:[/{label_color}]   {created}",
-                # f"[{label_color}]modified:[/{label_color}]  {modified}",
             ]
         )
 
@@ -935,8 +928,6 @@ class Controller:
         self,
         record_id: int,
         job_id: int | None = None,
-        # view: str = "bin",
-        # selected_week: tuple[int, int] | None = None,
     ):
         """
         Return list: [title, '', ... lines ...] same as process_tag would.
@@ -1236,140 +1227,6 @@ class Controller:
             " ",
         ] + fields
 
-    # def generate_table(self, start_date, selected_week, grouped_events):
-    #     """
-    #     Generate a Rich table displaying events for the specified 4-week period.
-    #     """
-    #     selected_week = self.selected_week
-    #     end_date = start_date + timedelta(weeks=4) - ONEDAY  # End on a Sunday
-    #     start_date = start_date
-    #     today_year, today_week, today_weekday = datetime.now().isocalendar()
-    #     tomorrow_year, tomorrow_week, tomorrow_day = (
-    #         datetime.now() + ONEDAY
-    #     ).isocalendar()
-    #     title = f"Schedule for {format_iso_week(start_date)}"
-    #
-    #     table = Table(
-    #         show_header=True,
-    #         header_style=HEADER_STYLE,
-    #         show_lines=True,
-    #         style=FRAME_COLOR,
-    #         expand=True,
-    #         box=box.SQUARE,
-    #         # title=title,
-    #         # title_style="bold",
-    #     )
-    #
-    #     weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    #     for day in weekdays:
-    #         table.add_column(
-    #             day,
-    #             justify="center",
-    #             style=DAY_COLOR,
-    #             width=8,
-    #             ratio=1,
-    #         )
-    #
-    #     self.rownum_to_details = {}  # Reset for this period
-    #     current_date = start_date
-    #     weeks = []
-    #     row_num = 0
-    #     while current_date <= end_date:
-    #         yr_wk = current_date.isocalendar()[:2]
-    #         iso_year, iso_week = yr_wk
-    #         if yr_wk not in weeks:
-    #             weeks.append(yr_wk)
-    #         # row_num += 1
-    #         row_num = f"{yr_wk[1]:>2}"
-    #         self.rownum_to_yrwk[row_num] = yr_wk
-    #         # row = [f"[{DIM_COLOR}]{row_num}[{DIM_COLOR}]\n"]
-    #         SELECTED = yr_wk == selected_week
-    #         row = []
-    #
-    #         for weekday in range(1, 8):  # ISO weekdays: 1 = Monday, 7 = Sunday
-    #             date = datetime.strptime(f"{iso_year} {iso_week} {weekday}", "%G %V %u")
-    #             monthday_str = date.strftime(
-    #                 "%-d"
-    #             )  # Month day as string without leading zero
-    #             events = (
-    #                 grouped_events.get(iso_year, {}).get(iso_week, {}).get(weekday, [])
-    #             )
-    #             today = (
-    #                 iso_year == today_year
-    #                 and iso_week == today_week
-    #                 and weekday == today_weekday
-    #             )
-    #             # tomorrow = (
-    #             #     iso_year == tomorrow_year
-    #             #     and iso_week == tomorrow_week
-    #             #     and weekday == tomorrow_day
-    #             # )
-    #
-    #             # mday = monthday_str
-    #             mday = f"{monthday_str:>2}"
-    #             if today:
-    #                 mday = (
-    #                     f"[bold][{TODAY_COLOR}]{monthday_str:>2}[/{TODAY_COLOR}][/bold]"
-    #                 )
-    #
-    #             if events:
-    #                 tups = [event_tuple_to_minutes(ev[0], ev[1]) for ev in events]
-    #                 aday_str, busy_str = get_busy_bar(tups)
-    #                 # log_msg(f"{date = }, {tups = }, {busy_str = }")
-    #                 if aday_str:
-    #                     row.append(f"{aday_str + mday + aday_str:>4}{busy_str}")
-    #                 else:
-    #                     row.append(f"{mday:>2}{busy_str}")
-    #             else:
-    #                 row.append(f"{mday}\n")
-    #
-    #             if SELECTED:
-    #                 row = [
-    #                     f"[{SELECTED_COLOR}]{cell}[/{SELECTED_COLOR}]" for cell in row
-    #                 ]
-    #         if SELECTED:
-    #             table.add_row(*row, style=f"on {SELECTED_BACKGROUND}")
-    #
-    #         else:
-    #             table.add_row(*row)
-    #         self.yrwk_to_details[yr_wk] = self.get_week_details((iso_year, iso_week))
-    #         current_date += timedelta(weeks=1)
-    #
-    #     return title, table
-    #
-    # def get_table_and_list(self, start_date: datetime, selected_week: Tuple[int, int]):
-    #     """
-    #     - rich_display(start_datetime, selected_week)
-    #         - sets:
-    #             self.tag_to_id = {}  # Maps tag numbers to event IDs
-    #             self.yrwk_to_details = {}  # Maps (iso_year, iso_week), to the description for that week
-    #             self.rownum_to_yrwk = {}  # Maps row numbers to (iso_year, iso_week) for the current period
-    #         - return title
-    #         - return table
-    #         - return description for selected_week
-    #     """
-    #     log_msg(f"Getting table for {start_date = }, {selected_week = }")
-    #     self.selected_week = selected_week
-    #     current_start_year, current_start_week, _ = start_date.isocalendar()
-    #     self.db_manager.extend_datetimes_for_weeks(
-    #         current_start_year, current_start_week, 4
-    #     )
-    #     grouped_events = self.db_manager.process_events(
-    #         start_date, start_date + timedelta(weeks=4)
-    #     )
-    #
-    #     # Generate the table
-    #     title, table = self.generate_table(start_date, selected_week, grouped_events)
-    #     log_msg(
-    #         f"Generated table for {title}, {selected_week = }, {self.afill_by_week.get(selected_week) = }"
-    #     )
-    #
-    #     if selected_week in self.yrwk_to_details:
-    #         description = self.yrwk_to_details[selected_week]
-    #     else:
-    #         description = "No week selected."
-    #     return title, table, description
-
     def get_table_and_list(self, start_date: datetime, selected_week: tuple[int, int]):
         """
         Return the header title, busy bar (as text), and event list details
@@ -1395,56 +1252,6 @@ class Controller:
         # title = f"Week {week} — {start_dt.strftime('%b %d')} to {(end_dt - timedelta(days=1)).strftime('%b %d')}"
 
         return title, busy_bar, details
-
-    # def _format_busy_bar(self, bits: list[int]) -> str:
-    #     """
-    #     Render 35 busy bits (7×[1 all-day + 4×6h blocks]) as a two-row week bar.
-    #     """
-    #     DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    #     assert len(bits) == 35, "expected 35 bits (7×5)"
-    #     chars = {0: " ", 1: "█", 2: "▓"}  # free, busy, conflict
-    #     rows = []
-    #     # top: day headers, centered in 5 columns
-    #     # headers = " ".join(f" {d:^5} " for d in DAYS)
-    #     headers = "|".join(f" {d:^3} " for d in DAYS)
-    #     log_msg(f"{headers = }")
-    #     rows.append(f"|{headers}|")
-    #
-    #     # bottom: 5-slot cells under each header
-    #     for block in range(5):  # all-day + 4×6h blocks
-    #         row = ""
-    #         for day in range(7):
-    #             idx = day * 5 + block
-    #             row += f"{chars[bits[idx]] * 5}"
-    #         rows.append(row)
-    #
-    #     return "\n".join(rows)
-    #
-    # def _format_busy_bar(self, bits: list[int]) -> str:
-    #     """
-    #     Render 35 busy bits (7×[1 all-day + 4×6h blocks])
-    #     as a compact one-row week bar under the weekday headers.
-    #     """
-    #     DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    #     assert len(bits) == 35, "expected 35 bits (7×5)"
-    #     chars = {0: " ", 1: "█", 2: "▓"}  # free, busy, conflict
-    #     rows = []
-    #
-    #     # header line
-    #     headers = "|".join(f" {d:^3} " for d in DAYS)
-    #     rows.append(f"|{headers}|")
-    #
-    #     # single busy row
-    #     day_blocks = []
-    #     for day in range(7):
-    #         start = day * 5
-    #         segment = "".join(chars[bits[start + i]] for i in range(5))
-    #         day_blocks.append(segment)
-    #
-    #     busy_line = "|".join(day_blocks)
-    #     rows.append(f"|{busy_line}|")
-    #
-    #     return "\n".join(rows)
 
     def _format_busy_bar(
         self,
@@ -1505,9 +1312,9 @@ class Controller:
 
     def get_week_details(self, yr_wk):
         """
-        Fetch and format description for a specific week.
+        Fetch and format rows for a specific week.
         """
-        # log_msg(f"Getting description for week {yr_wk}")
+        # log_msg(f"Getting rows for week {yr_wk}")
         today = datetime.now()
         tomorrow = today + ONEDAY
         today_year, today_week, today_weekday = today.isocalendar()
@@ -1524,16 +1331,22 @@ class Controller:
         # terminal_width = shutil.get_terminal_size().columns
 
         header = f"{this_week} #{yr_wk[1]} ({len(events)})"
-        description = [header]
+        rows = [
+            header,
+        ]
 
         self.set_week_afill(events, yr_wk)
 
         if not events:
-            description.append(
-                f" [{HEADER_COLOR}]Nothing scheduled for this week[/{HEADER_COLOR}]"
+            rows.append(
+                {
+                    "record_id": None,
+                    "job_id": None,
+                    "text": f" [{HEADER_COLOR}]Nothing scheduled for this week[/{HEADER_COLOR}]",
+                }
             )
-            # return "\n".join(description)
-            return description
+            pages = page_tagger(rows)
+            return pages
 
         weekday_to_events = {}
         for i in range(7):
@@ -1547,7 +1360,7 @@ class Controller:
                 # 🪄 new line: replace {XXX} with ordinal instance
                 subject = self.apply_anniversary_if_needed(id, subject, start_dt)
                 log_msg(
-                    f"Week description {itemtype = }, {subject = }, {start_dt = }, {end_dt = }"
+                    f"Week rows {itemtype = }, {subject = }, {start_dt = }, {end_dt = }"
                 )
             status = "available"
 
@@ -1576,14 +1389,12 @@ class Controller:
             if status != "available":
                 type_color = WAITING_COLOR
 
-            row = [
-                id,
-                job_id,
-                f"[{type_color}]{itemtype} {escaped_start_end}{subject}[/{type_color}]",
-            ]
+            row = {
+                "record_id": id,
+                "job_id": job_id,
+                "text": f"[{type_color}]{itemtype} {escaped_start_end}{subject}[/{type_color}]",
+            }
             weekday_to_events.setdefault(start_dt.date(), []).append(row)
-
-        indx = 0
 
         for day, events in weekday_to_events.items():
             # TODO: today, tomorrow here
@@ -1600,26 +1411,19 @@ class Controller:
             )
             flag = " (today)" if today else " (tomorrow)" if tomorrow else ""
             if events:
-                description.append(
-                    # f" [bold][yellow]{day.strftime('%A, %B %-d')}[/yellow][/bold]"
-                    # f"[not bold][{HEADER_COLOR}]{day.strftime('%a, %b %-d')}{flag}[/{HEADER_COLOR}][/not bold]"
-                    f"[bold][{HEADER_COLOR}]{day.strftime('%a, %b %-d')}{flag}[/{HEADER_COLOR}][/bold]"
+                rows.append(
+                    {
+                        "record_id": None,
+                        "job_id": None,
+                        "text": f"[bold][{HEADER_COLOR}]{day.strftime('%a, %b %-d')}{flag}[/{HEADER_COLOR}][/bold]",
+                    }
                 )
                 for event in events:
-                    event_id, job_id, event_str = event
-                    # log_msg(f"{event_str = }")
-                    # tag_fmt, indx = self.add_tag(yr_wk, indx, event_id)
-                    # tag = indx_to_tag(indx, self.afill)
-                    # self.tag_to_id[yr_wk][tag] = event_id
-                    # description.append(f" [dim]{tag}[/dim]   {event_str}")
-                    tag_fmt, indx = self.add_week_tag(yr_wk, indx, event_id, job_id)
-                    description.append(f"{tag_fmt} {event_str}")
-                    # indx += 1
-        # NOTE: maybe return list for scrollable view?
-        # details_str = "\n".join(description)
-        self.yrwk_to_details[yr_wk] = description
-        log_msg(f"{description = }")
-        return description
+                    rows.append(event)
+        pages = page_tagger(rows)
+        self.yrwk_to_pages[yr_wk] = pages
+        log_msg(f"{len(pages) = }, {pages[0] = }, {pages[-1] = }")
+        return pages
 
     def get_busy_bits_for_week(self, selected_week: tuple[int, int]) -> list[int]:
         """Convert (year, week) tuple to 'YYYY-WW' and delegate to model."""
@@ -1802,7 +1606,7 @@ class Controller:
         grouped = defaultdict(list)
 
         for start_ts, end_ts, itemtype, subject, record_id, job_id in events:
-            log_msg(f"{start_ts = }, {end_ts = }, {subject = }")
+            # log_msg(f"{start_ts = }, {end_ts = }, {subject = }")
             if itemtype != "*":
                 continue  # Only events
 
@@ -1927,6 +1731,19 @@ class Controller:
 
         return results
 
+    def get_agenda(self, now: datetime = datetime.now()):
+        """ """
+        header = "Agenda - Events and Tasks"
+        divider = [
+            {"record_id": None, "job_id": None, "text": "   "},
+        ]
+        events_by_date = self.get_agenda_events()
+        tasks_by_urgency = self.get_agenda_tasks()
+        events_and_tasks = events_by_date + divider + tasks_by_urgency
+        pages = page_tagger(events_and_tasks)
+        log_msg(f"{pages = }")
+        return pages, header
+
     def get_agenda_events(self, now: datetime = datetime.now()):
         """
         Returns dict: date -> list of (tag, label, subject) for up to three days.
@@ -1981,16 +1798,16 @@ class Controller:
         # 3) If nothing at all to show, bail early
         nothing_to_show = (not allowed_dates) and (not has_today_meta)
         if nothing_to_show:
-            return {}
+            return []
 
         # 4) Build events_by_date only for allowed dates
-        events_by_date: dict[date, list[tuple[int, str, str]]] = {}
+        events_by_date: dict[date, list[dict]] = {}
 
         for d in allowed_dates:
             entries = grouped_by_date.get(d, [])
             for _, (start_ts, end_ts, subject, record_id, job_id) in entries:
                 end_ts = end_ts or start_ts
-                label = format_time_range(start_ts, end_ts, self.AMPM)
+                label = format_time_range(start_ts, end_ts, self.AMPM).strip()
                 if end_ts.endswith("T000000"):
                     color = ALLDAY_COLOR
                 elif end_ts <= now_ts and end_ts != start_ts:
@@ -1999,12 +1816,13 @@ class Controller:
                     color = ACTIVE_EVENT
                 else:
                     color = EVENT_COLOR
+                label_fmt = f"{label} " if label else ""
                 events_by_date.setdefault(d, []).append(
-                    (
-                        record_id,
-                        f"[{color}]{label}[/{color}]" if label.strip() else "",
-                        f"[{color}]{subject}[/{color}]",
-                    )
+                    {
+                        "record_id": record_id,
+                        "job_id": None,
+                        "text": f"[{color}]{label_fmt}{subject}[/{color}]",
+                    }
                 )
 
         # 5) If TODAY is in allowed_dates (either because it had events or we added it)
@@ -2013,20 +1831,20 @@ class Controller:
             if notice_records:
                 for record_id, days_remaining, subject in notice_records:
                     events_by_date.setdefault(today, []).append(
-                        (
-                            record_id,
-                            f"[{NOTICE_COLOR}]+{days_remaining}d{notice}[/{NOTICE_COLOR}]",
-                            f"[{NOTICE_COLOR}]{subject}[/{NOTICE_COLOR}]",
-                        )
+                        {
+                            "record_id": record_id,
+                            "job_id": None,
+                            "text": f"[{NOTICE_COLOR}]+{days_remaining}d {subject} [/{NOTICE_COLOR}]",
+                        }
                     )
             if draft_records:
                 for record_id, subject in draft_records:
                     events_by_date.setdefault(today, []).append(
-                        (
-                            record_id,
-                            f"[{DRAFT_COLOR}] ? [/{DRAFT_COLOR}]",
-                            f"[{DRAFT_COLOR}]{subject}[/{DRAFT_COLOR}]",
-                        )
+                        {
+                            "record_id": record_id,
+                            "job_id": None,
+                            "text": f"[{DRAFT_COLOR}] ? {subject}[/{DRAFT_COLOR}]",
+                        }
                     )
 
         # 6) Tagging and indexing
@@ -2035,20 +1853,24 @@ class Controller:
             # Edge case: allowed_dates may exist but nothing actually added (shouldn’t happen, but safe-guard)
             return {}
 
-        self.set_afill(range(total_items), "events")
+        # self.set_afill(range(total_items), "events")
         # self.afill_by_view["events"] = self.afill
-        self.list_tag_to_id.setdefault("events", {})
+        # self.list_tag_to_id.setdefault("events", {})
 
-        indexed_events_by_date: dict[date, list[tuple[str, str, str]]] = {}
-        tag_index = 0
-        for d in sorted(events_by_date.keys()):
-            for record_id, label, subject in events_by_date[d]:
-                tag_fmt, tag_index = self.add_tag("events", tag_index, record_id)
-                indexed_events_by_date.setdefault(d, []).append(
-                    (tag_fmt, label, subject)
+        rows = []
+        for d, events in sorted(events_by_date.items()):
+            if events:
+                rows.append(
+                    {
+                        "record_id": None,
+                        "job_id": None,
+                        "text": f"[not bold][{HEADER_COLOR}]{d.strftime('%a %b %-d')}[/{HEADER_COLOR}][/not bold]",
+                    }
                 )
+                for event in events:
+                    rows.append(event)
 
-        return indexed_events_by_date
+        return rows
 
     def get_agenda_tasks(self):
         """
@@ -2061,12 +1883,16 @@ class Controller:
         urgency_records = self.db_manager.get_urgency()
         # rows: (record_id, job_id, subject, urgency, color, status, weights, pinned_int)
 
-        self.set_afill(urgency_records, "tasks")
-        log_msg(f"urgency_records {self.afill_by_view = }, {len(urgency_records) = }")
-        indx = 0
-        self.list_tag_to_id.setdefault("tasks", {})
+        # self.set_afill(urgency_records, "tasks")
+        # log_msg(f"urgency_records {self.afill_by_view = }, {len(urgency_records) = }")
+        # indx = 0
+        # self.list_tag_to_id.setdefault("tasks", {})
 
         # Agenda tasks (has job_id)
+        header = f"Tasks ({len(urgency_records)})"
+        rows = [
+            {"record_id": None, "job_id": None, "text": header},
+        ]
         for (
             record_id,
             job_id,
@@ -2077,21 +1903,20 @@ class Controller:
             weights,
             pinned,
         ) in urgency_records:
-            log_msg(f"collecting tasks {record_id = }, {job_id = }, {subject = }")
-            tag_fmt, indx = self.add_tag("tasks", indx, record_id, job_id=job_id)
+            # log_msg(f"collecting tasks {record_id = }, {job_id = }, {subject = }")
+            # tag_fmt, indx = self.add_tag("tasks", indx, record_id, job_id=job_id)
             urgency_str = (
                 "📌" if pinned else f"[{color}]{int(round(urgency * 100)):>2}[/{color}]"
             )
-            tasks_by_urgency.append(
-                (
-                    urgency_str,
-                    color,
-                    tag_fmt,
-                    f"[{TASK_COLOR}]{subject}[/{TASK_COLOR}]",
-                )
+            rows.append(
+                {
+                    "record_id": record_id,
+                    "job_id": job_id,
+                    "text": f"[{TASK_COLOR}]{urgency_str} {subject}[/{TASK_COLOR}]",
+                }
             )
 
-        return tasks_by_urgency
+        return rows
 
     def finish_from_details(
         self, record_id: int, job_id: int | None, completed_dt: datetime

@@ -297,7 +297,7 @@ def format_time_range(start_time: str, end_time: str, ampm: bool = False) -> str
     """Format time range respecting ampm setting."""
     start_dt = datetime_from_timestamp(start_time)
     end_dt = datetime_from_timestamp(end_time) if end_time else None
-    log_msg(f"{start_dt = }, {end_dt = }")
+    # log_msg(f"{start_dt = }, {end_dt = }")
 
     if not end_dt:
         end_dt = start_dt
@@ -313,7 +313,7 @@ def format_time_range(start_time: str, end_time: str, ampm: bool = False) -> str
         end_hour = (
             end_dt.strftime("%-I:%M%p").lower().replace(":00", "")  # .replace("m", "")
         )
-        log_msg(f"{start_hour = }, {end_hour = }")
+        # log_msg(f"{start_hour = }, {end_hour = }")
         return f"{start_hour}-{end_hour}" if extent else f"{end_hour}"
     else:
         start_hour = start_dt.strftime("%H:%M").replace(":00", "")
@@ -322,7 +322,7 @@ def format_time_range(start_time: str, end_time: str, ampm: bool = False) -> str
         end_hour = end_dt.strftime("%H:%M")  # .replace(":00", "")
         if end_hour.startswith("0"):
             end_hour = end_hour[1:]
-        log_msg(f"{start_hour = }, {end_hour = }")
+        # log_msg(f"{start_hour = }, {end_hour = }")
         return f"{start_hour}-{end_hour}" if extent else f"{end_hour}"
 
 

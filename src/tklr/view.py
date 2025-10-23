@@ -1263,136 +1263,294 @@ class WeeksScreen(SearchableScreen, SafeScreen):
             self.list_with_details.show_details(title, lines, meta)
 
 
-class AgendaScreen(SearchableScreen):
-    BINDINGS = [
-        ("tab", "toggle_pane", "Switch Pane"),
-        ("r", "refresh", "Refresh"),
-        ("A", "refresh", "Agenda"),
-        ("escape", "hide_details", "Hide Details"),
-    ]
+# type aliases for clarity
+PageRows = List[str]
+PageTagMap = Dict[str, Tuple[int, Optional[int]]]  # tag -> (record_id, job_id|None)
+Page = Tuple[PageRows, PageTagMap]
 
-    def __init__(self, controller, footer: str = ""):
+
+class WeeksScreen(SearchableScreen, SafeScreen):
+    """
+    4-week grid with a bottom details panel, powered by ListWithDetails.
+
+    `details` is expected to be a list of pages:
+      pages = [ (rows_for_page0, tag_map0), (rows_for_page1, tag_map1), ... ]
+    where rows_for_pageX is a list[str] (includes header rows and record rows)
+    and tag_mapX maps single-letter tags 'a'..'z' to (record_id, job_id|None).
+    """
+
+    def __init__(
+        self,
+        title: str,
+        table: str,
+        details: Optional[List[Page]],
+        footer_content: str,
+    ):
         super().__init__()
-        self.controller = controller
-        self.footer_text = (
-            f"[{FOOTER}]?[/{FOOTER}] Help  "
-            f"[bold {FOOTER}]/[/bold {FOOTER}] Search  "
-            f"[bold {FOOTER}]tab[/bold {FOOTER}] events <-> tasks"
-        )
-        self.active_pane = "tasks"
-        self.events_view: ListWithDetails | None = None
-        self.tasks_view: ListWithDetails | None = None
-        self.events = {}
-        self.tasks = []
+        self.table_title = title
+        self.table = table  # busy bar / calendar mini-grid content (string)
+        # pages: list of (rows, tag_map). Accept None or [].
+        self.pages: List[Page] = details or []
+        self.current_page: int = 0
 
+        # footer string (unchanged)
+        self.footer_content = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
+        self.list_with_details: Optional[ListWithDetails] = None
+
+    # Let global search target the currently-focused list
+    def get_search_target(self):
+        if not self.list_with_details:
+            return None
+        return (
+            self.list_with_details._details
+            if self.list_with_details.has_details_open()
+            else self.list_with_details._main
+        )
+
+    # --- Compose/layout -------------------------------------------------
     def compose(self) -> ComposeResult:
-        self.events_view = ListWithDetails(id="events")
-        self.events_view.set_detail_key_handler(
-            self.app.make_detail_key_handler(view_name="events")
-        )
-        self.tasks_view = ListWithDetails(id="tasks")
-        self.tasks_view.set_detail_key_handler(
-            self.app.make_detail_key_handler(view_name="tasks")
+        yield Static(
+            self.table_title or "Untitled",
+            id="table_title",
+            classes="title-class",
         )
 
-        yield Vertical(
-            Container(
-                Static("Events", id="events_title"),
-                self.events_view,
-                id="events-pane",
-            ),
-            Container(
-                Static("Tasks", id="tasks_title"),
-                self.tasks_view,
-                id="tasks-pane",
-            ),
-            Static(self.footer_text, id="agenda_footer"),
-            id="agenda-layout",
+        yield Static(
+            self.table or "[i]No data[/i]",
+            id="table",
+            classes="busy-bar",
+            markup=True,
         )
 
-    # 🔑 This gives DynamicViewApp and help detection a uniform interface
-    @property
-    def list_with_details(self) -> ListWithDetails | None:
-        """Expose the active pane’s ListWithDetails so AgendaScreen
-        can be treated like WeeksScreen."""
-        if self.active_pane == "events":
-            return self.events_view
-        elif self.active_pane == "tasks":
-            return self.tasks_view
-        return None
+        # Single list (no separate list title)
+        self.list_with_details = ListWithDetails(id="list")
+        # keep the same handler wiring as before (detail opens a record details)
+        self.list_with_details.set_detail_key_handler(
+            self.app.make_detail_key_handler(
+                view_name="week",
+                week_provider=lambda: self.app.selected_week,
+            )
+        )
+        self.app.detail_handler = self.list_with_details._detail_key_handler
+        yield self.list_with_details
 
-    def on_mount(self) -> None:
-        self.refresh_data()
-        self._activate_pane("tasks")
+        yield Static(self.footer_content)
 
-    def _activate_pane(self, which: str):
-        self.active_pane = which
-        # focus the main list of the active pane
-        (self.tasks_view if which == "tasks" else self.events_view).focus_main()
-        self.app.view = which
-        ev = self.query_one("#events_title", Static)
-        tk = self.query_one("#tasks_title", Static)
-        if which == "events":
-            tk.add_class("inactive")
-            ev.remove_class("inactive")
-        else:
-            ev.add_class("inactive")
-            tk.remove_class("inactive")
+    # Called once layout is up
+    def after_mount(self) -> None:
+        """Populate the list with the current page once layout is ready."""
+        if self.list_with_details:
+            self.refresh_page()
 
-    def action_toggle_pane(self):
-        self._activate_pane("events" if self.active_pane == "tasks" else "tasks")
+    # --- Page management API (used by DynamicViewApp) -------------------
+    def has_next_page(self) -> bool:
+        return self.current_page < (len(self.pages) - 1)
 
-    def action_hide_details(self):
-        if self.active_pane == "tasks" and hasattr(self.tasks_view, "hide_details"):
-            self.tasks_view.hide_details()
+    def has_prev_page(self) -> bool:
+        return self.current_page > 0
 
-        elif self.active_pane == "events" and hasattr(self.events_view, "hide_details"):
-            self.events_view.hide_details()
+    def next_page(self) -> None:
+        if self.has_next_page():
+            self.current_page += 1
+            self.refresh_page()
 
-        return
+    def previous_page(self) -> None:
+        if self.has_prev_page():
+            self.current_page -= 1
+            self.refresh_page()
 
-    def action_refresh(self):
-        self.refresh_data()
+    def reset_to_first_page(self) -> None:
+        if self.pages:
+            self.current_page = 0
+            self.refresh_page()
 
-    def refresh_data(self):
-        try:
-            self.events = self.controller.get_agenda_events(datetime.now())
-        except TypeError:
-            self.events = self.controller.get_agenda_events()
-        self.tasks = self.controller.get_agenda_tasks()
-        self.update_display()
+    def get_record_for_tag(self, tag: str) -> Optional[Tuple[int, Optional[int]]]:
+        """Return (record_id, job_id) for a tag on the current page or None."""
+        if not self.pages:
+            return None
+        _, tag_map = self.pages[self.current_page]
+        return tag_map.get(tag)
 
-    def update_display(self):
-        # events
-        event_lines = []
-        for d, entries in self.events.items():
-            event_lines.append(f"[bold]{d.strftime('%a %b %-d')}[/bold]")
-            for tag, label, subject in entries:
-                entry = f"{label} {subject}" if label and label.strip() else subject
-                event_lines.append(f"{tag} {entry}".rstrip())
-        self.events_view.update_list(event_lines)
-
-        # tasks
-        task_lines = []
-        for urgency, color, tag, subject in self.tasks:
-            task_lines.append(f"{tag} {urgency} {subject}")
-        self.tasks_view.update_list(task_lines)
-
-    def show_details_for_tag(self, tag: str) -> None:
-        pane_view = self.tasks_view if self.active_pane == "tasks" else self.events_view
-        view_name = "tasks" if self.active_pane == "tasks" else "events"
-        log_msg(f"{pane_view = }, {view_name = }")
-
-        # ask controller for the pre-rendered lines + side-effect meta
-        parts = self.controller.process_tag(tag, view_name, None)
-        if not parts:
+    # --- UI refresh helpers ---------------------------------------------
+    def refresh_page(self) -> None:
+        """Update the ListWithDetails widget to reflect the current page."""
+        if not self.list_with_details:
             return
-        title, lines = parts[0], parts[1:]
-        meta = getattr(self.controller, "_last_details_meta", None) or {}
 
-        # If your screen has two ListWithDetails (one per pane), send to the active one.
-        # If you have one ListWithDetails instance named self.events_view / self.tasks_view:
-        pane_view.show_details(title, lines, meta)
+        if not self.pages:
+            # empty page
+            self.list_with_details.update_list([])
+            # ensure details hidden
+            if self.list_with_details.has_details_open():
+                self.list_with_details.hide_details()
+            # also ensure the app knows there is no tagging width required
+            self.app.controller.afill_by_view["week"] = 1
+            return
+
+        rows, tag_map = self.pages[self.current_page]
+
+        # Update the display lines in the ListWithDetails
+        self.list_with_details.update_list(rows)
+
+        # Weeks use single-letter tags per page (page_tagger ensures that),
+        # so tell controller that afill for week is 1
+        self.app.controller.afill_by_view["week"] = 1
+
+        # If a details pane is open, keep it open but hide it if it's stale
+        if self.list_with_details.has_details_open():
+            # We prefer to close details when the underlying page changes
+            self.list_with_details.hide_details()
+
+    def refresh_page(self) -> None:
+        """Update the ListWithDetails widget to reflect the current page (with debug)."""
+        log_msg(
+            f"[WeeksScreen.refresh_page] current_page={self.current_page}, total_pages={len(self.pages)}"
+        )
+        if not self.list_with_details:
+            log_msg("[WeeksScreen.refresh_page] no list_with_details widget")
+            return
+
+        if not self.pages:
+            log_msg("[WeeksScreen.refresh_page] no pages -> clearing list")
+            self.list_with_details.update_list([])
+            if self.list_with_details.has_details_open():
+                self.list_with_details.hide_details()
+            self.app.controller.afill_by_view["week"] = 1
+            return
+
+        # defensive: check page index bounds
+        if self.current_page < 0 or self.current_page >= len(self.pages):
+            log_msg(
+                f"[WeeksScreen.refresh_page] current_page out of bounds, resetting to 0"
+            )
+            self.current_page = 0
+
+        page = self.pages[self.current_page]
+        # validate page tuple shape
+        if not (isinstance(page, (list, tuple)) and len(page) == 2):
+            log_msg(
+                f"[WeeksScreen.refresh_page] BAD PAGE SHAPE at index {self.current_page}: {type(page)} {page!r}"
+            )
+            # try to fall back: if pages is a list of rows (no tag maps), display as-is
+            if isinstance(self.pages, list) and all(
+                isinstance(p, str) for p in self.pages
+            ):
+                self.list_with_details.update_list(self.pages)
+                return
+            # otherwise clear to avoid crash
+            self.list_with_details.update_list([])
+            return
+
+        rows, tag_map = page
+        log_msg(
+            f"[WeeksScreen.refresh_page] page {self.current_page} rows={len(rows)} tags={len(tag_map)}"
+        )
+        # update
+        self.list_with_details.update_list(rows)
+        # reset controller afill for week -> single-letter tags (page_tagger guarantees this)
+        self.app.controller.afill_by_view["week"] = 1
+
+        if self.list_with_details.has_details_open():
+            # close stale details when page changes (optional)
+            self.list_with_details.hide_details()
+
+    # --- Called from app when the underlying week data has changed ----------
+    def update_table_and_list(self):
+        """
+        Called by the app after the controller recomputes the table + list pages
+        for the currently-selected week.
+        Controller.get_table_and_list must now return: (title, busy_bar, pages)
+        where pages is a list[Page].
+        """
+        title, busy_bar, pages = self.app.controller.get_table_and_list(
+            self.app.current_start_date, self.app.selected_week
+        )
+
+        # update table title and busy bar displays
+        self.query_one("#table_title", Static).update(title)
+        self.query_one("#table", Static).update(busy_bar)
+
+        # adopt new pages and reset page index
+        self.pages = pages or []
+        self.current_page = 0
+
+        # refresh the visible page
+        if self.list_with_details:
+            self.refresh_page()
+
+    def update_table_and_list(self):
+        """
+        Called by app after the controller recomputes the table + list pages
+        for the currently-selected week.
+        Controller.get_table_and_list must now return: (title, busy_bar, pages)
+        where pages is a list[Page].
+        """
+        title, busy_bar, pages = self.app.controller.get_table_and_list(
+            self.app.current_start_date, self.app.selected_week
+        )
+
+        log_msg(
+            f"[WeeksScreen.update_table_and_list] controller returned title={title!r} busy_bar_len={len(busy_bar) if busy_bar else 0} pages_type={type(pages)}"
+        )
+
+        # some controllers might mistakenly return (pages, header) tuple; normalize:
+        normalized_pages = pages
+        # If it's a tuple (pages, header) — detect and unwrap
+        if isinstance(pages, tuple) and len(pages) == 2 and isinstance(pages[0], list):
+            log_msg(
+                "[WeeksScreen.update_table_and_list] Detected (pages, header) tuple; unwrapping first element as pages."
+            )
+            normalized_pages = pages[0]
+
+        # final validation: normalized_pages should be list of (rows, tag_map)
+        if not isinstance(normalized_pages, list):
+            log_msg(
+                f"[WeeksScreen.update_table_and_list] WARNING: pages is not a list: {type(normalized_pages)} -> treating as empty"
+            )
+            normalized_pages = []
+
+        # optionally, do a quick contents-sanity check
+        page_cnt = len(normalized_pages)
+        sample_info = []
+        for i, p in enumerate(normalized_pages[:3]):
+            if isinstance(p, (list, tuple)) and len(p) == 2:
+                sample_info.append((i, len(p[0]), len(p[1])))
+            else:
+                sample_info.append((i, "BAD_PAGE_SHAPE", type(p)))
+        log_msg(
+            f"[WeeksScreen.update_table_and_list] pages_count={page_cnt} sample={sample_info}"
+        )
+
+        # adopt new pages and reset page index
+        self.pages = normalized_pages
+        self.current_page = 0
+
+        # update displays
+        self.query_one("#table_title", Static).update(title)
+        self.query_one("#table", Static).update(busy_bar)
+
+        # refresh the visible page (calls update_list)
+        if self.list_with_details:
+            self.refresh_page()
+
+    # --- Tag activation -> show details ----------------------------------
+    def show_details_for_tag(self, tag: str) -> None:
+        """
+        Called by DynamicViewApp when a tag is completed.
+        We look up the record_id/job_id for this tag on the current page and then
+        ask the controller for details and show them in the lower panel.
+        """
+        rec = self.get_record_for_tag(tag)
+        if not rec:
+            return
+        record_id, job_id = rec
+
+        # Controller helper returns title, list-of-lines (fields), and meta
+        title, lines, meta = self.app.controller.get_details_for_record(
+            record_id, job_id
+        )
+        if self.list_with_details:
+            self.list_with_details.show_details(title, lines, meta)
 
 
 class FullScreenList(SearchableScreen):
@@ -1469,7 +1627,7 @@ class FullScreenList(SearchableScreen):
         if self.list_with_details:
             self.list_with_details.update_list(self.lines)
         # Update header/title with bullet indicator
-        header_text = f"{self.header}\n{self._render_page_indicator()}"
+        header_text = f"{self.title}\n{self._render_page_indicator()}"
         self.query_one("#scroll_title", Static).update(header_text)
 
     # --- Compose ------------------------------------------------------------
@@ -2104,17 +2262,52 @@ class DynamicViewApp(App):
 
         # --- View-specific setup ---
         log_msg(f"{self.view = }")
-        if self.view == "week":
-            self.afill = self.controller.afill_by_week.get(self.selected_week)
-        elif self.view in ("tasks", "events"):
-            self.afill = self.controller.afill_by_view[self.view]
-        elif self.view == "bintree":
-            self.afill = self.controller.afill_by_view.get("bintree", 1)
-        elif self.view == "bin":
-            self.afill = self.controller.afill_by_view.get("bin", 1)
-        log_msg(
-            f"after: {self.afill = }, {event.key = }, {self.view = }, {self.selected_week = }"
-        )
+        # --- special left/right behavior for week view (pages OR week navigation) ---
+        if event.key in ("left", "right"):
+            # Only special-case the week view here; other views unchanged.
+            if self.view == "week":
+                screen = getattr(self, "screen", None)
+                # If the screen implements page-aware interface, use it.
+                has_prev = callable(getattr(screen, "has_prev_page", None))
+                has_next = callable(getattr(screen, "has_next_page", None))
+                do_prev = callable(getattr(screen, "previous_page", None))
+                do_next = callable(getattr(screen, "next_page", None))
+
+                if event.key == "left":
+                    # prefer page navigation
+                    if has_prev and screen.has_prev_page() and do_prev:
+                        screen.previous_page()
+                    else:
+                        # no prev page -> move to previous week (existing behavior)
+                        # call the existing action; name assumed action_previous_week
+                        try:
+                            self.action_previous_week()
+                        except Exception:
+                            # fallback: if you use a different method name, call it here
+                            pass
+                    return
+
+                else:  # event.key == "right"
+                    if has_next and screen.has_next_page() and do_next:
+                        screen.next_page()
+                    else:
+                        try:
+                            self.action_next_week()
+                        except Exception:
+                            pass
+                    return
+            # not week view -> do nothing here, let other branches handle left/right
+        if event.key == "full_stop" and self.view == "week":
+            # call the existing "center_week" or "go to today" action
+            try:
+                self.action_center_week()  # adjust name if different
+            except Exception:
+                pass
+            # reset pages if screen supports it
+            if hasattr(self.screen, "reset_to_first_page"):
+                self.screen.reset_to_first_page()
+            return
+
         if event.key == "escape":
             if self.leader_mode:
                 self.leader_mode = False
@@ -2142,14 +2335,10 @@ class DynamicViewApp(App):
 
         # inside DynamicViewApp.on_key, after handling leader/escape etc.
         screen = self.screen  # current active Screen (FullScreenList, WeeksScreen, ...)
-        key = event.key.lower()
+        key = event.key
 
         # --- Page navigation (left / right) for any view that provides it ----------
-        if key in (
-            "right",
-            "l",
-            "full_stop",
-        ):  # pick whichever keys you bind for next page
+        if key in ("right",):  # pick whichever keys you bind for next page
             if hasattr(screen, "next_page"):
                 try:
                     screen.next_page()
@@ -2157,7 +2346,7 @@ class DynamicViewApp(App):
                 except Exception as e:
                     log_msg(f"next_page error: {e}")
         # previous page
-        if key in ("left", "h", "comma"):  # your left binding(s)
+        if key in ("left",):  # your left binding(s)
             if hasattr(screen, "previous_page"):
                 try:
                     screen.previous_page()
@@ -2168,142 +2357,10 @@ class DynamicViewApp(App):
         # --- Single-letter tag press handling for paged views ----------------------
         # (Note: we assume tags are exactly one lower-case ASCII letter 'a'..'z')
         if key in "abcdefghijklmnopqrstuvwxyz":
-            # If the view supplies a per-page tag lookup, use it
+            # If the view supplies a show_details_for_tag method, use it
             if hasattr(screen, "show_details_for_tag"):
                 screen.show_details_for_tag(key)
-                #
-                # try:
-                #     payload = screen.show_details_for_tag(key)
-                #     # payload expected to be either None or (record_id, job_id|None)
-                #     if payload:
-                #         # unpack
-                #         if isinstance(payload, tuple):
-                #             record_id, job_id = (
-                #                 payload[0],
-                #                 payload[1] if len(payload) > 1 else None,
-                #             )
-                #         else:
-                #             # be flexible if view returns just an int
-                #             record_id, job_id = payload, None
-                #
-                #         # Obtain the formatted details for the record (see Controller helper below)
-                #         # Prefer a Controller helper so the logic for making detail lines is centralized.
-                #         title = lines = meta = None
-                #         try:
-                #             title, lines, meta = self.controller.get_details_for_record(
-                #                 record_id, job_id=job_id
-                #             )
-                #         except Exeception as e:
-                #             log_msg(f"error: {e = }")
-                #             return
-                #
-                #         log_msg(f"{title = }, {lines = }, {meta = }")
-                #         if hasattr(screen, "show_details_for_tag"):
-                #         if self.screen.ha:
-                #             # central place that displays details in your app
-                #             # (you already use self.show_details(details) in other places)
-                #             self.show_details(details)
-                #         return
-                #
-                # except Exception as e:
-                #     log_msg(f"get_record_for_tag error: {e}")
         return
-
-        # If not handled above, fall back to the default 'tag buffer' handling for
-        # multi-character tags / older behavior (if you still use it).
-        # ... existing digit_buffer logic ...
-
-        # --------------------------------------------------------------------- #
-        # Forest View Logic
-        # --------------------------------------------------------------------- #
-        # if self.view == "bintree":
-        #     log_msg(f"in bintree {self.view = }")
-        #     screen = self.screen
-        #     key = event.key.lower()
-        #
-        #     # --- handle prefix
-        #     if key == "full_stop":
-        #         screen.last_prefix = "full_stop"
-        #         return
-        #
-        #     # --- accumulate tag characters
-        #     if key in "abcdefghijklmnopqrstuvwxyz":
-        #         self.digit_buffer.append(key)
-        #         fill = self.controller.afill_by_view.get("bintree", 1)
-        #         if len(self.digit_buffer) < fill:
-        #             return  # wait for more characters
-        #         tag = "".join(self.digit_buffer)
-        #         self.digit_buffer.clear()
-        #     else:
-        #         self.digit_buffer.clear()
-        #         return
-        #
-        #     # --- now we have a full tag to resolve
-        #     if tag not in screen.tag_map:
-        #         screen.last_prefix = ""
-        #         return
-        #
-        #     kind, target_id = screen.tag_map[tag]
-        #     log_msg(f"{kind = }, {target_id = }")
-        #
-        #     # --- handle expansion toggle
-        #     if screen.last_prefix == "full_stop" and kind == "bin":
-        #         if target_id in screen.expanded:
-        #             screen.expanded.remove(target_id)
-        #         else:
-        #             screen.expanded.add(target_id)
-        #         screen.last_prefix = ""
-        #         screen.refresh_tree()
-        #         return
-        #
-        #     # --- open bin or show reminder
-        #     if kind == "bin":
-        #         self.view = "bin"
-        #         self.push_screen(BinScreen(bin_id=target_id))
-        #     elif kind == "reminder":
-        #         details = self.controller.get_record_details(target_id)
-        #         self.show_details(details)
-        #
-        #     screen.last_prefix = ""
-        #     return
-        # # --------------------------------------------------------------------- #
-        # # Bin View Logic
-        # # --------------------------------------------------------------------- #
-        # if self.view == "bin":
-        #     log_msg(f" in bin {self.view = }")
-        #     screen = self.screen
-        #     key = event.key.lower()
-        #
-        #     # Escape returns to the BinTree view
-        #     if event.key == "escape":
-        #         parent = self.app.controller.get_parent_bin(self.bin_id)
-        #         if parent:
-        #             # show parent bin in-place (stay on same screen)
-        #             self.show_bin(parent["id"])
-        #         else:
-        #             # no parent -> go back to the tree
-        #             self.app.pop_screen()
-        #             self.app.view = "bintree"
-        #         return
-        #
-        # # --------------------------------------------------------------------- #
-        # # Default behavior for tagged views (weeks/tasks/events)
-        # # --------------------------------------------------------------------- #
-        #
-        # if event.key in "abcdefghijklmnopqrstuvwxyz":
-        #     self.digit_buffer.append(event.key)
-        #     log_msg(f"{self.digit_buffer = }, {self.afill = }")
-        #
-        #     # Wait until the number of chars matches the required fill
-        #     if len(self.digit_buffer) >= self.afill:
-        #         base26_tag = "".join(self.digit_buffer)
-        #         self.digit_buffer.clear()
-        #         screen = self.screen
-        #
-        #         if hasattr(screen, "show_details_for_tag"):
-        #             screen.show_details_for_tag(base26_tag)
-        # else:
-        #     self.digit_buffer.clear()
 
     def action_take_screenshot(self):
         """Save a screenshot of the current app state."""
@@ -2339,10 +2396,15 @@ class DynamicViewApp(App):
 
     def action_show_agenda(self):
         self.view = "events"
-        details = self.controller.get_agenda_events()
-        self.set_afill(self.view)
-        log_msg(f"opening agenda view, {self.view = }")
-        self.push_screen(AgendaScreen(self.controller))
+        details, title = self.controller.get_agenda()
+        footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
+        self.push_screen(FullScreenList(details, title, "", footer))
+
+        return
+        # details = self.controller.get_agenda_events()
+        # self.set_afill(self.view)
+        # log_msg(f"opening agenda view, {self.view = }")
+        # self.push_screen(AgendaScreen(self.controller))
 
     def action_show_bintree(self) -> None:
         """Open the BinTree (forest) view."""
