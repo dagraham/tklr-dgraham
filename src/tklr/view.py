@@ -33,6 +33,8 @@ import shutil
 import asyncio
 from .shared import get_version, fmt_user
 from typing import Dict, Tuple
+import pyperclip
+
 
 import re
 
@@ -281,6 +283,45 @@ with a tag sequentially generated from 'a', 'b',
 keys of the tag on your keyboard to see the
 details of the item and access related commands. 
 """.splitlines()
+#
+# tklr/clipboard.py
+
+
+class ClipboardUnavailable(RuntimeError):
+    """Raised when no system clipboard backend is available for pyperclip."""
+
+
+def copy_to_clipboard(text: str) -> None:
+    """
+    Copy text to the system clipboard using pyperclip.
+
+    Raises ClipboardUnavailable if pyperclip cannot access a clipboard backend.
+    """
+    try:
+        pyperclip.copy(text)
+    except pyperclip.PyperclipException as e:
+        # Give the user an actionable message rather than silently failing.
+        raise ClipboardUnavailable(
+            "Clipboard operation failed: no system clipboard backend available. "
+            "On Linux you may need to install 'xclip', 'xsel' or 'wl-clipboard' "
+            "(e.g. 'sudo apt install xclip' or 'sudo pacman -S wl-clipboard'). "
+            "If you're running headless (CI/container/SSH) a desktop clipboard may not be present."
+        ) from e
+
+
+def paste_from_clipboard() -> Optional[str]:
+    """
+    Return clipboard contents, or None if not available.
+
+    Raises ClipboardUnavailable on failure.
+    """
+    try:
+        return pyperclip.paste()
+    except pyperclip.PyperclipException as e:
+        raise ClipboardUnavailable(
+            "Paste failed: no system clipboard backend available. "
+            "On Linux you may need to install 'xclip', 'xsel' or 'wl-clipboard'."
+        ) from e
 
 
 class BusyWeekBar(Widget):
@@ -1133,12 +1174,27 @@ class ScrollableList(ScrollView):
 class SearchableScreen(Screen):
     """Base class for screens that support search on a list widget."""
 
-    def get_search_target(self) -> ScrollableList:
-        """Return the ScrollableList to search.
-        Default: the '#list' widget, so WeeksScreen keeps working.
-        AgendaScreen will override this to point at its active pane.
+    # def get_search_target(self) -> ScrollableList:
+    #     """Return the ScrollableList to search.
+    #     Default: the '#list' widget, so WeeksScreen keeps working.
+    #     AgendaScreen will override this to point at its active pane.
+    #     """
+    #     return self.query_one("#list", ScrollableList)
+
+    def get_search_target(self):
+        """Return the ScrollableList that should receive search/scroll commands.
+
+        If details pane is open, target the details list, otherwise the main list.
         """
-        return self.query_one("#list", ScrollableList)
+        if not self.list_with_details:
+            return None
+
+        # if details is open, search/scroll that; otherwise main list
+        return (
+            self.list_with_details._details
+            if self.list_with_details.has_details_open()
+            else self.list_with_details._main
+        )
 
     def perform_search(self, term: str):
         try:
@@ -1177,6 +1233,36 @@ class SearchableScreen(Screen):
                 target.refresh()
         except NoMatches:
             pass
+
+    def get_search_term(self) -> str:
+        """
+        Return the current search string for this screen.
+
+        Priority:
+          1. If the screen exposes a search input widget (self.search_input),
+             return its current value (.value or .text).
+          2. If this screen wants to store the term elsewhere, override this method.
+          3. Fallback to the app-wide reactive `self.app.search_term`.
+        """
+        # 1) common pattern: a Textual Input-like widget called `search_input`
+        si = getattr(self, "search_input", None)
+        if si is not None:
+            # support common widget APIs
+            if hasattr(si, "value"):
+                return si.value or ""
+            if hasattr(si, "text"):
+                return si.text or ""
+            # fallback convert to str
+            try:
+                return str(si)
+            except Exception:
+                return ""
+
+        # 2) some screens may keep the term on the screen in another attribute;
+        #    override get_search_term in those screens if needed.
+
+        # 3) fallback app-wide value
+        return getattr(self.app, "search_term", "") or ""
 
 
 class WeeksScreen(SearchableScreen, SafeScreen):
@@ -1271,7 +1357,7 @@ Page = Tuple[PageRows, PageTagMap]
 
 class WeeksScreen(SearchableScreen, SafeScreen):
     """
-    4-week grid with a bottom details panel, powered by ListWithDetails.
+    1-week grid with a bottom details panel, powered by ListWithDetails.
 
     `details` is expected to be a list of pages:
       pages = [ (rows_for_page0, tag_map0), (rows_for_page1, tag_map1), ... ]
@@ -1372,34 +1458,6 @@ class WeeksScreen(SearchableScreen, SafeScreen):
         return tag_map.get(tag)
 
     # --- UI refresh helpers ---------------------------------------------
-    def refresh_page(self) -> None:
-        """Update the ListWithDetails widget to reflect the current page."""
-        if not self.list_with_details:
-            return
-
-        if not self.pages:
-            # empty page
-            self.list_with_details.update_list([])
-            # ensure details hidden
-            if self.list_with_details.has_details_open():
-                self.list_with_details.hide_details()
-            # also ensure the app knows there is no tagging width required
-            self.app.controller.afill_by_view["week"] = 1
-            return
-
-        rows, tag_map = self.pages[self.current_page]
-
-        # Update the display lines in the ListWithDetails
-        self.list_with_details.update_list(rows)
-
-        # Weeks use single-letter tags per page (page_tagger ensures that),
-        # so tell controller that afill for week is 1
-        self.app.controller.afill_by_view["week"] = 1
-
-        # If a details pane is open, keep it open but hide it if it's stale
-        if self.list_with_details.has_details_open():
-            # We prefer to close details when the underlying page changes
-            self.list_with_details.hide_details()
 
     def refresh_page(self) -> None:
         """Update the ListWithDetails widget to reflect the current page (with debug)."""
@@ -1455,28 +1513,6 @@ class WeeksScreen(SearchableScreen, SafeScreen):
             self.list_with_details.hide_details()
 
     # --- Called from app when the underlying week data has changed ----------
-    def update_table_and_list(self):
-        """
-        Called by the app after the controller recomputes the table + list pages
-        for the currently-selected week.
-        Controller.get_table_and_list must now return: (title, busy_bar, pages)
-        where pages is a list[Page].
-        """
-        title, busy_bar, pages = self.app.controller.get_table_and_list(
-            self.app.current_start_date, self.app.selected_week
-        )
-
-        # update table title and busy bar displays
-        self.query_one("#table_title", Static).update(title)
-        self.query_one("#table", Static).update(busy_bar)
-
-        # adopt new pages and reset page index
-        self.pages = pages or []
-        self.current_page = 0
-
-        # refresh the visible page
-        if self.list_with_details:
-            self.refresh_page()
 
     def update_table_and_list(self):
         """
@@ -1594,19 +1630,8 @@ class FullScreenList(SearchableScreen):
 
         title, lines, meta = app.controller.get_details_for_record(record_id, job_id)
         log_msg(f"{title = }, {lines = }, {meta = }")
-        # if not parts:
-        #     return
-        # title, lines = parts[0], parts[1:]
-        # meta = getattr(self.app.controller, "_last_details_meta", None) or {}
         if self.list_with_details:
             self.list_with_details.show_details(title, lines, meta)
-
-    # --- Page Indicator -----------------------------------------------------
-    # def _render_page_indicator(self) -> str:
-    #     total_pages = len(self.pages)
-    #     return " ".join(
-    #         "●" if i == self.current_page else "○" for i in range(total_pages)
-    #     )
 
     def _render_page_indicator(self) -> str:
         total_pages = len(self.pages)
@@ -1651,23 +1676,6 @@ class FullScreenList(SearchableScreen):
         self.query_one("#scroll_title", Static).update(
             f"{self.title}\n{self._render_page_indicator()}"
         )
-
-    # --- Tag Activation -----------------------------------------------------
-    # def show_details_for_tag(self, tag: str) -> None:
-    #     """Called by DynamicViewApp when a tag key is pressed."""
-    #     app = self.app
-    #     record_id = self.get_record_for_tag(tag)
-    #     if not record_id:
-    #         return
-    #     parts = app.controller.process_tag(
-    #         tag, app.view, getattr(app, "selected_week", (0, 0))
-    #     )
-    #     if not parts:
-    #         return
-    #     title, lines = parts[0], parts[1:]
-    #     meta = getattr(app.controller, "_last_details_meta", None) or {}
-    #     if self.list_with_details:
-    #         self.list_with_details.show_details(title, lines, meta)
 
 
 class BinScreen(Screen):
@@ -1893,15 +1901,6 @@ class BinTree(Screen):
     def on_mount(self):
         self.refresh_tree()
 
-    # def refresh_tree(self):
-    #     self.tag_map.clear()
-    #     self._tag_counter = 0  # ✅ reset tag numbering
-    #     lines = self.render_tree()
-    #     count = len(lines)  # however you compute that
-    #     self.app.controller.set_afill([None] * count, "bintree")
-    #     tag_iter = self.app.controller.get_tag_iterator("bintree", count)
-    #     self.query_one("#bintree_body", Static).update("\n".join(lines))
-
     def refresh_tree(self):
         """Re-render the bin tree and rebuild tag mappings."""
         self.tag_map.clear()
@@ -1960,13 +1959,6 @@ class BinTree(Screen):
             self.tag_map[tag] = ("reminder", r["id"])
 
         return lines
-
-    # def _next_tag(self) -> str:
-    #     """Return the next sequential tag like a, b, ..., z, aa, ab, ..."""
-    #     idx = getattr(self, "_tag_counter", 0)
-    #     self._tag_counter = idx + 1
-    #     fill = self.app.controller.afill_by_view.get("bintree", 1)
-    #     return indx_to_tag(idx, fill)
 
     def _next_tag(self) -> str:
         """Return next sequential tag (a, b, …, z, aa, …) with dynamic fill."""
@@ -2098,6 +2090,7 @@ class DynamicViewApp(App):
         ("/", "start_search", "Search"),
         (">", "next_match", "Next Match"),
         ("<", "previous_match", "Previous Match"),
+        ("ctrl+z", "copy_search", "Copy Search"),
     ]
 
     def __init__(self, controller) -> None:
@@ -2493,7 +2486,28 @@ class DynamicViewApp(App):
         if isinstance(screen, SearchableScreen):
             screen.perform_search(term)
         else:
-            log_msg(f"[App] Current screen does not support search.")
+            log_msg("[App] Current screen does not support search.")
+
+    def action_copy_search(self) -> None:
+        screen = getattr(self, "screen", None)
+        term = ""
+        if screen is not None and hasattr(screen, "get_search_term"):
+            try:
+                term = screen.get_search_term() or ""
+            except Exception:
+                term = ""
+        else:
+            term = getattr(self, "search_term", "") or ""
+
+        if not term:
+            self.notify("Nothing to copy", severity="info", timeout=1.2)
+            return
+
+        try:
+            copy_to_clipboard(term)
+            self.notify("Copied search to clipboard ✓", severity="info", timeout=1.2)
+        except ClipboardUnavailable as e:
+            self.notify(f"{str(e)}", severity="error", timeout=1.2)
 
     def update_table_and_list(self):
         screen = self.screen

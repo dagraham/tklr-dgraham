@@ -870,7 +870,7 @@ class Controller:
                 entry,
                 " ",
                 rr_line,
-                f"[{label_color}]details:[/{label_color}] {record_id}{job} / {created} / {modified}",
+                f"[{label_color}]id/cr/md:[/{label_color}] {record_id}{job} / {created} / {modified}",
             ]
         )
 
