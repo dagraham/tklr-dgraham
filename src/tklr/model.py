@@ -2039,9 +2039,9 @@ class DatabaseManager:
 
         itemtype, rruleset, record_extent, jobs_json, processed = row
         rule_str = (rruleset or "").replace("\\N", "\n").replace("\\n", "\n")
-        log_msg(
-            f"generating datetimes for {record_id = } with {rule_str = } and {rruleset = } "
-        )
+        # log_msg(
+        #     f"generating datetimes for {record_id = } with {rule_str = } and {rruleset = } "
+        # )
 
         # Nothing to do without any schedule
         if not rule_str:
@@ -2838,7 +2838,6 @@ class DatabaseManager:
         if record["itemtype"] not in ["^", "~"]:
             log_msg(f"skipping urgency for {record = }")
             return
-        log_msg(f"{record['itemtype'] = }")
         record_id = record["id"]
         pinned = self.is_pinned(record_id)
         # log_msg(f"{record_id = }, {pinned = }, {record = }")
@@ -2967,7 +2966,7 @@ class DatabaseManager:
         self.cursor.execute("DELETE FROM Urgency")
         tasks = self.get_all_tasks()
         for task in tasks:
-            log_msg(f"adding to urgency: {task['itemtype'] = }, {task = }")
+            # log_msg(f"adding to urgency: {task['itemtype'] = }, {task = }")
             self.populate_urgency_from_record(task)
         self.conn.commit()
 

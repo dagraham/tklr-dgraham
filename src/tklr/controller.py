@@ -1331,9 +1331,7 @@ class Controller:
         # terminal_width = shutil.get_terminal_size().columns
 
         header = f"{this_week} #{yr_wk[1]} ({len(events)})"
-        rows = [
-            header,
-        ]
+        rows = []
 
         self.set_week_afill(events, yr_wk)
 
@@ -1359,9 +1357,9 @@ class Controller:
             if itemtype == "*":  # event
                 # 🪄 new line: replace {XXX} with ordinal instance
                 subject = self.apply_anniversary_if_needed(id, subject, start_dt)
-                log_msg(
-                    f"Week rows {itemtype = }, {subject = }, {start_dt = }, {end_dt = }"
-                )
+                # log_msg(
+                #     f"Week rows {itemtype = }, {subject = }, {start_dt = }, {end_dt = }"
+                # )
             status = "available"
 
             if start_dt == end_dt:
@@ -1422,7 +1420,7 @@ class Controller:
                     rows.append(event)
         pages = page_tagger(rows)
         self.yrwk_to_pages[yr_wk] = pages
-        log_msg(f"{len(pages) = }, {pages[0] = }, {pages[-1] = }")
+        # log_msg(f"{len(pages) = }, {pages[0] = }, {pages[-1] = }")
         return pages
 
     def get_busy_bits_for_week(self, selected_week: tuple[int, int]) -> list[int]:

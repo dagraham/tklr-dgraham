@@ -1,8 +1,17 @@
 /* ── Screen ───────────────────────────────────────── */
 Screen {
   layout: vertical;
-  background: #2e2e2e;
+  background: #373737 100%;
+  opacity: 100%;
 }
+
+/* Screen, */
+/* SafeScreen, */
+/* ScrollableList, */
+/* ListWithDetails { */
+/*   layout: vertical; */
+/*   background: #373737; */
+/* } */
 
 /* ── Titles ───────────────────────────────────────── */
 #table_title,
@@ -12,45 +21,15 @@ Screen {
 #list_title,
 #events_title,
 #tasks_title {
-  /* color: #cdcdcd; */
   color: white;
-  /* color: #32cd32; */
-  /* background: #373737; */
-  /* background: #4b4b4b; */
-  /* border: solid white; */
-  /* border: solid #4b4b4b; */
   border-bottom: solid #7f7f7f;
-  background: #2e2e2e;
   text-style: bold;
   text-align: center;
   padding: 1 1 0 1;
 }
 
-/* Subtle highlight for inactive pane */
-#events_title.inactive,
-#tasks_title.inactive {
-  /* border: solid #3a3a3a; */
-  /* border: none; */
-  border-bottom: solid #2e2e2e;
-
-  /* background: #373737; */
-  /* color: #32cd32; */
-  /* color: #7d7d7d; */
-  text-style: dim;
-}
-
-/* ── Agenda split ─────────────────────────────────── */
-#agenda-layout {
-  height: 1fr;
-}
-#agenda-layout > #events-pane,
-#agenda-layout > #tasks-pane {
-  height: 1fr;
-}
-
 /* ── ScrollView defaults (plain) ──────────────────── */
 ScrollView {
-  border: none;
   padding: 0;
   margin: 0;
 }
@@ -60,35 +39,19 @@ ScrollView {
   display: none;
 }
 
-/* ── Search bar bits ──────────────────────────────── */
-#agenda-search-bar {
-  padding: 0 1;
-}
-#agenda-search-label {
-  min-width: 10;
-  text-style: dim;
-}
-#agenda-search-input {
-  height: 1;
-  width: 1fr;
-}
-
-/* ── Footer ───────────────────────────────────────── */
-Footer {
-  /* background: #2e2e2e; */
-  background: #373737;
-  color: #fff8dc;
+#custom_footer {
+  color: white;
   text-style: bold;
-  border: none; /* no line beneath the details pane */
+  border-top: #7f7f7f;
+  padding: 0 1 1 1;
 }
-
 /* ── Details Pane ───────────────────────────── */
 #details-pane {
   dock: bottom;
   layout: vertical; /* header then body */
-  background: $panel;
   border-top: heavy #7f7f7f; /* optional separator */
   height: 14; /* fixed: 2 rows for header + 12 for body */
+  padding: 0 1 1 1;
 }
 
 #details-pane.hidden {
@@ -117,7 +80,6 @@ Footer {
   width: 100%;
   height: 100%;
   border: solid #7f7f7f;
-  background: #2e2e2e;
 }
 #help_layout {
   height: 1fr;
@@ -144,11 +106,13 @@ Footer {
   color: white;
   text-style: bold;
   border-bottom: solid #7f7f7f;
+  /* background: #373737; */
 }
 
 /* Message block just under the title */
 #dt_message {
   color: #cccccc; /* soft grey */
+  background: #373737;
   padding: 0 1 1 1;
   /* text-align: center; */
 }
@@ -156,6 +120,7 @@ Footer {
 /* Horizontal rule */
 .dim-rule {
   color: #555555;
+  background: #373737;
 }
 
 /* Live feedback (“→ parsed datetime”) */
@@ -170,7 +135,7 @@ Footer {
 #dt_input {
   border: solid #7f7f7f;
   /* background: #2e2e2e; */
-  background: #1e1e1e;
+  /* background: #1e1e1e; */
   color: white;
   padding: 0 1;
   height: auto;
@@ -180,12 +145,14 @@ Footer {
 #dt_input:focus {
   border: solid #7f7f7f; /* lime green highlight */
   /* background: black; */
+  background: #373737;
   color: white;
 }
 
 /* Fixed universal instructions */
 #dt_instructions {
   color: #cccccc;
+  background: #373737;
   padding: 1 1;
   /* text-align: left; */
   /* text-style: dim; */
@@ -194,21 +161,37 @@ Footer {
 /* Container that holds a main list + details list */
 ListWithDetails {
   layout: vertical;
+  /* background: #373737; */
 }
 
 /* Main list fills available space */
 ListWithDetails > #main-list {
+  /* background: #373737; */
   height: 1fr;
 }
 
 /* Details list appears at bottom when shown and scrolls if long */
 ListWithDetails > #details-list {
+  /* background: #373737; */
   height: auto;
   max-height: 14; /* tweak to taste */
   border-top: solid #7f7f7f; /* optional separator */
+  /* border-bottom: solid #7f7f7f; */
   /* padding-left: 1; */
   /* border: none; */
 }
+
+ListWithDetails > #details_text {
+  /* background: #373737; */
+  color: yellow;
+  /* height: auto; */
+  /* max-height: 14;  */
+  /* border-top: solid #7f7f7f; */
+  /* border-bottom: solid #7f7f7f; */
+  /* padding-left: 1; */
+  /* border: none; */
+}
+
 ListWithDetails > #details-list.hidden {
   display: none;
 }

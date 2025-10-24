@@ -13,6 +13,7 @@ from rich.segment import Segment
 from rich.table import Table
 from rich.text import Text
 from rich.rule import Rule
+from rich.style import Style
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical, Grid
 from textual.geometry import Size
@@ -47,7 +48,6 @@ from typing import List, Callable, Optional, Any, Iterable
 from textual import events
 
 from textual.events import Key
-
 
 tklr_version = version("tklr")
 # tklr_version = get_version()
@@ -369,25 +369,6 @@ class SafeScreen(Screen):
 class ListWithDetails(Container):
     """Container with a main ScrollableList and a bottom details ScrollableList."""
 
-    DEFAULT_CSS = """
-    ListWithDetails {
-        layout: vertical;
-    }
-    ListWithDetails > #main-list {
-        height: 1fr;
-    }
-    ListWithDetails > #details-list {
-        height: auto;
-        max-height: 14;   /* ~14 rows; adjust to taste */
-        border: none;
-    }
-    ListWithDetails > #details-list.hidden {
-        display: none;
-    }
-    """
-
-    # ... your existing DEFAULT_CSS / compose / update_list / show_details / hide_details ...
-
     def __init__(self, *args, match_color: str = "#ffd75f", **kwargs):
         super().__init__(*args, **kwargs)
         self._main: ScrollableList | None = None
@@ -397,17 +378,135 @@ class ListWithDetails(Container):
         self._details_active = False
         self.details_meta: dict = {}  # ← you already have this
 
-    def compose(self) -> ComposeResult:
+    # def on_mount(self) -> None:
+    #     # existing on_mount behaviour (if any) should remain
+    #     # debug: list child widgets and their classes/ids
+    #     container = self  # ListWithDetails instance
+    #     log_msg("calling rprint")
+    #     msgs = []
+    #     msgs.append("[bold yellow]ListWithDetails children:[/bold yellow]")
+    #     for i, ch in enumerate(container.children):
+    #         msgs.append(
+    #             f"  {i}: id={repr(ch.id)} class={type(ch).__name__} classes={list(ch.classes)}"
+    #         )
+    #         # and inspect grandchildren
+    #         for j, g in enumerate(ch.children):
+    #             msgs.append(
+    #                 f"    {i}.{j}: id={repr(g.id)} class={type(g).__name__} classes={list(g.classes)}"
+    #             )
+    #     msg = "\n".join(msgs)
+    #     log_msg(f"{msg = }")
+    #
+
+    def on_mount(self):
+        # 1) Set the widget backgrounds (outer)
+        for w in (self._main, self._details):
+            if w and hasattr(w, "styles"):
+                w.styles.background = "#373737"
+
+        # 2) Try to set the internal viewport background too (inner)
+        def force_scroller_bg(scroller, color: str):
+            if not scroller:
+                return
+            # Newer Textual names
+            for attr in ("_viewport", "_window", "_scroll_view", "_view", "_content"):
+                vp = getattr(scroller, attr, None)
+                if vp and hasattr(vp, "styles"):
+                    vp.styles.background = color
+                    try:
+                        vp.refresh()
+                    except Exception:
+                        pass
+
+        force_scroller_bg(self._main, "#373737")
+        force_scroller_bg(self._details, "#373737")
+
+        # 3) (Optional) make the container itself non-transparent
+        if hasattr(self, "styles"):
+            self.styles.background = "#373737"
+
+        def _dump_chain(widget):
+            w = widget
+            depth = 0
+            while w is not None:
+                try:
+                    bg = w.styles.background
+                except Exception:
+                    bg = "<no styles.background>"
+                log_msg(
+                    f"depth={depth} id={getattr(w, 'id', None)!r} cls={type(w).__name__} bg={bg}"
+                )
+                w = getattr(w, "parent", None)
+                depth += 1
+
+        try:
+            m = self.query_one("#main-list")
+            log_msg("=== debug: main-list styles ===")
+            log_msg(repr(m.styles))
+            _dump_chain(m)
+        except Exception as e:
+            log_msg(f"debug: couldn't find #main-list: {e}")
+
+    # If you already do focus etc. here, keep that code too.
+
+    # def on_mount(self):
+    #     # Paint the internal viewport for the main list
+    #     for attr in ("_viewport", "_window", "_scroll_view", "_view", "_content"):
+    #         vp = getattr(self._main, attr, None)
+    #         if vp and hasattr(vp, "styles"):
+    #             vp.styles.background = "#373737"
+    #             try:
+    #                 vp.refresh()
+    #             except Exception:
+    #                 pass
+    #
+    #     # Paint the internal viewport for the details list
+    #     for attr in ("_viewport", "_window", "_scroll_view", "_view", "_content"):
+    #         vp = getattr(self._details, attr, None)
+    #         if vp and hasattr(vp, "styles"):
+    #             vp.styles.background = "#373737"
+    #             try:
+    #                 vp.refresh()
+    #             except Exception:
+    #                 pass
+    #
+    #     def _dump_chain(widget):
+    #         w = widget
+    #         depth = 0
+    #         while w is not None:
+    #             try:
+    #                 bg = w.styles.background
+    #             except Exception:
+    #                 bg = "<no styles.background>"
+    #             log_msg(
+    #                 f"depth={depth} id={getattr(w, 'id', None)!r} cls={type(w).__name__} bg={bg}"
+    #             )
+    #             w = getattr(w, "parent", None)
+    #             depth += 1
+    #
+    #     try:
+    #         m = self.query_one("#main-list")
+    #         log_msg("=== debug: main-list styles ===")
+    #         log_msg(repr(m.styles))
+    #         _dump_chain(m)
+    #     except Exception as e:
+    #         log_msg(f"debug: couldn't find #main-list: {e}")
+
+    # def compose(self) -> ComposeResult:
+    #     self._main = ScrollableList([], id="main-list")
+    #     self._details = ScrollableList([], id="details-list")
+    #     self._details.add_class("hidden")
+    #     yield self._main
+    #     yield self._details
+
+    def compose(self):
+        # Background filler behind the lists
+        # yield Static("", id="list-bg")
         self._main = ScrollableList([], id="main-list")
         self._details = ScrollableList([], id="details-list")
         self._details.add_class("hidden")
         yield self._main
         yield self._details
-
-    # ---- main list passthroughs ----
-    # def update_list(self, lines: list[str]) -> None:
-    #     log_msg(f"{lines = }")
-    #     self._main.update_list(lines)
 
     def update_list(
         self, lines: list[str], meta_map: dict[str, dict] | None = None
@@ -1045,7 +1144,7 @@ class HelpScreen(Screen):
         self._title = lines[0]
         self._lines = lines[1:]
         self._footer = footer or f"[bold {FOOTER}]esc[/bold {FOOTER}] Back"
-        log_msg(f"{lines = }")
+        self.add_class("panel-bg-help")  # HelpScreen
 
     def compose(self):
         yield Vertical(
@@ -1055,12 +1154,39 @@ class HelpScreen(Screen):
             id="help_layout",
         )
 
+    # def on_mount(self):
+    #     self.styles.width = "100%"
+    #     self.styles.height = "100%"
+    #     self.query_one("#help_layout").styles.height = "100%"
+    #
+    #     help_list = self.query_one("#help_list", ScrollableList)
+    #
+    #     for attr in ("_viewport", "_window", "_scroll_view", "_view", "_content"):
+    #         vp = getattr(help_list, attr, None)
+    #         if vp and hasattr(vp, "styles"):
+    #             vp.styles.background = "#373737"
+    #             try:
+    #                 vp.refresh()
+    #             except Exception:
+    #                 pass
+
     def on_mount(self):
-        # Make sure it fills the screen; no popup sizing/margins.
         self.styles.width = "100%"
         self.styles.height = "100%"
         self.query_one("#help_layout").styles.height = "100%"
-        self.query_one("#help_list", ScrollableList).styles.height = "1fr"
+
+        help_list = self.query_one("#help_list", ScrollableList)
+        for attr in ("_viewport", "_window", "_scroll_view", "_view", "_content"):
+            vp = getattr(help_list, attr, None)
+            if vp and hasattr(vp, "styles"):
+                vp.styles.background = "#373737"
+                try:
+                    vp.refresh()
+                except Exception:
+                    pass
+        log_msg(
+            f"help_layout children: {[(i, child.__class__.__name__, child.id, child.styles.background) for i, child in enumerate(self.query_one('#help_layout').children)]}"
+        )  # Make sure it fills the screen; no popup sizing/margins.
 
 
 class ScrollableList(ScrollView):
@@ -1073,30 +1199,50 @@ class ScrollableList(ScrollView):
       - Easy list updating via `update_list`.
     """
 
-    def __init__(
-        self, lines: List[str], *, match_color: str = MATCH_COLOR, **kwargs
-    ) -> None:
+    DEFAULT_CSS = """
+    ScrollableList {
+        background: #373737 90%;
+    }
+    """
+
+    # def __init__(
+    #     self, lines: List[str], *, match_color: str = MATCH_COLOR, **kwargs
+    # ) -> None:
+    #     super().__init__(**kwargs)
+    #     self.console = Console()
+    #     self.match_color = match_color
+    #
+    #     # Backing store
+    #     self.lines: List[Text] = [Text.from_markup(line) for line in lines]
+    #
+    #     # Virtual size: width is terminal width minus small gutter; height = #lines
+    #     width = shutil.get_terminal_size().columns - 3
+    #     self.virtual_size = Size(width, len(self.lines))
+    #
+    #     # Search state
+    #     self.search_term: Optional[str] = None
+    #     self.matches: List[int] = []
+    #     self.current_match_idx: int = -1
+
+    def __init__(self, lines: List[str], *, match_color: str = MATCH_COLOR, **kwargs):
         super().__init__(**kwargs)
         self.console = Console()
         self.match_color = match_color
+        self.row_bg = Style(bgcolor="#373737")  # ← row background color
 
-        # Backing store
         self.lines: List[Text] = [Text.from_markup(line) for line in lines]
-
-        # Virtual size: width is terminal width minus small gutter; height = #lines
         width = shutil.get_terminal_size().columns - 3
         self.virtual_size = Size(width, len(self.lines))
 
-        # Search state
         self.search_term: Optional[str] = None
         self.matches: List[int] = []
         self.current_match_idx: int = -1
 
-    # ---------- Public API ----------
+    # ... update_list / search methods unchanged ...
 
     def update_list(self, new_lines: List[str]) -> None:
         """Replace the list content and refresh."""
-        log_msg(f"{new_lines = }")
+        # log_msg(f"{new_lines = }")
         self.lines = [Text.from_markup(line) for line in new_lines if line]
         # log_msg(f"{self.lines = }")
         width = shutil.get_terminal_size().columns - 3
@@ -1147,28 +1293,58 @@ class ScrollableList(ScrollView):
 
     # ---------- Rendering ----------
 
+    # def render_line(self, y: int) -> Strip:
+    #     """Render a single virtual line at viewport row y."""
+    #     scroll_x, scroll_y = self.scroll_offset
+    #     y += scroll_y
+    #
+    #     # Out of bounds -> blank
+    #     if y < 0 or y >= len(self.lines):
+    #         return Strip.blank(self.size.width)
+    #
+    #     # Copy so we can stylize without mutating the source
+    #     line_text = self.lines[y].copy()
+    #
+    #     # Highlight if this line is a match
+    #     if self.search_term and y in self.matches:
+    #         line_text.stylize(f"bold {self.match_color}")
+    #
+    #     segments = list(line_text.render(self.console))
+    #     # Fit to width
+    #     cropped_segments = Segment.adjust_line_length(
+    #         segments, self.size.width, style=None
+    #     )
+    #     return Strip(cropped_segments, self.size.width)
+
     def render_line(self, y: int) -> Strip:
-        """Render a single virtual line at viewport row y."""
+        """Render a single virtual line at viewport row y with full-row background."""
         scroll_x, scroll_y = self.scroll_offset
         y += scroll_y
 
-        # Out of bounds -> blank
         if y < 0 or y >= len(self.lines):
-            return Strip.blank(self.size.width)
+            # pad a blank row with background so empty area is painted too
+            return Strip(
+                Segment.adjust_line_length([], self.size.width, style=self.row_bg),
+                self.size.width,
+            )
 
-        # Copy so we can stylize without mutating the source
+        # copy so we can stylize safely
         line_text = self.lines[y].copy()
 
-        # Highlight if this line is a match
+        # search highlight (doesn't touch background)
         if self.search_term and y in self.matches:
             line_text.stylize(f"bold {self.match_color}")
 
+        # ensure everything drawn has background
+        line_text.stylize(self.row_bg)
+
+        # render → crop/pad to width; pad uses our background style
         segments = list(line_text.render(self.console))
-        # Fit to width
-        cropped_segments = Segment.adjust_line_length(
-            segments, self.size.width, style=None
+        segments = Segment.adjust_line_length(
+            segments, self.size.width, style=self.row_bg
         )
-        return Strip(cropped_segments, self.size.width)
+
+        return Strip(segments, self.size.width)
 
 
 class SearchableScreen(Screen):
@@ -1265,88 +1441,88 @@ class SearchableScreen(Screen):
         return getattr(self.app, "search_term", "") or ""
 
 
-class WeeksScreen(SearchableScreen, SafeScreen):
-    """4-week grid with a bottom details panel, powered by ListWithDetails."""
-
-    def __init__(
-        self,
-        title: str,
-        table: str,
-        details: list[str],
-        footer_content: str,
-    ):
-        super().__init__()
-        self.table_title = title
-        self.table = table
-        self.details = details
-        self.footer_content = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
-        self.list_with_details: ListWithDetails | None = None
-
-    # Let global search target the currently-focused list
-    def get_search_target(self):
-        if not self.list_with_details:
-            return None
-        return (
-            self.list_with_details._details
-            if self.list_with_details.has_details_open()
-            else self.list_with_details._main
-        )
-
-    def after_mount(self) -> None:
-        """Fill the list with the initially provided details once layout is ready."""
-        if self.list_with_details and self.details:
-            self.list_with_details.update_list(self.details[1:])
-
-    def compose(self) -> ComposeResult:
-        yield Static(
-            self.table_title or "Untitled",
-            id="table_title",
-            classes="title-class",
-        )
-
-        yield Static(
-            self.table or "[i]No data[/i]",
-            id="table",
-            classes="busy-bar",
-            markup=True,
-        )
-
-        # Single list (no separate list title)
-        self.list_with_details = ListWithDetails(id="list")
-        self.list_with_details.set_detail_key_handler(
-            self.app.make_detail_key_handler(
-                view_name="week",
-                week_provider=lambda: self.app.selected_week,
-            )
-        )
-        self.app.detail_handler = self.list_with_details._detail_key_handler
-        yield self.list_with_details
-
-        yield Static(self.footer_content)
-
-    def update_table_and_list(self):
-        title, busy_bar, details = self.app.controller.get_table_and_list(
-            self.app.current_start_date, self.app.selected_week
-        )
-
-        self.query_one("#table_title", Static).update(title)
-        self.query_one("#table", Static).update(busy_bar)
-
-        if self.list_with_details:
-            self.list_with_details.update_list(details[1:] if details else [])
-            if self.list_with_details.has_details_open():
-                self.list_with_details.hide_details()
-
-    # Called from DynamicViewApp.on_key when a tag is completed
-    def show_details_for_tag(self, tag: str) -> None:
-        app = self.app  # DynamicViewApp
-        parts = app.controller.process_tag(tag, "week", app.selected_week)
-        if not parts:
-            return
-        title, lines = parts[0], parts[1:]
-        meta = getattr(self.app.controller, "_last_details_meta", None) or {}
-        if self.list_with_details:
-            self.list_with_details.show_details(title, lines, meta)
+# class WeeksScreen(SearchableScreen, SafeScreen):
+#     """1-week grid with a bottom details panel, powered by ListWithDetails."""
+#
+#     def __init__(
+#         self,
+#         title: str,
+#         table: str,
+#         details: list[str],
+#         footer_content: str,
+#     ):
+#         super().__init__()
+#         self.table_title = title
+#         self.table = table
+#         self.details = details
+#         self.footer_content = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
+#         self.list_with_details: ListWithDetails | None = None
+#
+#     # Let global search target the currently-focused list
+#     def get_search_target(self):
+#         if not self.list_with_details:
+#             return None
+#         return (
+#             self.list_with_details._details
+#             if self.list_with_details.has_details_open()
+#             else self.list_with_details._main
+#         )
+#
+#     def after_mount(self) -> None:
+#         """Fill the list with the initially provided details once layout is ready."""
+#         if self.list_with_details and self.details:
+#             self.list_with_details.update_list(self.details[1:])
+#
+#     def compose(self) -> ComposeResult:
+#         yield Static(
+#             self.table_title or "Untitled",
+#             id="table_title",
+#             classes="title-class",
+#         )
+#
+#         yield Static(
+#             self.table or "[i]No data[/i]",
+#             id="table",
+#             classes="busy-bar",
+#             markup=True,
+#         )
+#
+#         # Single list (no separate list title)
+#         self.list_with_details = ListWithDetails(id="list")
+#         self.list_with_details.set_detail_key_handler(
+#             self.app.make_detail_key_handler(
+#                 view_name="week",
+#                 week_provider=lambda: self.app.selected_week,
+#             )
+#         )
+#         self.app.detail_handler = self.list_with_details._detail_key_handler
+#         yield self.list_with_details
+#
+#         yield Static(self.footer_content)
+#
+#     def update_table_and_list(self):
+#         title, busy_bar, details = self.app.controller.get_table_and_list(
+#             self.app.current_start_date, self.app.selected_week
+#         )
+#
+#         self.query_one("#table_title", Static).update(title)
+#         self.query_one("#table", Static).update(busy_bar)
+#
+#         if self.list_with_details:
+#             self.list_with_details.update_list(details[1:] if details else [])
+#             if self.list_with_details.has_details_open():
+#                 self.list_with_details.hide_details()
+#
+#     # Called from DynamicViewApp.on_key when a tag is completed
+#     def show_details_for_tag(self, tag: str) -> None:
+#         app = self.app  # DynamicViewApp
+#         parts = app.controller.process_tag(tag, "week", app.selected_week)
+#         if not parts:
+#             return
+#         title, lines = parts[0], parts[1:]
+#         meta = getattr(self.app.controller, "_last_details_meta", None) or {}
+#         if self.list_with_details:
+#             self.list_with_details.show_details(title, lines, meta)
 
 
 # type aliases for clarity
@@ -1373,6 +1549,7 @@ class WeeksScreen(SearchableScreen, SafeScreen):
         footer_content: str,
     ):
         super().__init__()
+        self.add_class("panel-bg-weeks")  # WeeksScreen
         self.table_title = title
         self.table = table  # busy bar / calendar mini-grid content (string)
         # pages: list of (rows, tag_map). Accept None or [].
@@ -1420,7 +1597,7 @@ class WeeksScreen(SearchableScreen, SafeScreen):
         self.app.detail_handler = self.list_with_details._detail_key_handler
         yield self.list_with_details
 
-        yield Static(self.footer_content)
+        yield Static(self.footer_content, id="custom_footer")
 
     # Called once layout is up
     def after_mount(self) -> None:
@@ -1473,7 +1650,10 @@ class WeeksScreen(SearchableScreen, SafeScreen):
             self.list_with_details.update_list([])
             if self.list_with_details.has_details_open():
                 self.list_with_details.hide_details()
+            # ensure controller expects single-letter tags for weeks
             self.app.controller.afill_by_view["week"] = 1
+            # ensure title shows base title (no indicator)
+            self.query_one("#table_title", Static).update(self.table_title)
             return
 
         # defensive: check page index bounds
@@ -1494,16 +1674,19 @@ class WeeksScreen(SearchableScreen, SafeScreen):
                 isinstance(p, str) for p in self.pages
             ):
                 self.list_with_details.update_list(self.pages)
+                # update title without indicator
+                self.query_one("#table_title", Static).update(self.table_title)
                 return
             # otherwise clear to avoid crash
             self.list_with_details.update_list([])
+            self.query_one("#table_title", Static).update(self.table_title)
             return
 
         rows, tag_map = page
         log_msg(
             f"[WeeksScreen.refresh_page] page {self.current_page} rows={len(rows)} tags={len(tag_map)}"
         )
-        # update
+        # update list contents
         self.list_with_details.update_list(rows)
         # reset controller afill for week -> single-letter tags (page_tagger guarantees this)
         self.app.controller.afill_by_view["week"] = 1
@@ -1511,6 +1694,13 @@ class WeeksScreen(SearchableScreen, SafeScreen):
         if self.list_with_details.has_details_open():
             # close stale details when page changes (optional)
             self.list_with_details.hide_details()
+
+        # --- update table title to include page indicator when needed ---
+        if len(self.pages) > 1:
+            indicator = f" ({self.current_page + 1}/{len(self.pages)})"
+        else:
+            indicator = ""
+        self.query_one("#table_title", Static).update(f"{self.table_title}{indicator}")
 
     # --- Called from app when the underlying week data has changed ----------
 
@@ -1561,11 +1751,22 @@ class WeeksScreen(SearchableScreen, SafeScreen):
         self.pages = normalized_pages
         self.current_page = 0
 
-        # update displays
-        self.query_one("#table_title", Static).update(title)
+        # Save base title so refresh_page can add indicator consistently
+        self.table_title = title
+
+        # update busy-bar immediately
         self.query_one("#table", Static).update(busy_bar)
 
-        # refresh the visible page (calls update_list)
+        # update the title now including an indicator if appropriate
+        if len(self.pages) > 1:
+            title_with_indicator = (
+                f"{self.table_title} ({self.current_page + 1}/{len(self.pages)})"
+            )
+        else:
+            title_with_indicator = self.table_title
+        self.query_one("#table_title", Static).update(title_with_indicator)
+
+        # refresh the visible page (calls update_list and will also update title)
         if self.list_with_details:
             self.refresh_page()
 
@@ -1598,12 +1799,14 @@ class FullScreenList(SearchableScreen):
         self.title = title
         self.header = header
         self.footer_content = footer_content
+        # self.footer_content = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         self.current_page = 0
         self.lines = []
         self.tag_map = {}
         if self.pages:
             self.lines, self.tag_map = self.pages[0]
         self.list_with_details: ListWithDetails | None = None
+        self.add_class("panel-bg-list")  # FullScreenList
 
     # --- Page Navigation ----------------------------------------------------
     def next_page(self):
@@ -1637,11 +1840,6 @@ class FullScreenList(SearchableScreen):
         total_pages = len(self.pages)
         if total_pages <= 1:
             return ""
-        # if total_pages < 10:
-        #     bullets = " ".join(
-        #         "●" if i == self.current_page else "○" for i in range(total_pages)
-        #     )
-        #     return bullets
         return f"{self.current_page + 1} / {total_pages}"
 
     # --- Refresh Display ----------------------------------------------------
@@ -1914,14 +2112,6 @@ class BinTree(Screen):
         est_count = len(self.app.controller.get_subbins(root_id)) + len(
             self.app.controller.get_reminders(root_id)
         )
-        # NOTE: This doesn’t need to be exact; it just guides afill width.
-
-        # --- Update fill width BEFORE generating any tags
-        self.app.controller.set_afill([None] * est_count, "bintree")
-
-        # --- Now generate and render the tree
-        lines = self.render_tree()
-
         # --- Finally, update display
         self.query_one("#bintree_body", Static).update("\n".join(lines))
 
@@ -2069,12 +2259,10 @@ class DynamicViewApp(App):
 
     BINDINGS = [
         # global
-        (".", "center_week", ""),
+        # (".", "center_week", ""),
         ("space", "current_period", ""),
         ("shift+left", "previous_period", ""),
         ("shift+right", "next_period", ""),
-        ("left", "previous_week", ""),
-        ("right", "next_week", ""),
         ("ctrl+s", "take_screenshot", "Take Screenshot"),
         ("escape", "close_details", "Close details"),
         ("R", "show_alerts", "Show Alerts"),
@@ -2106,27 +2294,37 @@ class DynamicViewApp(App):
         self.leader_mode = False
         self.details_drawer: DetailsDrawer | None = None
 
-    def set_afill(self, *_args, **_kwargs):
-        # Prefer controller’s chosen width, fallback to infer from existing tags
-        log_msg(f"### setting afill, {self.view = }, {self.selected_week = } ###")
-        fill = None
-        if self.view == "week":
-            log_msg(f"getting afill for {self.selected_week = }")
-            fill = self.controller.afill_by_week.get(self.selected_week)
-            log_msg(f"got {fill = } for {self.selected_week = }")
-        else:
-            fill = self.controller.afill_by_view.get(self.view)
-            log_msg(f"got {fill = } for {self.view = }")
-        log_msg(f"got preliminary {fill = }")
-        self.afill = fill if fill else 1
+    # def set_afill(self, *_args, **_kwargs):
+    #     # Prefer controller’s chosen width, fallback to infer from existing tags
+    #     log_msg(f"### setting afill, {self.view = }, {self.selected_week = } ###")
+    #     fill = None
+    #     if self.view == "week":
+    #         log_msg(f"getting afill for {self.selected_week = }")
+    #         fill = self.controller.afill_by_week.get(self.selected_week)
+    #         log_msg(f"got {fill = } for {self.selected_week = }")
+    #     else:
+    #         fill = self.controller.afill_by_view.get(self.view)
+    #         log_msg(f"got {fill = } for {self.view = }")
+    #     log_msg(f"got preliminary {fill = }")
+    #     self.afill = fill if fill else 1
 
     async def on_mount(self):
-        # mount the drawer (hidden by default)
-        # self.details_drawer = DetailsDrawer()
-        # when the drawer closes, put focus back where it belongs
-        # self.details_drawer.on_close = self._return_focus_to_active_screen
-        # self.mount(self.details_drawer)
-
+        self.styles.background = "#373737"
+        try:
+            screen = self.screen
+            # screen.styles.background = "#2e2e2e"
+            screen.styles.background = "#373737 100%"
+            screen.styles.opacity = "100%"
+            # optional: explicitly make some known child widgets transparent
+            for sel in ("#list", "#main-list", "#details-list", "#table"):
+                try:
+                    w = screen.query_one(sel)
+                    w.styles.background = "#373737 100%"
+                    w.styles.opacity = "100%"
+                except Exception:
+                    pass
+        except Exception:
+            pass
         # open default screen
         self.action_show_weeks()
 
@@ -2255,41 +2453,74 @@ class DynamicViewApp(App):
 
         # --- View-specific setup ---
         log_msg(f"{self.view = }")
-        # --- special left/right behavior for week view (pages OR week navigation) ---
+        # ------------------ improved left/right handling ------------------
         if event.key in ("left", "right"):
-            # Only special-case the week view here; other views unchanged.
             if self.view == "week":
                 screen = getattr(self, "screen", None)
-                # If the screen implements page-aware interface, use it.
-                has_prev = callable(getattr(screen, "has_prev_page", None))
-                has_next = callable(getattr(screen, "has_next_page", None))
+                log_msg(
+                    f"[LEFT/RIGHT] screen={type(screen).__name__ if screen else None}"
+                )
+
+                if not screen:
+                    log_msg("[LEFT/RIGHT] no screen -> fallback week nav")
+                    if event.key == "left":
+                        self.action_previous_week()
+                    else:
+                        self.action_next_week()
+                    return
+
+                # check both "has method" and the result of calling it (if callable)
+                has_prev_method = getattr(screen, "has_prev_page", None)
+                has_next_method = getattr(screen, "has_next_page", None)
                 do_prev = callable(getattr(screen, "previous_page", None))
                 do_next = callable(getattr(screen, "next_page", None))
 
+                has_prev_callable = callable(has_prev_method)
+                has_next_callable = callable(has_next_method)
+
+                # call them (safely) to get boolean availability
+                try:
+                    has_prev_available = (
+                        has_prev_method() if has_prev_callable else False
+                    )
+                except Exception as e:
+                    log_msg(f"[LEFT/RIGHT] has_prev_page() raised: {e}")
+                    has_prev_available = False
+
+                try:
+                    has_next_available = (
+                        has_next_method() if has_next_callable else False
+                    )
+                except Exception as e:
+                    log_msg(f"[LEFT/RIGHT] has_next_page() raised: {e}")
+                    has_next_available = False
+
+                log_msg(
+                    f"[LEFT/RIGHT] has_prev_callable={has_prev_callable}, "
+                    f"has_prev_available={has_prev_available}, do_prev={do_prev}; "
+                    f"has_next_callable={has_next_callable}, "
+                    f"has_next_available={has_next_available}, do_next={do_next}"
+                )
+
+                # Prefer page navigation when page available; otherwise fallback to week nav.
                 if event.key == "left":
-                    # prefer page navigation
-                    if has_prev and screen.has_prev_page() and do_prev:
+                    if has_prev_available and do_prev:
+                        log_msg("[LEFT/RIGHT] -> screen.previous_page()")
                         screen.previous_page()
                     else:
-                        # no prev page -> move to previous week (existing behavior)
-                        # call the existing action; name assumed action_previous_week
-                        try:
-                            self.action_previous_week()
-                        except Exception:
-                            # fallback: if you use a different method name, call it here
-                            pass
+                        log_msg("[LEFT/RIGHT] -> no prev page -> previous week")
+                        self.action_previous_week()
                     return
 
-                else:  # event.key == "right"
-                    if has_next and screen.has_next_page() and do_next:
+                else:  # right
+                    if has_next_available and do_next:
+                        log_msg("[LEFT/RIGHT] -> screen.next_page()")
                         screen.next_page()
                     else:
-                        try:
-                            self.action_next_week()
-                        except Exception:
-                            pass
+                        log_msg("[LEFT/RIGHT] -> no next page -> next week")
+                        self.action_next_week()
                     return
-            # not week view -> do nothing here, let other branches handle left/right
+            # else: not week view -> let other code handle left/right
         if event.key == "full_stop" and self.view == "week":
             # call the existing "center_week" or "go to today" action
             try:
@@ -2382,7 +2613,7 @@ class DynamicViewApp(App):
             self.current_start_date, self.selected_week
         )
         footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
-        self.set_afill("week")
+        # self.set_afill("week")
 
         screen = WeeksScreen(title, table, details, footer)
         self.push_screen(screen)
@@ -2390,7 +2621,8 @@ class DynamicViewApp(App):
     def action_show_agenda(self):
         self.view = "events"
         details, title = self.controller.get_agenda()
-        footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
+        # footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
+        footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         self.push_screen(FullScreenList(details, title, "", footer))
 
         return
@@ -2406,9 +2638,10 @@ class DynamicViewApp(App):
 
     def action_show_last(self):
         self.view = "last"
-        self.set_afill(self.view)
+        # self.set_afill(self.view)
         details, title = self.controller.get_last()
-        footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
+        # footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
+        footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         self.push_screen(FullScreenList(details, title, "", footer))
 
     def action_show_next(self):
@@ -2416,7 +2649,8 @@ class DynamicViewApp(App):
         details, title = self.controller.get_next()
         log_msg(f"{details = }, {title = }")
 
-        footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
+        # footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
+        footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         self.push_screen(FullScreenList(details, title, "", footer))
 
     def action_show_find(self):
@@ -2427,14 +2661,15 @@ class DynamicViewApp(App):
 
     def action_show_alerts(self):
         self.view = "alerts"
-        self.set_afill(self.view)
+        # self.set_afill(self.view)
         details = self.controller.get_active_alerts()
         log_msg(f"{details = }")
-        self.set_afill(details, "alerts")
+        # self.set_afill(details, "alerts")
 
-        footer = (
-            "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] ESC Back"
-        )
+        # footer = (
+        #     "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] ESC Back"
+        # )
+        footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         self.push_screen(FullScreenList(details, footer))
 
     def on_input_submitted(self, event: Input.Submitted):
@@ -2444,7 +2679,8 @@ class DynamicViewApp(App):
         if event.input.id == "find_input":
             self.view = "find"
             results, title = self.controller.find_records(search_term)
-            footer = "[bold yellow]?[/bold yellow] Help ESC Back / Search"
+            # footer = "[bold yellow]?[/bold yellow] Help ESC Back / Search"
+            footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
             self.push_screen(FullScreenList(results, title, "", footer))
 
         elif event.input.id == "search":
@@ -2517,19 +2753,19 @@ class DynamicViewApp(App):
     def action_current_period(self):
         self.current_start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
-        self.set_afill("week")
+        # self.set_afill("week")
         self.update_table_and_list()
 
     def action_next_period(self):
         self.current_start_date += timedelta(weeks=4)
         self.selected_week = tuple(self.current_start_date.isocalendar()[:2])
-        self.set_afill("week")
+        # self.set_afill("week")
         self.update_table_and_list()
 
     def action_previous_period(self):
         self.current_start_date -= timedelta(weeks=4)
         self.selected_week = tuple(self.current_start_date.isocalendar()[:2])
-        self.set_afill("week")
+        # self.set_afill("week")
         self.update_table_and_list()
 
     def action_next_week(self):
@@ -2538,7 +2774,7 @@ class DynamicViewApp(App):
             (self.current_start_date + timedelta(weeks=4) - ONEDAY).isocalendar()[:2]
         ):
             self.current_start_date += timedelta(weeks=1)
-        self.set_afill("week")
+        # self.set_afill("week")
         log_msg(f"{self.afill = }, {self.selected_week = }")
         self.update_table_and_list()
 
@@ -2546,7 +2782,7 @@ class DynamicViewApp(App):
         self.selected_week = get_previous_yrwk(*self.selected_week)
         if self.selected_week < tuple((self.current_start_date).isocalendar()[:2]):
             self.current_start_date -= timedelta(weeks=1)
-        self.set_afill("week")
+        # self.set_afill("week")
         log_msg(f"{self.afill = }, {self.selected_week = }")
         self.update_table_and_list()
 
