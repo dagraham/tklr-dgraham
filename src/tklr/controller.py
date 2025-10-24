@@ -1553,8 +1553,16 @@ class Controller:
         """
         Fetch and format description for the next instances.
         """
+        search_str = search_str.strip()
         events = self.db_manager.find_records(search_str)
-        header = f"Items ({len(events)})\n containing a match for [{SELECTED_COLOR}]{search_str}[/{SELECTED_COLOR}] "
+
+        matching = (
+            f'containing a match for "[{SELECTED_COLOR}]{search_str}[/{SELECTED_COLOR}]" '
+            if search_str
+            else "matching anything"
+        )
+
+        header = f"Items ({len(events)})\n {matching}"
 
         if not events:
             return [], header

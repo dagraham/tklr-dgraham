@@ -2736,26 +2736,60 @@ class DatabaseManager:
         self.cursor.execute(sql, params)
         return [row[0] for row in self.cursor.fetchall()]
 
-    def find_records(
-        self, regex: str
-    ) -> List[Tuple[int, str, str, str, Optional[int], Optional[int]]]:
-        """
-        Find records whose name or description fields contain a match for the given regex,
-        including their last and next instances if they exist.
+    # def find_records(
+    #     self, regex: str
+    # ) -> List[Tuple[int, str, str, str, Optional[int], Optional[int]]]:
+    #     """
+    #     Find records whose name or description fields contain a match for the given regex,
+    #     including their last and next instances if they exist.
+    #
+    #     Args:
+    #         regex (str): The regex pattern to match.
+    #
+    #     Returns:
+    #         List[Tuple[int, str, str, str, Optional[int], Optional[int]]]:
+    #             List of tuples containing:
+    #                 - record ID
+    #                 - subject
+    #                 - description
+    #                 - itemtype
+    #                 - last instance datetime (or None)
+    #                 - next instance datetime (or None)
+    #     """
+    #     today = int(datetime.now().timestamp())
+    #     self.cursor.execute(
+    #         """
+    #         WITH
+    #         LastInstances AS (
+    #             SELECT record_id, MAX(start_datetime) AS last_datetime
+    #             FROM DateTimes
+    #             WHERE start_datetime < ?
+    #             GROUP BY record_id
+    #         ),
+    #         NextInstances AS (
+    #             SELECT record_id, MIN(start_datetime) AS next_datetime
+    #             FROM DateTimes
+    #             WHERE start_datetime >= ?
+    #             GROUP BY record_id
+    #         )
+    #         SELECT
+    #             r.id,
+    #             r.subject,
+    #             r.description,
+    #             r.itemtype,
+    #             li.last_datetime,
+    #             ni.next_datetime
+    #         FROM Records r
+    #         LEFT JOIN LastInstances li ON r.id = li.record_id
+    #         LEFT JOIN NextInstances ni ON r.id = ni.record_id
+    #         WHERE r.subject REGEXP ? OR r.description REGEXP ?
+    #         """,
+    #         (today, today, regex, regex),
+    #     )
+    #     return self.cursor.fetchall()
 
-        Args:
-            regex (str): The regex pattern to match.
-
-        Returns:
-            List[Tuple[int, str, str, str, Optional[int], Optional[int]]]:
-                List of tuples containing:
-                    - record ID
-                    - subject
-                    - description
-                    - itemtype
-                    - last instance datetime (or None)
-                    - next instance datetime (or None)
-        """
+    def find_records(self, regex: str):
+        regex_ci = f"(?i){regex}"  # force case-insensitive
         today = int(datetime.now().timestamp())
         self.cursor.execute(
             """
@@ -2772,19 +2806,13 @@ class DatabaseManager:
                 WHERE start_datetime >= ?
                 GROUP BY record_id
             )
-            SELECT
-                r.id,
-                r.subject,
-                r.description,
-                r.itemtype,
-                li.last_datetime,
-                ni.next_datetime
+            SELECT r.id, r.subject, r.description, r.itemtype, li.last_datetime, ni.next_datetime
             FROM Records r
             LEFT JOIN LastInstances li ON r.id = li.record_id
             LEFT JOIN NextInstances ni ON r.id = ni.record_id
             WHERE r.subject REGEXP ? OR r.description REGEXP ?
             """,
-            (today, today, regex, regex),
+            (today, today, regex_ci, regex_ci),
         )
         return self.cursor.fetchall()
 

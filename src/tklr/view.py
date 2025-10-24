@@ -1827,14 +1827,16 @@ class FullScreenList(SearchableScreen):
 
     def show_details_for_tag(self, tag: str) -> None:
         app = self.app  # DynamicViewApp
-        record_id, job_id = self.get_record_for_tag(tag)
-        if not record_id:
-            return
+        record = self.get_record_for_tag(tag)
+        if record:
+            record_id, job_id = record
 
-        title, lines, meta = app.controller.get_details_for_record(record_id, job_id)
-        log_msg(f"{title = }, {lines = }, {meta = }")
-        if self.list_with_details:
-            self.list_with_details.show_details(title, lines, meta)
+            title, lines, meta = app.controller.get_details_for_record(
+                record_id, job_id
+            )
+            log_msg(f"{title = }, {lines = }, {meta = }")
+            if self.list_with_details:
+                self.list_with_details.show_details(title, lines, meta)
 
     def _render_page_indicator(self) -> str:
         total_pages = len(self.pages)
