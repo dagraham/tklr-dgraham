@@ -12,6 +12,9 @@ from dateutil import tz
 from dateutil.tz import gettz
 import math
 import numpy as np
+from pathlib import Path
+
+import shutil
 
 # from textwrap import indent
 from rich.console import Console
@@ -983,6 +986,44 @@ class DatabaseManager:
                 VALUES (OLD.record_id);
             END;
         """)
+
+    def backup_to(self, dest_db: Path) -> Path:
+        """
+        Create a consistent SQLite snapshot of the current database at dest_db.
+        Uses the live connection (self.conn) to copy committed state.
+        Returns the final backup path.
+        """
+        dest_db = Path(dest_db)
+        tmp = dest_db.with_suffix(dest_db.suffix + ".tmp")
+        dest_db.parent.mkdir(parents=True, exist_ok=True)
+
+        # Ensure we copy a committed state
+        self.conn.commit()
+
+        # Copy using SQLite's backup API
+        with sqlite3.connect(str(tmp)) as dst:
+            self.conn.backup(dst)  # full backup
+            # Tidy destination file only
+            dst.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+            dst.execute("VACUUM;")
+            dst.commit()
+
+        # Preserve timestamps/permissions from the source file if available
+        try:
+            # Adjust attribute name if your manager stores the DB path differently
+            src_path = Path(
+                getattr(
+                    self,
+                    "db_path",
+                    self.conn.execute("PRAGMA database_list").fetchone()[2],
+                )
+            )
+            shutil.copystat(src_path, tmp)
+        except Exception:
+            pass
+
+        tmp.replace(dest_db)
+        return dest_db
 
     def populate_dependent_tables(self):
         """Populate all tables derived from current Records (Tags, DateTimes, Alerts, notice)."""

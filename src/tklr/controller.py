@@ -21,7 +21,7 @@ import inspect
 from rich.theme import Theme
 from rich import box
 from rich.text import Text
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional, Dict, Any, Set
 from bisect import bisect_left, bisect_right
 from typing import Iterator
 
@@ -40,7 +40,11 @@ from .model import _fmt_naive, _to_local_naive
 from .list_colors import css_named_colors
 
 from collections import defaultdict
+from dataclasses import dataclass
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
+# import sqlite3
 from .shared import (
     log_msg,
     HRS_MINS,
@@ -638,6 +642,16 @@ def page_tagger(
         pages.append((page_rows, tag_map))
 
     return pages
+
+
+@dataclass(frozen=True)
+class _BackupInfo:
+    path: Path
+    day: date
+    mtime: float
+
+
+_BACKUP_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})\.db$")
 
 
 class Controller:
@@ -2033,3 +2047,145 @@ class Controller:
         desc = record[3] or ""
         itemtype = record[1]
         return f"[bold]{itemtype}[/bold]  {subject}\n\n{desc}"
+
+    # controller.py (inside class Controller)
+
+    # --- Backup helpers ---------------------------------------------------------
+    def _db_path_from_self(self) -> Path:
+        """
+        Resolve the path of the live DB from Controller/DatabaseManager.
+        Adjust the attribute names if yours differ.
+        """
+        # Common patterns; pick whichever exists in your DB manager:
+        for attr in ("db_path", "database_path", "path"):
+            p = getattr(self.db_manager, attr, None)
+            if p:
+                return Path(p)
+        # Fallback if you also store it on the controller:
+        if hasattr(self, "db_path"):
+            return Path(self.db_path)
+        raise RuntimeError(
+            "Couldn't resolve database path from Controller / db_manager."
+        )
+
+    def _parse_backup_name(self, p: Path) -> Optional[date]:
+        m = _BACKUP_RE.match(p.name)
+        if not m:
+            return None
+        y, mth, d = map(int, m.groups())
+        return date(y, mth, d)
+
+    def _find_backups(self, dir_path: Path) -> List[_BackupInfo]:
+        out: List[_BackupInfo] = []
+        if not dir_path.exists():
+            return out
+        for p in dir_path.iterdir():
+            if not p.is_file():
+                continue
+            d = self._parse_backup_name(p)
+            if d is None:
+                continue
+            try:
+                st = p.stat()
+            except FileNotFoundError:
+                continue
+            out.append(_BackupInfo(path=p, day=d, mtime=st.st_mtime))
+        out.sort(key=lambda bi: (bi.day, bi.mtime), reverse=True)
+        return out
+
+    # def _sqlite_backup(self, src_db: Path, dest_db: Path) -> None:
+    #     """Use SQLite's backup API for a consistent snapshot."""
+    #     dest_tmp = dest_db.with_suffix(dest_db.suffix + ".tmp")
+    #     dest_db.parent.mkdir(parents=True, exist_ok=True)
+    #     with sqlite3.connect(str(src_db)) as src, sqlite3.connect(str(dest_tmp)) as dst:
+    #         src.backup(dst, pages=0)  # full backup
+    #         # Safety on the destination file only:
+    #         dst.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+    #         dst.execute("VACUUM;")
+    #         dst.commit()
+    #     try:
+    #         shutil.copystat(src_db, dest_tmp)
+    #     except Exception:
+    #         pass
+    #     dest_tmp.replace(dest_db)
+
+    def _should_snapshot(self, db_path: Path, backups: List[_BackupInfo]) -> bool:
+        try:
+            db_mtime = db_path.stat().st_mtime
+        except FileNotFoundError:
+            return False
+        latest_backup_mtime = max((b.mtime for b in backups), default=0.0)
+        return db_mtime > latest_backup_mtime
+
+    def _select_retention(
+        self, backups: List[_BackupInfo], today_local: date
+    ) -> Set[Path]:
+        """
+        Keep at most 5:
+        newest overall, newest >=3d, >=7d, >=14d, >=28d (by calendar day).
+        """
+        keep: Set[Path] = set()
+        if not backups:
+            return keep
+
+        newest = max(backups, key=lambda b: (b.day, b.mtime))
+        keep.add(newest.path)
+
+        for days in (3, 7, 14, 28):
+            cutoff = today_local - timedelta(days=days)
+            cands = [b for b in backups if b.day <= cutoff]
+            if cands:
+                chosen = max(cands, key=lambda b: (b.day, b.mtime))
+                keep.add(chosen.path)
+        return keep
+
+    # --- Public API --------------------------------------------------------------
+    def rotate_daily_backups(self) -> None:
+        # Where is the live DB?
+        db_path: Path = Path(
+            self.db_manager.db_path
+        ).resolve()  # ensure DatabaseManager exposes .db_path
+        backup_dir: Path = db_path.parent / "backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+
+        # Example: name yesterday’s snapshot
+        snap_date = date.today() - timedelta(days=1)
+        target = backup_dir / f"{snap_date.isoformat()}.db"
+
+        # Make the snapshot
+        self.db_manager.backup_to(target)
+
+        # …then your retention/pruning logic …
+        tz = getattr(getattr(self, "env", None), "timezone", "America/New_York")
+        tzinfo = ZoneInfo(tz)
+
+        now = datetime.now(tzinfo)
+        today = now.date()
+        yesterday = today - timedelta(days=1)
+
+        bdir = Path(backup_dir) if backup_dir else db_path.parent
+        bdir.mkdir(parents=True, exist_ok=True)
+
+        backups = self._find_backups(bdir)
+
+        created: Optional[Path] = None
+        if self._should_snapshot(db_path, backups):
+            target = bdir / f"{yesterday.isoformat()}.db"
+            if not dry_run:
+                self.db_manager.backup_to(target)
+            created = target
+            backups = self._find_backups(bdir)  # refresh
+
+        keep = self._select_retention(backups, today_local=today)
+        kept = sorted(keep)
+        removed: List[Path] = []
+        for b in backups:
+            if b.path not in keep:
+                removed.append(b.path)
+                if not dry_run:
+                    try:
+                        b.path.unlink()
+                    except FileNotFoundError:
+                        pass
+
+        return created, kept, removed

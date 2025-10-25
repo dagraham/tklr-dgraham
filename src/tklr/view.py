@@ -2295,6 +2295,7 @@ class DynamicViewApp(App):
         self.afill = 1
         self.leader_mode = False
         self.details_drawer: DetailsDrawer | None = None
+        self.run_daily_tasks()
 
     # def set_afill(self, *_args, **_kwargs):
     #     # Prefer controller’s chosen width, fallback to infer from existing tags
@@ -2594,13 +2595,25 @@ class DynamicViewApp(App):
         self.save_screenshot(screenshot_path)
         log_msg(f"Screenshot saved to: {screenshot_path}")
 
+    def run_daily_tasks(self):
+        created, kept, removed = self.controller.rotate_daily_backups()
+        if created:
+            log_msg(f"✅ Backup created: {created}")
+        else:
+            log_msg("ℹ️ No backup created (DB unchanged since last snapshot).")
+        if removed:
+            log_msg("🧹 Pruned: " + ", ".join(p.name for p in removed))
+
+        self.controller.populate_alerts()
+        self.controller.populate_notice()
+
     async def check_alerts(self):
         # called every 6 seconds
         now = datetime.now()
         if now.hour == 0 and now.minute == 0 and 0 <= now.second < 6:
-            # populate alerts daily
-            self.controller.populate_alerts()
-            self.controller.populate_notice()
+            self.run_daily_tasks()
+            # self.controller.populate_alerts()
+            # self.controller.populate_notice()
         if now.minute % 10 == 0 and now.second == 0:
             # check alerts every 10 minutes
             self.notify(
