@@ -261,9 +261,9 @@ busy = [
 
 items = [
     f"* first of the month @d all day event @s {first_of_month}",
-    f"* event in 2 days with 1d beginby @s {in_two_days()} @b 1d",
-    f"~ task in 5 days with 1w beginby @s {in_five_days()} @b 1w",
-    f"* event in 1 day with beginby @s {tomorrow_date} @b 1w",
+    f"* event in 2 days with 1d beginby @s {in_two_days()} @n 1d",
+    f"~ task in 5 days with 1w beginby @s {in_five_days()} @n 1w",
+    f"* event in 1 day with beginby @s {tomorrow_date} @n 1w",
     f"~ all day yesterday @d all day task @p 2 @s {yesterday_date}",
     f"~ all day today @d all day task @p 2 @s {today_date}",
     f"~ all day tomorrow @d all day event @p 2 @s {tomorrow_date}",
@@ -272,7 +272,7 @@ items = [
     "* daily with US/Pacific from z @s 3pm z US/Pacific @d whatever @c wherever @r d &i 3 &c 10",
     "* daily datetime US/Pacific @s 1pm @z US/Pacific @d whatever @c wherever @r d &i 3 &c 10",
     f"~ every other day @s {today_date} 10p @r d &i 2",
-    f"* starting in 5 days repeating for 3 days @s {in_five_days()} 8:30a @e 4h @r d &c 3 @b 1w",
+    f"* starting in 5 days repeating for 3 days @s {in_five_days()} 8:30a @e 4h @r d &c 3 @n 1w",
     f"~ repeating and rdates @s {today_date} 1:30p @r d @+ 2:30p, 3:30p",
     f"~ repeating, rdates and finish  @s {today_date} 1:30p @r d &c 3 @+ 10:30a, 3:30p @f 8:15a",
     f"* repeating until  @s {today_date} 7:30p @e 1h @r d &u {in_two_weeks()}",
@@ -286,7 +286,7 @@ items = [
     2. And finally this. 
     @t test @t red
     """,
-    f"""^ dog house @s {in_five_days()} @e 3h @b 2w @p 3 @~ create plan &s 1w &e 1h &r 1 &f {one_hour_ago()} @~ go to Lowes &s 1w &e 2h &r 2: 1 @~ buy lumber &s 1w &r 3: 2 @~ buy hardware &s 1w &r 4: 2 @~ buy paint &s 1w &r 5: 2 @~ cut pieces &s 6d &e 3h &r 6: 3 @~ assemble &s 4d &e 5h &r 7: 4, 6 @~ sand &s 3d &e 1h &r 8: 7 @~ paint &s 2d &e 2h &r 9: 8 """,
+    f"""^ dog house @s {in_five_days()} @e 3h @n 2w @p 3 @~ create plan &s 1w &e 1h &r 1 &f {one_hour_ago()} @~ go to Lowes &s 1w &e 2h &r 2: 1 @~ buy lumber &s 1w &r 3: 2 @~ buy hardware &s 1w &r 4: 2 @~ buy paint &s 1w &r 5: 2 @~ cut pieces &s 6d &e 3h &r 6: 3 @~ assemble &s 4d &e 5h &r 7: 4, 6 @~ sand &s 3d &e 1h &r 8: 7 @~ paint &s 2d &e 2h &r 9: 8 """,
     "~ no due date or datetime and priority one @p 1",
     f"~ one due date and priority one @s {today_date} @p 1",
     f"~ one due datetime and priority one @s {in_one_hour()} @p 1",
@@ -296,7 +296,7 @@ items = [
     "~ no due date and no priority",
     "~ no due date and priority five @p 5",
     f"~ finished one hour ago @s {in_one_hour()} @f {one_hour_ago()}",
-    f"^ no prerequisites @s {today_date} @b 1w @~ this &r 1 &f {today_date}  @~ that &r 2",
+    f"^ no prerequisites @s {today_date} @n 1w @~ this &r 1 &f {today_date}  @~ that &r 2",
     f"~ do over with finish @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o 4d",
     f"~ do over learn with finish  @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o ~4d",
     "? draft reminder - no checks",
@@ -307,6 +307,13 @@ items = [
     "* gour Tiki Roundtable Meeting @s 1/1 14:00 z UTC @e 1h30m @r m &w +3TH &c 10",
     "* timezone test for noon CET @s 12p z CET @e 1h",
     "* timezone test for noon naive @s 12p z none @e 1h",
+]
+
+bins = [
+    "% John Smith @b people/S @d details about John",
+    "% Journal entry for October @b journal/2025:10 @s 2p @d Test bin entries",
+    "% Churchill - Give me a pig @b library/quotations/churchill @d dogs look up at you",
+    "* Ellen's NJ/CT adventure @s mon @r d &c 7",
 ]
 
 alerts = [
@@ -343,7 +350,7 @@ while len(items) < num_items:
 id = 0
 # for entry in items:  # + alerts:
 # for entry in busy + items:
-for entry in items + alerts:
+for entry in items + bins:
     count += 1
     id += 1
     print(f"---\n{entry = }")

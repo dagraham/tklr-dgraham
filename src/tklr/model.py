@@ -725,7 +725,7 @@ class DatabaseManager:
                 timezone          TEXT,
                 extent            TEXT,
                 alerts            TEXT,
-                notice           TEXT,
+                notice            TEXT,
                 context           TEXT,
                 jobs              TEXT,
                 tags              TEXT,
@@ -1041,7 +1041,7 @@ class DatabaseManager:
     def add_item(self, item: Item) -> int:
         if item.has_f:
             log_msg(
-                f"{item.itemtype = }, {item.has_f = } both: {item.itemtype in '~^' and item.has_f = }"
+                f"{item.itemtype = }, {item = } {item.has_f = } both: {item.itemtype in '~^' and item.has_f = }"
             )
         try:
             timestamp = utc_now_string()
@@ -2352,11 +2352,11 @@ class DatabaseManager:
         """
         self.cursor.execute(
             """
-            SELECT b.record_id, b.days_remaining, r.subject
-            FROM notice b
-            JOIN Records r ON b.record_id = r.id
+            SELECT n.record_id, n.days_remaining, r.subject
+            FROM notice n
+            JOIN Records r ON n.record_id = r.id
             WHERE r.itemtype = '*'
-            ORDER BY b.days_remaining
+            ORDER BY n.days_remaining
             """
         )
         return self.cursor.fetchall()

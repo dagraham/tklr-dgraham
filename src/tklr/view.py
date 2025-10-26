@@ -1760,7 +1760,7 @@ class WeeksScreen(SearchableScreen, SafeScreen):
         # update the title now including an indicator if appropriate
         if len(self.pages) > 1:
             title_with_indicator = (
-                f"{self.table_title} ({self.current_page + 1}/{len(self.pages)})"
+                f"{self.table_title}\n({self.current_page + 1}/{len(self.pages)})"
             )
         else:
             title_with_indicator = self.table_title
@@ -1842,7 +1842,7 @@ class FullScreenList(SearchableScreen):
         total_pages = len(self.pages)
         if total_pages <= 1:
             return ""
-        return f"{self.current_page + 1} / {total_pages}"
+        return f" ({self.current_page + 1}/{total_pages})"
 
     # --- Refresh Display ----------------------------------------------------
     def refresh_list(self):
@@ -1852,7 +1852,7 @@ class FullScreenList(SearchableScreen):
         if self.list_with_details:
             self.list_with_details.update_list(self.lines)
         # Update header/title with bullet indicator
-        header_text = f"{self.title}\n{self._render_page_indicator()}"
+        header_text = f"{self.title}{self._render_page_indicator()}"
         self.query_one("#scroll_title", Static).update(header_text)
 
     # --- Compose ------------------------------------------------------------
@@ -1874,7 +1874,7 @@ class FullScreenList(SearchableScreen):
             self.list_with_details.update_list(self.lines)
         # Add the initial page indicator after mount
         self.query_one("#scroll_title", Static).update(
-            f"{self.title}\n{self._render_page_indicator()}"
+            f"{self.title}{self._render_page_indicator()}"
         )
 
 
@@ -2193,14 +2193,15 @@ class BinView(SearchableScreen):
     def _refresh_header(self):
         bullets = self._page_bullets()
         self.query_one("#scroll_title", Static).update(
-            f"{self.title}\n{bullets}" if bullets else f"{self.title}"
+            f"{self.title} ({bullets})" if bullets else f"{self.title}"
         )
 
     def _page_bullets(self) -> str:
         n = len(self.pages)
         if n <= 1:
             return ""
-        return " ".join("●" if i == self.current_page else "○" for i in range(n))
+        # return " ".join("●" if i == self.current_page else "○" for i in range(n))
+        return f"{self.current_page + 1}/{n}"
 
     # Search routing already provided by SearchableScreen.get_search_target()
 

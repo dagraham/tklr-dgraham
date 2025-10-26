@@ -42,3 +42,29 @@ four-weeks ago - six weeks ago dd - de
 
 - daily: 2025-10-25
   - tklr.db -> 2025-10-25.db
+
+### One class
+
+I have an idea for using a single Bin class to handle the display.
+The view should show
+a) the path to this bin, if not null ( root), as the header
+b) the list of contained bins, if any, sorted alphabetically, with tags
+c) the list of contained reminders, if any, with tags
+
+Tags: The components of the path should be tagged starting with "a". E.g.,
+"a: activities / b: travel" with the contained bins and reminders picking up
+the tag sequence where the header left off.
+
+Pages: When pages are necessary, the path heading should be repeated on subsequent
+pages with "(continued)" appended.
+
+Key presses: Pressing a key corresponding to a bin tag should switch the display
+to that bin. This applies to the header tags as well as the bin tags. Pressing escape
+should display the root bins. Pressing the tag for a reminder, should open the details
+pane to display the details for the reminder.
+
+Formatting: rows should be formatted differently for bins than for remainders.
+
+Thoughts?
+
+Component bins:

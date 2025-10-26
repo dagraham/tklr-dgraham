@@ -664,7 +664,7 @@ class Item:
         "+": ["rdate", "recurrence dates", "do_rdate"],
         "-": ["exdate", "exception dates", "do_exdate"],
         "a": ["alerts", "list of alerts", "do_alert"],
-        "n": ["notice", "period for notice notices", "do_notice"],
+        "n": ["notice", "timeperiod", "do_notice"],
         "c": ["context", "context", "do_string"],
         "d": ["description", "item description", "do_description"],
         "e": ["extent", "timeperiod", "do_extent"],
@@ -683,7 +683,6 @@ class Item:
             "do_string",
         ],
         "m": ["mask", "string to be masked", "do_mask"],
-        "n": ["attendee", "name <email address>", "do_string"],
         "p": [
             "priority",
             "priority from 1 (someday), 2 (low), 3 (medium), 4 (high) to 5 (next)",
@@ -738,7 +737,7 @@ class Item:
             "list of timeperiods before job is scheduled followed by a colon and a list of commands",
             "do_alert",
         ],
-        # "~b": ["notice", " notice period", "do_notice"],
+        "~n": ["notice", " notice period", "do_notice"],
         "~c": ["context", " string", "do_string"],
         "~d": ["description", " string", "do_description"],
         "~e": ["extent", " timeperiod", "do_extent"],
@@ -1672,13 +1671,16 @@ class Item:
 
     def do_notice(self, token):
         # Process datetime token
-        notice = re.sub("^@. ", "", token["token"].strip()).lower()
+        notice = re.sub("^[@&]. ", "", token["token"].strip()).lower()
+        # notice = re.sub("^@. ", "", token["token"].strip()).lower()
 
         ok, notice_obj = timedelta_str_to_seconds(notice)
+        log_msg(f"{token = }, {ok = }, {notice_obj = }")
         if ok:
             self.notice = notice
             return True, notice_obj, []
         else:
+            log_msg(f"failed to set self.notice: {notice = }, {notice_obj = }")
             return False, notice_obj, []
 
     def do_extent(self, token):

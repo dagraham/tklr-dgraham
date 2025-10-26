@@ -2253,70 +2253,178 @@ class Controller:
             path = path[1:]
         return path
 
-    def _format_path_header(
-        self, path_ids: List[int], continued: bool
-    ) -> Tuple[str, Dict[str, Tuple[str, int]]]:
-        """
-        Build a single header line like:  [dim]a[/dim] Activities / [dim]b[/dim] Travel  (continued)
-        And a tag map a->("bin", path_ids[0]), b->("bin", path_ids[1]), ...
-        """
-        tag_map: Dict[str, Tuple[str, int]] = {}
-        segs: List[str] = []
-        for i, bid in enumerate(path_ids):
-            if i >= 26:
-                break  # safety cap; extremely deep paths won't get more letters
-            tag = chr(ord("a") + i)
-            tag_map[tag] = ("bin", bid)
-            segs.append(f"[dim]{tag}[/dim] {self._bin_name(bid)}")
-        header = " / ".join(segs) or ".."
-        if continued:
-            header += " [i](continued)[/i]"
-        return header, tag_map
+    # def _format_path_header(
+    #     self, path_ids: List[int], continued: bool
+    # ) -> Tuple[str, Dict[str, Tuple[str, int]]]:
+    #     """
+    #     Build a single header line like:  [dim]a[/dim] Activities / [dim]b[/dim] Travel  (continued)
+    #     And a tag map a->("bin", path_ids[0]), b->("bin", path_ids[1]), ...
+    #     """
+    #     tag_map: Dict[str, Tuple[str, int]] = {}
+    #     segs: List[str] = []
+    #     for i, bid in enumerate(path_ids):
+    #         if i >= 26:
+    #             break  # safety cap; extremely deep paths won't get more letters
+    #         tag = chr(ord("a") + i)
+    #         tag_map[tag] = ("bin", bid)
+    #         segs.append(f"[dim]{tag}[/dim] {self._bin_name(bid)}")
+    #     header = " / ".join(segs) or ".."
+    #     if continued:
+    #         header += " [i](continued)[/i]"
+    #     return header, tag_map
+
+    # def bin_tagger(
+    #     self, bin_id: int, page_size: int = 26
+    # ) -> list[tuple[list[str], dict[str, tuple[str, object]]]]:
+    #     """
+    #     Build pages for a single Bin view.
+    #     - Header row shows the path (excluding 'root'), taggable (a..)
+    #     - Then sub-bins (taggable), then reminders (taggable)
+    #     - Page size counts only taggable items (bins/reminders), NOT header
+    #     - On every page, header uses the SAME letters; content tags start after len(path).
+    #     - When letters for content are exhausted on a page, we START A NEW PAGE.
+    #     """
+    #     # ---- path (excluding 'root') ----
+    #     path_ids = self._bin_path_ids(bin_id)
+    #
+    #     def _format_path_header(path_ids: list[int], continued: bool):
+    #         tag_map: dict[str, tuple[str, int]] = {}
+    #         segs: list[str] = []
+    #         for i, bid in enumerate(path_ids[:26]):
+    #             tag = chr(ord("a") + i)
+    #             tag_map[tag] = ("bin", bid)
+    #             segs.append(f"[dim]{tag}[/dim] {self._bin_name(bid)}")
+    #         header = " / ".join(segs) or ".."
+    #         if continued:
+    #             header += " [i](continued)[/i]"
+    #         return header, tag_map
+    #
+    #     header_text_first, header_tagmap_first = _format_path_header(
+    #         path_ids, continued=False
+    #     )
+    #
+    #     # ---- children ----
+    #     subbins = self.db_manager.get_subbins(
+    #         bin_id
+    #     )  # [{'id','name','subbins','reminders'}]
+    #     reminders = self.db_manager.get_reminders_in_bin(
+    #         bin_id
+    #     )  # [{'id','subject','itemtype'}]
+    #
+    #     # TYPE_TO_COLOR = getattr(self, "TYPE_TO_COLOR", {}) or {}
+    #     bin_rows = [
+    #         (
+    #             "bin",
+    #             b["id"],
+    #             # f"[bold yellow]📁 {b['name']}[/bold yellow]  [dim]({b['subbins']}/{b['reminders']})[/dim]",
+    #             f"[bold yellow]{b['name']}[/bold yellow]  [dim]({b['subbins']}/{b['reminders']})[/dim]",
+    #         )
+    #         for b in sorted(subbins, key=lambda x: x["name"].lower())
+    #     ]
+    #     rec_rows = [
+    #         (
+    #             "record",
+    #             (r["id"], None),
+    #             # f"[{TYPE_TO_COLOR.get(r['itemtype'], 'white')}]🗒️ {r['subject']}[/{TYPE_TO_COLOR.get(r['itemtype'], 'white')}]",
+    #             f"[{TYPE_TO_COLOR.get(r['itemtype'], 'white')}]{r['itemtype']} {r['subject']}[/{TYPE_TO_COLOR.get(r['itemtype'], 'white')}]",
+    #         )
+    #         for r in sorted(reminders, key=lambda x: x["subject"].lower())
+    #     ]
+    #     all_rows = bin_rows + rec_rows
+    #
+    #     pages: list[tuple[list[str], dict[str, tuple[str, object]]]] = []
+    #
+    #     # Letters consumed by header each page (for path tags)
+    #     header_letters = min(len(path_ids), 26)
+    #     # Content letters available per page (after header tags)
+    #     # If header is very deep, this may be 0; in normal trees it’s <= 25.
+    #     content_capacity = max(0, 26 - header_letters)
+    #
+    #     i = 0
+    #     first_page = True
+    #     while i < len(all_rows) or first_page:
+    #         # Header for this page
+    #         if first_page:
+    #             header_text, hdr_tagmap = header_text_first, dict(header_tagmap_first)
+    #         else:
+    #             header_text, hdr_tagmap = _format_path_header(path_ids, continued=True)
+    #
+    #         rows: list[str] = [header_text]
+    #         tag_map: dict[str, tuple[str, object]] = dict(hdr_tagmap)
+    #
+    #         # If we literally have 0 content letters (path too deep), we still
+    #         # show a header-only page and break to avoid infinite loop.
+    #         if content_capacity == 0:
+    #             pages.append((rows, tag_map))
+    #             break
+    #
+    #         # Tag content rows up to content_capacity for this page
+    #         tagged_this_page = 0
+    #         next_letter_idx = header_letters
+    #         while i < len(all_rows) and tagged_this_page < content_capacity:
+    #             kind, obj, text = all_rows[i]
+    #             i += 1
+    #             tag = chr(ord("a") + next_letter_idx)
+    #             if kind == "bin":
+    #                 tag_map[tag] = ("bin", obj)  # obj = child_bin_id
+    #             else:
+    #                 tag_map[tag] = ("record", obj)  # obj = (record_id, job_id)
+    #             rows.append(f" [dim]{tag}[/dim]  {text}")
+    #             next_letter_idx += 1
+    #             tagged_this_page += 1
+    #
+    #         pages.append((rows, tag_map))
+    #         first_page = False
+    #
+    #         # next iteration continues with remaining rows (if any)
+    #
+    #     return pages
 
     def bin_tagger(
         self, bin_id: int, page_size: int = 26
     ) -> list[tuple[list[str], dict[str, tuple[str, object]]]]:
         """
         Build pages for a single Bin view.
-        - Header row shows the path (excluding 'root'), taggable (a..)
-        - Then sub-bins (taggable), then reminders (taggable)
-        - Page size counts only taggable items (bins/reminders), NOT header
-        - On every page, header uses the SAME letters; content tags start after len(path).
-        - When letters for content are exhausted on a page, we START A NEW PAGE.
+        Header: path without 'root'; ancestors are tagged (a..), current bin is shown untagged.
+        Content: sub-bins then reminders; per-page capacity is 26 - len(ancestors).
         """
         # ---- path (excluding 'root') ----
-        path_ids = self._bin_path_ids(bin_id)
+        full_path_ids = self._bin_path_ids(bin_id)  # top→down (no 'root')
+        ancestors = full_path_ids[:-1]  # tag these
+        current_id = full_path_ids[-1] if full_path_ids else bin_id
 
-        def _format_path_header(path_ids: list[int], continued: bool):
+        def _format_path_header(
+            continued: bool,
+        ) -> tuple[str, dict[str, tuple[str, int]]]:
             tag_map: dict[str, tuple[str, int]] = {}
             segs: list[str] = []
-            for i, bid in enumerate(path_ids[:26]):
+            # tag ancestors only
+            for i, bid in enumerate(ancestors[:26]):
                 tag = chr(ord("a") + i)
                 tag_map[tag] = ("bin", bid)
                 segs.append(f"[dim]{tag}[/dim] {self._bin_name(bid)}")
-            header = " / ".join(segs) or ".."
-            if continued:
+            # current bin name (no tag)
+            segs.append(f"[bold yellow]{self._bin_name(current_id)}[/bold yellow]")
+            header = " / ".join(segs) if segs else ""
+            if continued and header:
                 header += " [i](continued)[/i]"
             return header, tag_map
 
-        header_text_first, header_tagmap_first = _format_path_header(
-            path_ids, continued=False
-        )
+        header_text_first, header_tagmap_first = _format_path_header(continued=False)
 
         # ---- children ----
         subbins = self.db_manager.get_subbins(
-            bin_id
+            current_id
         )  # [{'id','name','subbins','reminders'}]
         reminders = self.db_manager.get_reminders_in_bin(
-            bin_id
+            current_id
         )  # [{'id','subject','itemtype'}]
 
-        TYPE_TO_COLOR = getattr(self, "TYPE_TO_COLOR", {}) or {}
         bin_rows = [
             (
                 "bin",
                 b["id"],
-                f"[bold yellow]📁 {b['name']}[/bold yellow]  [dim]({b['subbins']}/{b['reminders']})[/dim]",
+                f"[bold yellow]{b['name']}[/bold yellow]  [dim]({b['subbins']}/{b['reminders']})[/dim]",
             )
             for b in sorted(subbins, key=lambda x: x["name"].lower())
         ]
@@ -2324,7 +2432,8 @@ class Controller:
             (
                 "record",
                 (r["id"], None),
-                f"[{TYPE_TO_COLOR.get(r['itemtype'], 'white')}]🗒️ {r['subject']}[/{TYPE_TO_COLOR.get(r['itemtype'], 'white')}]",
+                f"[{TYPE_TO_COLOR.get(r['itemtype'], 'white')}]"
+                f"{r['itemtype']} {r['subject']}[/{TYPE_TO_COLOR.get(r['itemtype'], 'white')}]",
             )
             for r in sorted(reminders, key=lambda x: x["subject"].lower())
         ]
@@ -2332,33 +2441,29 @@ class Controller:
 
         pages: list[tuple[list[str], dict[str, tuple[str, object]]]] = []
 
-        # Letters consumed by header each page (for path tags)
-        header_letters = min(len(path_ids), 26)
-        # Content letters available per page (after header tags)
-        # If header is very deep, this may be 0; in normal trees it’s <= 25.
-        content_capacity = max(0, 26 - header_letters)
+        # Letters consumed by ancestors each page (current bin uses no letter)
+        reserved = min(len(ancestors), 26)
+        content_capacity = max(0, 26 - reserved)
 
         i = 0
         first_page = True
         while i < len(all_rows) or first_page:
-            # Header for this page
+            # Header per page
             if first_page:
                 header_text, hdr_tagmap = header_text_first, dict(header_tagmap_first)
             else:
-                header_text, hdr_tagmap = _format_path_header(path_ids, continued=True)
+                header_text, hdr_tagmap = _format_path_header(continued=True)
 
-            rows: list[str] = [header_text]
+            rows: list[str] = [header_text] if header_text else []
             tag_map: dict[str, tuple[str, object]] = dict(hdr_tagmap)
 
-            # If we literally have 0 content letters (path too deep), we still
-            # show a header-only page and break to avoid infinite loop.
             if content_capacity == 0:
                 pages.append((rows, tag_map))
                 break
 
-            # Tag content rows up to content_capacity for this page
+            # Tag content rows up to capacity
             tagged_this_page = 0
-            next_letter_idx = header_letters
+            next_letter_idx = reserved
             while i < len(all_rows) and tagged_this_page < content_capacity:
                 kind, obj, text = all_rows[i]
                 i += 1
@@ -2374,7 +2479,13 @@ class Controller:
             pages.append((rows, tag_map))
             first_page = False
 
-            # next iteration continues with remaining rows (if any)
+        if not pages:
+            pages = [
+                (
+                    [header_text_first] if header_text_first else [],
+                    dict(header_tagmap_first),
+                )
+            ]
 
         return pages
 
@@ -2383,7 +2494,8 @@ class Controller:
         pages = self.bin_tagger(bin_id)
         # Title: path text without tags, e.g. "Activities / Travel". If no path => "root".
         path_ids = self._bin_path_ids(bin_id)
-        title = " / ".join(self._bin_name(b) for b in path_ids) or ".."
+        # title = " / ".join(self._bin_name(b) for b in path_ids) or ".."
+        title = "Bin Directory"
         return pages, title
 
         def get_record_details(self, record_id: int) -> str:
