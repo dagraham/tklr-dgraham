@@ -1878,376 +1878,446 @@ class FullScreenList(SearchableScreen):
         )
 
 
-class BinScreen(Screen):
-    """Top: tagged list of bins/reminders. Bottom: details pane."""
-
-    def __init__(self, bin_id: int | None = None):
-        super().__init__()
-        self.bin_id = bin_id or 1  # root by default
-        self.tag_map: Dict[str, Tuple[str, int]] = {}
-        self.rows = []
-        self.details = None
-        self.list_with_details: ListWithDetails | None = None
-
-    # ------------------------------------------------------------------ #
-    # Layout
-    # ------------------------------------------------------------------ #
-    def compose(self):
-        yield Static("", id="bin_header", classes="title-class")
-        yield Static("", id="bin_list", classes="scrollable")
-        yield Static("", id="bin_details", classes="details-pane")
-
-    # ------------------------------------------------------------------ #
-    # Lifecycle
-    # ------------------------------------------------------------------ #
-    def on_mount(self):
-        self.show_bin(self.bin_id)
-
-    # ------------------------------------------------------------------ #
-    # Delegate key events to main app (for multi-char tags, etc.)
-    # ------------------------------------------------------------------ #
-    # def on_key(self, event: events.Key) -> None:
-    #     """
-    #     Delegate almost all key handling to the parent app.
-    #     Only Escape is handled locally to return to the tree view.
-    #     """
-    #     key = event.key.lower()
-    #     if key == "escape":
-    #         # Close this screen and go back to bintree
-    #         self.app.pop_screen()
-    #         self.app.view = "bintree"
-    #         return
-    #
-    #     # Forward all other key presses to the global handler
-    #     self.app.on_key(event)
-
-    def on_key(self, event: Key) -> None:
-        # ... your existing code up top ...
-        if event.key == "escape":
-            parent = self.app.controller.get_parent_bin(self.bin_id)
-            if parent:
-                # show parent bin in-place (stay on same screen)
-                self.show_bin(parent["id"])
-            else:
-                # no parent -> go back to the tree
-                self.app.pop_screen()
-                self.app.view = "bintree"
-            return
-
-        # Forward all other key presses to the global handler
-        self.app.on_key(event)
-
-    # ------------------------------------------------------------------ #
-    # Main content update
-    # ------------------------------------------------------------------ #
-    # def show_bin(self, bin_id: int) -> None:
-    #     """Refresh the display for the given bin."""
-    #     self.bin_id = bin_id
-    #     self.tag_map.clear()
-    #
-    #     controller = self.app.controller
-    #     name = controller.get_bin_name(bin_id)
-    #     parent = controller.get_parent_bin(bin_id)
-    #     subbins = controller.get_subbins(bin_id)
-    #     reminders = controller.get_reminders(bin_id)
-    #
-    #     # Update tag allocation for this view
-    #     total_items = (1 if parent else 0) + len(subbins) + len(reminders)
-    #     controller.set_afill([None] * total_items, "bin")
-    #     tag_iter = controller.get_tag_iterator("bin", total_items)
-    #
-    #     header = f"[bold cyan]Bin:[/] {name}"
-    #     self.query_one("#bin_header", Static).update(header)
-    #
-    #     lines = []
-    #
-    #     # parent link (“..”)
-    #     if parent:
-    #         t = next(tag_iter)
-    #         lines.append(f"[bold]{t}[/bold]  .. ({parent['name']})")
-    #         self.tag_map[t] = ("bin", parent["id"])
-    #
-    #     # sub-bins (folders)
-    #     for b in subbins:
-    #         t = next(tag_iter)
-    #         child_bins = int(b.get("num_subbins", 0))
-    #         child_rem = int(b.get("num_reminders", 0))
-    #         counts = f" [{child_bins}/{child_rem}]"
-    #         lines.append(
-    #             f"[bold {BIN_COLOR}]{t}[/bold {BIN_COLOR}]  {b['name']}{counts}"
-    #         )
-    #         self.tag_map[t] = ("bin", b["id"])
-    #
-    #     # reminders
-    #     for r in reminders:
-    #         t = next(tag_iter)
-    #         color = TYPE_TO_COLOR.get(r["itemtype"], "white")
-    #         lines.append(f"[bold {color}]{t}[/bold {color}]  {r['subject']}")
-    #         self.tag_map[t] = ("reminder", r["id"])
-    #
-    #     self.query_one("#bin_list", Static).update("\n".join(lines))
-    #     self.query_one("#bin_details", Static).update("[dim]Select a tag…[/dim]")
-
-    def show_bin(self, bin_id: int) -> None:
-        """Refresh the display for the given bin."""
-        self.bin_id = bin_id
-        self.tag_map.clear()
-
-        name = self.app.controller.get_bin_name(bin_id)
-        parent = self.app.controller.get_parent_bin(bin_id)
-        subbins = self.app.controller.get_subbins(bin_id)
-        reminders = self.app.controller.get_reminders(bin_id)
-
-        # ensure afill is set for 'bin' view
-        # choose afill according to number of items we will show
-        n_items = (1 if parent else 0) + len(subbins) + len(reminders)
-        fill = 1 if n_items <= 26 else 2 if n_items <= 26 * 26 else 3
-        self.app.controller.afill_by_view["bin"] = fill
-
-        header = f"[bold cyan]Bin:[/] {name}"
-        self.query_one("#bin_header", Static).update(header)
-
-        lines = []
-        idx = 0
-
-        # parent link (“..”)
-        if parent:
-            tag = indx_to_tag(idx, fill)
-            lines.append(f"[bold]{tag}[/bold]  .. ({parent['name']})")
-            self.tag_map[tag] = ("bin", parent["id"])
-            idx += 1
-
-        # sub-bins (folders) — grouped first
-        for b in subbins:
-            tag = indx_to_tag(idx, fill)
-            child_bins = b.get("subbins", [])
-            child_rem = b.get("reminders", [])
-            counts = f" [{child_bins}/{child_rem}]"
-            lines.append(
-                f"[bold {BIN_COLOR}]{tag}[/bold {BIN_COLOR}]  {b['name']}{counts}"
-            )
-            self.tag_map[tag] = ("bin", b["id"])
-            idx += 1
-
-        # reminders (grouped second)
-        for r in reminders:
-            tag = indx_to_tag(idx, fill)
-            color = TYPE_TO_COLOR.get(r["itemtype"], "white")
-            lines.append(f"[bold {color}]{tag}[/bold {color}]  {r['subject']}")
-            self.tag_map[tag] = ("reminder", r["id"])
-            idx += 1
-
-        self.query_one("#bin_list", Static).update("\n".join(lines))
-        self.query_one("#bin_details", Static).update("[dim]Select a tag…[/dim]")
-
-    # ------------------------------------------------------------------ #
-    # Called from DynamicViewApp when tag is activated
-    # ------------------------------------------------------------------ #
-    def show_details_for_tag(self, tag: str) -> None:
-        """Display details when DynamicViewApp identifies an active tag."""
-        if tag not in self.tag_map:
-            return
-        kind, target_id = self.tag_map[tag]
-        if kind == "bin":
-            self.show_bin(target_id)
-        elif kind == "reminder":
-            details = self.app.controller.get_record_details(target_id)
-            self.query_one("#bin_details", Static).update(details)
-
-    def show_details_for_tag(self, tag: str):
-        """Handle tag selection (1-, 2-, or 3-char tags)."""
-        tag = tag.lower()
-
-        if tag not in self.tag_map:
-            log_msg(f"unknown tag: {tag}")
-            return
-
-        kind, target_id = self.tag_map[tag]
-
-        if kind == "bin":
-            self.show_bin(target_id)
-
-        elif kind == "reminder":
-            # details = self.app.controller.get_record_details(target_id)
-            # self.query_one("#bin_details", Static).update(details)
-
-            # in BinScreen, show details for a reminder directly
-            details = self.app.controller.get_details_for_record(target_id, job_id=None)
-            # show via your ListWithDetails wrapper:
-            if self.list_with_details:
-                self.list_with_details.show_details(
-                    details[0], details[2:], self.app.controller._last_details_meta
-                )
-            else:
-                # fallback: update simple details pane
-                self.query_one("#bin_details", Static).update("\n".join(details))
+# class BinView(SearchableScreen):
+#     """
+#     Single-bin browser with:
+#       • Tagged path header (sticky across pages)
+#       • Tagged sub-bins and reminders
+#       • 1-char tags with paging (left/right)
+#       • Escape -> jump to root
+#     """
+#
+#     def __init__(self, bin_id: Optional[int] = None, footer: str = ""):
+#         super().__init__()
+#         self.bin_id: Optional[int] = bin_id  # filled on mount if None
+#         self.pages: List[Tuple[List[str], Dict[str, Tuple[str, object]]]] = []
+#         self.current_page: int = 0
+#         self.list_with_details: Optional[ListWithDetails] = None
+#         self.footer_text = (
+#             footer
+#             or "[bold yellow]esc[/bold yellow] Root   [bold yellow]←/→[/bold yellow] Page"
+#         )
+#
+#     # ---- Compose ---------------------------------------------------------
+#     def compose(self):
+#         yield Static("", id="bin_header", classes="title-class")
+#         self.list_with_details = ListWithDetails(id="list")
+#         # If you have a special detail handler for 'bin', wire it; otherwise reuse a default
+#         if hasattr(self.app, "make_detail_key_handler"):
+#             self.list_with_details.set_detail_key_handler(
+#                 self.app.make_detail_key_handler(view_name="bin")
+#             )
+#         yield self.list_with_details
+#         yield Static(self.footer_text, id="custom_footer")
+#
+#     # ---- Lifecycle -------------------------------------------------------
+#     def on_mount(self):
+#         if self.bin_id is None:
+#             self.bin_id = self.app.controller.root_id
+#         self._rebuild_pages()
+#         self._refresh_page()
+#
+#     # ---- Paging API (used by app on_key) --------------------------------
+#     def has_next_page(self) -> bool:
+#         return self.current_page < len(self.pages) - 1
+#
+#     def has_prev_page(self) -> bool:
+#         return self.current_page > 0
+#
+#     def next_page(self):
+#         if self.has_next_page():
+#             self.current_page += 1
+#             self._refresh_page()
+#
+#     def previous_page(self):
+#         if self.has_prev_page():
+#             self.current_page -= 1
+#             self._refresh_page()
+#
+#     def reset_to_first_page(self):
+#         self.current_page = 0
+#         self._refresh_page()
+#
+#     # ---- Tag activation (generic on_key calls this) ----------------------
+#     def show_details_for_tag(self, tag: str) -> None:
+#         """If tag points to a bin -> navigate. If reminder -> open details."""
+#         if not self.pages:
+#             return
+#         _, tag_map = self.pages[self.current_page]
+#         target = tag_map.get(tag)
+#         if not target:
+#             return
+#
+#         kind, payload = target
+#         if kind == "bin":
+#             self._goto_bin(int(payload))
+#         else:
+#             record_id, job_id = payload  # (int, Optional[int])
+#             title, lines, meta = self.app.controller.get_details_for_record(
+#                 record_id, job_id
+#             )
+#             if self.list_with_details:
+#                 self.list_with_details.show_details(title, lines, meta)
+#
+#     # ---- Local key handling for esc/left/right (optional, can be app-level) ---
+#     def on_key(self, event):
+#         k = event.key
+#         if k == "escape":
+#             self._goto_root()
+#             event.stop()
+#         elif k == "left":
+#             if self.has_prev_page():
+#                 self.previous_page()
+#                 event.stop()
+#         elif k == "right":
+#             if self.has_next_page():
+#                 self.next_page()
+#                 event.stop()
+#
+#     # ---- Internal helpers ------------------------------------------------
+#     def _goto_root(self):
+#         root = self.app.controller.root_id
+#         if self.bin_id != root:
+#             self.bin_id = root
+#             self._rebuild_pages()
+#             self._refresh_page()
+#
+#     def _goto_bin(self, bin_id: int):
+#         if self.bin_id != bin_id:
+#             self.bin_id = bin_id
+#             self._rebuild_pages()
+#             self._refresh_page()
+#
+#     def _fetch_path(self, bin_id: int) -> List[Dict]:
+#         """Try controller.get_bin_path(); otherwise, climb parents to root."""
+#         ctrl = self.app.controller
+#         if hasattr(ctrl, "get_bin_path"):
+#             path = ctrl.get_bin_path(bin_id) or []
+#             # Expect list of {'id','name'} root->...->current
+#             return path
+#         # fallback via get_parent_bin
+#         path_rev = []
+#         seen = set()
+#         cur = bin_id
+#         while cur is not None and cur not in seen:
+#             seen.add(cur)
+#             if hasattr(ctrl, "get_bin_info"):
+#                 info = ctrl.get_bin_info(cur) or {}
+#                 name = info.get("name") or "?"
+#             else:
+#                 # minimal: get name via subbins of parent OR cache
+#                 name = f"bin:{cur}"
+#             path_rev.append({"id": cur, "name": name})
+#             parent = None
+#             if hasattr(ctrl, "get_parent_bin"):
+#                 p = ctrl.get_parent_bin(cur)  # {'id','name'} or None
+#                 parent = p["id"] if p else None
+#             cur = parent
+#         path_rev.reverse()
+#         return path_rev
+#
+#     def _rebuild_pages(self):
+#         """Recompute pages from controller data for current bin."""
+#         ctrl = self.app.controller
+#         bin_id = int(self.bin_id)
+#
+#         path = self._fetch_path(bin_id)  # [{'id','name'}, ...]
+#         subbins = sorted(ctrl.get_subbins(bin_id), key=lambda b: b["name"].lower())
+#         reminders_raw = sorted(
+#             ctrl.get_reminders_in_bin(bin_id), key=lambda r: r["subject"].lower()
+#         )
+#
+#         # normalize reminders to have job_id
+#         reminders = [
+#             {
+#                 "id": r["id"],
+#                 "subject": r["subject"],
+#                 "itemtype": r.get("itemtype", ""),
+#                 "job_id": r.get("job_id"),
+#             }
+#             for r in reminders_raw
+#         ]
+#
+#         # TYPE_TO_COLOR may exist globally; pass it if available
+#         type_to_color = globals().get("TYPE_TO_COLOR", {})
+#
+#         self.pages = bin_tagger(
+#             path=path,
+#             subbins=subbins,
+#             reminders=reminders,
+#             page_size=26,
+#             include_root_in_path=True,
+#             type_to_color=type_to_color,
+#         )
+#         self.current_page = 0
+#
+#     def _page_bullets(self) -> str:
+#         n = len(self.pages)
+#         if n <= 1:
+#             return ""
+#         return " ".join("●" if i == self.current_page else "○" for i in range(n))
+#
+#     def _refresh_page(self):
+#         if not self.list_with_details:
+#             return
+#         if not self.pages:
+#             self.list_with_details.update_list([])
+#             return
+#
+#         rows, _ = self.pages[self.current_page]
+#         self.list_with_details.update_list(rows)
+#
+#         # The first row of rows is the header path line; reuse it for the Static header + bullets
+#         header_path_text = rows[0]
+#         header_with_bullets = f"{header_path_text}\n{self._page_bullets()}"
+#         self.query_one("#bin_header", Static).update(header_with_bullets)
+#
+#         # Close details when page changes (optional)
+#         if self.list_with_details.has_details_open():
+#             self.list_with_details.hide_details()
 
 
-class BinTree(Screen):
-    """Hierarchical bin/reminder browser view."""
+Page = Tuple[List[str], Dict[str, Tuple[str, object]]]
 
-    def __init__(self, controller):
+# Reuse your ListWithDetails and SearchableScreen base
+# from .view import ListWithDetails, SearchableScreen, FOOTER  (adjust import as appropriate)
+
+
+class BinView(SearchableScreen):
+    """Single Bin browser with paged tags and a details panel."""
+
+    def __init__(self, controller, bin_id: int, footer_content: str = ""):
         super().__init__()
         self.controller = controller
+        self.bin_id = bin_id
+        self.pages = []  # list[Page] = [(rows, tag_map), ...]
+        self.current_page = 0
+        self.title = ""
+        self.footer_content = (
+            footer_content
+            or f"[bold {FOOTER}]←/→[/bold {FOOTER}] Page  [bold {FOOTER}]ESC[/bold {FOOTER}] Root  [bold {FOOTER}]/[/bold {FOOTER}] Search"
+        )
+        self.list_with_details = None
         self.tag_map = {}
-        self.tag_chars = "abcdefghijklmnopqrstuvwxyz"
-        self.expanded = set()
-        self.last_prefix = ""
 
-    def compose(self):
-        yield Static("[bold cyan]Bin Tree[/bold cyan]", id="bintree_header")
-        yield Static("", id="bintree_body")
+    # ----- Compose -----
+    def compose(self) -> ComposeResult:
+        yield Static("", id="scroll_title", classes="title-class", expand=True)
+        self.list_with_details = ListWithDetails(id="list")
+        # Details handler is the same as other views (uses controller.get_details_for_record)
+        self.list_with_details.set_detail_key_handler(
+            self.app.make_detail_key_handler(view_name="bin")
+        )
+        yield self.list_with_details
+        yield Static(self.footer_content, id="custom_footer")
 
+    # ----- Lifecycle -----
     def on_mount(self):
-        self.refresh_tree()
+        self.refresh_bin()
 
-    def refresh_tree(self):
-        """Re-render the bin tree and rebuild tag mappings."""
-        self.tag_map.clear()
+    # ----- Public mini-API (called by app’s on_key) -----
+    def next_page(self):
+        if self.current_page < len(self.pages) - 1:
+            self.current_page += 1
+            self._refresh_page()
 
-        # --- Reset the tag counter first
-        self._tag_counter = 0
+    def previous_page(self):
+        if self.current_page > 0:
+            self.current_page -= 1
+            self._refresh_page()
 
-        # --- Pre-compute how many total rows will be displayed
-        # (we’ll need this before generating tags)
-        root_id = self.app.controller.root_id
-        est_count = len(self.app.controller.get_subbins(root_id)) + len(
-            self.app.controller.get_reminders(root_id)
+    def has_next_page(self) -> bool:
+        return self.current_page < len(self.pages) - 1
+
+    def has_prev_page(self) -> bool:
+        return self.current_page > 0
+
+    def show_details_for_tag(self, tag: str) -> None:
+        """Called by DynamicViewApp for tag keys a–z."""
+        if not self.pages:
+            return
+        _, tag_map = self.pages[self.current_page]
+        payload = tag_map.get(tag)
+        if not payload:
+            return
+
+        kind, data = payload
+        if kind == "bin":
+            # navigate into that bin
+            self.bin_id = int(data)
+            self.refresh_bin()
+            return
+
+        # record -> open details
+        record_id, job_id = data
+        title, lines, meta = self.controller.get_details_for_record(record_id, job_id)
+        if self.list_with_details:
+            self.list_with_details.show_details(title, lines, meta)
+
+    # ----- Local key handling -----
+    def on_key(self, event):
+        k = event.key
+        if k == "escape":
+            # Jump to root
+            root_id = getattr(self.controller, "root_id", None)
+            if root_id is not None:
+                self.bin_id = root_id
+                self.refresh_bin()
+                event.stop()
+                return
+
+        if k == "left":
+            if self.has_prev_page():
+                self.previous_page()
+                event.stop()
+        elif k == "right":
+            if self.has_next_page():
+                self.next_page()
+                event.stop()
+
+    # ----- Internal helpers -----
+    def refresh_bin(self):
+        self.pages, self.title = self.controller.get_bin_pages(self.bin_id)
+        self.current_page = 0
+        self._refresh_page()
+
+    def _refresh_page(self):
+        rows, tag_map = self.pages[self.current_page] if self.pages else ([], {})
+        self.tag_map = tag_map
+        if self.list_with_details:
+            self.list_with_details.update_list(rows)
+            if self.list_with_details.has_details_open():
+                self.list_with_details.hide_details()
+        self._refresh_header()
+
+    def _refresh_header(self):
+        bullets = self._page_bullets()
+        self.query_one("#scroll_title", Static).update(
+            f"{self.title}\n{bullets}" if bullets else f"{self.title}"
         )
-        # --- Finally, update display
-        self.query_one("#bintree_body", Static).update("\n".join(lines))
 
-    def render_tree(self, parent_id=None, prefix=""):
-        lines = []
-        root_id = self.app.controller.root_id
-        parent_id = parent_id or root_id
+    def _page_bullets(self) -> str:
+        n = len(self.pages)
+        if n <= 1:
+            return ""
+        return " ".join("●" if i == self.current_page else "○" for i in range(n))
 
-        subbins = sorted(
-            self.app.controller.get_subbins(parent_id),
-            key=lambda b: b["name"].lower(),
-        )
-        reminders = sorted(
-            self.app.controller.get_reminders(parent_id),
-            key=lambda r: r["subject"].lower(),
-        )
-
-        # 🔑 Use a running tag index, not restart from 'a' each recursion
-        for b in subbins:
-            tag = self._next_tag()
-            name = b["name"]
-            num_subbins, num_reminders = b["subbins"], b["reminders"]
-            log_msg(f"rendering {b['name']} at prefix {prefix!r}")
-            counts = f" ({num_subbins}/{num_reminders})"
-            lines.append(f"{prefix}[bold yellow]{tag}[/bold yellow]  {name}{counts}")
-            self.tag_map[tag] = ("bin", b["id"])
-
-            if b["id"] in self.expanded:
-                child_lines = self.render_tree(b["id"], prefix + "   ")
-                lines.extend(child_lines)
-
-        for r in reminders:
-            tag = self._next_tag()
-            lines.append(f"{prefix}   [bold]{tag}[/bold]  🗒️ {r['subject']}")
-            self.tag_map[tag] = ("reminder", r["id"])
-
-        return lines
-
-    def _next_tag(self) -> str:
-        """Return next sequential tag (a, b, …, z, aa, …) with dynamic fill."""
-        idx = getattr(self, "_tag_counter", 0)
-        self._tag_counter = idx + 1
-        # compute fill dynamically per count
-        if idx < 26:
-            fill = 1
-        elif idx < 26 * 26:
-            fill = 2
-        else:
-            fill = 3
-        return indx_to_tag(idx, fill)
+    # Search routing already provided by SearchableScreen.get_search_target()
 
 
-# class BinTree(Screen):
-#     """Hierarchical bin/reminder browser view."""
+# class BinScreen(SearchableScreen):
+#     """Single-bin browser using controller-prepared pages."""
 #
-#     def __init__(self, controller):
+#     def __init__(self, pages: List[Page], title: str, bin_id: int, footer: str = ""):
 #         super().__init__()
-#         self.controller = controller
-#         self.tag_map = {}
-#         self.tag_chars = "abcdefghijklmnopqrstuvwxyz"
-#         self.expanded = set()
-#         self.last_prefix = ""
-#
-#     def compose(self):
-#         yield Static("[bold cyan]Bin Tree[/bold cyan]", id="bintree_header")
-#         yield Static("", id="bintree_body")
-#
-#     async def on_mount(self):
-#         # Wait until widgets are mounted before refreshing
-#         self.set_timer(0.05, self.refresh_tree)
-#
-#     def refresh_tree(self):
-#         """Render and display the tree."""
-#         try:
-#             body = self.query_one("#bintree_body", Static)
-#         except Exception as e:
-#             print(f"refresh_tree error: {e}")
-#             return
-#
-#         self.tag_map.clear()
-#
-#         controller = self.controller
-#         root_id = controller.root_id
-#
-#         subbins = sorted(
-#             controller.get_subbins(root_id), key=lambda b: b["name"].lower()
-#         )
-#         reminders = sorted(
-#             controller.get_reminders(root_id), key=lambda r: r["subject"].lower()
+#         self.pages = pages
+#         self.title = title
+#         self.bin_id = bin_id
+#         self.current_page = 0
+#         self.list_with_details: Optional[ListWithDetails] = None
+#         self.footer_text = (
+#             footer
+#             or f"[bold {FOOTER}]esc[/bold {FOOTER}] Root   [bold {FOOTER}]←/→[/bold {FOOTER}] Page"
 #         )
 #
-#         tag_iter = iter(self.tag_chars)
-#         lines = []
+#     # --- small API so DynamicViewApp can drive it like your other views ----
+#     def has_next_page(self) -> bool:
+#         return self.current_page < len(self.pages) - 1
 #
-#         # Render bins first
-#         for b in subbins:
-#             t = next(tag_iter)
-#             bin_id = b["id"]
-#             name = b["name"]
-#             num_subbins = b.get("num_subbins", 0)
-#             num_reminders = b.get("num_reminders", 0)
-#             lines.append(
-#                 f"[bold {BIN_COLOR}]{t}[/bold {BIN_COLOR}]  {name} ({num_subbins}/{num_reminders})"
-#             )
-#             self.tag_map[t] = ("bin", bin_id)
+#     def has_prev_page(self) -> bool:
+#         return self.current_page > 0
 #
-#         # Render reminders
-#         for r in reminders:
-#             t = next(tag_iter)
-#             lines.append(f"   [bold]{t}[/bold]  🗒️ {r['subject']}")
-#             self.tag_map[t] = ("reminder", r["id"])
+#     def next_page(self) -> None:
+#         if self.has_next_page():
+#             self.current_page += 1
+#             self._refresh_page()
 #
-#         body.update("\n".join(lines))
+#     def previous_page(self) -> None:
+#         if self.has_prev_page():
+#             self.current_page -= 1
+#             self._refresh_page()
 #
-#     # called from DynamicViewApp when tag fully entered
-#     def show_details_for_tag(self, tag: str):
-#         """Handle 1-, 2-, or 3-character tag selections in the tree."""
-#         tag = tag.lower()
+#     def reset_to_first_page(self) -> None:
+#         self.current_page = 0
+#         self._refresh_page()
 #
-#         if tag not in self.tag_map:
-#             log_msg(f"[BinTree] Unknown tag: {tag}")
+#     def get_record_for_tag(self, tag: str):
+#         """For compatibility: return (record_id, job_id) or None when tag is a reminder; None for bins."""
+#         if not self.pages:
+#             return None
+#         _, tag_map = self.pages[self.current_page]
+#         hit = tag_map.get(tag)
+#         if not hit:
+#             return None
+#         kind, payload = hit
+#         if kind == "reminder":
+#             return payload  # (record_id, job_id)
+#         return None
+#
+#     def show_details_for_tag(self, tag: str) -> None:
+#         """Handle both kinds: bins navigate, reminders open details."""
+#         if not self.pages:
 #             return
-#
-#         kind, target_id = self.tag_map[tag]
-#
+#         _, tag_map = self.pages[self.current_page]
+#         hit = tag_map.get(tag)
+#         if not hit:
+#             return
+#         kind, payload = hit
 #         if kind == "bin":
-#             # Open a new BinScreen for this bin
-#             self.app.view = "bin"
-#             self.app.push_screen(BinScreen(bin_id=target_id))
+#             self._goto_bin(int(payload))
+#             return
+#         record_id, job_id = payload
+#         title, lines, meta = self.app.controller.get_details_for_record(
+#             record_id, job_id
+#         )
+#         if self.list_with_details:
+#             self.list_with_details.show_details(title, lines, meta)
 #
-#         elif kind == "reminder":
-#             # Show record details
-#             details = self.app.controller.get_record_details(target_id)
-#             self.app.show_details(details)
+#     # --- compose / mount / refresh -----------------------------------------
+#     def compose(self):
+#         yield Static("", id="bin_title", classes="title-class")
+#         self.list_with_details = ListWithDetails(id="list")
+#         # reuse your detail handler (same as other views)
+#         self.list_with_details.set_detail_key_handler(
+#             self.app.make_detail_key_handler(view_name="bin")
+#         )
+#         yield self.list_with_details
+#         yield Static(self.footer_text, id="custom_footer")
+#
+#     def on_mount(self):
+#         self._refresh_page()
+#
+#     def _page_bullets(self) -> str:
+#         n = len(self.pages)
+#         if n <= 1:
+#             return ""
+#         return " ".join("●" if i == self.current_page else "○" for i in range(n))
+#
+#     def _refresh_page(self):
+#         if not self.list_with_details:
+#             return
+#         if not self.pages:
+#             self.list_with_details.update_list([])
+#             self.query_one("#bin_title", Static).update(self.title)
+#             return
+#
+#         rows, _ = self.pages[self.current_page]
+#         self.list_with_details.update_list(rows)
+#         self.query_one("#bin_title", Static).update(
+#             f"{self.title}\n{self._page_bullets()}"
+#         )
+#
+#         if self.list_with_details.has_details_open():
+#             self.list_with_details.hide_details()
+#
+#     # --- internal navigation -------------------------------------------------
+#     def _goto_bin(self, new_bin_id: int):
+#         pages, title = self.app.controller.get_bin(new_bin_id)
+#         self.pages = pages
+#         self.title = title
+#         self.bin_id = new_bin_id
+#         self.current_page = 0
+#         self._refresh_page()
 
 
 class DynamicViewApp(App):
@@ -2269,7 +2339,7 @@ class DynamicViewApp(App):
         ("escape", "close_details", "Close details"),
         ("R", "show_alerts", "Show Alerts"),
         ("A", "show_agenda", "Show Agenda"),
-        ("B", "show_bintree", "Bins"),
+        ("B", "show_bin", "Bins"),
         ("L", "show_last", "Show Last"),
         ("N", "show_next", "Show Next"),
         ("F", "show_find", "Find"),
@@ -2296,20 +2366,6 @@ class DynamicViewApp(App):
         self.leader_mode = False
         self.details_drawer: DetailsDrawer | None = None
         self.run_daily_tasks()
-
-    # def set_afill(self, *_args, **_kwargs):
-    #     # Prefer controller’s chosen width, fallback to infer from existing tags
-    #     log_msg(f"### setting afill, {self.view = }, {self.selected_week = } ###")
-    #     fill = None
-    #     if self.view == "week":
-    #         log_msg(f"getting afill for {self.selected_week = }")
-    #         fill = self.controller.afill_by_week.get(self.selected_week)
-    #         log_msg(f"got {fill = } for {self.selected_week = }")
-    #     else:
-    #         fill = self.controller.afill_by_view.get(self.view)
-    #         log_msg(f"got {fill = } for {self.view = }")
-    #     log_msg(f"got preliminary {fill = }")
-    #     self.afill = fill if fill else 1
 
     async def on_mount(self):
         self.styles.background = "#373737"
@@ -2641,21 +2697,21 @@ class DynamicViewApp(App):
         self.push_screen(FullScreenList(details, title, "", footer))
 
         return
-        # details = self.controller.get_agenda_events()
-        # self.set_afill(self.view)
-        # log_msg(f"opening agenda view, {self.view = }")
-        # self.push_screen(AgendaScreen(self.controller))
 
-    def action_show_bintree(self) -> None:
-        """Open the BinTree (forest) view."""
-        self.view = "bintree"
-        self.push_screen(BinTree(controller=self.controller))
+    # def action_show_bintree(self) -> None:
+    #     """Open the BinTree (forest) view."""
+    #     self.view = "bintree"
+    #     self.push_screen(BinTree(controller=self.controller))
+
+    def action_show_bin(self, bin_id: Optional[int] = None):
+        self.view = "bin"
+        if bin_id is None:
+            bin_id = self.controller.root_id
+        self.push_screen(BinView(controller=self.controller, bin_id=bin_id))
 
     def action_show_last(self):
         self.view = "last"
-        # self.set_afill(self.view)
         details, title = self.controller.get_last()
-        # footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         self.push_screen(FullScreenList(details, title, "", footer))
 
@@ -2664,7 +2720,6 @@ class DynamicViewApp(App):
         details, title = self.controller.get_next()
         log_msg(f"{details = }, {title = }")
 
-        # footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         self.push_screen(FullScreenList(details, title, "", footer))
 
@@ -2676,14 +2731,9 @@ class DynamicViewApp(App):
 
     def action_show_alerts(self):
         self.view = "alerts"
-        # self.set_afill(self.view)
         details = self.controller.get_active_alerts()
         log_msg(f"{details = }")
-        # self.set_afill(details, "alerts")
 
-        # footer = (
-        #     "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] ESC Back"
-        # )
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         self.push_screen(FullScreenList(details, footer))
 
@@ -2694,7 +2744,6 @@ class DynamicViewApp(App):
         if event.input.id == "find_input":
             self.view = "find"
             results, title = self.controller.find_records(search_term)
-            # footer = "[bold yellow]?[/bold yellow] Help ESC Back / Search"
             footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
             self.push_screen(FullScreenList(results, title, "", footer))
 
@@ -2790,7 +2839,6 @@ class DynamicViewApp(App):
         ):
             self.current_start_date += timedelta(weeks=1)
         # self.set_afill("week")
-        log_msg(f"{self.afill = }, {self.selected_week = }")
         self.update_table_and_list()
 
     def action_previous_week(self):
@@ -2798,7 +2846,6 @@ class DynamicViewApp(App):
         if self.selected_week < tuple((self.current_start_date).isocalendar()[:2]):
             self.current_start_date -= timedelta(weeks=1)
         # self.set_afill("week")
-        log_msg(f"{self.afill = }, {self.selected_week = }")
         self.update_table_and_list()
 
     def action_center_week(self):

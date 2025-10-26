@@ -115,6 +115,21 @@ def dtstr_to_compact(dt: str) -> str:
     return True, obj.strftime("%Y%m%dT%H%M")
 
 
+def local_dtstr_to_utc(dt: str) -> str:
+    obj = parse_dt(dt)
+    if not obj:
+        return False, f"Could not parse {obj = }"
+
+    # If the parser returns a datetime at 00:00:00, treat it as a date (your chosen convention)
+    # if isinstance(obj, datetime) and obj.hour == obj.minute == obj.second == 0:
+    #     return True, obj.strftime("%Y%m%d")
+
+    if isinstance(obj, date) and not isinstance(obj, datetime):
+        return True, obj.strftime("%Y%m%d")
+
+    return True, obj.astimezone(tz.UTC).strftime("%Y%m%dT%H%MZ")
+
+
 # --- parse a possible trailing " z <tzspec>" directive ---
 def _split_z_directive(text: str) -> tuple[str, str | None]:
     """
@@ -716,7 +731,6 @@ class Item:
         "r?": ["repetition &-key", "enter &-key", "do_ampr"],
         "~~": [
             "subject",
-            "job subject. Append an '&' to add a job option.",
             "do_string",
         ],
         "~a": [
@@ -2678,7 +2692,7 @@ class Item:
             key = key.strip()
             value = value.strip()
             if key == "u":
-                ok, res = dtstr_to_compact(value)
+                ok, res = local_dtstr_to_utc(value)
                 value = res if ok else ""
             elif ", " in value:
                 value = ",".join(value.split(", "))
@@ -3034,6 +3048,107 @@ class Item:
                 self.add_token(tok)
                 self.has_f = True
 
+            for job in job_map.values():
+                job.pop("f", None)
+
+        # --- finalize ---
+        self.jobs = list(job_map.values())
+        self.jobset = json.dumps(self.jobs, cls=CustomJSONEncoder)
+        return True, self.jobs
+
+    def finalize_jobs(self, jobs):
+        """
+        Compute job status (finished / available / waiting)
+        using new &r id: prereqs format and propagate @f if all are done.
+        Also sets a human-friendly `display_subject` per job.
+        """
+        if not jobs:
+            return False, "No jobs to process"
+        if not self.parse_ok:
+            return False, "Error parsing job tokens"
+
+        # index by id
+        job_map = {j["id"]: j for j in jobs if "id" in j}
+        finished = {jid for jid, j in job_map.items() if j.get("f")}
+
+        # --- transitive dependency expansion ---
+        all_prereqs = {}
+        for jid, job in job_map.items():
+            deps = set(job.get("reqs", []))
+            trans = set(deps)
+            stack = list(deps)
+            while stack:
+                d = stack.pop()
+                if d in job_map:
+                    for sd in job_map[d].get("reqs", []):
+                        if sd not in trans:
+                            trans.add(sd)
+                            stack.append(sd)
+            all_prereqs[jid] = trans
+
+        # --- classify ---
+        available, waiting = set(), set()
+        for jid, deps in all_prereqs.items():
+            unmet = deps - finished
+            if jid in finished:
+                continue
+            if unmet:
+                waiting.add(jid)
+            else:
+                available.add(jid)
+
+        # annotate job objects with status
+        for jid, job in job_map.items():
+            if jid in finished:
+                job["status"] = "finished"
+            elif jid in available:
+                job["status"] = "available"
+            elif jid in waiting:
+                job["status"] = "waiting"
+            else:
+                job["status"] = "standalone"
+
+        # --- compute counts for display_subject ---
+        num_available = sum(
+            1 for j in job_map.values() if j.get("status") == "available"
+        )
+        num_waiting = sum(1 for j in job_map.values() if j.get("status") == "waiting")
+        num_finished = sum(1 for j in job_map.values() if j.get("status") == "finished")
+
+        task_subject = getattr(self, "subject", "") or ""
+        if len(task_subject) > 12:
+            task_subject_display = task_subject[:10] + " …"
+        else:
+            task_subject_display = task_subject
+
+        # --- set display_subject per job (restoring old behavior) ---
+        for jid, job in job_map.items():
+            label = job.get("label") or job.get("~") or job.get("name") or f"#{jid}"
+            # e.g. "A ∊ ParentTask 3/2/5"
+            job["display_subject"] = (
+                f"{label} ∊ {task_subject_display} {num_available}/{num_waiting}/{num_finished}"
+            )
+
+        # --- propagate @f if all jobs finished ---
+        if finished and len(finished) == len(job_map):
+            completed_dts = []
+            for job in job_map.values():
+                if "f" in job:
+                    cdt, _ = parse_completion_value(job["f"])
+                    if cdt:
+                        completed_dts.append(cdt)
+
+            if completed_dts:
+                finished_dt = max(completed_dts)
+                tok = {
+                    "token": f"@f {self.fmt_user(finished_dt)}",
+                    "t": "@",
+                    "k": "f",
+                }
+                self.add_token(tok)
+                self.has_f = True
+
+            # strip per-job @f tokens after promoting to record-level @f
             for job in job_map.values():
                 job.pop("f", None)
 
@@ -3740,6 +3855,7 @@ class Item:
 
     def _rrule_components_from_group(self, group: list[dict]) -> dict:
         """Build RRULE components dict from the @r group & its &-options."""
+        log_msg("IN RRULE COMPONENTS")
         freq_map = {"y": "YEARLY", "m": "MONTHLY", "w": "WEEKLY", "d": "DAILY"}
         comps = {}
         anchor = group[0]["token"]  # "@r d" etc.
@@ -3766,6 +3882,7 @@ class Item:
                 elif key == "i":
                     comps["INTERVAL"] = value
                 elif key == "u":
+                    log_msg(f"GOT UNTIL: {value = }")
                     comps["UNTIL"] = value.replace("/", "")
                 elif key == "c":
                     comps["COUNT"] = value

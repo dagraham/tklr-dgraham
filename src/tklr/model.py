@@ -256,9 +256,10 @@ def _parse_jobs_json(jobs_json: str | None) -> list[dict]:
     if isinstance(data, list):
         for j in data:
             if isinstance(j, dict):
+                log_msg(f"json jobs: {j = }")
                 jobs.append(
                     {
-                        "job_id": j.get("i"),
+                        "job_id": j.get("id"),
                         "offset_str": (j.get("s") or "").strip(),
                         "extent_str": (j.get("e") or "").strip(),
                         "status": (j.get("status") or "").strip().lower(),
@@ -1431,6 +1432,7 @@ class DatabaseManager:
 
         jobs = _parse_jobs_json(row[0])
         for job in jobs:
+            log_msg(f"{job = }")
             if job.get("job_id") == job_id:
                 return job.get("display_subject") or None
 
@@ -1440,7 +1442,9 @@ class DatabaseManager:
         """
         Return the full job dictionary for the given record_id + job_id pair.
         Returns None if not found.
+
         """
+        log_msg(f"getting job_dict for {record_id = }, {job_id = }")
         if job_id is None:
             return None
 
@@ -1450,10 +1454,12 @@ class DatabaseManager:
             return None
 
         jobs = _parse_jobs_json(row[0])
+        log_msg(f"{jobs = }")
         for job in jobs:
             if job.get("job_id") == job_id:
                 return job  # Return the full dictionary
 
+        log_msg(f"returning None for {record_id = }, {job_id = }")
         return None
 
     def get_all_alerts(self):
@@ -2097,6 +2103,7 @@ class DatabaseManager:
         # Parse jobs (if any)
         jobs = _parse_jobs_json(jobs_json)
         has_jobs = bool(jobs)
+        # log_msg(f"{has_jobs = }, {jobs = }")
 
         has_rrule = "RRULE" in rule_str
         is_finite = (not has_rrule) or ("COUNT=" in rule_str) or ("UNTIL=" in rule_str)
@@ -2167,6 +2174,7 @@ class DatabaseManager:
                     else datetime.combine(parent_dt, datetime.min.time())
                 )
                 for j in jobs:
+                    log_msg(f"job: {j = }")
                     if j.get("status") == "finished":
                         continue
                     job_id = j.get("job_id")
@@ -2190,10 +2198,14 @@ class DatabaseManager:
                                     if seg_end == seg_start
                                     else _fmt_naive(seg_end)
                                 )
+                                log_msg(
+                                    f"inserting job datetimes {s_txt = }, {e_txt = } for {record_id = }, {job_id = }"
+                                )
                                 self.cursor.execute(
                                     "INSERT OR IGNORE INTO DateTimes (record_id, job_id, start_datetime, end_datetime) VALUES (?, ?, ?, ?)",
                                     (record_id, job_id, s_txt, e_txt),
                                 )
+                                log_msg("success")
                         except NameError:
                             # fallback: single row
                             self.cursor.execute(
@@ -2205,6 +2217,8 @@ class DatabaseManager:
                                     _fmt_naive(job_end),
                                 ),
                             )
+                        except Exception as e:
+                            log_msg(f"error: {e}")
                     else:
                         self.cursor.execute(
                             "INSERT OR IGNORE INTO DateTimes (record_id, job_id, start_datetime, end_datetime) VALUES (?, ?, ?, NULL)",
@@ -2949,7 +2963,7 @@ class DatabaseManager:
                 status = job.get("status", "")
                 if status != "available":
                     continue
-                job_id = job.get("i")
+                job_id = job.get("id")
                 subject = job.get("display_subject", subject)
 
                 job_due = due_seconds
