@@ -1,6 +1,7 @@
 from __future__ import annotations
 from packaging.version import parse as parse_version
 from importlib.metadata import version
+from functools import lru_cache
 
 # TODO: Keep the display part - the model part will be in model.py
 from datetime import datetime, timedelta, date
@@ -2226,10 +2227,24 @@ class Controller:
     def get_reminders(self, bin_id: int) -> list[dict]:
         return self.db_manager.get_reminders_in_bin(bin_id)
 
+    # def _bin_name(self, bin_id: int) -> str:
+    #     self.db_manager.cursor.execute("SELECT name FROM Bins WHERE id=?", (bin_id,))
+    #     row = self.db_manager.cursor.fetchone()
+    #     return row[0] if row else f"bin:{bin_id}"
+
+    def _is_root(self, bin_id: int) -> bool:
+        # adjust if your root id differs
+        return bin_id == getattr(self, "root_id", 0)
+
+    @lru_cache(maxsize=2048)
     def _bin_name(self, bin_id: int) -> str:
-        self.db_manager.cursor.execute("SELECT name FROM Bins WHERE id=?", (bin_id,))
-        row = self.db_manager.cursor.fetchone()
-        return row[0] if row else f"bin:{bin_id}"
+        if self._is_root(bin_id):
+            # choose what you want to display for root
+            return "root"  # or "" if you prefer no label
+        cur = self.db_manager.cursor
+        cur.execute("SELECT name FROM Bins WHERE id=?", (bin_id,))
+        row = cur.fetchone()
+        return row[0] if row and row[0] else f"bin:{bin_id}"
 
     def _parent_bin_id(self, bin_id: int) -> Optional[int]:
         # Root has NULL parent
@@ -2380,6 +2395,37 @@ class Controller:
     #
     #     return pages
 
+    # --- add to Controller ---
+
+    # def _pretty_child_name(self, parent_name: str, child_name: str) -> str:
+    #     """
+    #     Display-only prettifier:
+    #     - If child starts with parent_name, strip that prefix and any leading separators.
+    #     - Also handles colon form 'parent:suffix' -> 'suffix' when parent matches.
+    #     - Falls back to child_name if stripping would leave empty.
+    #     """
+    #     pn = (parent_name or "").strip()
+    #     cn = (child_name or "").strip()
+    #     if not pn or not cn:
+    #         return cn
+    #
+    #     lp = pn.lower()
+    #     lc = cn.lower()
+    #
+    #     # Handle 'parent:suffix' exactly
+    #     if ":" in cn:
+    #         left, right = cn.split(":", 1)
+    #         if left.strip().lower() == lp and right.strip():
+    #             return right.strip()
+    #
+    #     # Handle raw prefix 'parentXYZ' -> 'XYZ' (e.g., '2025' + '202510' -> '10')
+    #     if lc.startswith(lp):
+    #         suffix = cn[len(pn) :]
+    #         suffix = suffix.lstrip(" -_/.:")
+    #         return suffix or cn
+    #
+    #     return cn
+
     def bin_tagger(
         self, bin_id: int, page_size: int = 26
     ) -> list[tuple[list[str], dict[str, tuple[str, object]]]]:
@@ -2420,14 +2466,24 @@ class Controller:
             current_id
         )  # [{'id','subject','itemtype'}]
 
-        bin_rows = [
-            (
-                "bin",
-                b["id"],
-                f"[bold yellow]{b['name']}[/bold yellow]  [dim]({b['subbins']}/{b['reminders']})[/dim]",
+        # bin_rows = [
+        #     (
+        #         "bin",
+        #         b["id"],
+        #         f"[bold yellow]{b['name']}[/bold yellow]  [dim]({b['subbins']}/{b['reminders']})[/dim]",
+        #     )
+        #     for b in sorted(subbins, key=lambda x: x["name"].lower())
+        # ]
+
+        bin_rows = []
+        for b in sorted(subbins, key=lambda x: x["name"].lower()):
+            display_name = self._pretty_child_name(current_name, b["name"])
+            text = (
+                f"[bold yellow]{display_name}[/bold yellow]  "
+                f"[dim]({b['subbins']}/{b['reminders']})[/dim]"
             )
-            for b in sorted(subbins, key=lambda x: x["name"].lower())
-        ]
+            bin_rows.append(("bin", b["id"], text))
+
         rec_rows = [
             (
                 "record",
@@ -2486,6 +2542,198 @@ class Controller:
                     dict(header_tagmap_first),
                 )
             ]
+
+        return pages
+
+    def bin_tagger(self, bin_id: int, page_size: int = 26) -> List[Page]:
+        """
+        Build pages for a single Bin view.
+
+        Path (excluding 'root') is shown as the first row on every page.
+        - Path segments are tagged a.., but the LAST segment (the current bin) is NOT tagged.
+        - On every page, content letters start after the header letters, so if header used a..c,
+        content begins at 'd' on each page.
+        - Only taggable rows (bins + reminders) count toward page_size.
+
+        Returns: list[ (rows: list[str], tag_map: dict[str, ('bin'| 'record', target)]) ]
+        - target is bin_id for 'bin', or (record_id, job_id|None) for 'record'.
+        """
+
+        # ---------- helpers ----------
+        def _is_root(bid: int) -> bool:
+            # Adjust if you use a different root id
+            return bid == getattr(self, "root_id", 0)
+
+        @lru_cache(maxsize=4096)
+        def _bin_name(bid: int) -> str:
+            if _is_root(bid):
+                return "root"
+            cur = self.db_manager.cursor
+            cur.execute("SELECT name FROM Bins WHERE id=?", (bid,))
+            row = cur.fetchone()
+            return row[0] if row and row[0] else f"bin:{bid}"
+
+        def _bin_path_ids(bid: int) -> List[int]:
+            """Return ancestor path including current bin, excluding root."""
+            ids: List[int] = []
+            cur = self.db_manager.cursor
+            b = bid
+            while b is not None and not _is_root(b):
+                ids.append(b)
+                cur.execute(
+                    "SELECT container_id FROM BinLinks WHERE bin_id = ? LIMIT 1", (b,)
+                )
+                row = cur.fetchone()
+                b = row[0] if row else None
+            ids.reverse()
+            return ids
+
+        # def _pretty_child_name(parent_name: str, child_name: str) -> str:
+        #     """Trim parent prefix from child when child starts with parent (e.g., '202510' under '2025' -> '10')."""
+        #     if not parent_name:
+        #         return child_name
+        #     if child_name.startswith(parent_name):
+        #         suffix = child_name[len(parent_name) :]
+        #         while suffix and suffix[0] in ":/-_ .":
+        #             suffix = suffix[1:]
+        #         if suffix:
+        #             return suffix
+        #     return child_name
+
+        def _pretty_child_name(parent_name: str, child_name: str) -> str:
+            """
+            Trim exactly 'parent:' from the front of a child name.
+            This avoids accidental trims when a child merely starts with the same characters.
+            Examples:
+            parent='2025', child='2025:10'  -> '10'
+            parent='people', child='people:S' -> 'S'
+            parent='2025', child='202510'   -> '202510'   (unchanged)
+            parent='2025', child='2025x'    -> '2025x'    (unchanged)
+            """
+            if not parent_name:
+                return child_name
+            prefix = f"{parent_name}:"
+            if child_name.startswith(prefix):
+                suffix = child_name[len(prefix) :]
+                return suffix or child_name  # never return empty string
+            return child_name
+
+        def _format_path_header(
+            path_ids: List[int], continued: bool
+        ) -> Tuple[str, Dict[str, Tuple[str, int]], int]:
+            """
+            Build the header text and its tag_map.
+            Tag all but the last path segment (so the current bin is untagged).
+            Returns: (header_text, header_tagmap, header_letters_count)
+            """
+            tag_map: Dict[str, Tuple[str, int]] = {}
+            segs: List[str] = []
+            if not path_ids:
+                header_text = ".."
+                return (
+                    (header_text + (" [i](continued)[/i]" if continued else "")),
+                    tag_map,
+                    0,
+                )
+
+            # how many path letters to tag (exclude current bin)
+            taggable = max(0, len(path_ids) - 1)
+            header_letters = min(taggable, 26)
+
+            for i, bid in enumerate(path_ids):
+                name = _bin_name(bid)
+                if i < header_letters:  # tagged ancestor
+                    tag = chr(ord("a") + i)
+                    tag_map[tag] = ("bin", bid)
+                    segs.append(f"[dim]{tag}[/dim] {name}")
+                elif i == len(path_ids) - 1:  # current bin (untagged)
+                    segs.append(f"[bold yellow]{name}[/bold yellow]")
+                else:  # very deep path overflow (unlikely)
+                    f"[bold yellow]{segs.append(name)}[/bold yellow]"
+
+            header = " / ".join(segs) if segs else ".."
+            if continued:
+                header += " [i](continued)[/i]"
+            return header, tag_map, header_letters
+
+        # ---------- gather data ----------
+        path_ids = _bin_path_ids(bin_id)  # excludes root, includes current bin
+        current_name = "" if _is_root(bin_id) else _bin_name(bin_id)
+
+        subbins = self.db_manager.get_subbins(bin_id)  # [{id,name,subbins,reminders}]
+        reminders = self.db_manager.get_reminders_in_bin(
+            bin_id
+        )  # [{id,subject,itemtype}]
+
+        # Prepare content rows (bins then reminders), sorted
+        bin_rows: List[Tuple[str, Any, str]] = []
+        for b in sorted(subbins, key=lambda x: x["name"].lower()):
+            disp = _pretty_child_name(current_name, b["name"])
+            bin_rows.append(
+                (
+                    "bin",
+                    b["id"],
+                    f"[bold yellow]{disp}[/bold yellow]  [dim]({b['subbins']}/{b['reminders']})[/dim]",
+                )
+            )
+
+        rec_rows: List[Tuple[str, Any, str]] = []
+        for r in sorted(reminders, key=lambda x: x["subject"].lower()):
+            color = TYPE_TO_COLOR.get(r.get("itemtype", ""), "white")
+            rec_rows.append(
+                (
+                    "record",
+                    (r["id"], None),
+                    f"[{color}]{r.get('itemtype', '')} {r['subject']}[/{color}]",
+                )
+            )
+
+        all_rows: List[Tuple[str, Any, str]] = bin_rows + rec_rows
+
+        # ---------- paging ----------
+        pages: List[Page] = []
+        idx = 0
+        first = True
+
+        # header (first page) + how many letters consumed by header
+        first_header_text, first_hdr_map, header_letters = _format_path_header(
+            path_ids, continued=False
+        )
+        content_capacity = max(0, page_size - header_letters)
+
+        while first or idx < len(all_rows):
+            if first:
+                header_text, hdr_map = first_header_text, dict(first_hdr_map)
+            else:
+                # repeated header with (continued)
+                header_text, hdr_map, _ = _format_path_header(path_ids, continued=True)
+
+            rows_out: List[str] = [header_text]
+            tag_map: Dict[str, Tuple[str, Any]] = dict(hdr_map)
+
+            if content_capacity == 0:
+                # Deep path; show header-only page to avoid infinite loop
+                pages.append((rows_out, tag_map))
+                break
+
+            tagged = 0
+            next_letter_idx = (
+                header_letters  # content starts after header letters every page
+            )
+            while idx < len(all_rows) and tagged < content_capacity:
+                kind, payload, text = all_rows[idx]
+                idx += 1
+                tag = chr(ord("a") + next_letter_idx)
+                if kind == "bin":
+                    tag_map[tag] = ("bin", payload)
+                else:
+                    tag_map[tag] = ("record", payload)  # (record_id, job_id)
+                rows_out.append(f" [dim]{tag}[/dim]  {text}")
+                tagged += 1
+                next_letter_idx += 1
+
+            pages.append((rows_out, tag_map))
+            first = False
 
         return pages
 

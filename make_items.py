@@ -310,10 +310,10 @@ items = [
 ]
 
 bins = [
-    "% John Smith @b people/S @d details about John",
-    "% Journal entry for October @b journal/2025:10 @s 2p @d Test bin entries",
+    "% John Smith @b people/people:S/Smith @d details about John",
+    "% Journal entry for October @b journal/2025/2025:10 @s 2p @d Test bin entries",
     "% Churchill - Give me a pig @b library/quotations/churchill @d dogs look up at you",
-    "* Ellen's NJ/CT adventure @s mon @r d &c 7",
+    "* Ellen's French adventure @s mon @r d &c 7 @b activities/travel/lille",
 ]
 
 alerts = [
