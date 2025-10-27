@@ -1625,95 +1625,95 @@ class DatabaseManager:
         self.conn.commit()
         log_msg("✅ Tags and RecordTags tables populated.")
 
-    def populate_alerts(self):
-        """
-        Populate the Alerts table for all records that have alerts defined.
-        Alerts are only added if they are scheduled to trigger today.
-        """
-        # ✅ Step 1: Clear existing alerts
-        self.cursor.execute("DELETE FROM Alerts;")
-        self.conn.commit()
-
-        # ✅ Step 2: Find all records with non-empty alerts
-        self.cursor.execute(
-            """
-            SELECT R.id, R.subject, R.description, R.context, R.alerts, D.start_datetime 
-            FROM Records R
-            JOIN DateTimes D ON R.id = D.record_id
-            WHERE R.alerts IS NOT NULL AND R.alerts != ''
-            """
-        )
-        records = self.cursor.fetchall()
-
-        if not records:
-            print("🔔 No records with alerts found.")
-            return
-        now = round(datetime.now().timestamp())  # Current timestamp
-        midnight = round(
-            (datetime.now().replace(hour=23, minute=59, second=59)).timestamp()
-        )  # Midnight timestamp
-
-        # ✅ Step 3: Process alerts for each record
-        for (
-            record_id,
-            record_name,
-            record_description,
-            record_location,
-            alerts,
-            start_datetime,
-        ) in records:
-            log_msg(f"processing {alerts = }")
-            start_dt = datetime_from_timestamp(
-                start_datetime
-            )  # Convert timestamp to datetime
-            today = date.today()
-
-            # Convert alerts from JSON string to list
-            alert_list = json.loads(alerts)
-
-            for alert in alert_list:
-                if ":" not in alert:
-                    continue  # Ignore malformed alerts
-
-                time_part, command_part = alert.split(":")
-                timedelta_values = [
-                    td_str_to_seconds(t.strip()) for t in time_part.split(",")
-                ]
-                log_msg(f"{timedelta_values = }")
-                commands = [cmd.strip() for cmd in command_part.split(",")]
-
-                for td in timedelta_values:
-                    trigger_datetime = (
-                        start_datetime - td
-                    )  # When the alert should trigger
-
-                    # ✅ Only insert alerts that will trigger before midnight and after now
-                    if now <= trigger_datetime < midnight:
-                        for alert_name in commands:
-                            alert_command = self.create_alert(
-                                alert_name,
-                                td,
-                                start_datetime,
-                                record_id,
-                                record_name,
-                                record_description,
-                                record_location,
-                            )
-
-                            if alert_command:  # ✅ Ensure it's valid before inserting
-                                self.cursor.execute(
-                                    "INSERT INTO Alerts (record_id, record_name, trigger_datetime, start_datetime, alert_name, alert_command) VALUES (?, ?, ?, ?, ?, ?)",
-                                    (
-                                        record_id,
-                                        record_name,
-                                        trigger_datetime,
-                                        start_datetime,
-                                        alert_name,
-                                        alert_command,
-                                    ),
-                                )
-        self.conn.commit()
-        log_msg("✅ Alerts table updated with today's relevant alerts.")
+    # def populate_alerts(self):
+    #     """
+    #     Populate the Alerts table for all records that have alerts defined.
+    #     Alerts are only added if they are scheduled to trigger today.
+    #     """
+    #     # ✅ Step 1: Clear existing alerts
+    #     self.cursor.execute("DELETE FROM Alerts;")
+    #     self.conn.commit()
+    #
+    #     # ✅ Step 2: Find all records with non-empty alerts
+    #     self.cursor.execute(
+    #         """
+    #         SELECT R.id, R.subject, R.description, R.context, R.alerts, D.start_datetime
+    #         FROM Records R
+    #         JOIN DateTimes D ON R.id = D.record_id
+    #         WHERE R.alerts IS NOT NULL AND R.alerts != ''
+    #         """
+    #     )
+    #     records = self.cursor.fetchall()
+    #
+    #     if not records:
+    #         print("🔔 No records with alerts found.")
+    #         return
+    #     now = round(datetime.now().timestamp())  # Current timestamp
+    #     midnight = round(
+    #         (datetime.now().replace(hour=23, minute=59, second=59)).timestamp()
+    #     )  # Midnight timestamp
+    #
+    #     # ✅ Step 3: Process alerts for each record
+    #     for (
+    #         record_id,
+    #         record_name,
+    #         record_description,
+    #         record_location,
+    #         alerts,
+    #         start_datetime,
+    #     ) in records:
+    #         log_msg(f"processing {alerts = }")
+    #         start_dt = datetime_from_timestamp(
+    #             start_datetime
+    #         )  # Convert timestamp to datetime
+    #         today = date.today()
+    #
+    #         # Convert alerts from JSON string to list
+    #         alert_list = json.loads(alerts)
+    #
+    #         for alert in alert_list:
+    #             if ":" not in alert:
+    #                 continue  # Ignore malformed alerts
+    #
+    #             time_part, command_part = alert.split(":")
+    #             timedelta_values = [
+    #                 td_str_to_seconds(t.strip()) for t in time_part.split(",")
+    #             ]
+    #             log_msg(f"{timedelta_values = }")
+    #             commands = [cmd.strip() for cmd in command_part.split(",")]
+    #
+    #             for td in timedelta_values:
+    #                 trigger_datetime = (
+    #                     start_datetime - td
+    #                 )  # When the alert should trigger
+    #
+    #                 # ✅ Only insert alerts that will trigger before midnight and after now
+    #                 if now <= trigger_datetime < midnight:
+    #                     for alert_name in commands:
+    #                         alert_command = self.create_alert(
+    #                             alert_name,
+    #                             td,
+    #                             start_datetime,
+    #                             record_id,
+    #                             record_name,
+    #                             record_description,
+    #                             record_location,
+    #                         )
+    #
+    #                         if alert_command:  # ✅ Ensure it's valid before inserting
+    #                             self.cursor.execute(
+    #                                 "INSERT INTO Alerts (record_id, record_name, trigger_datetime, start_datetime, alert_name, alert_command) VALUES (?, ?, ?, ?, ?, ?)",
+    #                                 (
+    #                                     record_id,
+    #                                     record_name,
+    #                                     trigger_datetime,
+    #                                     start_datetime,
+    #                                     alert_name,
+    #                                     alert_command,
+    #                                 ),
+    #                             )
+    #     self.conn.commit()
+    #     log_msg("✅ Alerts table updated with today's relevant alerts.")
 
     def populate_alerts(self):
         """
@@ -1951,6 +1951,96 @@ class DatabaseManager:
 
         self.conn.commit()
         log_msg(f"✅ Alerts updated for record {record_id}")
+
+    def get_generated_weeks_range(self) -> tuple[int, int, int, int] | None:
+        row = self.cursor.execute(
+            "SELECT start_year, start_week, end_year, end_week FROM GeneratedWeeks"
+        ).fetchone()
+        return tuple(row) if row else None
+
+    @staticmethod
+    def _week_key(year: int, week: int) -> tuple[int, int]:
+        return (year, week)
+
+    def is_week_in_generated(self, year: int, week: int) -> bool:
+        rng = self.get_generated_weeks_range()
+        if not rng:
+            return False
+        sy, sw, ey, ew = rng
+        return (
+            self._week_key(sy, sw)
+            <= self._week_key(year, week)
+            <= self._week_key(ey, ew)
+        )
+
+    @staticmethod
+    def _iso_date(year: int, week: int, weekday: int = 1) -> datetime:
+        # ISO: %G (ISO year), %V (ISO week), %u (1..7, Monday=1)
+        return datetime.strptime(f"{year} {week} {weekday}", "%G %V %u")
+
+    def _weeks_between(self, a: tuple[int, int], b: tuple[int, int]) -> int:
+        da = self._iso_date(*a)
+        db = self._iso_date(*b)
+        return (db - da).days // 7
+
+    def ensure_week_generated_with_topup(
+        self,
+        year: int,
+        week: int,
+        cushion: int = 6,
+        topup_threshold: int = 2,
+    ) -> bool:
+        """
+        Ensure (year, week) exists in DateTimes.
+        - If it's outside the cached range (earlier or later): extend to include it (+ cushion).
+        - If it's inside but within `topup_threshold` weeks of either edge, extend a bit past that edge.
+        Returns True if any extension was performed.
+        """
+        rng = self.get_generated_weeks_range()
+
+        # No range yet: seed it from requested week
+        if not rng:
+            self.extend_datetimes_for_weeks(year, week, cushion + 1)
+            return True
+
+        sy, sw, ey, ew = rng
+        wk_key = self._week_key(year, week)
+
+        # Outside range -> extend starting at requested week
+        if wk_key < self._week_key(sy, sw) or wk_key > self._week_key(ey, ew):
+            self.extend_datetimes_for_weeks(year, week, cushion + 1)
+            return True
+
+        # Inside range: check “near left” edge
+        if self._weeks_between((sy, sw), (year, week)) <= topup_threshold:
+            earlier_start = self._iso_date(sy, sw) - timedelta(weeks=cushion)
+            e_y, e_w = earlier_start.isocalendar()[:2]
+            self.extend_datetimes_for_weeks(e_y, e_w, cushion + 1)
+            return True
+
+        # Inside range: check “near right” edge
+        if self._weeks_between((year, week), (ey, ew)) <= topup_threshold:
+            start_after = self._iso_date(ey, ew) + timedelta(weeks=1)
+            n_y, n_w = start_after.isocalendar()[:2]
+            self.extend_datetimes_for_weeks(n_y, n_w, cushion)
+            return True
+
+        return False
+
+    # def ensure_week_generated(self, year: int, week: int, extra_weeks: int = 6) -> bool:
+    #     """
+    #     Ensure (year, week) is present. If it's outside the cached range (either
+    #     earlier or later), extend the DateTimes by calling extend_datetimes_for_weeks()
+    #     starting from the requested week, plus a cushion of `extra_weeks`.
+    #     Returns True if an extension was performed.
+    #     """
+    #     if self.is_week_in_generated(year, week):
+    #         return False
+    #
+    #     # This call merges with the existing range in your implementation,
+    #     # expanding earlier or later as needed.
+    #     self.extend_datetimes_for_weeks(year, week, extra_weeks + 1)
+    #     return True
 
     def extend_datetimes_for_weeks(self, start_year, start_week, weeks):
         """

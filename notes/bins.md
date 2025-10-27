@@ -4,32 +4,29 @@
 
 # Bins
 
-## Activities
+- activities
+  - travel
+    - Greece to Turkey Dec 2025
+      - % itenerary @b activities/travel/Greece to Turkey Dec 2025 @b Smith, Charles and Bonnie
+- ideas
+- journal
+  - 2025
+    - 10
+      - % ... @b journal/2025/2025:10
+- library
+- people
+  - S
+    - Smith, Charles and Bonnie
+      - % ... @b people/people:S/Smith, John
+- places
+  - Greece
+    - Greece to Turkey Dec 2025
+  - Turkey
+    - Greece to Turkey Dec 2025
+- social:
 
-## Ideas
-
-## Journal
-
-### 2025:
-
-### 2026:
-
-## Library:
-
-## People
-
-### A
-
-### B
-
-## Places:
-
-- Greece:
-  - December 2025 Cruise:
-- Turkey:
-  - December 2025 Cruise:
-
-# jots
+  - wine societ ,y
+  - chefs table
 
 - Notes named "%y-%m-%d jots" with the reminder created for the date specified by @s
 

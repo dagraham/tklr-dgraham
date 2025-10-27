@@ -510,6 +510,7 @@ job_methods = list("efhp") + [
 
 multiple_allowed = [
     "a",
+    "b",
     "u",
     "r",
     "t",

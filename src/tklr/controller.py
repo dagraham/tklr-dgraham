@@ -1430,30 +1430,55 @@ class Controller:
         ] + fields
 
     def get_table_and_list(self, start_date: datetime, selected_week: tuple[int, int]):
-        """
-        Return the header title, busy bar (as text), and event list details
-        for the given ISO week.
-
-        Returns: (title, busy_bar_str, details_list)
-        """
         year, week = selected_week
-        year_week = f"{year:04d}-{week:02d}"
 
-        # --- 1. Busy bits from BusyWeeks table
+        try:
+            extended = self.db_manager.ensure_week_generated_with_topup(
+                year, week, cushion=6, topup_threshold=2
+            )
+            if extended:
+                log_msg(
+                    f"[weeks] extended/generated around {year}-W{week:02d} (+cushion)"
+                )
+        except Exception as e:
+            log_msg(f"[weeks] ensure_week_generated_with_topup error: {e}")
+
+        year_week = f"{year:04d}-{week:02d}"
         busy_bits = self.db_manager.get_busy_bits_for_week(year_week)
         busy_bar = self._format_busy_bar(busy_bits)
 
-        # --- 2. Week events using your existing method
         start_dt = datetime.strptime(f"{year} {week} 1", "%G %V %u")
         end_dt = start_dt + timedelta(weeks=1)
         details = self.get_week_details(selected_week)
 
-        # title = f"{format_date_range(start_dt, end_dt)} #{start_dt.isocalendar().week}"
         title = format_iso_week(start_dt)
-        # --- 3. Title for the week header
-        # title = f"Week {week} — {start_dt.strftime('%b %d')} to {(end_dt - timedelta(days=1)).strftime('%b %d')}"
-
         return title, busy_bar, details
+
+    # def get_table_and_list(self, start_date: datetime, selected_week: tuple[int, int]):
+    #     """
+    #     Return the header title, busy bar (as text), and event list details
+    #     for the given ISO week.
+    #
+    #     Returns: (title, busy_bar_str, details_list)
+    #     """
+    #     year, week = selected_week
+    #     year_week = f"{year:04d}-{week:02d}"
+    #
+    #     # --- 1. Busy bits from BusyWeeks table
+    #     busy_bits = self.db_manager.get_busy_bits_for_week(year_week)
+    #     busy_bar = self._format_busy_bar(busy_bits)
+    #
+    #     # --- 2. Week events using your existing method
+    #     start_dt = datetime.strptime(f"{year} {week} 1", "%G %V %u")
+    #     end_dt = start_dt + timedelta(weeks=1)
+    #     details = self.get_week_details(selected_week)
+    #
+    #     # title = f"{format_date_range(start_dt, end_dt)} #{start_dt.isocalendar().week}"
+    #     title = format_iso_week(start_dt)
+    #     # --- 3. Title for the week header
+    #     # title = f"Week {week} — {start_dt.strftime('%b %d')} to {(end_dt - timedelta(days=1)).strftime('%b %d')}"
+    #
+    #     return title, busy_bar, details
 
     def _format_busy_bar(
         self,
@@ -2743,7 +2768,7 @@ class Controller:
         # Title: path text without tags, e.g. "Activities / Travel". If no path => "root".
         path_ids = self._bin_path_ids(bin_id)
         # title = " / ".join(self._bin_name(b) for b in path_ids) or ".."
-        title = "Bin Directory"
+        title = "Bins"
         return pages, title
 
         def get_record_details(self, record_id: int) -> str:
