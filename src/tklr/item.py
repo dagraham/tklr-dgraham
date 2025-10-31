@@ -851,6 +851,7 @@ class Item:
         self.token_store = None
         self.rrules = []
         self.jobs = []
+        self.bins = []
         self.jobset = []
         self.priority = None
         self.tags = []

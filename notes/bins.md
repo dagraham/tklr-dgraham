@@ -2,6 +2,24 @@
 
 ##
 
+Just thinking about bins and tags.
+
+Processing bin paths seems ad hoc and likely to lead to poor organization and requires the use of a reminder to create the components of the path.
+
+Given the uniqueness requirement for bin names, I'm wondering if it would be better to have "@b name" specify a given bin name, not path. A list of of possible completions could be offered as characters are entered, perhaps with something like tab completion for a unique match? For a new bin, the user could be prompted for a parent bin, again from a list of possible completions as characters are entered, perhaps with "unlinked" as the default?
+
+For bin organization, what about a devoted, expanding tree view of just bins in which a bin could be selected by choosing its tag and, once selected, renamed or, after selecting the tag of a target, moved to the list of children of that target. Moving a bin with children would preserve the links and thus move the children as well. Also, a new bin could be created and attached to the list of children of an existing bin by selecting the tag of the target. Deleting a bin with children bins or reminders would require more thought.
+
+If this could all be made sensible, what about using bins for tags. I.e., having a root/tags bin and when, e.g, "@t blue" encountered, automatically create "tag:blue" if it doesn't already exist and add it to the tags bin?
+
+- activities
+- journal
+- library
+- people
+- places
+- tags
+- unlinked
+
 # Bins
 
 - activities

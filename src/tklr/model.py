@@ -705,222 +705,222 @@ class DatabaseManager:
     def datetime_in_words(self, fmt_dt: str) -> str:
         return datetime_in_words(fmt_dt, self.ampm)
 
-    def setup_database(self):
-        """
-        Create (if missing) all tables and indexes for tklr.
-
-        Notes:
-        - Pinned state is stored ONLY in the `Pinned` table.
-        - Urgency has NO `pinned` column; compute it via LEFT JOIN Pinned when reading.
-        - Timestamps are stored as UTC epoch seconds (INTEGER) unless noted otherwise.
-        """
-        # ---------------- Records ----------------
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Records (
-                id                INTEGER PRIMARY KEY AUTOINCREMENT,
-                itemtype          TEXT,                         -- '*','~','^','%','?','+', 'x'
-                subject           TEXT,
-                description       TEXT,
-                rruleset          TEXT,
-                timezone          TEXT,
-                extent            TEXT,
-                alerts            TEXT,
-                notice            TEXT,
-                context           TEXT,
-                jobs              TEXT,
-                tags              TEXT,
-                priority          INTEGER CHECK (priority IN (1,2,3,4,5)),
-                tokens TEXT,                         -- JSON text
-                processed         INTEGER,
-                created           TEXT,                         -- 'YYYYMMDDTHHMMSS' UTC
-                modified          TEXT                          -- 'YYYYMMDDTHHMMSS' UTC
-            );
-        """)
-
-        # ---------------- Pinned ----------------
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Pinned (
-                record_id INTEGER PRIMARY KEY,
-                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-            );
-        """)
-        self.cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_pinned_record
-            ON Pinned(record_id);
-        """)
-
-        # ---------------- Urgency (NO pinned column) ----------------
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Urgency (
-                id        INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id INTEGER NOT NULL,                     -- References Records.id
-                job_id    INTEGER,                              -- NULL if not part of a project
-                subject   TEXT    NOT NULL,
-                urgency   REAL    NOT NULL,
-                color     TEXT,                                 -- optional precomputed color
-                status    TEXT    NOT NULL,                     -- "next","waiting","scheduled",…
-                weights   TEXT                                  -- JSON of component weights, optional
-            );
-        """)
-        self.cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_urgency_record
-            ON Urgency(record_id);
-        """)
-        self.cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_urgency_urgency
-            ON Urgency(urgency DESC);
-        """)
-
-        # ---------------- Tags & RecordTags ----------------
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Tags (
-                id   INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE
-            );
-        """)
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS RecordTags (
-                record_id INTEGER NOT NULL,
-                tag_id    INTEGER NOT NULL,
-                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE,
-                FOREIGN KEY (tag_id)    REFERENCES Tags(id)    ON DELETE CASCADE,
-                PRIMARY KEY (record_id, tag_id)
-            );
-        """)
-
-        # ---------------- Completions ----------------
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Completions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id INTEGER NOT NULL,
-                completed TEXT NOT NULL,  -- UTC-aware: "YYYYMMDDTHHMMZ"
-                due TEXT,                 -- optional UTC-aware: "YYYYMMDDTHHMMZ"
-                FOREIGN KEY(record_id) REFERENCES Records(id)
-            );
-        """)
-
-        self.cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_completions_record_id
-            ON Completions(record_id);
-        """)
-
-        self.cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_completions_completed
-            ON Completions(completed);
-        """)
-
-        self.cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_completions_record_due
-            ON Completions(record_id, due);
-        """)
-
-        # ---------------- DateTimes ----------------
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS DateTimes (
-                record_id     INTEGER NOT NULL,
-                job_id        INTEGER,          -- nullable; link to specific job if any
-                start_datetime TEXT NOT NULL,   -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
-                end_datetime   TEXT,            -- NULL if instantaneous; same formats as start
-                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-            )
-        """)
-
-        # enforce uniqueness across (record_id, job_id, start, end)
-        self.cursor.execute("""
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_datetimes_unique
-            ON DateTimes(
-                record_id,
-                COALESCE(job_id, -1),
-                start_datetime,
-                COALESCE(end_datetime, '')
-            )
-        """)
-
-        # range query helper
-        self.cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_datetimes_start
-            ON DateTimes(start_datetime)
-        """)
-
-        # ---------------- GeneratedWeeks (cache of week ranges) ----------------
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS GeneratedWeeks (
-                start_year INTEGER,
-                start_week INTEGER,
-                end_year   INTEGER,
-                end_week   INTEGER
-            );
-        """)
-
-        # Alerts table: store local-naive datetimes as TEXT
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Alerts (
-                alert_id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id        INTEGER NOT NULL,
-                record_name      TEXT    NOT NULL,
-                trigger_datetime TEXT    NOT NULL,  -- 'YYYYMMDDTHHMMSS' (local-naive)
-                start_datetime   TEXT    NOT NULL,  -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
-                alert_name       TEXT    NOT NULL,
-                alert_command    TEXT    NOT NULL,
-                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-            )
-        """)
-
-        # Prevent duplicates: one alert per (record, start, name, trigger)
-        self.cursor.execute("""
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_unique
-            ON Alerts(record_id, start_datetime, alert_name, COALESCE(trigger_datetime,''))
-        """)
-
-        # Helpful for “what’s due now”
-        self.cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_alerts_trigger
-            ON Alerts(trigger_datetime)
-        """)
-
-        # ---------------- notice (days remaining notices) ----------------
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Notice (
-                id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id     INTEGER NOT NULL,
-                days_remaining INTEGER NOT NULL,
-                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-            );
-        """)
-
-        # bins themselves
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS Bins (
-                id INTEGER PRIMARY KEY,
-                name TEXT UNIQUE NOT NULL
-            );
-        """)
-
-        # parent-child relationships among bins
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS BinLinks (
-                bin_id INTEGER NOT NULL,
-                container_id INTEGER,
-                FOREIGN KEY (bin_id) REFERENCES Bins(id) ON DELETE CASCADE,
-                FOREIGN KEY (container_id) REFERENCES Bins(id) ON DELETE SET NULL,
-                UNIQUE(bin_id)
-            );
-        """)
-
-        # link reminders to bins (many-to-many)
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS ReminderLinks (
-                reminder_id INTEGER NOT NULL,
-                bin_id INTEGER NOT NULL,
-                FOREIGN KEY (reminder_id) REFERENCES Records(id) ON DELETE CASCADE,
-                FOREIGN KEY (bin_id) REFERENCES Bins(id) ON DELETE CASCADE,
-                UNIQUE(reminder_id, bin_id)
-            );
-        """)
-
-        self.setup_busy_tables()
-
-        self.conn.commit()
+    # def setup_database(self):
+    #     """
+    #     Create (if missing) all tables and indexes for tklr.
+    #
+    #     Notes:
+    #     - Pinned state is stored ONLY in the `Pinned` table.
+    #     - Urgency has NO `pinned` column; compute it via LEFT JOIN Pinned when reading.
+    #     - Timestamps are stored as UTC epoch seconds (INTEGER) unless noted otherwise.
+    #     """
+    #     # ---------------- Records ----------------
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS Records (
+    #             id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    #             itemtype          TEXT,                         -- '*','~','^','%','?','+', 'x'
+    #             subject           TEXT,
+    #             description       TEXT,
+    #             rruleset          TEXT,
+    #             timezone          TEXT,
+    #             extent            TEXT,
+    #             alerts            TEXT,
+    #             notice            TEXT,
+    #             context           TEXT,
+    #             jobs              TEXT,
+    #             tags              TEXT,
+    #             priority          INTEGER CHECK (priority IN (1,2,3,4,5)),
+    #             tokens TEXT,                         -- JSON text
+    #             processed         INTEGER,
+    #             created           TEXT,                         -- 'YYYYMMDDTHHMMSS' UTC
+    #             modified          TEXT                          -- 'YYYYMMDDTHHMMSS' UTC
+    #         );
+    #     """)
+    #
+    #     # ---------------- Pinned ----------------
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS Pinned (
+    #             record_id INTEGER PRIMARY KEY,
+    #             FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+    #         );
+    #     """)
+    #     self.cursor.execute("""
+    #         CREATE INDEX IF NOT EXISTS idx_pinned_record
+    #         ON Pinned(record_id);
+    #     """)
+    #
+    #     # ---------------- Urgency (NO pinned column) ----------------
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS Urgency (
+    #             id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    #             record_id INTEGER NOT NULL,                     -- References Records.id
+    #             job_id    INTEGER,                              -- NULL if not part of a project
+    #             subject   TEXT    NOT NULL,
+    #             urgency   REAL    NOT NULL,
+    #             color     TEXT,                                 -- optional precomputed color
+    #             status    TEXT    NOT NULL,                     -- "next","waiting","scheduled",…
+    #             weights   TEXT                                  -- JSON of component weights, optional
+    #         );
+    #     """)
+    #     self.cursor.execute("""
+    #         CREATE INDEX IF NOT EXISTS idx_urgency_record
+    #         ON Urgency(record_id);
+    #     """)
+    #     self.cursor.execute("""
+    #         CREATE INDEX IF NOT EXISTS idx_urgency_urgency
+    #         ON Urgency(urgency DESC);
+    #     """)
+    #
+    #     # ---------------- Tags & RecordTags ----------------
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS Tags (
+    #             id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    #             name TEXT NOT NULL UNIQUE
+    #         );
+    #     """)
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS RecordTags (
+    #             record_id INTEGER NOT NULL,
+    #             tag_id    INTEGER NOT NULL,
+    #             FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE,
+    #             FOREIGN KEY (tag_id)    REFERENCES Tags(id)    ON DELETE CASCADE,
+    #             PRIMARY KEY (record_id, tag_id)
+    #         );
+    #     """)
+    #
+    #     # ---------------- Completions ----------------
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS Completions (
+    #             id INTEGER PRIMARY KEY AUTOINCREMENT,
+    #             record_id INTEGER NOT NULL,
+    #             completed TEXT NOT NULL,  -- UTC-aware: "YYYYMMDDTHHMMZ"
+    #             due TEXT,                 -- optional UTC-aware: "YYYYMMDDTHHMMZ"
+    #             FOREIGN KEY(record_id) REFERENCES Records(id)
+    #         );
+    #     """)
+    #
+    #     self.cursor.execute("""
+    #         CREATE INDEX IF NOT EXISTS idx_completions_record_id
+    #         ON Completions(record_id);
+    #     """)
+    #
+    #     self.cursor.execute("""
+    #         CREATE INDEX IF NOT EXISTS idx_completions_completed
+    #         ON Completions(completed);
+    #     """)
+    #
+    #     self.cursor.execute("""
+    #         CREATE INDEX IF NOT EXISTS idx_completions_record_due
+    #         ON Completions(record_id, due);
+    #     """)
+    #
+    #     # ---------------- DateTimes ----------------
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS DateTimes (
+    #             record_id     INTEGER NOT NULL,
+    #             job_id        INTEGER,          -- nullable; link to specific job if any
+    #             start_datetime TEXT NOT NULL,   -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
+    #             end_datetime   TEXT,            -- NULL if instantaneous; same formats as start
+    #             FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+    #         )
+    #     """)
+    #
+    #     # enforce uniqueness across (record_id, job_id, start, end)
+    #     self.cursor.execute("""
+    #         CREATE UNIQUE INDEX IF NOT EXISTS idx_datetimes_unique
+    #         ON DateTimes(
+    #             record_id,
+    #             COALESCE(job_id, -1),
+    #             start_datetime,
+    #             COALESCE(end_datetime, '')
+    #         )
+    #     """)
+    #
+    #     # range query helper
+    #     self.cursor.execute("""
+    #         CREATE INDEX IF NOT EXISTS idx_datetimes_start
+    #         ON DateTimes(start_datetime)
+    #     """)
+    #
+    #     # ---------------- GeneratedWeeks (cache of week ranges) ----------------
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS GeneratedWeeks (
+    #             start_year INTEGER,
+    #             start_week INTEGER,
+    #             end_year   INTEGER,
+    #             end_week   INTEGER
+    #         );
+    #     """)
+    #
+    #     # Alerts table: store local-naive datetimes as TEXT
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS Alerts (
+    #             alert_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    #             record_id        INTEGER NOT NULL,
+    #             record_name      TEXT    NOT NULL,
+    #             trigger_datetime TEXT    NOT NULL,  -- 'YYYYMMDDTHHMMSS' (local-naive)
+    #             start_datetime   TEXT    NOT NULL,  -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
+    #             alert_name       TEXT    NOT NULL,
+    #             alert_command    TEXT    NOT NULL,
+    #             FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+    #         )
+    #     """)
+    #
+    #     # Prevent duplicates: one alert per (record, start, name, trigger)
+    #     self.cursor.execute("""
+    #         CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_unique
+    #         ON Alerts(record_id, start_datetime, alert_name, COALESCE(trigger_datetime,''))
+    #     """)
+    #
+    #     # Helpful for “what’s due now”
+    #     self.cursor.execute("""
+    #         CREATE INDEX IF NOT EXISTS idx_alerts_trigger
+    #         ON Alerts(trigger_datetime)
+    #     """)
+    #
+    #     # ---------------- notice (days remaining notices) ----------------
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS Notice (
+    #             id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    #             record_id     INTEGER NOT NULL,
+    #             days_remaining INTEGER NOT NULL,
+    #             FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+    #         );
+    #     """)
+    #
+    #     # bins themselves
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS Bins (
+    #             id INTEGER PRIMARY KEY,
+    #             name TEXT UNIQUE NOT NULL
+    #         );
+    #     """)
+    #
+    #     # parent-child relationships among bins
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS BinLinks (
+    #             bin_id INTEGER NOT NULL,
+    #             container_id INTEGER,
+    #             FOREIGN KEY (bin_id) REFERENCES Bins(id) ON DELETE CASCADE,
+    #             FOREIGN KEY (container_id) REFERENCES Bins(id) ON DELETE SET NULL,
+    #             UNIQUE(bin_id)
+    #         );
+    #     """)
+    #
+    #     # link reminders to bins (many-to-many)
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS ReminderLinks (
+    #             reminder_id INTEGER NOT NULL,
+    #             bin_id INTEGER NOT NULL,
+    #             FOREIGN KEY (reminder_id) REFERENCES Records(id) ON DELETE CASCADE,
+    #             FOREIGN KEY (bin_id) REFERENCES Bins(id) ON DELETE CASCADE,
+    #             UNIQUE(reminder_id, bin_id)
+    #         );
+    #     """)
+    #
+    #     self.setup_busy_tables()
+    #
+    #     self.conn.commit()
 
     def setup_database(self):
         """
@@ -1120,7 +1120,10 @@ class DatabaseManager:
 
         # ---------------- Busy tables (unchanged) ----------------
         self.setup_busy_tables()
-
+        # Seed default top-level bins (idempotent)
+        self.ensure_root_children(
+            ["activities", "journal", "library", "people", "places", "tags", "unlinked"]
+        )
         self.conn.commit()
 
     def setup_busy_tables(self):
@@ -1397,9 +1400,9 @@ class DatabaseManager:
                 """
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
-                    extent, alerts, notice, context, jobs, priority, tags,
+                    extent, alerts, notice, context, jobs, priority, 
                     tokens, processed, created, modified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.itemtype,
@@ -1413,7 +1416,6 @@ class DatabaseManager:
                     item.context,
                     json.dumps(item.jobs),
                     item.priority,
-                    json.dumps(self._normalize_tags(item.tags)),  # ← only JSON
                     json.dumps(item.tokens),
                     0,
                     timestamp,
@@ -1421,10 +1423,15 @@ class DatabaseManager:
                 ),
             )
             self.conn.commit()
-            rid = self.cursor.lastrowid
-            if getattr(item, "bin_path", None):
-                self.link_record_to_bin_path(rid, item.bin_path)
-            return rid
+            # rid = self.cursor.lastrowid
+            # if getattr(item, "bin_path", None):
+            #     self.link_record_to_bin_path(rid, item.bin_path)
+            # return rid
+
+            record_id = self.cursor.lastrowid
+            self.relink_bins_and_tags_for_record(record_id, item)  # ← add this
+            return record_id
+
         except Exception as e:
             print(f"Error adding {item}: {e}")
             raise
@@ -1551,7 +1558,7 @@ class DatabaseManager:
     #             "alerts", json.dumps(item.alerts) if item.alerts is not None else None
     #         )
     #         set_field("notice", item.notice)
-    #         set_field("context", item.context)
+    #         set_field("context", item.context) green
     #         set_field("jobs", json.dumps(item.jobs) if item.jobs is not None else None)
     #         set_field("priority", item.priority)
     #         # ← tags only as JSON in Records
@@ -1596,8 +1603,8 @@ class DatabaseManager:
             set_field("jobs", json.dumps(item.jobs) if item.jobs is not None else None)
             set_field("priority", item.priority)
             # ← tags only as JSON in Records
-            if item.tags is not None:
-                set_field("tags", json.dumps(self._normalize_tags(item.tags)))
+            # if item.tags is not None:
+            #     set_field("tags", json.dumps(self._normalize_tags(item.tags)))
             set_field(
                 "tokens", json.dumps(item.tokens) if item.tokens is not None else None
             )
@@ -1608,8 +1615,13 @@ class DatabaseManager:
             values.append(record_id)
 
             sql = f"UPDATE Records SET {', '.join(fields)} WHERE id = ?"
+            # self.cursor.execute(sql, values)
+            # self.conn.commit()
+
             self.cursor.execute(sql, values)
             self.conn.commit()
+            self.relink_bins_and_tags_for_record(record_id, item)  # ← add this
+
         except Exception as e:
             print(f"Error updating record {record_id}: {e}")
             raise
@@ -1626,7 +1638,7 @@ class DatabaseManager:
                     itemtype, subject, description, rruleset, timezone,
                     extent, alerts, notice, context, jobs, tags,
                     tokens, processed, created, modified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.itemtype,
@@ -1639,7 +1651,7 @@ class DatabaseManager:
                     item.notice,
                     item.context,
                     json.dumps(item.jobs),
-                    json.dumps(item.tags),
+                    # json.dumps(item.tags),
                     json.dumps(item.tokens),
                     0,
                     timestamp,
@@ -1653,7 +1665,7 @@ class DatabaseManager:
                 """
                 UPDATE Records
                 SET itemtype = ?, subject = ?, description = ?, rruleset = ?, timezone = ?,
-                    extent = ?, alerts = ?, notice = ?, context = ?, jobs = ?, tags = ?,
+                    extent = ?, alerts = ?, notice = ?, context = ?, jobs = ?, 
                     tokens = ?, modified = ?
                 WHERE id = ?
                 """,
@@ -1668,7 +1680,7 @@ class DatabaseManager:
                     item.notice,
                     item.context,
                     json.dumps(item.jobs),
-                    json.dumps(item.tags),
+                    # json.dumps(item.tags),
                     json.dumps(item.tokens),
                     timestamp,
                     record_id,
@@ -1678,7 +1690,7 @@ class DatabaseManager:
         self.conn.commit()
 
         # Refresh auxiliary tables
-        self.update_tags_for_record(record_id)
+        # self.update_tags_for_record(record_id)
         self.generate_datetimes_for_record(record_id)
         self.populate_alerts_for_record(record_id)
         if item.notice:
@@ -4111,13 +4123,23 @@ class DatabaseManager:
         )
         return self.cursor.fetchone() is not None
 
+    # def ensure_bin_exists(self, name: str) -> int:
+    #     """Return id for existing bin or create a new one."""
+    #     self.cursor.execute("SELECT id FROM Bins WHERE name=?", (name,))
+    #     row = self.cursor.fetchone()
+    #     if row:
+    #         return row[0]
+    #     self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (name,))
+    #     self.conn.commit()
+    #     return self.cursor.lastrowid
+
     def ensure_bin_exists(self, name: str) -> int:
-        """Return id for existing bin or create a new one."""
-        self.cursor.execute("SELECT id FROM Bins WHERE name=?", (name,))
+        nm = (name or "").strip().lower()  # ← normalize
+        self.cursor.execute("SELECT id FROM Bins WHERE name=?", (nm,))
         row = self.cursor.fetchone()
         if row:
             return row[0]
-        self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (name,))
+        self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (nm,))
         self.conn.commit()
         return self.cursor.lastrowid
 
@@ -4254,3 +4276,163 @@ class DatabaseManager:
             {"id": row[0], "subject": row[1], "itemtype": row[2]}
             for row in self.cursor.fetchall()
         ]
+
+    # ---------- New, non-colliding helpers ----------
+
+    def ensure_root_exists(self) -> int:
+        """Return id for 'root' (creating/anchoring it if needed)."""
+        root_id, _ = self.ensure_system_bins()
+        return root_id
+
+    def ensure_root_children(self, names: list[str]) -> dict[str, int]:
+        """
+        Ensure lowercased children under root; returns {name: id}.
+        Idempotent and safe to call often.
+        """
+        root_id = self.ensure_root_exists()
+        out: dict[str, int] = {}
+        for name in names:
+            nm = (name or "").strip().lower()
+            cid = self.ensure_bin_exists(nm)
+            self.cursor.execute(
+                "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
+                (cid, root_id),
+            )
+            out[nm] = cid
+        self.conn.commit()
+        return out
+
+    def ensure_bin(self, name: str, parent_id: int | None = None) -> int:
+        """
+        Ensure (bin, parent) exist and the parent link is present.
+        Defaults to parent=root if not given.
+        """
+        nm = (name or "").strip().lower()
+        if not nm:
+            raise ValueError("Bin name must be non-empty")
+        bin_id = self.ensure_bin_exists(nm)
+        if parent_id is None:
+            parent_id = self.ensure_root_exists()
+        self.cursor.execute(
+            "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
+            (bin_id, parent_id),
+        )
+        self.conn.commit()
+        return bin_id
+
+    def get_or_create_tag_bin(self, tag_name: str) -> int:
+        """
+        Ensure 'tags' under root, and a child bin 'tags:<name>'.
+        """
+        canon = (tag_name or "").strip().lower()
+        if not canon:
+            raise ValueError("Tag name must be non-empty")
+        parents = self.ensure_root_children(["tags"])
+        tags_parent_id = parents["tags"]
+        return self.ensure_bin(f"tags:{canon}", parent_id=tags_parent_id)
+
+    def link_record_to_bin(self, record_id: int, bin_id: int) -> None:
+        self.cursor.execute(
+            "INSERT OR IGNORE INTO ReminderLinks(reminder_id, bin_id) VALUES (?, ?)",
+            (record_id, bin_id),
+        )
+        self.conn.commit()
+
+    def unlink_record_from_bins(
+        self, record_id: int, *, only_tag_bins: bool | None = None
+    ) -> None:
+        """
+        only_tag_bins=None -> unlink ALL links for record_id
+        only_tag_bins=True -> unlink only tags:*
+        only_tag_bins=False -> unlink only non-tags
+        """
+        if only_tag_bins is None:
+            self.cursor.execute(
+                "DELETE FROM ReminderLinks WHERE reminder_id=?", (record_id,)
+            )
+        elif only_tag_bins is True:
+            self.cursor.execute(
+                """
+                DELETE FROM ReminderLinks
+                WHERE reminder_id=?
+                AND bin_id IN (SELECT id FROM Bins WHERE name LIKE 'tags:%')
+                """,
+                (record_id,),
+            )
+        else:
+            self.cursor.execute(
+                """
+                DELETE FROM ReminderLinks
+                WHERE reminder_id=?
+                AND bin_id NOT IN (SELECT id FROM Bins WHERE name LIKE 'tags:%')
+                """,
+                (record_id,),
+            )
+        self.conn.commit()
+
+    # ---- tokens → links glue (single source of truth) ----
+
+    def _tokens_list(self, tokens_obj) -> list[dict]:
+        """Accept list or JSON string; normalize to list[dict]."""
+        if tokens_obj is None:
+            return []
+        if isinstance(tokens_obj, str):
+            try:
+                import json
+
+                return json.loads(tokens_obj) or []
+            except Exception:
+                return []
+        return list(tokens_obj)
+
+    def _extract_tag_and_bin_names(self, item) -> tuple[list[str], list[str]]:
+        """
+        Read '@t <name>' and '@b <name>' from item.tokens.
+        tokens are dicts; we rely on keys: t='@', k in {'t','b'}, token='@t blue'
+        """
+        tokens = self._tokens_list(getattr(item, "tokens", []))
+        tags: list[str] = []
+        bins: list[str] = []
+        for t in tokens:
+            if t.get("t") != "@":
+                continue
+            k = t.get("k")
+            raw = t.get("token", "")
+            value = ""
+            if isinstance(raw, str) and " " in raw:
+                value = raw.split(" ", 1)[1].strip()
+            if not value:
+                continue
+            if k == "t":
+                tags.append(value)
+            elif k == "b":
+                bins.append(value)
+        return tags, bins
+
+    def relink_bins_and_tags_for_record(
+        self, record_id: int, item, *, default_parent_name: str = "unlinked"
+    ) -> None:
+        """
+        Rebuild ReminderLinks from item.tokens:
+        - @t name  => link to bin 'tags:<name>' (ensuring tags parent exists)
+        - @b name  => link to bin '<name>' (lowercased). New bins attach under 'unlinked'.
+        """
+        # Ensure parents we depend on exist
+        defaults = self.ensure_root_children(["tags", default_parent_name])
+        default_parent_id = defaults[default_parent_name]
+
+        tags, bins = self._extract_tag_and_bin_names(item)
+
+        # remove all existing links for this record and recreate deterministically
+        self.unlink_record_from_bins(record_id, only_tag_bins=None)
+
+        for name in tags:
+            bid = self.get_or_create_tag_bin(name)
+            self.link_record_to_bin(record_id, bid)
+
+        for name in bins:
+            nm = (name or "").strip().lower()
+            if not nm:
+                continue
+            bid = self.ensure_bin(nm, parent_id=default_parent_id)
+            self.link_record_to_bin(record_id, bid)
