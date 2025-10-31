@@ -35,6 +35,7 @@ import asyncio
 from .shared import get_version, fmt_user
 from typing import Dict, Tuple
 import pyperclip
+from .item import Item
 
 
 import re
@@ -48,6 +49,7 @@ from typing import List, Callable, Optional, Any, Iterable
 from textual import events
 
 from textual.events import Key
+
 
 tklr_version = version("tklr")
 # tklr_version = get_version()
@@ -447,58 +449,6 @@ class ListWithDetails(Container):
         except Exception as e:
             log_msg(f"debug: couldn't find #main-list: {e}")
 
-    # If you already do focus etc. here, keep that code too.
-
-    # def on_mount(self):
-    #     # Paint the internal viewport for the main list
-    #     for attr in ("_viewport", "_window", "_scroll_view", "_view", "_content"):
-    #         vp = getattr(self._main, attr, None)
-    #         if vp and hasattr(vp, "styles"):
-    #             vp.styles.background = "#373737"
-    #             try:
-    #                 vp.refresh()
-    #             except Exception:
-    #                 pass
-    #
-    #     # Paint the internal viewport for the details list
-    #     for attr in ("_viewport", "_window", "_scroll_view", "_view", "_content"):
-    #         vp = getattr(self._details, attr, None)
-    #         if vp and hasattr(vp, "styles"):
-    #             vp.styles.background = "#373737"
-    #             try:
-    #                 vp.refresh()
-    #             except Exception:
-    #                 pass
-    #
-    #     def _dump_chain(widget):
-    #         w = widget
-    #         depth = 0
-    #         while w is not None:
-    #             try:
-    #                 bg = w.styles.background
-    #             except Exception:
-    #                 bg = "<no styles.background>"
-    #             log_msg(
-    #                 f"depth={depth} id={getattr(w, 'id', None)!r} cls={type(w).__name__} bg={bg}"
-    #             )
-    #             w = getattr(w, "parent", None)
-    #             depth += 1
-    #
-    #     try:
-    #         m = self.query_one("#main-list")
-    #         log_msg("=== debug: main-list styles ===")
-    #         log_msg(repr(m.styles))
-    #         _dump_chain(m)
-    #     except Exception as e:
-    #         log_msg(f"debug: couldn't find #main-list: {e}")
-
-    # def compose(self) -> ComposeResult:
-    #     self._main = ScrollableList([], id="main-list")
-    #     self._details = ScrollableList([], id="details-list")
-    #     self._details.add_class("hidden")
-    #     yield self._main
-    #     yield self._details
-
     def compose(self):
         # Background filler behind the lists
         # yield Static("", id="list-bg")
@@ -658,9 +608,6 @@ class HelpModal(ModalScreen[None]):
 class DatetimePrompt(ModalScreen[datetime | None]):
     """
     Prompt for a datetime, live-parsed with dateutil.parser.parse.
-
-    Title is always "Datetime".
-    Sections divided by horizontal rules for clarity.
     """
 
     def __init__(
@@ -671,7 +618,7 @@ class DatetimePrompt(ModalScreen[datetime | None]):
         default: datetime | None = None,
     ):
         super().__init__()
-        self.title_text = " Datetime"
+        self.title_text = " Datetime Entry"
         self.message = message.strip()
         # self.subject = subject
         # self.due = due
@@ -684,15 +631,23 @@ class DatetimePrompt(ModalScreen[datetime | None]):
 
     def compose(self) -> ComposeResult:
         """Build prompt layout."""
-        ARROW = "↳"
+        # ARROW = "↳"
         default_str = self.default.strftime("%Y-%m-%d %H:%M")
 
         def rule():
             return Static("─" * 60, classes="dim-rule")
 
         with Vertical(id="dt_prompt"):
+            instructions = [
+                "Modify the datetime belew if necessary, then press",
+                "[bold yellow]ENTER[/bold yellow] to submit or [bold yellow]ESC[/bold yellow] to cancel.",
+            ]
+            self.instructions = Static("\n".join(instructions), id="dt_instructions")
+            self.feedback = Static(f"️↳ {default_str}", id="dt_feedback")
+            self.input = Input(value=default_str, id="dt_entry")
+            #
             # Title
-            yield Static(self.title_text, classes="title-class")
+            yield Static(self.title_text, classes="title-class", id="dt_title")
             # yield rule()
 
             # Message (custom, may include subject/due or other contextual info)
@@ -700,29 +655,17 @@ class DatetimePrompt(ModalScreen[datetime | None]):
                 yield Static(self.message.strip(), id="dt_message")
                 # yield rule()
 
-            # Input field
-            self.input = Input(value=default_str, id="dt_input")
-            yield self.input
-            # yield rule()
-
-            # Feedback (live parse result)
-            self.feedback = Static(f"️↳ {default_str}", id="dt_feedback")
-            yield self.feedback
-            # yield rule()
-
-            # Fixed universal instructions (never change)
-            instructions = [
-                "Modify the datetime above if necessary, then press",
-                "   [bold yellow]ENTER[/bold yellow] to submit or [bold yellow]ESC[/bold yellow] to cancel.",
-            ]
-            self.instructions = Static("\n".join(instructions), id="dt_instructions")
             yield self.instructions
+
+            yield self.input
+
+            yield self.feedback
 
             # yield rule()
 
     def on_mount(self) -> None:
         """Focus the input and show feedback for the initial value."""
-        self.query_one("#dt_input", Input).focus()
+        self.query_one("#dt_entry", Input).focus()
         self._update_feedback(self.input.value)
 
     def on_input_changed(self, event: Input.Changed) -> None:
@@ -733,9 +676,9 @@ class DatetimePrompt(ModalScreen[datetime | None]):
         try:
             parsed = parse(text)
             if isinstance(parsed, date) and not isinstance(parsed, datetime):
-                self.feedback.update(f"↳ {parsed.strftime('%Y-%m-%d')}")
+                self.feedback.update(f"datetime: {parsed.strftime('%Y-%m-%d')}")
             else:
-                self.feedback.update(f"↳ {parsed.strftime('%Y-%m-%d %H:%M')}")
+                self.feedback.update(f"datetime: {parsed.strftime('%Y-%m-%d %H:%M')}")
         except Exception:
             _t = f": {text} " if text else ""
             self.feedback.update(f"[{ORANGE_RED}] invalid{_t}[/{ORANGE_RED}] ")
@@ -753,15 +696,30 @@ class DatetimePrompt(ModalScreen[datetime | None]):
                 self.dismiss(None)
 
 
+ORANGE_RED = "red3"
+
+
+FOOTER = "yellow"
+
+
 class EditorScreen(Screen):
+    """
+    Single-Item editor with live, token-aware feedback.
+
+    Behavior:
+      - Keeps one Item instance (self.item).
+      - On text change: item.final = False; item.parse_input(text)
+      - Feedback shows status for the token under the cursor (if any).
+      - Save / Commit:
+          item.final = True; item.parse_input(text)  # finalize rrules/jobs/etc
+          persist only if parse_ok, else warn.
+    """
+
     BINDINGS = [
         ("shift+enter", "commit", "Commit"),
         ("ctrl+s", "save", "Save"),
         ("escape", "close", "Back"),
     ]
-
-    # live entry buffer
-    entry_text: reactive[str] = reactive("")
 
     def __init__(
         self, controller, record_id: int | None = None, *, seed_text: str = ""
@@ -770,106 +728,380 @@ class EditorScreen(Screen):
         self.controller = controller
         self.record_id = record_id
         self.entry_text = seed_text
-        self.item = None  # working Item
-        self.last_ok_parse = None  # snapshot for commit
-        self.error_lines = []  # display in prompt area
 
+        # one persistent Item
+        from tklr.item import Item  # adjust import to your layout if needed
+
+        self.ItemCls = Item
+        self.item = self.ItemCls(seed_text)  # initialize with existing text
+        self._feedback_lines: list[str] = []
+
+        # widgets
+        self._title: Static | None = None
+        self._message: Static | None = None
+        self._text: TextArea | None = None
+        self._feedback: Static | None = None
+        self._instructions: Static | None = None
+
+    # ---------- Layout like DatetimePrompt ----------
     def compose(self) -> ComposeResult:
-        yield Vertical(
-            Static("", id="ctx_line", classes="title-class"),
-            Static("", id="prompt_panel"),
-            TextArea(self.entry_text, id="entry_area"),  # ← Enter inserts newlines
-            id="editor_layout",
-        )
+        # title_text = " Editor"
+        title_text = self._build_context()
 
-    async def on_mount(self) -> None:
-        # context line
-        ctx = self._build_context()
-        self.query_one("#ctx_line", Static).update(ctx)
-        # focus the editor
-        self.query_one("#entry_area", TextArea).focus()
-        # do an initial parse
-        self._parse_live(self.entry_text)
+        with Vertical(id="ed_prompt"):
+            instructions = [
+                "Edit the entry below as desired, then press",
+                f"[bold {FOOTER}]Ctrl+S[/bold {FOOTER}] to save or [bold {FOOTER}]Esc[/bold {FOOTER}] to cancel",
+            ]
+            self._instructions = Static("\n".join(instructions), id="ed_instructions")
+            self._feedback = Static("", id="ed_feedback")
+            self._text = TextArea(self.entry_text, id="ed_entry")
 
-    def _build_context(self) -> str:
-        if self.record_id is None:
-            return "New item — type first character (* ~ ^ % + ?), then subject…"
-        row = self.controller.db_manager.get_record(self.record_id)
-        subj = row[2] or "(untitled)"
-        return f"Editing id {self.record_id} — {subj}"
+            yield Static(title_text, classes="title-class", id="ed_title")
 
-    async def on_input_changed(self, event: Input.Changed) -> None:
-        if event.input.id != "entry_area":
-            return
-        self.entry_text = event.value
-        # live, tolerant parse (don’t finalize/normalize here)
-        self._parse_live(self.entry_text)
+            # yield Static(ctx_line, id="ed_message")
 
-    def _parse_live(self, text: str) -> None:
-        from item import Item  # your class
+            yield self._instructions
+            yield self._text
+            yield self._feedback
 
-        self.item = Item(text)
-        self.error_lines = []
-        if not self.item.parse_ok:
-            # item.parse_message may be list[str] from your validator; normalize to lines
-            msg = self.item.parse_message
-            if isinstance(msg, (list, tuple)):
-                self.error_lines = [str(x) for x in msg]
-            elif msg:
-                self.error_lines = [str(msg)]
-        # update prompt with either errors or quick help
-        prompt = "\n".join(self.error_lines or self._help_lines())
-        self.query_one("#prompt_panel", Static).update(prompt)
-        # remember last good parse for Commit
-        if self.item.parse_ok:
-            self.last_ok_parse = self.item
+    def on_mount(self) -> None:
+        # focus editor and run initial parse (non-final)
+        if self._text:
+            self._text.focus()
+            self._render_feedback()
+        self._live_parse_and_feedback(final=False)
 
-    def _help_lines(self) -> list[str]:
-        return [
-            "[dim]/? show help  •  Ctrl+S save  •  Ctrl+Enter commit[/dim]",
-            "[dim]Type tokens like: @s 2025-08-20 9:00  @r d &i 2  @+ 2025-08-22[/dim]",
-        ]
+    # ---------- Text change -> live parse ----------
+    # def on_text_area_changed(self, event: TextArea.Changed) -> None:
+    #     # Textual 0.60+ uses .value; keep a fallback to be safe
+    #     text = getattr(event, "value", None)
+    #     log_msg(f"changed {text = }, {event = }, {self._text.text = }")
+    #     if text is None and hasattr(event, "text"):
+    #         text = event.text
+    #     if text is None and self._text:
+    #         text = self._text.text
+    #     self.entry_text = text or ""
+    #     self._live_parse_and_feedback(final=False)
 
-    # Actions
+    def on_text_area_changed(self, event: TextArea.Changed) -> None:
+        """Re-parse using the actual TextArea content, not the event payload."""
+        # Make sure we have a handle to the TextArea
+        # if not getattr(self, "_text", None):
+        #     self._text = self.query_one("#ed_entry", TextArea)
+
+        # Source of truth: the widget's text property
+        self.entry_text = self._text.text or ""
+        self._live_parse_and_feedback(final=False)
+
+        # Optional: stop propagation so nothing else double-handles it
+        event.stop()
+
+    # def on_text_area_cursor_moved(self, event: TextArea.CursorMoved) -> None:
+    #     # Don’t re-parse; just redraw feedback for the new caret position
+    #     log_msg("cursor moved")
+    #     self._render_feedback()
+
+    def on_text_area_selection_changed(self, event: TextArea.SelectionChanged) -> None:
+        # Don't re-parse—just re-render feedback for the new caret position
+        self._render_feedback()
+
+    # ---------- Actions ----------
     def action_close(self) -> None:
         self.app.pop_screen()
 
     def action_save(self) -> None:
-        # Save without schedule normalization (draft save)
-        if not self.item or not self.item.parse_ok:
+        """Finalize, re-parse, and persist if valid (no partial saves)."""
+        ok = self._finalize_and_validate()
+        if not ok:
             self.app.notify("Cannot save: fix errors first.", severity="warning")
             return
-        self._persist(self.item, finalize=False)
+        self._persist(self.item)
         self.app.notify("Saved.", timeout=1.0)
 
     def action_commit(self) -> None:
-        # Normalize schedule (@s/@r/@+/@-) & jobs, then persist
-        src = (
-            self.last_ok_parse
-            if (self.last_ok_parse and self.last_ok_parse.parse_ok)
-            else self.item
-        )
-        if not src or not src.parse_ok:
+        """Same semantics as save; you can keep separate if you want a different UX."""
+        ok = self._finalize_and_validate()
+        if not ok:
             self.app.notify("Cannot commit: fix errors first.", severity="warning")
             return
-        # IMPORTANT: finalize only on commit
-        try:
-            src.finalize_rruleset()
-            if hasattr(src, "finalize_jobs"):
-                src.finalize_jobs(src.jobs)
-            # if you keep finalize_completions(), call it here too
-        except Exception as e:
-            self.app.notify(f"Finalize failed: {e}", severity="error")
-            return
-        self._persist(src, finalize=True)
+        self._persist(self.item)
         self.app.notify("Committed.", timeout=1.0)
-        # Optional: auto-refresh calling view
         self._try_refresh_calling_view()
+        self.app.pop_screen()
 
-    def _persist(self, item, *, finalize: bool) -> None:
+    # ---------- Internals ----------
+    def _build_context(self) -> str:
         if self.record_id is None:
-            # create new
-            rid = self.controller.db_manager.insert_item(item)  # implement in DB layer
+            return "New item"
+        row = self.controller.db_manager.get_record(self.record_id)
+        # subj = row[2] or "(untitled)"
+        return f"Editing Record {self.record_id}"
+
+    def _finalize_and_validate(self) -> bool:
+        """
+        Finalize the entry (rrules/jobs/etc) and validate.
+        Returns True iff parse_ok after a finalizing parse.
+        """
+        if not getattr(self.item, "parse_ok", False):
+            self._render_feedback()
+            return False
+
+        self.item.final = True
+        self.item.parse_input(self.entry_text)
+        return self.item.parse_ok
+
+        # Repaint feedback based on current item state (errors or token help).
+        if not self.item.parse_ok:
+            self._render_feedback()
+            return False
+
+        return True
+
+    def _live_parse_and_feedback(self, *, final: bool) -> None:
+        """Non-throwing live parse + feedback for current cursor token."""
+        self.item.final = bool(final)
+        self.item.parse_input(self.entry_text)
+        # try:
+        #     self.item.parse_input(self.entry_text)
+        # except Exception as e:
+        #     self._render_feedback()
+        #     return
+        #
+        # # If invalid, show normalized errors
+        # if not getattr(self.item, "parse_ok", False):
+        #     msg = getattr(self.item, "parse_message", None)
+        #     errors = (
+        #         msg
+        #         if isinstance(msg, (list, tuple))
+        #         else ([str(msg)] if msg else ["Invalid entry"])
+        #     )
+        #     self._render_feedback()
+        #     return
+
+        # parse OK → show token-under-cursor info (if any), else a gentle hint
+        # cursor_idx = self._cursor_abs_index()
+        # token_info = self._token_at(cursor_idx)
+        self._render_feedback()
+
+    def _token_at(self, idx: int) -> Optional[Dict[str, Any]]:
+        """Find the token whose [s,e) spans idx; fallback to first incomplete after idx."""
+        toks: List[Dict[str, Any]] = getattr(self.item, "relative_tokens", []) or []
+        for t in toks:
+            s, e = t.get("s", -1), t.get("e", -1)
+            if s <= idx < e:
+                return t
+        for t in toks:
+            if t.get("incomplete") and t.get("s", 1 << 30) >= idx:
+                return t
+        return None
+
+    def _cursor_abs_index(self) -> int:
+        """Map TextArea (row, col) to absolute index in self.entry_text."""
+        try:
+            ta = self.query_one("#ed_entry", TextArea)
+        except NoMatches:
+            return len(self.entry_text or "")
+        loc = getattr(ta, "cursor_location", None)
+        if not loc:
+            return len(self.entry_text or "")
+        row, col = loc
+        lines = (self.entry_text or "").splitlines(True)  # keep \n
+        if row >= len(lines):
+            return len(self.entry_text or "")
+        return sum(len(l) for l in lines[:row]) + min(col, len(lines[row]))
+
+    def _render_feedback(self) -> None:
+        """Update the feedback panel using only screen state."""
+        _AT_DESC = {
+            "#": "Ref / id",
+            "+": "Include datetimes",
+            "-": "Exclued datetimes",
+            "a": "Alert",
+            "b": "Bin",
+            "c": "Context",
+            "d": "Description",
+            "e": "Extent",
+            "g": "Goal",
+            "k": "Keyword",
+            "l": "Location",
+            "m": "Mask",
+            "n": "Notice",
+            "o": "Offset",
+            "p": "Priority 1 - 5 (low - high)",
+            "r": "Repetition frequency",
+            "s": "Scheduled datetime",
+            "t": "Tags",
+            "u": "URL",
+            "w": "Wrap",
+            "x": "Exclude dates",
+            "z": "Timezone",
+        }
+        _AMP_DESC = {
+            "r": "Repetiton frequency",
+            "c": "Count",
+            "d": "By month day",
+            "m": "By month",
+            "H": "By hour",
+            "M": "By minute",
+            "E": "By-second",
+            "i": "Interval",
+            "s": "Schedule offset",
+            "u": "Until",
+            "W": "ISO week",
+            "w": "Weekday modifier",
+        }
+
+        log_msg(f"{self.entry_text = }, {self._text.text = }")
+        panel = self.query_one("#ed_feedback", Static)  # <— direct, no fallback
+
+        item = getattr(self, "item", None)
+        log_msg(f"{item = }")
+        if not item:
+            panel.update("")
+            return
+
+        # 1) Show validate messages if any.
+        if self.item.validate_messages:
+            log_msg(f"{self.item.validate_messages = }")
+            panel.update("\n".join(self.item.validate_messages))
+            return
+
+        msgs = getattr(item, "messages", None) or []
+        log_msg(f"{msgs = }")
+        if msgs:
+            l = []
+            if isinstance(msgs, list):
+                for msg in msgs:
+                    if isinstance(msg, tuple):
+                        l.append(msg[1])
+                    else:
+                        l.append(msg)
+
+            s = "\n".join(l)
+            log_msg(f"{s = }")
+            # panel.update("\n".join(msgs))
+            panel.update(s)
+            return
+
+        last = getattr(item, "last_result", None)
+        log_msg(f"{last = }")
+        if last and last[1]:
+            panel.update(str(last[1]))
+            # return
+
+        # 2) No errors: describe token at cursor (with normalized preview if available).
+        idx = self._cursor_abs_index()
+        tok = self._token_at(idx)
+        log_msg(f"{idx = } {tok = }")
+
+        # if not tok:
+        #     last = getattr(item, "last_result", None)
+        #     if isinstance(last, tuple) and len(last) >= 3:
+        #         tok = last[2]
+
+        if not tok:
+            panel.update("")
+            return
+
+        ttype = tok.get("t", "")
+        raw = tok.get("token", "").strip()
+        log_msg(f"{raw = }")
+        k = tok.get("k", "")
+
+        preview = ""
+        last = getattr(item, "last_result", None)
+        log_msg(f"{last = }")
+        # if isinstance(last, tuple) and len(last) >= 3 and last[0] is True:
+        if isinstance(last, tuple) and len(last) >= 3:
+            meta = last[2] or {}
+            if meta.get("s") == tok.get("s") and meta.get("e") == tok.get("e"):
+                norm_val = last[1]
+                if isinstance(norm_val, str) and norm_val:
+                    preview = f"{meta.get('t')}{meta.get('k')} {norm_val}"
+
+        if ttype == "itemtype":
+            panel.update(f"itemtype: {self.item.itemtype}")
+        elif ttype == "subject":
+            panel.update(f"subject: {self.item.subject}")
+        elif ttype == "@":
+            # panel.update(f"↳ @{k or '?'} {preview or raw}")
+            key = tok.get("k", None)
+            description = f"{_AT_DESC.get(key, '')}:" if key else "↳"
+            panel.update(f"{description} {preview or raw}")
+        elif ttype == "&":
+            key = tok.get("k", None)
+            description = f"{_AMP_DESC.get(key, '')}:" if key else "↳"
+            panel.update(f"{description} {preview or raw}")
+        else:
+            panel.update(f"↳ {raw}{preview}")
+
+        # def _format_token_info(self, t: dict) -> str:
+        #     """Human-friendly, minimal description for a token dict."""
+        #     tok = t.get("token", "")
+        #     ttype = t.get("t", "")
+        #     key = t.get("k", "")
+        #
+        #     # Friendly names for @-keys and &-keys (extend as you like)
+        #     _AT_DESC = {
+        #         "#": "Ref / id",
+        #         "+": "Include date",
+        #         "-": "Omit date",
+        #         "a": "Alert",
+        #         "b": "Begin-by",
+        #         "c": "Context",
+        #         "d": "Description",
+        #         "e": "Extent",
+        #         "g": "Goal",
+        #         "k": "Keyword",
+        #         "l": "Location",
+        #         "m": "Mask",
+        #         "n": "Notice",
+        #         "o": "Offset",
+        #         "p": "Priority (0 or 1–9)",
+        #         "r": "Repetition rule",
+        #         "s": "Scheduled date/time",
+        #         "t": "Tag(s)",
+        #         "u": "URL",
+        #         "w": "Wait / defer until",
+        #         "x": "Exclude dates",
+        #         "z": "Time zone",
+        #     }
+        #     _AMP_DESC = {
+        #         "r": "Repetiton frequency",
+        #         "c": "Count",
+        #         "d": "By month day",
+        #         "m": "By month",
+        #         "H": "By hour",
+        #         "M": "By minute",
+        #         "E": "By-second",
+        #         "i": "Interval",
+        #         "s": "Schedule offset",
+        #         "u": "Until",
+        #         "W": "ISO week",
+        #         "w": "Weekday modifier",
+        #     }
+        #
+        #     if ttype == "@":
+        #         desc = _AT_DESC.get(key, "Field")
+        #         return f"↳ @{key} — {desc}\n   {tok}"
+        #     if ttype == "&":
+        #         desc = _AMP_DESC.get(key, "Modifier")
+        #         # Show parent if present (e.g., modifiers under @r)
+        #         parent = t.get("parent")
+        #         parent_str = f" (for @{parent})" if parent else ""
+        #         return f"↳ &{key}{parent_str} — {desc}\n   {tok}"
+        #     if ttype == "itemtype":
+        #         return f"↳ Type\n   {tok}"
+        #     if ttype == "subject":
+        #         return f"↳ Subject\n   {tok}"
+        #     # Fallback
+        #     return f"↳ {tok}"
+
+    def _persist(self, item) -> None:
+        """Create or update the DB row using your model layer; only called when parse_ok is True."""
+        if self.record_id is None:
+            rid = self.controller.db_manager.add_item(item)  # uses full item fields
             self.record_id = rid
         else:
             self.controller.db_manager.update_item(self.record_id, item)
@@ -2347,6 +2579,7 @@ class DynamicViewApp(App):
         ("W", "show_weeks", "Weeks"),
         ("?", "show_help", "Help"),
         ("ctrl+q", "quit", "Quit"),
+        ("ctrl+n", "new_reminder", "Add new reminder"),
         ("ctrl+r", "detail_repetitions", "Show Repetitions"),
         ("/", "start_search", "Search"),
         (">", "next_match", "Next Match"),
@@ -2456,19 +2689,22 @@ class DynamicViewApp(App):
             # chord-based actions
             if key == "comma,f" and itemtype in "~^":
                 log_msg(f"{record_id = }, {job_id = }, {first = }")
-                if first is not None:
-                    due = f"\nscheduled for\n  [{LIME_GREEN}]{fmt_user(first)}[/{LIME_GREEN}]"
-                else:
-                    due = ""
-                msg = f"Enter the finished datetime for\n  [{LIME_GREEN}]{subject}[/{LIME_GREEN}]{due}"
+                job = f" {job_id}" if job_id else ""
+                id = f"({record_id}{job})"
+                due = (
+                    f"\nDue: [{LIGHT_SKY_BLUE}]{fmt_user(first)}[/{LIGHT_SKY_BLUE}]"
+                    if first
+                    else ""
+                )
+                msg = f"Finished datetime\nFor: [{LIGHT_SKY_BLUE}]{subject} {id}[/{LIGHT_SKY_BLUE}]{due}"
 
                 dt = await app.prompt_datetime(msg)
                 if dt:
                     ctrl.finish_task(record_id, job_id=job_id, when=dt)
 
             elif key == "comma,e":
-                row = ctrl.db_manager.get_record(record_id)
-                seed_text = row[2] or ""
+                seed_text = ctrl.get_entry_from_record(record_id)
+                log_msg(f"{seed_text = }")
                 app.push_screen(EditorScreen(ctrl, record_id, seed_text=seed_text))
 
             elif key == "comma,c":
@@ -2517,9 +2753,9 @@ class DynamicViewApp(App):
         if event.key in ("left", "right"):
             if self.view == "week":
                 screen = getattr(self, "screen", None)
-                log_msg(
-                    f"[LEFT/RIGHT] screen={type(screen).__name__ if screen else None}"
-                )
+                # log_msg(
+                #     f"[LEFT/RIGHT] screen={type(screen).__name__ if screen else None}"
+                # )
 
                 if not screen:
                     log_msg("[LEFT/RIGHT] no screen -> fallback week nav")
@@ -2555,12 +2791,12 @@ class DynamicViewApp(App):
                     log_msg(f"[LEFT/RIGHT] has_next_page() raised: {e}")
                     has_next_available = False
 
-                log_msg(
-                    f"[LEFT/RIGHT] has_prev_callable={has_prev_callable}, "
-                    f"has_prev_available={has_prev_available}, do_prev={do_prev}; "
-                    f"has_next_callable={has_next_callable}, "
-                    f"has_next_available={has_next_available}, do_next={do_next}"
-                )
+                # log_msg(
+                #     f"[LEFT/RIGHT] has_prev_callable={has_prev_callable}, "
+                #     f"has_prev_available={has_prev_available}, do_prev={do_prev}; "
+                #     f"has_next_callable={has_next_callable}, "
+                #     f"has_next_available={has_next_available}, do_next={do_next}"
+                # )
 
                 # Prefer page navigation when page available; otherwise fallback to week nav.
                 if event.key == "left":
@@ -2678,6 +2914,9 @@ class DynamicViewApp(App):
             )
         # execute due alerts
         self.controller.execute_due_alerts()
+
+    def action_new_reminder(self):
+        self.push_screen(EditorScreen(self.controller, None, seed_text=""))
 
     def action_show_weeks(self):
         self.view = "week"

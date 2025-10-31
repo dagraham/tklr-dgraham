@@ -836,8 +836,10 @@ class Item:
         self.parse_message = ""
         self.previous_tokens = []
         self.relative_tokens = []
+        self.last_result = ()
         self.tokens = []
         self.messages = []
+        self.validate_messages = []
 
         # --- schedule / tokens / jobs ---
         self.extent = ""
@@ -991,6 +993,7 @@ class Item:
             self.parse_message = message
             print(f"parse failed: {message = }")
             return
+
         self.mark_grouped_tokens()
         self._parse_tokens(entry)
 
@@ -1030,14 +1033,28 @@ class Item:
         log_msg(f"{self.relative_tokens = }; {self.tokens = }")
 
     def validate(self):
-        if len(self.relative_tokens) < 2:
-            # nothing to validate without itemtype and subject
-            return
+        self.validate_messages = []
 
         def fmt_error(message: str):
-            return [x.strip() for x in message.split(",")]
+            # return [x.strip() for x in message.split(",")]
+            self.validate_messages.append(message)
+            return message
 
         errors = []
+
+        if len(self.entry.strip()) < 1 or len(self.relative_tokens) < 1:
+            # nothing to validate without itemtype and subject
+            return fmt_error("""\
+A reminder must begin with an itemtype character 
+from: * (event), ~ (task), ^ (project), % (note), 
+! (goal) or ? (draft)   
+""")
+
+        if len(self.relative_tokens) < 2:
+            # nothing to validate without itemtype and subject
+            return fmt_error(
+                "A subject must be provided for the reminder after the itemtype."
+            )
 
         self.itemtype = self.relative_tokens[0]["token"]
         if not self.itemtype:
@@ -1066,8 +1083,8 @@ class Item:
                     if type == "@"
                     else [x[-1] for x in allowed_fortype if len(x) == 2]
                 )
-                optional = f"options: {', '.join(options)}" if options else ""
-                return fmt_error(f"{token['t']} incomplete, {need}{optional}")
+                optional = f"optional: {', '.join(options)}" if options else ""
+                return fmt_error(f"{token['t']} incomplete\n{need}{optional}")
             if token["t"] == "@":
                 # print(f"{token['token']}; {used_atkeys = }")
                 used_ampkeys = []
@@ -1129,7 +1146,10 @@ class Item:
         """
         # Simple user-facing formatter; tweak to match your prefs
         if isinstance(dt, datetime):
-            return dt.strftime(self.datetimefmt)
+            d = dt
+            if d.tzinfo == tz.UTC and not getattr(self, "final", False):
+                d = d.astimezone()
+            return d.strftime(self.datetimefmt)
         if isinstance(dt, date):
             return dt.strftime(self.datefmt)
         raise ValueError(f"Error: {dt} must either be a date or datetime")
@@ -1161,7 +1181,8 @@ class Item:
         try:
             obj = parse_dt(core, dayfirst=self.dayfirst, yearfirst=self.yearfirst)
         except Exception as e:
-            return None, "error", f"Could not parse '{core}': {e.__class__.__name__}"
+            # return None, "error", f"Could not parse '{core}': {e.__class__.__name__}"
+            return None, "error", f"Error parsing '{core}'"
 
         # DATE if midnight or a pure date object
         if _is_date_only(obj) or (
@@ -1315,7 +1336,9 @@ class Item:
         self.messages = []
 
         if not entry:
-            self.messages.append((False, "No input provided.", []))
+            self.messages.append(
+                (False, ": ".join(Item.token_keys["itemtype"][:2]), [])
+            )
             return
 
         self.relative_tokens = []
@@ -1357,15 +1380,9 @@ class Item:
 
         remainder = rest[len(subject) :]
 
-        # Token pattern that keeps @ and & together - this one courtesy of
-        # ChatGPT and nothing short of magic
-        # pattern = (
-        #     r"(?:(?<=^)|(?<=\s))(@[\w~+\-]+ [^@&\n]+)|(?:(?<=^)|(?<=\s))(&\w+ [^@&\n]+)"
-        # )
         pattern = (
             r"(?:(?<=^)|(?<=\s))(@[\w~+\-]+ [^@&]+)|(?:(?<=^)|(?<=\s))(&\w+ [^@&]+)"
         )
-        # pattern = r"@[^@]+(?:\s&[^@]+)*(?=(?:\s@|$))"
         for match in re.finditer(pattern, remainder):
             token = match.group(0)
             start_pos = match.start() + offset + len(subject)
@@ -1538,58 +1555,16 @@ class Item:
             method = getattr(self, method_name)
             # log_msg(f"{method_name = } returned {method = }")
             is_valid, result, sub_tokens = method(token)
+            self.last_result = (is_valid, result, token)
             log_msg(f"{is_valid = }, {result = }, {sub_tokens = }")
             if is_valid:
                 self.parse_ok = is_valid
-                # if token_type == "r":
-                #     log_msg(
-                #         f"appending {result = } to self.rrules, dispatching {sub_tokens = } in {self.entry = }"
-                #     )
-                #     self.rrules.append(result)
-                #     self._dispatch_sub_tokens(sub_tokens, "r")
-                # elif token_type == "~":
-                #     log_msg(
-                #         f"appending {result = } to self.jobset, dispatching {sub_tokens = } in {self.entry = }"
-                #     )
-                #     self.jobset.append(result)
-                #     log_msg(f"dispatching {sub_tokens = } in {self.entry = }")
-                #     ok, res, toks = self._dispatch_sub_tokens(sub_tokens, "~")
             else:
                 self.parse_ok = False
                 log_msg(f"Error processing '{token_type}': {result}")
         else:
             self.parse_ok = False
             log_msg(f"No handler for token: {token}")
-
-    # def _dispatch_sub_tokens(self, sub_tokens, prefix):
-    #     log_msg(f"dispatch_sub_tokens {sub_tokens = }, {prefix = }")
-    #     return True, "", []
-    #     if not sub_tokens:
-    #         return True, "", []
-    #     for part in sub_tokens:
-    #         if part.startswith("&"):
-    #             token_type = prefix + part[1:2]  # Prepend prefix to token type
-    #             token_value = part[2:].strip()
-    #             if token_type in self.token_keys:
-    #                 method_name = self.token_keys[token_type][2]
-    #                 method = getattr(self, method_name)
-    #                 is_valid, result, *sub_tokens = method(token_value)
-    #                 if is_valid:
-    #                     if prefix == "r":
-    #                         self.rrule_tokens[-1][1][token_type] = result
-    #                         self.rrule_parts.append(result)
-    #                         log_msg(f"{self.rrule_parts = }")
-    #                     elif prefix == "~":
-    #                         self.job_tokens[-1][1][token_type] = result
-    #                         log_msg(f"self.job_tokens = ")
-    #                 else:
-    #                     self.parse_ok = False
-    #                     log_msg(f"Error processing sub-token '{token_type}': {result}")
-    #                     return False, result, []
-    #             else:
-    #                 self.parse_ok = False
-    #                 log_msg(f"No handler for sub-token: {token_type}")
-    #                 return False, f"Invalid sub-token: {token_type}", []
 
     def _extract_job_node_and_summary(self, text):
         log_msg(f"{text = }")
@@ -1603,21 +1578,6 @@ class Item:
                 content = f" {content}"
             return number, summary, content
         return None, text  # If no match, return None for number and the entire string
-
-    # def to_dict(self) -> dict:
-    #     return {
-    #         "itemtype": self.itemtype,
-    #         "subject": self.subject,
-    #         "description": self.description,
-    #         "rruleset": self.rruleset,
-    #         "timezone": self.tz_str,
-    #         "extent": self.extent,
-    #         "tags": self.tag_str,
-    #         "alerts": self.alert_str,
-    #         "context": self.context,
-    #         "jobset": self.jobset,
-    #         "priority": self.p,
-    #     }
 
     @classmethod
     def from_dict(cls, data: dict):

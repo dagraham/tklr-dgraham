@@ -691,7 +691,7 @@ class DatabaseManager:
         log_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
         self.extend_datetimes_for_weeks(yr, wk, 12)
 
-        self.populate_tags()  # NEW: Populate Tags + RecordTags
+        # self.populate_tags()  # NEW: Populate Tags + RecordTags
         self.populate_alerts()  # Populate today's alerts
         log_msg("calling notice")
         self.populate_notice()
@@ -922,6 +922,207 @@ class DatabaseManager:
 
         self.conn.commit()
 
+    def setup_database(self):
+        """
+        Create (if missing) all tables and indexes for tklr.
+
+        Simplified tags model:
+        - Tags live ONLY in Records.tags (JSON text).
+        - No separate Tags / RecordTags tables.
+
+        Other notes:
+        - Timestamps are stored as TEXT in UTC (e.g., 'YYYYMMDDTHHMMSS') unless otherwise noted.
+        - DateTimes.start/end are local-naive TEXT ('YYYYMMDD' or 'YYYYMMDDTHHMMSS').
+        """
+        # FK safety
+        self.cursor.execute("PRAGMA foreign_keys = ON")
+
+        # --- Optional cleanup of old tag tables (safe if they don't exist) ---
+        self.cursor.execute("DROP TABLE IF EXISTS RecordTags;")
+        self.cursor.execute("DROP TABLE IF EXISTS Tags;")
+
+        # ---------------- Records ----------------
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Records (
+                id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                itemtype          TEXT,                         -- '*','~','^','%','?','+','x'
+                subject           TEXT,
+                description       TEXT,
+                rruleset          TEXT,                         -- serialized ruleset
+                timezone          TEXT,                         -- TZ name or 'float'
+                extent            TEXT,                         -- optional JSON or text
+                alerts            TEXT,                         -- JSON
+                notice            TEXT,
+                context           TEXT,
+                jobs              TEXT,                         -- JSON
+                tags              TEXT,                         -- JSON list[str], normalized in code
+                priority          INTEGER CHECK (priority IN (1,2,3,4,5)),
+                tokens            TEXT,                         -- JSON text (parsed tokens)
+                processed         INTEGER,                      -- 0/1
+                created           TEXT,                         -- 'YYYYMMDDTHHMMSS' UTC
+                modified          TEXT                          -- 'YYYYMMDDTHHMMSS' UTC
+            );
+        """)
+
+        # ---------------- Pinned ----------------
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Pinned (
+                record_id INTEGER PRIMARY KEY,
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+            );
+        """)
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pinned_record
+            ON Pinned(record_id);
+        """)
+
+        # ---------------- Urgency (NO pinned column) ----------------
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Urgency (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id INTEGER NOT NULL,                     -- References Records.id
+                job_id    INTEGER,                              -- NULL if not part of a project
+                subject   TEXT    NOT NULL,
+                urgency   REAL    NOT NULL,
+                color     TEXT,                                 -- optional precomputed color
+                status    TEXT    NOT NULL,                     -- "next","waiting","scheduled",…
+                weights   TEXT,                                 -- JSON of component weights (optional)
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+            );
+        """)
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_urgency_record
+            ON Urgency(record_id);
+        """)
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_urgency_urgency
+            ON Urgency(urgency DESC);
+        """)
+
+        # ---------------- Completions ----------------
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Completions (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id  INTEGER NOT NULL,
+                completed  TEXT NOT NULL,  -- UTC-aware: "YYYYMMDDTHHMMZ"
+                due        TEXT,           -- optional UTC-aware: "YYYYMMDDTHHMMZ"
+                FOREIGN KEY(record_id) REFERENCES Records(id) ON DELETE CASCADE
+            );
+        """)
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_completions_record_id
+            ON Completions(record_id);
+        """)
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_completions_completed
+            ON Completions(completed);
+        """)
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_completions_record_due
+            ON Completions(record_id, due);
+        """)
+
+        # ---------------- DateTimes ----------------
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS DateTimes (
+                record_id      INTEGER NOT NULL,
+                job_id         INTEGER,          -- nullable; link to specific job if any
+                start_datetime TEXT NOT NULL,    -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
+                end_datetime   TEXT,             -- NULL if instantaneous; same formats as start
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+            );
+        """)
+        # enforce uniqueness across (record_id, job_id, start, end)
+        self.cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_datetimes_unique
+            ON DateTimes(
+                record_id,
+                COALESCE(job_id, -1),
+                start_datetime,
+                COALESCE(end_datetime, '')
+            );
+        """)
+        # range query helper
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_datetimes_start
+            ON DateTimes(start_datetime);
+        """)
+
+        # ---------------- GeneratedWeeks (cache of week ranges) ----------------
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS GeneratedWeeks (
+                start_year INTEGER,
+                start_week INTEGER,
+                end_year   INTEGER,
+                end_week   INTEGER
+            );
+        """)
+
+        # ---------------- Alerts ----------------
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Alerts (
+                alert_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id        INTEGER NOT NULL,
+                record_name      TEXT    NOT NULL,
+                trigger_datetime TEXT    NOT NULL,  -- 'YYYYMMDDTHHMMSS' (local-naive)
+                start_datetime   TEXT    NOT NULL,  -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
+                alert_name       TEXT    NOT NULL,
+                alert_command    TEXT    NOT NULL,
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+            );
+        """)
+        # Prevent duplicates: one alert per (record, start, name, trigger)
+        self.cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_unique
+            ON Alerts(record_id, start_datetime, alert_name, COALESCE(trigger_datetime,''));
+        """)
+        # Helpful for “what’s due now”
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_alerts_trigger
+            ON Alerts(trigger_datetime);
+        """)
+
+        # ---------------- Notice (days remaining notices) ----------------
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Notice (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id      INTEGER NOT NULL,
+                days_remaining INTEGER NOT NULL,
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+            );
+        """)
+
+        # ---------------- Bins & Links ----------------
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Bins (
+                id   INTEGER PRIMARY KEY,
+                name TEXT UNIQUE NOT NULL
+            );
+        """)
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS BinLinks (
+                bin_id       INTEGER NOT NULL,
+                container_id INTEGER,
+                FOREIGN KEY (bin_id)       REFERENCES Bins(id) ON DELETE CASCADE,
+                FOREIGN KEY (container_id) REFERENCES Bins(id) ON DELETE SET NULL,
+                UNIQUE(bin_id)
+            );
+        """)
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ReminderLinks (
+                reminder_id INTEGER NOT NULL,
+                bin_id      INTEGER NOT NULL,
+                FOREIGN KEY (reminder_id) REFERENCES Records(id) ON DELETE CASCADE,
+                FOREIGN KEY (bin_id)      REFERENCES Bins(id)    ON DELETE CASCADE,
+                UNIQUE(reminder_id, bin_id)
+            );
+        """)
+
+        # ---------------- Busy tables (unchanged) ----------------
+        self.setup_busy_tables()
+
+        self.conn.commit()
+
     def setup_busy_tables(self):
         """
         Create fine-grained and aggregated busy/conflict tables
@@ -988,6 +1189,102 @@ class DatabaseManager:
             END;
         """)
 
+    def setup_busy_tables(self):
+        """
+        Create / reset busy cache tables and triggers.
+
+        Design:
+        - BusyWeeksFromDateTimes: per (record_id, year_week) cache of fine-grained busybits (BLOB, 672 slots).
+            FK references Records(id) — not DateTimes — since we aggregate per record/week.
+        - BusyWeeks: per year_week aggregated ternary bits (TEXT, 35 chars).
+        - BusyUpdateQueue: queue of record_ids to recompute.
+
+        Triggers enqueue record_id on any insert/update/delete in DateTimes.
+        """
+
+        # Make schema idempotent and remove any old incompatible objects.
+        self.cursor.execute("PRAGMA foreign_keys=ON")
+
+        # Drop old triggers (names must match what you used previously)
+        self.cursor.execute("DROP TRIGGER IF EXISTS trig_busy_insert")
+        self.cursor.execute("DROP TRIGGER IF EXISTS trig_busy_update")
+        self.cursor.execute("DROP TRIGGER IF EXISTS trig_busy_delete")
+        self.cursor.execute("DROP TRIGGER IF EXISTS trig_busy_records_delete")
+
+        # Drop old tables if they exist (to get rid of the bad FK)
+        self.cursor.execute("DROP TABLE IF EXISTS BusyWeeksFromDateTimes")
+        self.cursor.execute("DROP TABLE IF EXISTS BusyWeeks")
+        self.cursor.execute("DROP TABLE IF EXISTS BusyUpdateQueue")
+
+        # Recreate BusyWeeks (aggregate per week)
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS BusyWeeks (
+                year_week TEXT PRIMARY KEY,
+                busybits  TEXT NOT NULL  -- 35-char string of '0','1','2'
+            );
+        """)
+
+        # Recreate BusyWeeksFromDateTimes (per record/week)
+        # PRIMARY KEY enforces one row per (record, week)
+        # FK to Records(id) so deletes of records cascade cleanly
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS BusyWeeksFromDateTimes (
+                record_id  INTEGER NOT NULL,
+                year_week  TEXT    NOT NULL,
+                busybits   BLOB    NOT NULL,  -- 672 slots (15-min blocks)
+                PRIMARY KEY (record_id, year_week),
+                FOREIGN KEY(record_id) REFERENCES Records(id) ON DELETE CASCADE
+            );
+        """)
+
+        # Update queue for incremental recomputation
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS BusyUpdateQueue (
+                record_id INTEGER PRIMARY KEY
+            );
+        """)
+
+        # Triggers on DateTimes to enqueue affected record
+        self.cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS trig_busy_insert
+            AFTER INSERT ON DateTimes
+            BEGIN
+                INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
+                VALUES (NEW.record_id);
+            END;
+        """)
+
+        self.cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS trig_busy_update
+            AFTER UPDATE ON DateTimes
+            BEGIN
+                INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
+                VALUES (NEW.record_id);
+            END;
+        """)
+
+        self.cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS trig_busy_delete
+            AFTER DELETE ON DateTimes
+            BEGIN
+                INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
+                VALUES (OLD.record_id);
+            END;
+        """)
+
+        # If a record is deleted, clean any cache rows (cascades remove BusyWeeksFromDateTimes).
+        # Also clear from the queue if present.
+        self.cursor.execute("""
+            CREATE TRIGGER IF NOT EXISTS trig_busy_records_delete
+            AFTER DELETE ON Records
+            BEGIN
+                DELETE FROM BusyUpdateQueue WHERE record_id = OLD.id;
+                -- BusyWeeksFromDateTimes rows are removed by FK ON DELETE CASCADE.
+            END;
+        """)
+
+        self.conn.commit()
+
     def backup_to(self, dest_db: Path) -> Path:
         """
         Create a consistent SQLite snapshot of the current database at dest_db.
@@ -1031,18 +1328,69 @@ class DatabaseManager:
         yr, wk = datetime.now().isocalendar()[:2]
         log_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
         self.extend_datetimes_for_weeks(yr, wk, 12)
-        self.populate_tags()
+        # self.populate_tags()
         self.populate_alerts()
         self.populate_notice()
         self.populate_busy_from_datetimes()  # 👈 new step: source layer
         self.rebuild_busyweeks_from_source()  # 👈 add this line
         self.ensure_system_bins()
 
+    def _normalize_tags(self, tags) -> list[str]:
+        """Return a sorted, de-duplicated, lowercased list of tag strings."""
+        if tags is None:
+            return []
+        if isinstance(tags, str):
+            parts = [p for p in re.split(r"[,\s]+", tags) if p]
+        else:
+            parts = list(tags)
+        return sorted({p.strip().lower() for p in parts if p and p.strip()})
+
+    # def add_item(self, item: Item) -> int:
+    #     if item.has_f:
+    #         log_msg(
+    #             f"{item.itemtype = }, {item = } {item.has_f = } both: {item.itemtype in '~^' and item.has_f = }"
+    #         )
+    #     try:
+    #         timestamp = utc_now_string()
+    #         self.cursor.execute(
+    #             """
+    #             INSERT INTO Records (
+    #                 itemtype, subject, description, rruleset, timezone,
+    #                 extent, alerts, notice, context, jobs, priority, tags,
+    #                 tokens, processed, created, modified
+    #             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    #             """,
+    #             (
+    #                 item.itemtype,
+    #                 item.subject,
+    #                 item.description,
+    #                 item.rruleset,
+    #                 item.tz_str,
+    #                 item.extent,
+    #                 json.dumps(item.alerts),
+    #                 item.notice,
+    #                 item.context,
+    #                 json.dumps(item.jobs),
+    #                 item.priority,
+    #                 json.dumps(item.tags),
+    #                 json.dumps(item.tokens),
+    #                 0,
+    #                 timestamp,  # created
+    #                 timestamp,  # modified
+    #             ),
+    #         )
+    #         self.conn.commit()
+    #         record_id = self.cursor.lastrowid  # <-- return the new record id
+    #         if hasattr(item, "bin_path") and item.bin_path:
+    #             log_msg(f"linking bin_path {item.bin_path =  } for {record_id = }")
+    #             self.link_record_to_bin_path(record_id, item.bin_path)
+    #         return record_id
+    #
+    #     except Exception as e:
+    #         print(f"Error adding {item}: {e}")
+    #         raise
+
     def add_item(self, item: Item) -> int:
-        if item.has_f:
-            log_msg(
-                f"{item.itemtype = }, {item = } {item.has_f = } both: {item.itemtype in '~^' and item.has_f = }"
-            )
         try:
             timestamp = utc_now_string()
             self.cursor.execute(
@@ -1065,60 +1413,198 @@ class DatabaseManager:
                     item.context,
                     json.dumps(item.jobs),
                     item.priority,
-                    json.dumps(item.tags),
+                    json.dumps(self._normalize_tags(item.tags)),  # ← only JSON
                     json.dumps(item.tokens),
                     0,
-                    timestamp,  # created
-                    timestamp,  # modified
+                    timestamp,
+                    timestamp,
                 ),
             )
             self.conn.commit()
-            record_id = self.cursor.lastrowid  # <-- return the new record id
-            if hasattr(item, "bin_path") and item.bin_path:
-                log_msg(f"linking bin_path {item.bin_path =  } for {record_id = }")
-                self.link_record_to_bin_path(record_id, item.bin_path)
-            return record_id
-
+            rid = self.cursor.lastrowid
+            if getattr(item, "bin_path", None):
+                self.link_record_to_bin_path(rid, item.bin_path)
+            return rid
         except Exception as e:
             print(f"Error adding {item}: {e}")
             raise
 
+    # def update_item(self, record_id: int, item: Item):
+    #     """
+    #     Update an existing record with new values from an Item object.
+    #     Only non-None fields in the item will be updated.
+    #     The 'modified' timestamp is always updated.
+    #     """
+    #     try:
+    #         fields = []
+    #         values = []
+    #
+    #         # Map of field names to item attributes
+    #         field_map = {
+    #             "itemtype": item.itemtype,
+    #             "subject": item.subject,
+    #             "description": item.description,
+    #             "rruleset": item.rruleset,
+    #             "timezone": item.tz_str,
+    #             "extent": item.extent,
+    #             "alerts": json.dumps(item.alerts) if item.alerts is not None else None,
+    #             "notice": item.notice,
+    #             "context": item.context,
+    #             "jobs": json.dumps(item.jobs) if item.jobs is not None else None,
+    #             "tags": json.dumps(item.tags) if item.tags is not None else None,
+    #             "tokens": json.dumps(item.tokens) if item.tokens is not None else None,
+    #             "processed": 0,  # reset processed
+    #         }
+    #
+    #         for field, value in field_map.items():
+    #             if value is not None:
+    #                 fields.append(f"{field} = ?")
+    #                 values.append(value)
+    #
+    #         # Always update 'modified' timestamp
+    #         fields.append("modified = ?")
+    #         values.append(utc_now_string())
+    #
+    #         values.append(record_id)
+    #
+    #         sql = f"UPDATE Records SET {', '.join(fields)} WHERE id = ?"
+    #         self.cursor.execute(sql, values)
+    #         self.conn.commit()
+    #     except Exception as e:
+    #         print(f"Error updating record {record_id}: {e}")
+
+    # def update_item_replace(self, record_id: int, item: Item) -> None:
+    #     """
+    #     Full replace, analogous to add_item() but UPDATEs the row.
+    #     Use this on Commit after finalize_*() so rruleset/tokens/jobs/alerts are authoritative.
+    #     """
+    #     try:
+    #         timestamp = utc_now_string()
+    #         self.cursor.execute(
+    #             """
+    #             UPDATE Records SET
+    #                 itemtype = ?,
+    #                 subject = ?,
+    #                 description = ?,
+    #                 rruleset = ?,
+    #                 timezone = ?,
+    #                 extent = ?,
+    #                 alerts = ?,
+    #                 notice = ?,
+    #                 context = ?,
+    #                 jobs = ?,
+    #                 priority = ?,
+    #                 tags = ?,
+    #                 tokens = ?,
+    #                 processed = 0,
+    #                 modified = ?
+    #             WHERE id = ?
+    #             """,
+    #             (
+    #                 item.itemtype,
+    #                 item.subject,
+    #                 item.description,
+    #                 item.rruleset,
+    #                 item.tz_str,
+    #                 item.extent,
+    #                 json.dumps(item.alerts),
+    #                 item.notice,
+    #                 item.context,
+    #                 json.dumps(item.jobs),
+    #                 item.priority,
+    #                 json.dumps(item.tags),
+    #                 json.dumps(item.tokens),
+    #                 timestamp,
+    #                 record_id,
+    #             ),
+    #         )
+    #         self.conn.commit()
+    #
+    #         # Optional: (re)link bins if your editor lets users change bin_path here
+    #         if hasattr(item, "bin_path") and item.bin_path:
+    #             try:
+    #                 # implement to clear old links then link new path if needed
+    #                 self.relink_record_to_bin_path(record_id, item.bin_path)
+    #             except AttributeError:
+    #                 # fall back if you only have link_record_to_bin_path
+    #                 self.link_record_to_bin_path(record_id, item.bin_path)
+    #     except Exception as e:
+    #         print(f"Error updating record {record_id}: {e}")
+    #         raise
+
+    # def update_item(self, record_id: int, item: Item):
+    #     try:
+    #         fields, values = [], []
+    #
+    #         def set_field(name, value):
+    #             if value is not None:
+    #                 fields.append(f"{name} = ?")
+    #                 values.append(value)
+    #
+    #         set_field("itemtype", item.itemtype)
+    #         set_field("subject", item.subject)
+    #         set_field("description", item.description)
+    #         set_field("rruleset", item.rruleset)
+    #         set_field("timezone", item.tz_str)
+    #         set_field("extent", item.extent)
+    #         set_field(
+    #             "alerts", json.dumps(item.alerts) if item.alerts is not None else None
+    #         )
+    #         set_field("notice", item.notice)
+    #         set_field("context", item.context)
+    #         set_field("jobs", json.dumps(item.jobs) if item.jobs is not None else None)
+    #         set_field("priority", item.priority)
+    #         # ← tags only as JSON in Records
+    #         if item.tags is not None:
+    #             set_field("tags", json.dumps(self._normalize_tags(item.tags)))
+    #         set_field(
+    #             "tokens", json.dumps(item.tokens) if item.tokens is not None else None
+    #         )
+    #         set_field("processed", 0)
+    #
+    #         fields.append("modified = ?")
+    #         values.append(utc_now_string())
+    #         values.append(record_id)
+    #
+    #         sql = f"UPDATE Records SET {', '.join(fields)} WHERE id = ?"
+    #         self.cursor.execute(sql, values)
+    #         self.conn.commit()
+    #     except Exception as e:
+    #         print(f"Error updating record {record_id}: {e}")
+    #         raise
+
     def update_item(self, record_id: int, item: Item):
-        """
-        Update an existing record with new values from an Item object.
-        Only non-None fields in the item will be updated.
-        The 'modified' timestamp is always updated.
-        """
         try:
-            fields = []
-            values = []
+            fields, values = [], []
 
-            # Map of field names to item attributes
-            field_map = {
-                "itemtype": item.itemtype,
-                "subject": item.subject,
-                "description": item.description,
-                "rruleset": item.rruleset,
-                "timezone": item.tz_str,
-                "extent": item.extent,
-                "alerts": json.dumps(item.alerts) if item.alerts is not None else None,
-                "notice": item.notice,
-                "context": item.context,
-                "jobs": json.dumps(item.jobs) if item.jobs is not None else None,
-                "tags": json.dumps(item.tags) if item.tags is not None else None,
-                "tokens": json.dumps(item.tokens) if item.tokens is not None else None,
-                "processed": 0,  # reset processed
-            }
-
-            for field, value in field_map.items():
+            def set_field(name, value):
                 if value is not None:
-                    fields.append(f"{field} = ?")
+                    fields.append(f"{name} = ?")
                     values.append(value)
 
-            # Always update 'modified' timestamp
+            set_field("itemtype", item.itemtype)
+            set_field("subject", item.subject)
+            set_field("description", item.description)
+            set_field("rruleset", item.rruleset)
+            set_field("timezone", item.tz_str)
+            set_field("extent", item.extent)
+            set_field(
+                "alerts", json.dumps(item.alerts) if item.alerts is not None else None
+            )
+            set_field("notice", item.notice)
+            set_field("context", item.context)
+            set_field("jobs", json.dumps(item.jobs) if item.jobs is not None else None)
+            set_field("priority", item.priority)
+            # ← tags only as JSON in Records
+            if item.tags is not None:
+                set_field("tags", json.dumps(self._normalize_tags(item.tags)))
+            set_field(
+                "tokens", json.dumps(item.tokens) if item.tokens is not None else None
+            )
+            set_field("processed", 0)
+
             fields.append("modified = ?")
             values.append(utc_now_string())
-
             values.append(record_id)
 
             sql = f"UPDATE Records SET {', '.join(fields)} WHERE id = ?"
@@ -1126,6 +1612,7 @@ class DatabaseManager:
             self.conn.commit()
         except Exception as e:
             print(f"Error updating record {record_id}: {e}")
+            raise
 
     def save_record(self, item: Item, record_id: int | None = None):
         """Insert or update a record and refresh associated tables."""
@@ -1198,6 +1685,33 @@ class DatabaseManager:
             self.populate_notice_for_record(record_id)
         if item.itemtype in ["~", "^"]:
             self.populate_urgency_from_record(record_id)
+
+    def get_record_tags(self, record_id: int) -> list[str]:
+        self.cursor.execute(
+            "SELECT COALESCE(tags,'[]') FROM Records WHERE id=?", (record_id,)
+        )
+        row = self.cursor.fetchone()
+        try:
+            return self._normalize_tags(json.loads(row[0])) if row and row[0] else []
+        except Exception:
+            return []
+
+    def find_records_with_any_tags(self, tags: list[str]) -> list[tuple]:
+        want = set(self._normalize_tags(tags))
+        self.cursor.execute("SELECT id, subject, COALESCE(tags,'[]') FROM Records")
+        out = []
+        for rid, subj, tags_json in self.cursor.fetchall():
+            try:
+                have = (
+                    set(self._normalize_tags(json.loads(tags_json)))
+                    if tags_json
+                    else set()
+                )
+            except Exception:
+                have = set()
+            if want & have:
+                out.append((rid, subj))
+        return out
 
     # def add_completion(
     #     self,
@@ -1587,43 +2101,43 @@ class DatabaseManager:
             ) in self.cursor.fetchall()
         ]
 
-    def populate_tags(self):
-        """
-        Populate Tags and RecordTags tables from the JSON 'tags' field in Records.
-        This rebuilds the tag index from scratch.
-        """
-        self.cursor.execute("DELETE FROM RecordTags;")
-        self.cursor.execute("DELETE FROM Tags;")
-        self.conn.commit()
-
-        self.cursor.execute(
-            "SELECT id, tags FROM Records WHERE tags IS NOT NULL AND tags != ''"
-        )
-        records = self.cursor.fetchall()
-
-        for record_id, tags_json in records:
-            try:
-                tags = json.loads(tags_json)
-            except Exception as e:
-                log_msg(f"⚠️ Failed to parse tags for record {record_id}: {e}")
-                continue
-
-            for tag in tags:
-                # Insert into Tags table, avoid duplicates
-                self.cursor.execute(
-                    "INSERT OR IGNORE INTO Tags (name) VALUES (?)", (tag,)
-                )
-                self.cursor.execute("SELECT id FROM Tags WHERE name = ?", (tag,))
-                tag_id = self.cursor.fetchone()[0]
-
-                # Insert into RecordTags mapping table
-                self.cursor.execute(
-                    "INSERT INTO RecordTags (record_id, tag_id) VALUES (?, ?)",
-                    (record_id, tag_id),
-                )
-
-        self.conn.commit()
-        log_msg("✅ Tags and RecordTags tables populated.")
+    # def populate_tags(self):
+    #     """
+    #     Populate Tags and RecordTags tables from the JSON 'tags' field in Records.
+    #     This rebuilds the tag index from scratch.
+    #     """
+    #     self.cursor.execute("DELETE FROM RecordTags;")
+    #     self.cursor.execute("DELETE FROM Tags;")
+    #     self.conn.commit()
+    #
+    #     self.cursor.execute(
+    #         "SELECT id, tags FROM Records WHERE tags IS NOT NULL AND tags != ''"
+    #     )
+    #     records = self.cursor.fetchall()
+    #
+    #     for record_id, tags_json in records:
+    #         try:
+    #             tags = json.loads(tags_json)
+    #         except Exception as e:
+    #             log_msg(f"⚠️ Failed to parse tags for record {record_id}: {e}")
+    #             continue
+    #
+    #         for tag in tags:
+    #             # Insert into Tags table, avoid duplicates
+    #             self.cursor.execute(
+    #                 "INSERT OR IGNORE INTO Tags (name) VALUES (?)", (tag,)
+    #             )
+    #             self.cursor.execute("SELECT id FROM Tags WHERE name = ?", (tag,))
+    #             tag_id = self.cursor.fetchone()[0]
+    #
+    #             # Insert into RecordTags mapping table
+    #             self.cursor.execute(
+    #                 "INSERT INTO RecordTags (record_id, tag_id) VALUES (?, ?)",
+    #                 (record_id, tag_id),
+    #             )
+    #
+    #     self.conn.commit()
+    #     log_msg("✅ Tags and RecordTags tables populated.")
 
     # def populate_alerts(self):
     #     """

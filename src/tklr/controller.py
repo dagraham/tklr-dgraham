@@ -180,79 +180,153 @@ def _ensure_tokens_list(value):
     return list(value)
 
 
-def format_tokens(tokens, width):
-    # tokens = json.loads(tokens)
+# def format_tokens(tokens, width, highlight=True):
+#     # tokens = json.loads(tokens)
+#     output_lines = []
+#     current_line = ""
+#     log_msg(f"{tokens = }, {width = }, {highlight = }")
+#
+#     for i, t in enumerate(tokens):
+#         log_msg(f"processing {i = }, {t = }")
+#         token = t["token"].rstrip()
+#         key = t.get("key", "")
+#
+#         if t["t"] == "itemtype":
+#             current_line = ""
+#
+#         if key == "@d":
+#             # Handle @d and @~ blocks: always on their own, preserve and wrap content
+#             if current_line:
+#                 output_lines.append(current_line)
+#                 current_line = ""
+#             output_lines.append("")  # extra newline before @d
+#             wrapped_lines = []
+#             for line in token.splitlines():
+#                 indent = len(line) - len(line.lstrip(" "))
+#                 wrap = textwrap.wrap(line, width=width, subsequent_indent=" " * indent)
+#                 wrapped_lines.extend(wrap or [""])
+#             output_lines.extend(wrapped_lines)
+#             output_lines.append("")  # extra newline after @d
+#             continue
+#
+#         if token.startswith("@~"):
+#             # notice component tasks on a new line
+#             output_lines.append(current_line)
+#             current_line = " "
+#
+#         # Calculate length if this token is added to current_line
+#         if len(current_line) + len(token) + 1 > width:
+#             output_lines.append(current_line)
+#             current_line = ""
+#
+#         if current_line:
+#             current_line += " "
+#
+#         # current_line += f"{token} "
+#         current_line += token
+#
+#     if current_line:
+#         output_lines.append(current_line)
+#
+#     def highlight(line):
+#         # Highlight @x and &x preceded by space or line start, followed by space
+#         color = {
+#             "@": f"{at_color}",
+#             "&": f"{am_color}",
+#         }
+#         return re.sub(
+#             r"(^|(?<=\s))([@&]\S\s)",
+#             # lambda m: m.group(1) + f"[yellow]{m.group(2)}[/yellow]",
+#             lambda m: m.group(1)
+#             + f"[{color[m.group(2)[0]]}]{m.group(2)}[/{color[m.group(2)[0]]}]",
+#             line,
+#         )
+#
+#     if (
+#         len(output_lines) >= 1
+#         and output_lines[0]
+#         and output_lines[0].startswith("entry: ")
+#     ):
+#         line = output_lines.pop(0)
+#         line = f"[{label_color}]entry:[/label_color] [bold yellow]{line[8]}[/bold yellow]{line[9:]}"
+#         # line = f"[bold yellow]{line[4]}[/bold yellow]{line[5:]}"
+#         output_lines.insert(0, line)
+#     log_msg(f"{output_lines = }")
+#
+#     return "\n ".join(highlight(line) for line in output_lines)
+
+
+def format_tokens(tokens, width, highlight=True):
+    if isinstance(tokens, str):
+        try:
+            tokens = json.loads(tokens)
+        except Exception:
+            pass
+
     output_lines = []
     current_line = ""
 
-    for i, t in enumerate(tokens):
-        token = t["token"].rstrip()
-        key = t.get("key", "")
-        # log_msg(f"processing {key = } in {token = }, {token.startswith('@~')}")
+    def strip_rich(s: str) -> str:
+        return re.sub(r"\[[^\]]+\]", "", s)
 
-        if t["t"] == "itemtype":
-            current_line = ""
-
-        if key == "@d":
-            # Handle @d and @~ blocks: always on their own, preserve and wrap content
-            if current_line:
-                output_lines.append(current_line)
-                current_line = ""
-            output_lines.append("")  # extra newline before @d
-            wrapped_lines = []
-            for line in token.splitlines():
-                indent = len(line) - len(line.lstrip(" "))
-                wrap = textwrap.wrap(line, width=width, subsequent_indent=" " * indent)
-                wrapped_lines.extend(wrap or [""])
-            output_lines.extend(wrapped_lines)
-            output_lines.append("")  # extra newline after @d
-            continue
-
-        if token.startswith("@~"):
-            # notice component tasks on a new line
-            output_lines.append(current_line)
-            current_line = " "
-
-        # Calculate length if this token is added to current_line
-        if len(current_line) + len(token) + 1 > width:
-            output_lines.append(current_line)
-            current_line = ""
-
-        if current_line:
-            current_line += " "
-
-        # current_line += f"{token} "
-        current_line += token
-
-    if current_line:
-        output_lines.append(current_line)
-
-    def highlight(line):
-        # Highlight @x and &x preceded by space or line start, followed by space
-        color = {
-            "@": f"{at_color}",
-            "&": f"{am_color}",
-        }
+    def apply_highlight(line: str) -> str:
+        if not highlight:
+            return strip_rich(line)
+        color = {"@": at_color, "&": am_color}
         return re.sub(
             r"(^|(?<=\s))([@&]\S\s)",
-            # lambda m: m.group(1) + f"[yellow]{m.group(2)}[/yellow]",
             lambda m: m.group(1)
             + f"[{color[m.group(2)[0]]}]{m.group(2)}[/{color[m.group(2)[0]]}]",
             line,
         )
 
-    if (
-        len(output_lines) >= 1
-        and output_lines[0]
-        and output_lines[0].startswith("entry: ")
-    ):
-        line = output_lines.pop(0)
-        line = f"[{label_color}]entry:[/label_color] [bold yellow]{line[8]}[/bold yellow]{line[9:]}"
-        # line = f"[bold yellow]{line[4]}[/bold yellow]{line[5:]}"
-        output_lines.insert(0, line)
-    # log_msg(f"{output_lines = }")
+    for t in tokens:
+        token_text = (t.get("token") or "").rstrip("\n")
+        ttype = t.get("t")
+        k = t.get("k") or t.get("key")
 
-    return "\n ".join(highlight(line) for line in output_lines)
+        # ✅ PRESERVE itemtype char as the start of the line
+        if ttype == "itemtype":
+            if current_line:
+                output_lines.append(current_line)
+            current_line = token_text  # start new line with '*', '-', '~', '^', etc.
+            continue
+
+        # @d blocks: own paragraph, preserve newlines/indent
+        if ttype == "@" and k == "d":
+            if current_line:
+                output_lines.append(current_line)
+                current_line = ""
+            # output_lines.append("")
+            for line in token_text.splitlines():
+                indent = len(line) - len(line.lstrip(" "))
+                wrapped = textwrap.wrap(
+                    line, width=width, subsequent_indent=" " * indent
+                ) or [""]
+                output_lines.extend(wrapped)
+            # output_lines.append("")
+            continue
+
+        # optional special-case for @~
+        if ttype == "@" and k == "~":
+            # if current_line:
+            output_lines.append(current_line)
+            current_line = " "
+            # if token_text:
+            #     output_lines.append(token_text)
+            # continu        # normal tokens
+        if not token_text:
+            continue
+        if current_line and len(current_line) + 1 + len(token_text) > width:
+            output_lines.append(current_line)
+            current_line = token_text
+        else:
+            current_line = current_line + " " + token_text
+
+    if current_line:
+        output_lines.append(current_line)
+
+    return "\n".join(apply_highlight(line) for line in output_lines)
 
 
 def wrap_preserve_newlines(text, width=70, initial_indent="", subsequent_indent=""):
@@ -1448,7 +1522,7 @@ class Controller:
         busy_bar = self._format_busy_bar(busy_bits)
 
         start_dt = datetime.strptime(f"{year} {week} 1", "%G %V %u")
-        end_dt = start_dt + timedelta(weeks=1)
+        # end_dt = start_dt + timedelta(weeks=1)
         details = self.get_week_details(selected_week)
 
         title = format_iso_week(start_dt)
@@ -2152,6 +2226,33 @@ class Controller:
             )
 
         return rows
+
+    def get_entry_from_record(self, record_id: int) -> str:
+        """
+        1) Load record -> Item
+        2) Call item.finish_without_exdate(...)
+        3) Persist Item
+        4) Insert Completions row
+        5) If fully finished, remove from Urgency/DateTimes
+        6) Return summary dict
+        """
+        result = self.db_manager.get_tokens(record_id)
+        tokens, rruleset, created, modified = result[0]
+        entry = format_tokens(tokens, self.width, False)
+
+        return entry
+
+        if isinstance(tokens_value, str):
+            try:
+                tokens = json.loads(tokens_value)
+            except Exception:
+                # already a list or malformed — best effort
+                pass
+        if not isinstance(tokens, list):
+            raise ValueError("Structured tokens not available/invalid for this record.")
+
+        entry_str = "\n".join(tok.get("token", "") for tok in tokens)
+        return entry_str
 
     def finish_from_details(
         self, record_id: int, job_id: int | None, completed_dt: datetime

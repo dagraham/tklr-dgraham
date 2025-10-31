@@ -20,7 +20,9 @@ Screen {
 #details_title,
 #list_title,
 #events_title,
-#tasks_title {
+#tasks_title,
+#dt_title,
+#ed_title {
   color: white;
   border-bottom: solid #7f7f7f;
   text-style: bold;
@@ -109,14 +111,6 @@ ScrollView {
   /* background: #373737; */
 }
 
-/* Message block just under the title */
-#dt_message {
-  color: #cccccc; /* soft grey */
-  background: #373737;
-  padding: 0 1 1 1;
-  /* text-align: center; */
-}
-
 /* Horizontal rule */
 .dim-rule {
   color: #555555;
@@ -125,27 +119,21 @@ ScrollView {
 
 /* Live feedback (“→ parsed datetime”) */
 #dt_feedback {
-  /* color: lightskyblue;  */
   color: limegreen;
-  /* text-align: center; */
   padding: 0 1;
 }
-
-/* User input area */
-#dt_input {
-  border: solid #7f7f7f;
-  /* background: #2e2e2e; */
-  /* background: #1e1e1e; */
-  color: white;
-  padding: 0 1;
-  height: auto;
-  text-align: center;
-}
-
-#dt_input:focus {
-  border: solid #7f7f7f; /* lime green highlight */
-  /* background: black; */
+/* Message block just under the title */
+#dt_message {
+  color: #cccccc; /* soft grey */
   background: #373737;
+  padding: 0 1 1 1;
+  /* text-align: center; */
+}
+
+#dt_entry:focus {
+  border: solid #7f7f7f;
+  /* background: #373737; */
+  background: #2e2e2e;
   color: white;
 }
 
@@ -153,11 +141,47 @@ ScrollView {
 #dt_instructions {
   color: #cccccc;
   background: #373737;
-  padding: 1 1;
-  /* text-align: left; */
+  padding: 0 1;
+  text-align: center;
   /* text-style: dim; */
 }
 
+#ed_prompt {
+  layout: vertical;
+  padding: 0 1;
+}
+/* Message block just under the title */
+
+#ed_instructions {
+  color: #cccccc;
+  background: #373737;
+  padding: 0 1;
+  text-align: center;
+  /* text-style: dim; */
+}
+
+#ed_message {
+  color: #cccccc; /* soft grey */
+  background: #373737;
+  padding: 0 1;
+  /* text-align: center; */
+}
+
+#ed_entry:focus {
+  border: solid #7f7f7f;
+  /* background: #373737; */
+  background: #3a3a3a;
+  /* background: #2e2e2e; */
+  color: white;
+  height: auto;
+  padding: 0 0;
+}
+
+#ed_feedback {
+  height: auto;
+  color: limegreen;
+  padding: 0 1 0 1;
+}
 /* Container that holds a main list + details list */
 ListWithDetails {
   layout: vertical;
