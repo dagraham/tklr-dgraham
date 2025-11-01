@@ -3903,16 +3903,6 @@ class DatabaseManager:
         )
         return self.cursor.fetchone() is not None
 
-    # def ensure_bin_exists(self, name: str) -> int:
-    #     """Return id for existing bin or create a new one."""
-    #     self.cursor.execute("SELECT id FROM Bins WHERE name=?", (name,))
-    #     row = self.cursor.fetchone()
-    #     if row:
-    #         return row[0]
-    #     self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (name,))
-    #     self.conn.commit()
-    #     return self.cursor.lastrowid
-
     def ensure_bin_exists(self, name: str) -> int:
         nm = (name or "").strip().lower()  # ← normalize
         self.cursor.execute("SELECT id FROM Bins WHERE name=?", (nm,))
