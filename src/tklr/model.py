@@ -705,223 +705,6 @@ class DatabaseManager:
     def datetime_in_words(self, fmt_dt: str) -> str:
         return datetime_in_words(fmt_dt, self.ampm)
 
-    # def setup_database(self):
-    #     """
-    #     Create (if missing) all tables and indexes for tklr.
-    #
-    #     Notes:
-    #     - Pinned state is stored ONLY in the `Pinned` table.
-    #     - Urgency has NO `pinned` column; compute it via LEFT JOIN Pinned when reading.
-    #     - Timestamps are stored as UTC epoch seconds (INTEGER) unless noted otherwise.
-    #     """
-    #     # ---------------- Records ----------------
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS Records (
-    #             id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    #             itemtype          TEXT,                         -- '*','~','^','%','?','+', 'x'
-    #             subject           TEXT,
-    #             description       TEXT,
-    #             rruleset          TEXT,
-    #             timezone          TEXT,
-    #             extent            TEXT,
-    #             alerts            TEXT,
-    #             notice            TEXT,
-    #             context           TEXT,
-    #             jobs              TEXT,
-    #             tags              TEXT,
-    #             priority          INTEGER CHECK (priority IN (1,2,3,4,5)),
-    #             tokens TEXT,                         -- JSON text
-    #             processed         INTEGER,
-    #             created           TEXT,                         -- 'YYYYMMDDTHHMMSS' UTC
-    #             modified          TEXT                          -- 'YYYYMMDDTHHMMSS' UTC
-    #         );
-    #     """)
-    #
-    #     # ---------------- Pinned ----------------
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS Pinned (
-    #             record_id INTEGER PRIMARY KEY,
-    #             FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-    #         );
-    #     """)
-    #     self.cursor.execute("""
-    #         CREATE INDEX IF NOT EXISTS idx_pinned_record
-    #         ON Pinned(record_id);
-    #     """)
-    #
-    #     # ---------------- Urgency (NO pinned column) ----------------
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS Urgency (
-    #             id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    #             record_id INTEGER NOT NULL,                     -- References Records.id
-    #             job_id    INTEGER,                              -- NULL if not part of a project
-    #             subject   TEXT    NOT NULL,
-    #             urgency   REAL    NOT NULL,
-    #             color     TEXT,                                 -- optional precomputed color
-    #             status    TEXT    NOT NULL,                     -- "next","waiting","scheduled",…
-    #             weights   TEXT                                  -- JSON of component weights, optional
-    #         );
-    #     """)
-    #     self.cursor.execute("""
-    #         CREATE INDEX IF NOT EXISTS idx_urgency_record
-    #         ON Urgency(record_id);
-    #     """)
-    #     self.cursor.execute("""
-    #         CREATE INDEX IF NOT EXISTS idx_urgency_urgency
-    #         ON Urgency(urgency DESC);
-    #     """)
-    #
-    #     # ---------------- Tags & RecordTags ----------------
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS Tags (
-    #             id   INTEGER PRIMARY KEY AUTOINCREMENT,
-    #             name TEXT NOT NULL UNIQUE
-    #         );
-    #     """)
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS RecordTags (
-    #             record_id INTEGER NOT NULL,
-    #             tag_id    INTEGER NOT NULL,
-    #             FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE,
-    #             FOREIGN KEY (tag_id)    REFERENCES Tags(id)    ON DELETE CASCADE,
-    #             PRIMARY KEY (record_id, tag_id)
-    #         );
-    #     """)
-    #
-    #     # ---------------- Completions ----------------
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS Completions (
-    #             id INTEGER PRIMARY KEY AUTOINCREMENT,
-    #             record_id INTEGER NOT NULL,
-    #             completed TEXT NOT NULL,  -- UTC-aware: "YYYYMMDDTHHMMZ"
-    #             due TEXT,                 -- optional UTC-aware: "YYYYMMDDTHHMMZ"
-    #             FOREIGN KEY(record_id) REFERENCES Records(id)
-    #         );
-    #     """)
-    #
-    #     self.cursor.execute("""
-    #         CREATE INDEX IF NOT EXISTS idx_completions_record_id
-    #         ON Completions(record_id);
-    #     """)
-    #
-    #     self.cursor.execute("""
-    #         CREATE INDEX IF NOT EXISTS idx_completions_completed
-    #         ON Completions(completed);
-    #     """)
-    #
-    #     self.cursor.execute("""
-    #         CREATE INDEX IF NOT EXISTS idx_completions_record_due
-    #         ON Completions(record_id, due);
-    #     """)
-    #
-    #     # ---------------- DateTimes ----------------
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS DateTimes (
-    #             record_id     INTEGER NOT NULL,
-    #             job_id        INTEGER,          -- nullable; link to specific job if any
-    #             start_datetime TEXT NOT NULL,   -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
-    #             end_datetime   TEXT,            -- NULL if instantaneous; same formats as start
-    #             FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-    #         )
-    #     """)
-    #
-    #     # enforce uniqueness across (record_id, job_id, start, end)
-    #     self.cursor.execute("""
-    #         CREATE UNIQUE INDEX IF NOT EXISTS idx_datetimes_unique
-    #         ON DateTimes(
-    #             record_id,
-    #             COALESCE(job_id, -1),
-    #             start_datetime,
-    #             COALESCE(end_datetime, '')
-    #         )
-    #     """)
-    #
-    #     # range query helper
-    #     self.cursor.execute("""
-    #         CREATE INDEX IF NOT EXISTS idx_datetimes_start
-    #         ON DateTimes(start_datetime)
-    #     """)
-    #
-    #     # ---------------- GeneratedWeeks (cache of week ranges) ----------------
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS GeneratedWeeks (
-    #             start_year INTEGER,
-    #             start_week INTEGER,
-    #             end_year   INTEGER,
-    #             end_week   INTEGER
-    #         );
-    #     """)
-    #
-    #     # Alerts table: store local-naive datetimes as TEXT
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS Alerts (
-    #             alert_id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    #             record_id        INTEGER NOT NULL,
-    #             record_name      TEXT    NOT NULL,
-    #             trigger_datetime TEXT    NOT NULL,  -- 'YYYYMMDDTHHMMSS' (local-naive)
-    #             start_datetime   TEXT    NOT NULL,  -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
-    #             alert_name       TEXT    NOT NULL,
-    #             alert_command    TEXT    NOT NULL,
-    #             FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-    #         )
-    #     """)
-    #
-    #     # Prevent duplicates: one alert per (record, start, name, trigger)
-    #     self.cursor.execute("""
-    #         CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_unique
-    #         ON Alerts(record_id, start_datetime, alert_name, COALESCE(trigger_datetime,''))
-    #     """)
-    #
-    #     # Helpful for “what’s due now”
-    #     self.cursor.execute("""
-    #         CREATE INDEX IF NOT EXISTS idx_alerts_trigger
-    #         ON Alerts(trigger_datetime)
-    #     """)
-    #
-    #     # ---------------- notice (days remaining notices) ----------------
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS Notice (
-    #             id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    #             record_id     INTEGER NOT NULL,
-    #             days_remaining INTEGER NOT NULL,
-    #             FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
-    #         );
-    #     """)
-    #
-    #     # bins themselves
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS Bins (
-    #             id INTEGER PRIMARY KEY,
-    #             name TEXT UNIQUE NOT NULL
-    #         );
-    #     """)
-    #
-    #     # parent-child relationships among bins
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS BinLinks (
-    #             bin_id INTEGER NOT NULL,
-    #             container_id INTEGER,
-    #             FOREIGN KEY (bin_id) REFERENCES Bins(id) ON DELETE CASCADE,
-    #             FOREIGN KEY (container_id) REFERENCES Bins(id) ON DELETE SET NULL,
-    #             UNIQUE(bin_id)
-    #         );
-    #     """)
-    #
-    #     # link reminders to bins (many-to-many)
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS ReminderLinks (
-    #             reminder_id INTEGER NOT NULL,
-    #             bin_id INTEGER NOT NULL,
-    #             FOREIGN KEY (reminder_id) REFERENCES Records(id) ON DELETE CASCADE,
-    #             FOREIGN KEY (bin_id) REFERENCES Bins(id) ON DELETE CASCADE,
-    #             UNIQUE(reminder_id, bin_id)
-    #         );
-    #     """)
-    #
-    #     self.setup_busy_tables()
-    #
-    #     self.conn.commit()
-
     def setup_database(self):
         """
         Create (if missing) all tables and indexes for tklr.
@@ -3546,7 +3329,6 @@ class DatabaseManager:
         # notice_seconds will be 0 in the absence of notice
         notice_seconds = td_str_to_seconds(record.get("notice", "0m"))
         rruleset = record.get("rruleset", "")
-        tags = len(json.loads(record.get("tags", "[]")))
         jobs = json.loads(record.get("jobs", "[]"))
         subject = record["subject"]
         # priority_map = self.env.config.urgency.priority.model_dump()
@@ -3602,7 +3384,6 @@ class DatabaseManager:
                     extent=job_extent,
                     priority_level=priority_level,
                     blocking=blocking,
-                    tags=tags,
                     description=description,
                     jobs=True,
                     pinned=pinned,
@@ -3637,7 +3418,6 @@ class DatabaseManager:
                     due=due_seconds,
                     extent=extent_seconds,
                     priority_level=priority_level,
-                    tags=tags,
                     description=description,
                     jobs=False,
                     pinned=pinned,

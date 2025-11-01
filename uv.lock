@@ -245,6 +245,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pip"
+version = "25.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/6e/74a3f0179a4a73a53d66ce57fdb4de0080a8baa1de0063de206d6167acc2/pip-25.3.tar.gz", hash = "sha256:8d0538dbbd7babbd207f261ed969c65de439f6bc9e5dbd3b3b9a77f25d95f343", size = 1803014, upload-time = "2025-10-25T00:55:41.394Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/3c/d717024885424591d5376220b5e836c2d5293ce2011523c9de23ff7bf068/pip-25.3-py3-none-any.whl", hash = "sha256:9655943313a94722b7774661c21049070f6bbb0a1516bf02f7c8d5d9201514cd", size = 1778622, upload-time = "2025-10-25T00:55:39.247Z" },
+]
+
+[[package]]
 name = "platformdirs"
 version = "4.3.8"
 source = { registry = "https://pypi.org/simple" }
@@ -343,6 +352,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyperclip"
+version = "1.11.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/52/d87eba7cb129b81563019d1679026e7a112ef76855d6159d24754dbd2a51/pyperclip-1.11.0.tar.gz", hash = "sha256:244035963e4428530d9e3a6101a1ef97209c6825edab1567beac148ccc1db1b6", size = 12185, upload-time = "2025-09-26T14:40:37.245Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/80/fc9d01d5ed37ba4c42ca2b55b4339ae6e200b456be3a1aaddf4a9fa99b8c/pyperclip-1.11.0-py3-none-any.whl", hash = "sha256:299403e9ff44581cb9ba2ffeed69c7aa96a008622ad0c46cb575ca75b5b84273", size = 11063, upload-time = "2025-09-26T14:40:36.069Z" },
+]
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 source = { registry = "https://pypi.org/simple" }
@@ -402,7 +420,7 @@ wheels = [
 
 [[package]]
 name = "tklr"
-version = "0.0.0b40"
+version = "0.0.0b46"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -410,7 +428,9 @@ dependencies = [
     { name = "lorem" },
     { name = "numpy" },
     { name = "packaging" },
+    { name = "pip" },
     { name = "pydantic" },
+    { name = "pyperclip" },
     { name = "python-dateutil" },
     { name = "readchar" },
     { name = "textual" },
@@ -436,7 +456,9 @@ requires-dist = [
     { name = "lorem", marker = "extra == 'dev'", specifier = ">=0.1.1" },
     { name = "numpy", specifier = ">=2.3.3" },
     { name = "packaging", specifier = ">=25.0" },
+    { name = "pip", specifier = ">=25.3" },
     { name = "pydantic", specifier = ">=2.11.7" },
+    { name = "pyperclip", specifier = ">=1.11.0" },
     { name = "python-dateutil", specifier = ">=2.8.2" },
     { name = "readchar", specifier = ">=4.2.1" },
     { name = "textual", specifier = ">=0.42.0" },
