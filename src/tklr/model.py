@@ -598,7 +598,7 @@ class BinPathConfig:
 class BinPathConfig:
     allow_reparent: bool = True
     standard_roots: Set[str] = field(
-        default_factory=lambda: {"places"}
+        default_factory=lambda: BIN_ROOTS
     )  # anchored at root
 
 
@@ -616,7 +616,7 @@ class BinPathProcessor:
 
     @staticmethod
     def canon(name: str) -> str:
-        return (name or "").strip().lower()
+        return (name or "").strip()
 
     def _is_unlinked(self, bin_id: int) -> bool:
         """
@@ -1196,12 +1196,20 @@ class DatabaseManager:
         """)
 
         # ---------------- Bins & Links ----------------
+        self.cursor.execute("PRAGMA foreign_keys = ON;")
+
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Bins (
                 id   INTEGER PRIMARY KEY,
-                name TEXT UNIQUE NOT NULL
+                name TEXT NOT NULL CHECK (length(trim(name)) > 0)
             );
         """)
+
+        self.cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_bins_name_nocase
+            ON Bins(name COLLATE NOCASE);
+        """)
+
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS BinLinks (
                 bin_id       INTEGER NOT NULL,
@@ -1211,6 +1219,12 @@ class DatabaseManager:
                 UNIQUE(bin_id)
             );
         """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_binlinks_container
+            ON BinLinks(container_id);
+        """)
+
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS ReminderLinks (
                 reminder_id INTEGER NOT NULL,
@@ -1219,6 +1233,16 @@ class DatabaseManager:
                 FOREIGN KEY (bin_id)      REFERENCES Bins(id)    ON DELETE CASCADE,
                 UNIQUE(reminder_id, bin_id)
             );
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_reminderlinks_bin
+            ON ReminderLinks(bin_id);
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_reminderlinks_reminder
+            ON ReminderLinks(reminder_id);
         """)
 
         # ---------------- Busy tables (unchanged) ----------------
@@ -4080,12 +4104,26 @@ class DatabaseManager:
         return self.cursor.fetchone() is not None
 
     def ensure_bin_exists(self, name: str) -> int:
-        nm = (name or "").strip().lower()  # ← normalize
-        self.cursor.execute("SELECT id FROM Bins WHERE name=?", (nm,))
+        """
+        Case-preserving, case-insensitive ensure:
+        - Looks up by NOCASE (so 'SmithCB' and 'smithcb' are the same bin)
+        - Inserts using the *provided* display case if not found (first-write-wins)
+        """
+        disp = (name or "").strip()
+        if not disp:
+            raise ValueError("Bin name must be non-empty")
+
+        # NOCASE lookup matches any casing, but doesn't change stored display
+        self.cursor.execute(
+            "SELECT id FROM Bins WHERE name = ? COLLATE NOCASE",
+            (disp,),
+        )
         row = self.cursor.fetchone()
         if row:
             return row[0]
-        self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (nm,))
+
+        # First creation: store exactly as provided (display casing)
+        self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (disp,))
         self.conn.commit()
         return self.cursor.lastrowid
 
@@ -4257,16 +4295,13 @@ class DatabaseManager:
         root_id = self.ensure_root_exists()
         out: dict[str, int] = {}
         for name in names:
-            nm = (name or "").strip().lower()
+            nm = (name or "").strip().lower()  # ← roots are canonical lowercase
             cid = self.ensure_bin_exists(nm)
 
-            # What is the current parent?
             parent = self.get_parent_bin(cid)  # {'id','name'} or None
             if not parent or parent["name"].lower() != "root":
-                # Re-anchor using your cycle-safe move
-                self.move_bin(nm, "root")
+                self.move_bin(nm, "root")  # cycle-safe re-anchor
 
-            # Make sure a BinLinks row exists (no-op if it already does)
             self.cursor.execute(
                 "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
                 (cid, root_id),
@@ -4297,7 +4332,7 @@ class DatabaseManager:
     def ensure_bin(
         self, name: str, parent_id: int | None = None, *, allow_reparent: bool = False
     ) -> int:
-        nm = (name or "").strip().lower()
+        nm = (name or "").strip()
         if not nm:
             raise ValueError("Bin name must be non-empty")
         bin_id = self.ensure_bin_exists(nm)
@@ -4503,7 +4538,7 @@ class DatabaseManager:
         # ---- 4) Fallback (back-compat): simple '@b <leaf>' tokens ----
         # Keep existing behavior: ensure leaf under 'unlinked' and link record.
         for name in simple_bins:
-            nm = (name or "").strip().lower()
+            nm = (name or "").strip()
             if not nm:
                 continue
             bid = self.ensure_bin(

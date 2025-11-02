@@ -312,8 +312,8 @@ bins = [
     "% Journal entry for October @b 2025:10/2025/journal @s 2p @d Test bin entries",
     "% Churchill - Give me a pig @b churchill/quotations/library @d dogs look up at you",
     "* Ellen's French adventure @s mon @r d &c 7 @b travel/activities @b Lille/France/places",
-    "% Charles and Bonnie Smith @b SmithCB/people:S/people @d details about Charles and Bonnie @b Athens-Istanbul/Greece/places",
-    "% itenerary  @b Athens-Istanbul/travel/activities",
+    "% Charles and Bonnie Smith @b SmithCB/people:S/people @d details about Charles and Bonnie @b Athens/Greece/places",
+    "% itenerary  @b Athens-Istanbul/travel/activities @b Istanbul/Turkey/places",
 ]
 
 alerts = [

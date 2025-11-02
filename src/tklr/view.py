@@ -25,7 +25,7 @@ from textual.strip import Strip
 from textual.widget import Widget
 from textual.widgets import Input
 from textual.widgets import Label
-from textual.widgets import Markdown, Static, Footer, Button, Header
+from textual.widgets import Markdown, Static, Footer, Button, Header, Tree
 from textual.widgets import Placeholder
 from textual.widgets import TextArea
 from textual import on
@@ -366,6 +366,67 @@ class SafeScreen(Screen):
         if hasattr(self, "after_mount"):
             # Run a tiny delay to ensure all widgets are fully realized
             self.set_timer(0.01, self.after_mount)
+
+
+#
+# ---- Textual screen: Bin Hierarchy ----
+
+
+class BinHierarchyScreen(ModalScreen[None]):
+    BINDINGS = [("escape", "dismiss", "Close")]
+
+    def __init__(self, db):
+        super().__init__()
+        self.db = db
+        self._tree: Tree | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Header(show_clock=False)
+        tree = Tree("Bins", id="bins-tree")  # ← no expand= here
+        self._tree = tree
+        yield tree
+        yield Footer()
+
+    def action_dismiss(self) -> None:
+        self.dismiss(None)
+
+    @on(Key)
+    def _(self, event: Key) -> None:
+        if event.key in ("escape"):
+            self.dismiss(None)
+
+    def on_mount(self) -> None:
+        self._populate_tree()
+        # expand the root after it exists
+        if self._tree is not None and self._tree.root is not None:
+            self._tree.root.expand()
+
+    def _populate_tree(self) -> None:
+        tree = self._tree
+        if tree is None:
+            return
+
+        root_id = self.db.ensure_root_exists()
+        root = tree.root
+
+        # Set label
+        root.set_label(self.db.get_bin_name(root_id))
+
+        # 🔧 Instead of root.clear(): remove existing children explicitly
+        for child in list(root.children):
+            child.remove()
+
+        def add_nodes(parent_node: Tree.Node, bin_id: int) -> None:
+            for child in self.db.get_subbins(bin_id):
+                label = f"{child['name']}  ({child['subbins']}/{child['reminders']})"
+                child_node = parent_node.add(label)
+                add_nodes(child_node, child["id"])  # recurse
+                # optionally auto-expand populated nodes:
+                if child["subbins"] or child["reminders"]:
+                    child_node.expand()
+
+        add_nodes(root, root_id)
+        tree.refresh(layout=True)
 
 
 class ListWithDetails(Container):
@@ -2544,6 +2605,7 @@ class DynamicViewApp(App):
         (">", "next_match", "Next Match"),
         ("<", "previous_match", "Previous Match"),
         ("ctrl+z", "copy_search", "Copy Search"),
+        ("ctrl-b", "show_bins", "Bins"),
     ]
 
     def __init__(self, controller) -> None:
@@ -2709,6 +2771,9 @@ class DynamicViewApp(App):
         # --- View-specific setup ---
         log_msg(f"{self.view = }")
         # ------------------ improved left/right handling ------------------
+        if event.key == "ctrl+b":
+            self.action_show_bins()
+
         if event.key in ("left", "right"):
             if self.view == "week":
                 screen = getattr(self, "screen", None)
@@ -3117,6 +3182,10 @@ class DynamicViewApp(App):
     ) -> datetime | None:
         """Show DatetimePrompt and return parsed datetime or None."""
         return await self.push_screen_wait(DatetimePrompt(message, default))
+
+    def action_show_bins(self) -> None:
+        log_msg(f"action show_bins {self.controller.db_manager = }")
+        self.push_screen(BinHierarchyScreen(self.controller.db_manager))
 
 
 if __name__ == "__main__":
