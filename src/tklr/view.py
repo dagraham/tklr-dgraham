@@ -773,17 +773,6 @@ class EditorScreen(Screen):
         self._live_parse_and_feedback(final=False)
 
     # ---------- Text change -> live parse ----------
-    # def on_text_area_changed(self, event: TextArea.Changed) -> None:
-    #     # Textual 0.60+ uses .value; keep a fallback to be safe
-    #     text = getattr(event, "value", None)
-    #     log_msg(f"changed {text = }, {event = }, {self._text.text = }")
-    #     if text is None and hasattr(event, "text"):
-    #         text = event.text
-    #     if text is None and self._text:
-    #         text = self._text.text
-    #     self.entry_text = text or ""
-    #     self._live_parse_and_feedback(final=False)
-
     def on_text_area_changed(self, event: TextArea.Changed) -> None:
         """Re-parse using the actual TextArea content, not the event payload."""
         # Make sure we have a handle to the TextArea
@@ -796,11 +785,6 @@ class EditorScreen(Screen):
 
         # Optional: stop propagation so nothing else double-handles it
         event.stop()
-
-    # def on_text_area_cursor_moved(self, event: TextArea.CursorMoved) -> None:
-    #     # Don’t re-parse; just redraw feedback for the new caret position
-    #     log_msg("cursor moved")
-    #     self._render_feedback()
 
     def on_text_area_selection_changed(self, event: TextArea.SelectionChanged) -> None:
         # Don't re-parse—just re-render feedback for the new caret position
@@ -862,26 +846,6 @@ class EditorScreen(Screen):
         """Non-throwing live parse + feedback for current cursor token."""
         self.item.final = bool(final)
         self.item.parse_input(self.entry_text)
-        # try:
-        #     self.item.parse_input(self.entry_text)
-        # except Exception as e:
-        #     self._render_feedback()
-        #     return
-        #
-        # # If invalid, show normalized errors
-        # if not getattr(self.item, "parse_ok", False):
-        #     msg = getattr(self.item, "parse_message", None)
-        #     errors = (
-        #         msg
-        #         if isinstance(msg, (list, tuple))
-        #         else ([str(msg)] if msg else ["Invalid entry"])
-        #     )
-        #     self._render_feedback()
-        #     return
-
-        # parse OK → show token-under-cursor info (if any), else a gentle hint
-        # cursor_idx = self._cursor_abs_index()
-        # token_info = self._token_at(cursor_idx)
         self._render_feedback()
 
     def _token_at(self, idx: int) -> Optional[Dict[str, Any]]:
@@ -994,11 +958,6 @@ class EditorScreen(Screen):
         idx = self._cursor_abs_index()
         tok = self._token_at(idx)
         log_msg(f"{idx = } {tok = }")
-
-        # if not tok:
-        #     last = getattr(item, "last_result", None)
-        #     if isinstance(last, tuple) and len(last) >= 3:
-        #         tok = last[2]
 
         if not tok:
             panel.update("")

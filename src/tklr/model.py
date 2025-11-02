@@ -5,7 +5,8 @@ from typing import Optional
 from datetime import date, datetime, time, timedelta
 from dateutil.rrule import rrulestr
 from dateutil.parser import parse
-from typing import List, Tuple
+
+from typing import List, Tuple, Optional, Dict, Any, Set
 from rich import print
 from tklr.tklr_env import TklrEnvironment
 from dateutil import tz
@@ -13,6 +14,7 @@ from dateutil.tz import gettz
 import math
 import numpy as np
 from pathlib import Path
+from dataclasses import dataclass, field
 
 import shutil
 
@@ -40,6 +42,8 @@ import re
 from tklr.item import Item
 
 anniversary_regex = re.compile(r"!(\d{4})!")
+
+BIN_ROOTS = {"activities", "journal", "library", "people", "places", "tags", "unlinked"}
 
 
 def regexp(pattern, value):
@@ -442,6 +446,315 @@ def _reduce_to_35_slots(arr: np.ndarray) -> np.ndarray:
         return coarse.flatten()
 
 
+@dataclass
+class BinPathConfig:
+    allow_reparent: bool = True
+    standard_roots: Set[str] = field(
+        default_factory=lambda: {"places"}
+    )  # force under root
+
+
+# class BinPathProcessor:
+#     def __init__(self, model, cfg: Optional[BinPathConfig] = None):
+#         """
+#         model: your Model instance (with ensure_system_bins, move_bin, etc.)
+#         """
+#         self.m = model
+#         self.cfg = cfg or BinPathConfig()
+#         # Ensure system bins + standard roots exist at startup
+#         root_id, _ = self.m.ensure_system_bins()
+#         if self.cfg.standard_roots:
+#             self.m.ensure_root_children(sorted(self.cfg.standard_roots))  # idempotent
+#
+#     # Utility: lowercase canonical names the same way your model does
+#     @staticmethod
+#     def canon(name: str) -> str:
+#         return (name or "").strip().lower()
+#
+#     def _is_unlinked(self, bin_id: int) -> bool:
+#         """
+#         Treat as 'unlinked' if:
+#           - there is no parent row in BinLinks, OR
+#           - the parent is the explicit 'unlinked' bin
+#         """
+#         parent = self.m.get_parent_bin(bin_id)  # {'id','name'} or None
+#         if parent is None:
+#             return True
+#         return self.canon(parent["name"]) == "unlinked"
+#
+#     def _ensure_standard_root_anchor(self, name: str) -> None:
+#         """
+#         For a standard root (e.g., 'places'), ensure it's anchored under root (not under 'unlinked').
+#         Uses your existing helpers; idempotent.
+#         """
+#         roots = self.m.ensure_root_children([name])  # returns {name: id}
+#         # Nothing else to do; ensure_root_children puts child under root.
+#
+#     def apply_slashpath(self, raw_path: str) -> Tuple[str, List[str], int]:
+#         """
+#         Process a reverse backslash path like 'lille/france/places'.
+#         Returns:
+#           normalized_token: '@b <leaf>'
+#           log: list[str]
+#           leaf_bin_id: int
+#         """
+#         log: List[str] = []
+#         parts = [p.strip() for p in (raw_path or "").split("/") if p.strip()]
+#         leaf_name = self.canon(parts[0])
+#         ancestors = [self.canon(p) for p in parts[1:]]  # nearest first
+#         log.append(f"Parsed leaf='{leaf_name}', ancestors={ancestors!r}")
+#
+#         # System bins
+#         root_id, unlinked_id = self.m.ensure_system_bins()
+#
+#         # Ensure leaf exists (no parent link implied)
+#         leaf_id = self.m.ensure_bin_exists(leaf_name)
+#         normalized = f"@b {leaf_name}"
+#
+#         # Fast path: if no ancestors and leaf is already linked (not under 'unlinked'), we're done
+#         if not ancestors:
+#             if not self._is_unlinked(leaf_id):
+#                 log.append("Leaf already linked (not under 'unlinked'); no changes.")
+#                 return normalized, log, leaf_id
+#             # If truly unlinked and no ancestors were provided, attach to explicit 'unlinked'
+#             self._attach_if_missing(leaf_name, "unlinked", log)
+#             log.append("Leaf had no parent; placed under 'unlinked'.")
+#             return normalized, log, leaf_id
+#
+#         # Walk up the chain: leaf -> nearest ancestor -> ... -> top
+#         child_name = leaf_name
+#         for anc in ancestors:
+#             if anc in self.cfg.standard_roots:
+#                 # Ensure standard root exists + anchored at root
+#                 self._ensure_standard_root_anchor(anc)
+#             # Move (or attach) child under this ancestor
+#             self._attach_if_missing(child_name, anc, log)
+#             child_name = (
+#                 anc  # now attach this ancestor under its own ancestor (next loop)
+#             )
+#
+#         # Final cleanup: if the topmost provided ancestor is a standard root, it's already a child of root
+#         top = ancestors[-1]
+#         if top in self.cfg.standard_roots:
+#             log.append(f"Ensured standard root '{top}' is anchored under root.")
+#
+#         return normalized, log, leaf_id
+#
+#     def _attach_if_missing(
+#         self, child_name: str, parent_name: str, log: List[str]
+#     ) -> None:
+#         """
+#         Attach child under parent if not already so. Uses move_bin (reparenting-safe).
+#         """
+#         try:
+#             # Resolve IDs if present; if either is missing, move_bin will ensure them
+#             child_id = self.m.ensure_bin_exists(child_name)
+#             parent_id = self.m.ensure_bin_exists(parent_name)
+#
+#             # If already correctly attached, no-op
+#             parent = self.m.get_parent_bin(child_id)
+#             if parent and self.canon(parent["name"]) == self.canon(parent_name):
+#                 log.append(f"'{child_name}' already under '{parent_name}'.")
+#                 return
+#
+#             # Respect allow_reparent flag by short-circuiting obvious conflicts
+#             if (
+#                 not self.cfg.allow_reparent
+#                 and parent
+#                 and self.canon(parent["name"]) != self.canon(parent_name)
+#             ):
+#                 log.append(
+#                     f"Skipped reparenting '{child_name}' (existing parent='{parent['name']}') "
+#                     f"-> requested '{parent_name}' (allow_reparent=False)"
+#                 )
+#                 return
+#
+#             # Do the move (idempotent + cycle-safe per your helper)
+#             ok = self.m.move_bin(child_name, parent_name)
+#             if ok:
+#                 log.append(f"Attached '{child_name}' under '{parent_name}'.")
+#             else:
+#                 log.append(
+#                     f"Failed to attach '{child_name}' under '{parent_name}'. See logs."
+#                 )
+#
+#         except Exception as e:
+#             log.append(f"Error attaching '{child_name}' -> '{parent_name}': {e}")
+#
+#     # Public entrypoint you can call from your record parsing/handling flow
+#     def assign_record_via_slashpath(
+#         self, record_id: int, slashpath: str
+#     ) -> Tuple[str, List[str], int]:
+#         normalized, log, leaf_id = self.apply_slashpath(slashpath)
+#         # Link the record to the leaf (idempotent)
+#         self.m.link_record_to_bin(record_id, leaf_id)
+#         log.append(
+#             f"Linked record {record_id} → bin {leaf_id} ('{self.m.get_bin_name(leaf_id)}')."
+#         )
+#         return normalized, log, leaf_id
+
+
+@dataclass
+class BinPathConfig:
+    allow_reparent: bool = True
+    standard_roots: Set[str] = field(
+        default_factory=lambda: {"places"}
+    )  # anchored at root
+
+
+class BinPathProcessor:
+    def __init__(self, model, cfg: Optional[BinPathConfig] = None):
+        """
+        model: your Model instance (ensure_system_bins, ensure_root_children, move_bin, etc.)
+        """
+        self.m = model
+        self.cfg = cfg or BinPathConfig()
+        # Ensure system bins + standard roots exist at startup
+        self.m.ensure_system_bins()
+        if self.cfg.standard_roots:
+            self.m.ensure_root_children(sorted(self.cfg.standard_roots))  # idempotent
+
+    @staticmethod
+    def canon(name: str) -> str:
+        return (name or "").strip().lower()
+
+    def _is_unlinked(self, bin_id: int) -> bool:
+        """
+        Unlinked if no parent row in BinLinks OR parent is the explicit 'unlinked' bin.
+        """
+        parent = self.m.get_parent_bin(bin_id)  # {'id','name'} or None
+        if parent is None:
+            return True
+        return self.canon(parent["name"]) == "unlinked"
+
+    def _ensure_standard_root_anchor(self, name: str) -> None:
+        """
+        Ensure standard roots exist directly under root.
+        """
+        self.m.ensure_root_children([name])  # puts child under root if missing
+
+    # --- New: operate on already-split parts instead of parsing a string ---
+
+    def apply_parts(self, parts: List[str]) -> Tuple[str, List[str], int]:
+        """
+        Process a bin path given as parts, e.g. ["lille","france","places"].
+        Interpretation: parts[0] is the leaf, following are ancestors (nearest first).
+        Returns: (normalized_token '@b <leaf>', log, leaf_bin_id)
+        """
+        log: List[str] = []
+
+        parts = [p for p in (parts or []) if (p or "").strip()]
+        if not parts:
+            raise ValueError("Empty @b parts")
+
+        leaf_name = self.canon(parts[0])
+        ancestors = [self.canon(p) for p in parts[1:]]  # nearest first
+        log.append(f"Parsed leaf='{leaf_name}', ancestors={ancestors!r}")
+
+        # Ensure system bins present
+        root_id, unlinked_id = self.m.ensure_system_bins()
+
+        # Ensure leaf exists
+        leaf_id = self.m.ensure_bin_exists(leaf_name)
+        normalized = f"@b {leaf_name}"
+
+        # No ancestors case
+        if not ancestors:
+            if not self._is_unlinked(leaf_id):
+                log.append("Leaf already linked (not under 'unlinked'); no changes.")
+                return normalized, log, leaf_id
+            self._attach_if_missing(leaf_name, "unlinked", log)
+            log.append("Leaf had no parent; placed under 'unlinked'.")
+            return normalized, log, leaf_id
+
+        # Walk up the chain: leaf -> parent -> grandparent...
+        child_name = leaf_name
+        for anc in ancestors:
+            if anc in self.cfg.standard_roots:
+                self._ensure_standard_root_anchor(anc)
+            self._attach_if_missing(child_name, anc, log)
+            child_name = anc
+
+        top = ancestors[-1]
+        if top in self.cfg.standard_roots:
+            log.append(f"Ensured standard root '{top}' is anchored under root.")
+        return normalized, log, leaf_id
+
+    def _attach_if_missing(
+        self, child_name: str, parent_name: str, log: List[str]
+    ) -> None:
+        """
+        Attach child under parent if not already so; reparenting via move_bin (cycle-safe).
+        """
+        try:
+            child_id = self.m.ensure_bin_exists(child_name)
+            parent_id = self.m.ensure_bin_exists(parent_name)
+
+            parent = self.m.get_parent_bin(child_id)
+            if parent and self.canon(parent["name"]) == self.canon(parent_name):
+                log.append(f"'{child_name}' already under '{parent_name}'.")
+                return
+
+            if (
+                (not self.cfg.allow_reparent)
+                and parent
+                and self.canon(parent["name"]) != self.canon(parent_name)
+            ):
+                log.append(
+                    f"Skipped reparenting '{child_name}' (existing parent='{parent['name']}') "
+                    f"-> requested '{parent_name}' (allow_reparent=False)"
+                )
+                return
+
+            ok = self.m.move_bin(child_name, parent_name)
+            log.append(
+                f"{'Attached' if ok else 'Failed to attach'} '{child_name}' under '{parent_name}'."
+            )
+        except Exception as e:
+            log.append(f"Error attaching '{child_name}' -> '{parent_name}': {e}")
+
+    # Convenience wrappers for your controller:
+
+    def assign_record_via_parts(
+        self, record_id: int, parts: List[str]
+    ) -> Tuple[str, List[str], int]:
+        """
+        Ensure/repair hierarchy for {parts} and link the record to the leaf.
+        """
+        normalized, log, leaf_id = self.apply_parts(parts)
+        self.m.link_record_to_bin(record_id, leaf_id)  # idempotent
+        log.append(
+            f"Linked record {record_id} → bin {leaf_id} ('{self.m.get_bin_name(leaf_id)}')."
+        )
+        return normalized, log, leaf_id
+
+    def assign_record_many(
+        self, record_id: int, list_of_parts: List[List[str]]
+    ) -> Tuple[List[str], List[str], List[int]]:
+        """
+        Process multiple bin paths for a single record.
+        Returns: (normalized_tokens, combined_log, leaf_ids)
+        """
+        norm_tokens: List[str] = []
+        combined_log: List[str] = []
+        leaf_ids: List[int] = []
+
+        # De-duplicate exact paths to avoid redundant work
+        seen = set()
+        for parts in list_of_parts or []:
+            key = tuple(self.canon(p) for p in parts if (p or "").strip())
+            if not key or key in seen:
+                continue
+            seen.add(key)
+
+            norm, log, leaf_id = self.assign_record_via_parts(record_id, list(key))
+            norm_tokens.append(norm)
+            combined_log.extend(log)
+            leaf_ids.append(leaf_id)
+
+        return norm_tokens, combined_log, leaf_ids
+
+
 class UrgencyComputer:
     def __init__(self, env: TklrEnvironment):
         self.env = env
@@ -686,6 +999,13 @@ class DatabaseManager:
         self.conn.create_function("REGEXP", 2, regexp)
         self.setup_database()
         self.compute_urgency = UrgencyComputer(env)
+        self.binproc = BinPathProcessor(
+            self,
+            BinPathConfig(
+                allow_reparent=True,  # or False if you want conservative behavior
+                standard_roots=BIN_ROOTS,  # <— same set, all lowercase
+            ),
+        )
 
         yr, wk = datetime.now().isocalendar()[:2]
         log_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
@@ -904,76 +1224,76 @@ class DatabaseManager:
         # ---------------- Busy tables (unchanged) ----------------
         self.setup_busy_tables()
         # Seed default top-level bins (idempotent)
-        self.ensure_root_children(
-            ["activities", "journal", "library", "people", "places", "tags", "unlinked"]
-        )
+
+        self.ensure_root_children(sorted(BIN_ROOTS))
+
         self.conn.commit()
 
-    def setup_busy_tables(self):
-        """
-        Create fine-grained and aggregated busy/conflict tables
-        (15-minute resolution, ternary busy bits stored as BLOBs).
-        """
-
-        # One row per event occurrence per week
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS BusyWeeksFromDateTimes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_id INTEGER NOT NULL,
-                year_week TEXT NOT NULL,
-                busybits BLOB NOT NULL,           -- 672 slots (15-min blocks, 0/1)
-                FOREIGN KEY(record_id) REFERENCES DateTimes(record_id)
-            );
-        """)
-
-        self.cursor.execute("""
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_busy_from_record_week
-                ON BusyWeeksFromDateTimes(record_id, year_week);
-        """)
-
-        # Aggregate layer: one per year-week
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS BusyWeeks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                year_week TEXT UNIQUE NOT NULL,
-                busybits TEXT NOT NULL  -- 35-character string of '0','1','2' (7×[1+4] per day)
-            );
-        """)
-
-        # Update queue table for incremental recomputation
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS BusyUpdateQueue (
-                record_id INTEGER PRIMARY KEY
-            );
-        """)
-
-        # Triggers on DateTimes to enqueue changed record_id
-        self.cursor.execute("""
-            CREATE TRIGGER IF NOT EXISTS trig_busy_insert
-            AFTER INSERT ON DateTimes
-            BEGIN
-                INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
-                VALUES (NEW.record_id);
-            END;
-        """)
-
-        self.cursor.execute("""
-            CREATE TRIGGER IF NOT EXISTS trig_busy_update
-            AFTER UPDATE ON DateTimes
-            BEGIN
-                INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
-                VALUES (NEW.record_id);
-            END;
-        """)
-
-        self.cursor.execute("""
-            CREATE TRIGGER IF NOT EXISTS trig_busy_delete
-            AFTER DELETE ON DateTimes
-            BEGIN
-                INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
-                VALUES (OLD.record_id);
-            END;
-        """)
+    # def setup_busy_tables(self):
+    #     """
+    #     Create fine-grained and aggregated busy/conflict tables
+    #     (15-minute resolution, ternary busy bits stored as BLOBs).
+    #     """
+    #
+    #     # One row per event occurrence per week
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS BusyWeeksFromDateTimes (
+    #             id INTEGER PRIMARY KEY AUTOINCREMENT,
+    #             record_id INTEGER NOT NULL,
+    #             year_week TEXT NOT NULL,
+    #             busybits BLOB NOT NULL,           -- 672 slots (15-min blocks, 0/1)
+    #             FOREIGN KEY(record_id) REFERENCES DateTimes(record_id)
+    #         );
+    #     """)
+    #
+    #     self.cursor.execute("""
+    #         CREATE UNIQUE INDEX IF NOT EXISTS idx_busy_from_record_week
+    #             ON BusyWeeksFromDateTimes(record_id, year_week);
+    #     """)
+    #
+    #     # Aggregate layer: one per year-week
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS BusyWeeks (
+    #             id INTEGER PRIMARY KEY AUTOINCREMENT,
+    #             year_week TEXT UNIQUE NOT NULL,
+    #             busybits TEXT NOT NULL  -- 35-character string of '0','1','2' (7×[1+4] per day)
+    #         );
+    #     """)
+    #
+    #     # Update queue table for incremental recomputation
+    #     self.cursor.execute("""
+    #         CREATE TABLE IF NOT EXISTS BusyUpdateQueue (
+    #             record_id INTEGER PRIMARY KEY
+    #         );
+    #     """)
+    #
+    #     # Triggers on DateTimes to enqueue changed record_id
+    #     self.cursor.execute("""
+    #         CREATE TRIGGER IF NOT EXISTS trig_busy_insert
+    #         AFTER INSERT ON DateTimes
+    #         BEGIN
+    #             INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
+    #             VALUES (NEW.record_id);
+    #         END;
+    #     """)
+    #
+    #     self.cursor.execute("""
+    #         CREATE TRIGGER IF NOT EXISTS trig_busy_update
+    #         AFTER UPDATE ON DateTimes
+    #         BEGIN
+    #             INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
+    #             VALUES (NEW.record_id);
+    #         END;
+    #     """)
+    #
+    #     self.cursor.execute("""
+    #         CREATE TRIGGER IF NOT EXISTS trig_busy_delete
+    #         AFTER DELETE ON DateTimes
+    #         BEGIN
+    #             INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
+    #             VALUES (OLD.record_id);
+    #         END;
+    #     """)
 
     def setup_busy_tables(self):
         """
@@ -1218,150 +1538,6 @@ class DatabaseManager:
         except Exception as e:
             print(f"Error adding {item}: {e}")
             raise
-
-    # def update_item(self, record_id: int, item: Item):
-    #     """
-    #     Update an existing record with new values from an Item object.
-    #     Only non-None fields in the item will be updated.
-    #     The 'modified' timestamp is always updated.
-    #     """
-    #     try:
-    #         fields = []
-    #         values = []
-    #
-    #         # Map of field names to item attributes
-    #         field_map = {
-    #             "itemtype": item.itemtype,
-    #             "subject": item.subject,
-    #             "description": item.description,
-    #             "rruleset": item.rruleset,
-    #             "timezone": item.tz_str,
-    #             "extent": item.extent,
-    #             "alerts": json.dumps(item.alerts) if item.alerts is not None else None,
-    #             "notice": item.notice,
-    #             "context": item.context,
-    #             "jobs": json.dumps(item.jobs) if item.jobs is not None else None,
-    #             "tags": json.dumps(item.tags) if item.tags is not None else None,
-    #             "tokens": json.dumps(item.tokens) if item.tokens is not None else None,
-    #             "processed": 0,  # reset processed
-    #         }
-    #
-    #         for field, value in field_map.items():
-    #             if value is not None:
-    #                 fields.append(f"{field} = ?")
-    #                 values.append(value)
-    #
-    #         # Always update 'modified' timestamp
-    #         fields.append("modified = ?")
-    #         values.append(utc_now_string())
-    #
-    #         values.append(record_id)
-    #
-    #         sql = f"UPDATE Records SET {', '.join(fields)} WHERE id = ?"
-    #         self.cursor.execute(sql, values)
-    #         self.conn.commit()
-    #     except Exception as e:
-    #         print(f"Error updating record {record_id}: {e}")
-
-    # def update_item_replace(self, record_id: int, item: Item) -> None:
-    #     """
-    #     Full replace, analogous to add_item() but UPDATEs the row.
-    #     Use this on Commit after finalize_*() so rruleset/tokens/jobs/alerts are authoritative.
-    #     """
-    #     try:
-    #         timestamp = utc_now_string()
-    #         self.cursor.execute(
-    #             """
-    #             UPDATE Records SET
-    #                 itemtype = ?,
-    #                 subject = ?,
-    #                 description = ?,
-    #                 rruleset = ?,
-    #                 timezone = ?,
-    #                 extent = ?,
-    #                 alerts = ?,
-    #                 notice = ?,
-    #                 context = ?,
-    #                 jobs = ?,
-    #                 priority = ?,
-    #                 tags = ?,
-    #                 tokens = ?,
-    #                 processed = 0,
-    #                 modified = ?
-    #             WHERE id = ?
-    #             """,
-    #             (
-    #                 item.itemtype,
-    #                 item.subject,
-    #                 item.description,
-    #                 item.rruleset,
-    #                 item.tz_str,
-    #                 item.extent,
-    #                 json.dumps(item.alerts),
-    #                 item.notice,
-    #                 item.context,
-    #                 json.dumps(item.jobs),
-    #                 item.priority,
-    #                 json.dumps(item.tags),
-    #                 json.dumps(item.tokens),
-    #                 timestamp,
-    #                 record_id,
-    #             ),
-    #         )
-    #         self.conn.commit()
-    #
-    #         # Optional: (re)link bins if your editor lets users change bin_path here
-    #         if hasattr(item, "bin_path") and item.bin_path:
-    #             try:
-    #                 # implement to clear old links then link new path if needed
-    #                 self.relink_record_to_bin_path(record_id, item.bin_path)
-    #             except AttributeError:
-    #                 # fall back if you only have link_record_to_bin_path
-    #                 self.link_record_to_bin_path(record_id, item.bin_path)
-    #     except Exception as e:
-    #         print(f"Error updating record {record_id}: {e}")
-    #         raise
-
-    # def update_item(self, record_id: int, item: Item):
-    #     try:
-    #         fields, values = [], []
-    #
-    #         def set_field(name, value):
-    #             if value is not None:
-    #                 fields.append(f"{name} = ?")
-    #                 values.append(value)
-    #
-    #         set_field("itemtype", item.itemtype)
-    #         set_field("subject", item.subject)
-    #         set_field("description", item.description)
-    #         set_field("rruleset", item.rruleset)
-    #         set_field("timezone", item.tz_str)
-    #         set_field("extent", item.extent)
-    #         set_field(
-    #             "alerts", json.dumps(item.alerts) if item.alerts is not None else None
-    #         )
-    #         set_field("notice", item.notice)
-    #         set_field("context", item.context) green
-    #         set_field("jobs", json.dumps(item.jobs) if item.jobs is not None else None)
-    #         set_field("priority", item.priority)
-    #         # ← tags only as JSON in Records
-    #         if item.tags is not None:
-    #             set_field("tags", json.dumps(self._normalize_tags(item.tags)))
-    #         set_field(
-    #             "tokens", json.dumps(item.tokens) if item.tokens is not None else None
-    #         )
-    #         set_field("processed", 0)
-    #
-    #         fields.append("modified = ?")
-    #         values.append(utc_now_string())
-    #         values.append(record_id)
-    #
-    #         sql = f"UPDATE Records SET {', '.join(fields)} WHERE id = ?"
-    #         self.cursor.execute(sql, values)
-    #         self.conn.commit()
-    #     except Exception as e:
-    #         print(f"Error updating record {record_id}: {e}")
-    #         raise
 
     def update_item(self, record_id: int, item: Item):
         try:
@@ -4054,52 +4230,135 @@ class DatabaseManager:
         root_id, _ = self.ensure_system_bins()
         return root_id
 
+    # def ensure_root_children(self, names: list[str]) -> dict[str, int]:
+    #     """
+    #     Ensure lowercased children under root; returns {name: id}.
+    #     Idempotent and safe to call often.
+    #     """
+    #     root_id = self.ensure_root_exists()
+    #     out: dict[str, int] = {}
+    #     for name in names:
+    #         nm = (name or "").strip().lower()
+    #         cid = self.ensure_bin_exists(nm)
+    #         self.cursor.execute(
+    #             "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
+    #             (cid, root_id),
+    #         )
+    #         out[nm] = cid
+    #     self.conn.commit()
+    #     return out
+    #
+
     def ensure_root_children(self, names: list[str]) -> dict[str, int]:
         """
-        Ensure lowercased children under root; returns {name: id}.
-        Idempotent and safe to call often.
+        Ensure lowercased children live directly under root; returns {name: id}.
+        Idempotent and corrects mis-parented roots.
         """
         root_id = self.ensure_root_exists()
         out: dict[str, int] = {}
         for name in names:
             nm = (name or "").strip().lower()
             cid = self.ensure_bin_exists(nm)
+
+            # What is the current parent?
+            parent = self.get_parent_bin(cid)  # {'id','name'} or None
+            if not parent or parent["name"].lower() != "root":
+                # Re-anchor using your cycle-safe move
+                self.move_bin(nm, "root")
+
+            # Make sure a BinLinks row exists (no-op if it already does)
             self.cursor.execute(
                 "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
                 (cid, root_id),
             )
             out[nm] = cid
+
         self.conn.commit()
         return out
 
-    def ensure_bin(self, name: str, parent_id: int | None = None) -> int:
-        """
-        Ensure (bin, parent) exist and the parent link is present.
-        Defaults to parent=root if not given.
-        """
+    # def ensure_bin(self, name: str, parent_id: int | None = None) -> int:
+    #     """
+    #     Ensure (bin, parent) exist and the parent link is present.
+    #     Defaults to parent=root if not given.
+    #     """
+    #     nm = (name or "").strip().lower()
+    #     if not nm:
+    #         raise ValueError("Bin name must be non-empty")
+    #     bin_id = self.ensure_bin_exists(nm)
+    #     if parent_id is None:
+    #         parent_id = self.ensure_root_exists()
+    #     self.cursor.execute(
+    #         "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
+    #         (bin_id, parent_id),
+    #     )
+    #     self.conn.commit()
+    #     return bin_id
+
+    def ensure_bin(
+        self, name: str, parent_id: int | None = None, *, allow_reparent: bool = False
+    ) -> int:
         nm = (name or "").strip().lower()
         if not nm:
             raise ValueError("Bin name must be non-empty")
         bin_id = self.ensure_bin_exists(nm)
         if parent_id is None:
             parent_id = self.ensure_root_exists()
-        self.cursor.execute(
-            "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
-            (bin_id, parent_id),
-        )
-        self.conn.commit()
+
+        parent = self.get_parent_bin(bin_id)
+        if parent is None:
+            # no parent yet — just insert
+            self.cursor.execute(
+                "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
+                (bin_id, parent_id),
+            )
+            self.conn.commit()
+        else:
+            # already has a parent
+            if allow_reparent and parent["id"] != parent_id:
+                # figure out parent's name for move_bin(); cheapest is to query it
+                desired_parent_name = self.get_bin_name(parent_id)
+                self.move_bin(nm, desired_parent_name)
+
         return bin_id
+
+    # def get_or_create_tag_bin(self, tag_name: str) -> int:
+    #     """
+    #     Ensure 'tags' under root, and a child bin 'tags:<name>'.
+    #     """
+    #     canon = (tag_name or "").strip().lower()
+    #     if not canon:
+    #         raise ValueError("Tag name must be non-empty")
+    #     parents = self.ensure_root_children(["tags"])
+    #     tags_parent_id = parents["tags"]
+    #     return self.ensure_bin(f"tags:{canon}", parent_id=tags_parent_id)
+    #
 
     def get_or_create_tag_bin(self, tag_name: str) -> int:
         """
-        Ensure 'tags' under root, and a child bin 'tags:<name>'.
+        Ensure 'tags' under root, and a child bin 'tags:<name>' that lives under 'tags'.
         """
         canon = (tag_name or "").strip().lower()
         if not canon:
             raise ValueError("Tag name must be non-empty")
+
         parents = self.ensure_root_children(["tags"])
         tags_parent_id = parents["tags"]
-        return self.ensure_bin(f"tags:{canon}", parent_id=tags_parent_id)
+
+        tag_bin_name = f"tags:{canon}"
+        bid = self.ensure_bin_exists(tag_bin_name)
+
+        # Re-anchor under 'tags' if needed
+        parent = self.get_parent_bin(bid)
+        if not parent or parent["name"].lower() != "tags":
+            self.move_bin(tag_bin_name, "tags")
+
+        # Ensure a link row exists (no-op if it already does)
+        self.cursor.execute(
+            "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
+            (bid, tags_parent_id),
+        )
+        self.conn.commit()
+        return bid
 
     def link_record_to_bin(self, record_id: int, bin_id: int) -> None:
         self.cursor.execute(
@@ -4179,30 +4438,75 @@ class DatabaseManager:
                 bins.append(value)
         return tags, bins
 
+    # def relink_bins_and_tags_for_record(
+    #     self, record_id: int, item, *, default_parent_name: str = "unlinked"
+    # ) -> None:
+    #     """
+    #     Rebuild ReminderLinks from item.tokens:
+    #     - @t name  => link to bin 'tags:<name>' (ensuring tags parent exists)
+    #     - @b name  => link to bin '<name>' (lowercased). New bins attach under 'unlinked'.
+    #     """
+    #     # Ensure parents we depend on exist
+    #     defaults = self.ensure_root_children(["tags", default_parent_name])
+    #     default_parent_id = defaults[default_parent_name]
+    #
+    #     tags, bins = self._extract_tag_and_bin_names(item)
+    #
+    #     # remove all existing links for this record and recreate deterministically
+    #     self.unlink_record_from_bins(record_id, only_tag_bins=None)
+    #
+    #     for name in tags:
+    #         bid = self.get_or_create_tag_bin(name)
+    #         self.link_record_to_bin(record_id, bid)
+    #
+    #     for name in bins:
+    #         nm = (name or "").strip().lower()
+    #         if not nm:
+    #             continue
+    #         bid = self.ensure_bin(nm, parent_id=default_parent_id)
+    #         self.link_record_to_bin(record_id, bid)
+
     def relink_bins_and_tags_for_record(
         self, record_id: int, item, *, default_parent_name: str = "unlinked"
     ) -> None:
         """
-        Rebuild ReminderLinks from item.tokens:
-        - @t name  => link to bin 'tags:<name>' (ensuring tags parent exists)
-        - @b name  => link to bin '<name>' (lowercased). New bins attach under 'unlinked'.
+        Rebuild ReminderLinks from item:
+        - Tags: use existing @t handling
+        - Bins: prefer item.bin_paths (list[list[str]]); fallback to simple '@b <leaf>' tokens
         """
-        # Ensure parents we depend on exist
+        # Ensure parents we depend on exist (tags + default parent)
         defaults = self.ensure_root_children(["tags", default_parent_name])
         default_parent_id = defaults[default_parent_name]
 
-        tags, bins = self._extract_tag_and_bin_names(item)
-
-        # remove all existing links for this record and recreate deterministically
+        # ---- 1) Unlink everything for a deterministic rebuild ----
         self.unlink_record_from_bins(record_id, only_tag_bins=None)
 
+        # ---- 2) Tags (unchanged) ----
+        tags, simple_bins = self._extract_tag_and_bin_names(
+            item
+        )  # your existing helper
         for name in tags:
             bid = self.get_or_create_tag_bin(name)
             self.link_record_to_bin(record_id, bid)
 
-        for name in bins:
+        # ---- 3) Bins via paths (preferred) ----
+        bin_paths: list[list[str]] = getattr(item, "bin_paths", []) or []
+        if bin_paths:
+            # Uses BinPathProcessor to ensure/repair hierarchy and link the record to each leaf
+            _norm_tokens, _log, _leaf_ids = self.binproc.assign_record_many(
+                record_id, bin_paths
+            )
+            # Optional: surface _log lines somewhere (stdout/UI)
+            # for line in _log: print(f"[bins] {line}")
+            return  # we're done; paths fully handled
+
+        # ---- 4) Fallback (back-compat): simple '@b <leaf>' tokens ----
+        # Keep existing behavior: ensure leaf under 'unlinked' and link record.
+        for name in simple_bins:
             nm = (name or "").strip().lower()
             if not nm:
                 continue
-            bid = self.ensure_bin(nm, parent_id=default_parent_id)
+            bid = self.ensure_bin(
+                nm, parent_id=default_parent_id
+            )  # puts leaf under 'unlinked' if new
             self.link_record_to_bin(record_id, bid)

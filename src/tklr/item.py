@@ -837,6 +837,7 @@ class Item:
         self.previous_tokens = []
         self.relative_tokens = []
         self.last_result = ()
+        self.bin_paths = []
         self.tokens = []
         self.messages = []
         self.validate_messages = []
@@ -1990,17 +1991,30 @@ from: * (event), ~ (task), ^ (project), % (note),
         except Exception as e:
             return False, f"Invalid @s value: {e}", []
 
-    def do_b(self, token: dict) -> tuple[bool, str, list]:
-        """
-        Handle @b <bin_path> (index/bin linkage)
-        """
+    # def do_b(self, token: dict) -> tuple[bool, str, list]:
+    #     """
+    #     Handle @b <bin_path> (index/bin linkage)
+    #     """
+    #     path = token["token"][2:].strip()  # strip "@b"
+    #     if not path:
+    #         return False, "Missing bin path after @i", []
+    #
+    #     self.bin_path = path  # store temporarily for later linking
+    #     log_msg(f"saved {self.bin_path = }")
+    #     return True, f"Linked to bin path '{path}'", []
+
+    def do_b(self, token: dict) -> str:
         path = token["token"][2:].strip()  # strip "@b"
         if not path:
-            return False, "Missing bin path after @i", []
-
-        self.bin_path = path  # store temporarily for later linking
-        log_msg(f"saved {self.bin_path = }")
-        return True, f"Linked to bin path '{path}'", []
+            return False, "Missing bin path after @b", []
+        parts = [p.strip() for p in (path or "").split("/") if p.strip()]
+        if not parts:
+            return False, "Missing bin path after @b", []
+        self.bin_paths.append(parts)
+        v = f"@b {parts[0]}"
+        token["token"] = v
+        log_msg(f"{token = }, {v = }")
+        return True, v, []
 
     def do_job(self, token):
         # Process journal token

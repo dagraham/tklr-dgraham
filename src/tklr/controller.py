@@ -41,7 +41,7 @@ from .model import _fmt_naive, _to_local_naive
 from .list_colors import css_named_colors
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -180,80 +180,17 @@ def _ensure_tokens_list(value):
     return list(value)
 
 
-# def format_tokens(tokens, width, highlight=True):
-#     # tokens = json.loads(tokens)
-#     output_lines = []
-#     current_line = ""
-#     log_msg(f"{tokens = }, {width = }, {highlight = }")
-#
-#     for i, t in enumerate(tokens):
-#         log_msg(f"processing {i = }, {t = }")
-#         token = t["token"].rstrip()
-#         key = t.get("key", "")
-#
-#         if t["t"] == "itemtype":
-#             current_line = ""
-#
-#         if key == "@d":
-#             # Handle @d and @~ blocks: always on their own, preserve and wrap content
-#             if current_line:
-#                 output_lines.append(current_line)
-#                 current_line = ""
-#             output_lines.append("")  # extra newline before @d
-#             wrapped_lines = []
-#             for line in token.splitlines():
-#                 indent = len(line) - len(line.lstrip(" "))
-#                 wrap = textwrap.wrap(line, width=width, subsequent_indent=" " * indent)
-#                 wrapped_lines.extend(wrap or [""])
-#             output_lines.extend(wrapped_lines)
-#             output_lines.append("")  # extra newline after @d
-#             continue
-#
-#         if token.startswith("@~"):
-#             # notice component tasks on a new line
-#             output_lines.append(current_line)
-#             current_line = " "
-#
-#         # Calculate length if this token is added to current_line
-#         if len(current_line) + len(token) + 1 > width:
-#             output_lines.append(current_line)
-#             current_line = ""
-#
-#         if current_line:
-#             current_line += " "
-#
-#         # current_line += f"{token} "
-#         current_line += token
-#
-#     if current_line:
-#         output_lines.append(current_line)
-#
-#     def highlight(line):
-#         # Highlight @x and &x preceded by space or line start, followed by space
-#         color = {
-#             "@": f"{at_color}",
-#             "&": f"{am_color}",
-#         }
-#         return re.sub(
-#             r"(^|(?<=\s))([@&]\S\s)",
-#             # lambda m: m.group(1) + f"[yellow]{m.group(2)}[/yellow]",
-#             lambda m: m.group(1)
-#             + f"[{color[m.group(2)[0]]}]{m.group(2)}[/{color[m.group(2)[0]]}]",
-#             line,
-#         )
-#
-#     if (
-#         len(output_lines) >= 1
-#         and output_lines[0]
-#         and output_lines[0].startswith("entry: ")
-#     ):
-#         line = output_lines.pop(0)
-#         line = f"[{label_color}]entry:[/label_color] [bold yellow]{line[8]}[/bold yellow]{line[9:]}"
-#         # line = f"[bold yellow]{line[4]}[/bold yellow]{line[5:]}"
-#         output_lines.insert(0, line)
-#     log_msg(f"{output_lines = }")
-#
-#     return "\n ".join(highlight(line) for line in output_lines)
+# Stop at end-of-line or the start of another token-ish thing (@, &, +, %, - ...)
+RE_BIN = re.compile(r"@b\s+([^\s].*?)\s*(?=$|[@&+%-])", re.IGNORECASE)
+
+
+def extract_bin_slashpath(line: str) -> str | None:
+    """
+    Example:
+      "Pick up pastry @b Lille\\France\\places @t 9a" -> "Lille\\France\\places"
+    """
+    m = RE_BIN.search(line or "")
+    return m.group(1) if m else None
 
 
 def format_tokens(tokens, width, highlight=True):
@@ -967,6 +904,7 @@ class Controller:
             log_msg(
                 f"{item.itemtype = } {item.has_f = } {item.itemtype in '~^' and item.has_f = }"
             )
+
         record_id = self.db_manager.add_item(item)
 
         if item.completion:

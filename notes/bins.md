@@ -20,6 +20,13 @@ If this could all be made sensible, what about using bins for tags. I.e., having
 - tags
 - unlinked
 
+Thinking about bin paths. What about allowing a user entry such as:
+`@b Liller\France\places`. Note the backward slashes and the reversed direction from bin to parent bin. This would be processed recursively by asking "Does the first bin, Lille, exist?" If it does and Lille is not in the "unlinked" bin - end of story - the reminder is placed in the Lille bin and the rest of the path is discarded.
+
+If, on the other hand, Lille exists but is in the unlinked, then the reminder is placed in Lille and the question turns to whether or not France exists. If it does Lille is moved from "unlinked" to "France" and the question turns to the lineage of France. If it is in the unlinked bin then France is moved to "places" which will be created, if necessary, as part of the standard setup, and placed in root. If France is not in unlinked, then again, end of story. The final result is that the reminder is left with the token "@b Lille" with the rest of the path removed as it is now redundant.
+
+Thinking about flow. What if when Item.parse_input dispatches do_b to process, e.g., "@b Lille/France/places", it splits the entry on "/" (back to using forward slashes), adds the list "[Lille, France, Places]" of component bins to self.bin_paths (a list of lists), and returns "@b Lille" as the token. Without forward slashes, e.g., "@b Lille", just "[Lille]" would be added to self.bin_paths. When controller.add_item is called, then it would be up to controller to process the lists in item.bin_paths using the logic in BinPathProcessor (renamed from BackPathProcessor to avoid confusion with backups). I.e., controller would be responsible for all things relating to bin creation and links.
+
 # Bins
 
 - activities
