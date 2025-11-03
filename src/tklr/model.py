@@ -4268,25 +4268,6 @@ class DatabaseManager:
         root_id, _ = self.ensure_system_bins()
         return root_id
 
-    # def ensure_root_children(self, names: list[str]) -> dict[str, int]:
-    #     """
-    #     Ensure lowercased children under root; returns {name: id}.
-    #     Idempotent and safe to call often.
-    #     """
-    #     root_id = self.ensure_root_exists()
-    #     out: dict[str, int] = {}
-    #     for name in names:
-    #         nm = (name or "").strip().lower()
-    #         cid = self.ensure_bin_exists(nm)
-    #         self.cursor.execute(
-    #             "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
-    #             (cid, root_id),
-    #         )
-    #         out[nm] = cid
-    #     self.conn.commit()
-    #     return out
-    #
-
     def ensure_root_children(self, names: list[str]) -> dict[str, int]:
         """
         Ensure lowercased children live directly under root; returns {name: id}.
@@ -4310,24 +4291,6 @@ class DatabaseManager:
 
         self.conn.commit()
         return out
-
-    # def ensure_bin(self, name: str, parent_id: int | None = None) -> int:
-    #     """
-    #     Ensure (bin, parent) exist and the parent link is present.
-    #     Defaults to parent=root if not given.
-    #     """
-    #     nm = (name or "").strip().lower()
-    #     if not nm:
-    #         raise ValueError("Bin name must be non-empty")
-    #     bin_id = self.ensure_bin_exists(nm)
-    #     if parent_id is None:
-    #         parent_id = self.ensure_root_exists()
-    #     self.cursor.execute(
-    #         "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
-    #         (bin_id, parent_id),
-    #     )
-    #     self.conn.commit()
-    #     return bin_id
 
     def ensure_bin(
         self, name: str, parent_id: int | None = None, *, allow_reparent: bool = False
@@ -4355,18 +4318,6 @@ class DatabaseManager:
                 self.move_bin(nm, desired_parent_name)
 
         return bin_id
-
-    # def get_or_create_tag_bin(self, tag_name: str) -> int:
-    #     """
-    #     Ensure 'tags' under root, and a child bin 'tags:<name>'.
-    #     """
-    #     canon = (tag_name or "").strip().lower()
-    #     if not canon:
-    #         raise ValueError("Tag name must be non-empty")
-    #     parents = self.ensure_root_children(["tags"])
-    #     tags_parent_id = parents["tags"]
-    #     return self.ensure_bin(f"tags:{canon}", parent_id=tags_parent_id)
-    #
 
     def get_or_create_tag_bin(self, tag_name: str) -> int:
         """
@@ -4472,34 +4423,6 @@ class DatabaseManager:
             elif k == "b":
                 bins.append(value)
         return tags, bins
-
-    # def relink_bins_and_tags_for_record(
-    #     self, record_id: int, item, *, default_parent_name: str = "unlinked"
-    # ) -> None:
-    #     """
-    #     Rebuild ReminderLinks from item.tokens:
-    #     - @t name  => link to bin 'tags:<name>' (ensuring tags parent exists)
-    #     - @b name  => link to bin '<name>' (lowercased). New bins attach under 'unlinked'.
-    #     """
-    #     # Ensure parents we depend on exist
-    #     defaults = self.ensure_root_children(["tags", default_parent_name])
-    #     default_parent_id = defaults[default_parent_name]
-    #
-    #     tags, bins = self._extract_tag_and_bin_names(item)
-    #
-    #     # remove all existing links for this record and recreate deterministically
-    #     self.unlink_record_from_bins(record_id, only_tag_bins=None)
-    #
-    #     for name in tags:
-    #         bid = self.get_or_create_tag_bin(name)
-    #         self.link_record_to_bin(record_id, bid)
-    #
-    #     for name in bins:
-    #         nm = (name or "").strip().lower()
-    #         if not nm:
-    #             continue
-    #         bid = self.ensure_bin(nm, parent_id=default_parent_id)
-    #         self.link_record_to_bin(record_id, bid)
 
     def relink_bins_and_tags_for_record(
         self, record_id: int, item, *, default_parent_name: str = "unlinked"

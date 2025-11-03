@@ -27,6 +27,10 @@ If, on the other hand, Lille exists but is in the unlinked, then the reminder is
 
 Thinking about flow. What if when Item.parse_input dispatches do_b to process, e.g., "@b Lille/France/places", it splits the entry on "/" (back to using forward slashes), adds the list "[Lille, France, Places]" of component bins to self.bin_paths (a list of lists), and returns "@b Lille" as the token. Without forward slashes, e.g., "@b Lille", just "[Lille]" would be added to self.bin_paths. When controller.add_item is called, then it would be up to controller to process the lists in item.bin_paths using the logic in BinPathProcessor (renamed from BackPathProcessor to avoid confusion with backups). I.e., controller would be responsible for all things relating to bin creation and links.
 
+## Bin Editor
+
+What about a tree display of the bin directory with with the roots tagged, "a", "b", ... Pressing the tag of a root bin would select the bin and expose its children, remove the tags from the roots, tag the parent of the selected bin "a" and the children of the selected bin "b", "c", ... and so forth. Say places, France is selected and thus places is tagged "a" and suppose "Lille" is the first child of France and thus tagged "b". At this point "a" would return the selection to "places" and "b" would change the selection to "Lille". Additionally there would be commands available that act on the selection, France, itself: rename, move, add (child)
+
 # Bins
 
 - activities
