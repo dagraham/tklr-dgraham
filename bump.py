@@ -5,7 +5,6 @@ import sys
 import subprocess
 from datetime import datetime
 import tomllib
-import tomli_w
 
 PYPROJECT_PATH = "pyproject.toml"
 MAIN_BRANCH = "master"
