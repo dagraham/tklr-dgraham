@@ -201,7 +201,7 @@ if input("Switch to master, merge working, and push? [yN] ").lower() == "y":
     if input("Upload to PyPI using uv publish? [yN] ").lower() == "y":
         if not NO_CLEAN:
             clean_build_artifacts()
-        check_output("uv publish --yes")
+        check_output("uv publish")
 
 else:
     print(f"Retained version: {version}")
