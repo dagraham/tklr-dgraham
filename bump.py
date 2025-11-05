@@ -4,13 +4,27 @@ import os
 import sys
 import subprocess
 from datetime import datetime
+from pathlib import Path
 import tomllib
-import tomli_w
+from tomlkit import parse as toml_parse, dumps as toml_dumps
 
-PYPROJECT_PATH = "pyproject.toml"
+PYPROJECT_PATH = Path("pyproject.toml")
 MAIN_BRANCH = "master"
 WORKING_BRANCH = "working"
 DRY_RUN = "--dry-run" in sys.argv
+
+
+def load_version():
+    with PYPROJECT_PATH.open("rb") as f:
+        data = tomllib.load(f)
+    return data["project"]["version"]
+
+
+def write_version(new_version: str):
+    text = PYPROJECT_PATH.read_text(encoding="utf-8")
+    doc = toml_parse(text)
+    doc["project"]["version"] = new_version
+    PYPROJECT_PATH.write_text(toml_dumps(doc), encoding="utf-8")
 
 
 def check_output(cmd):
@@ -29,18 +43,18 @@ def check_output(cmd):
         return False, e.output.strip().split("\n")[-1]
 
 
-def load_version():
-    with open(PYPROJECT_PATH, "rb") as f:
-        data = tomllib.load(f)
-    return data["project"]["version"]
-
-
-def write_version(new_version):
-    with open(PYPROJECT_PATH, "rb") as f:
-        data = tomllib.load(f)
-    data["project"]["version"] = new_version
-    with open(PYPROJECT_PATH, "wb") as f:
-        f.write(tomli_w.dumps(data).encode("utf-8"))
+# def load_version():
+#     with open(PYPROJECT_PATH, "rb") as f:
+#         data = tomllib.load(f)
+#     return data["project"]["version"]
+#
+#
+# def write_version(new_version):
+#     with open(PYPROJECT_PATH, "rb") as f:
+#         data = tomllib.load(f)
+#     data["project"]["version"] = new_version
+#     with open(PYPROJECT_PATH, "wb") as f:
+#         f.write(tomli_w.dumps(data).encode("utf-8"))
 
 
 # --- Ensure we're on the working branch ---

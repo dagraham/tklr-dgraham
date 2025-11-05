@@ -21,6 +21,7 @@ dependencies = [
     "pip>=25.3",
     "pyperclip>=1.11.0",
     "tomli-w>=1.2.0",
+    "tomlkit>=0.13.3",
 ]
 
 [project.optional-dependencies]
