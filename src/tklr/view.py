@@ -372,61 +372,244 @@ class SafeScreen(Screen):
 # ---- Textual screen: Bin Hierarchy ----
 
 
-class BinHierarchyScreen(ModalScreen[None]):
-    BINDINGS = [("escape", "dismiss", "Close")]
+# class BinHierarchyScreen(Screen[None]):
+#     BINDINGS = [("escape", "dismiss", "Close")]
+#
+#     def __init__(self, db):
+#         super().__init__()
+#         self.db = db
+#         self._tree: Tree | None = None
+#
+#     def compose(self) -> ComposeResult:
+#         # yield Header(show_clock=False)
+#         yield Static("Bin Paths", id="bins_title", classes="title-class")
+#         tree = Tree("Bins", id="bins-tree")  # ← no expand= here
+#         self._tree = tree
+#         yield tree
+#         yield Static(" [bold yellow]esc[/bold yellow] Back")
+#
+#     # def action_dismiss(self) -> None:
+#     #     self.dismiss(None)
+#
+#     # @on(Key)
+#     # def _(self, event: Key) -> None:
+#     #     if event.key in ("escape"):
+#     #         self.dismiss(None)
+#
+#     def on_mount(self) -> None:
+#         self._populate_tree()
+#         # expand the root after it exists
+#         if self._tree is not None and self._tree.root is not None:
+#             self._tree.root.expand()
+#
+#     def _populate_tree(self) -> None:
+#         tree = self._tree
+#         if tree is None:
+#             return
+#
+#         root_id = self.db.ensure_root_exists()
+#         root = tree.root
+#
+#         # Set label
+#         root.set_label(self.db.get_bin_name(root_id))
+#
+#         # 🔧 Instead of root.clear(): remove existing children explicitly
+#         for child in list(root.children):
+#             child.remove()
+#
+#         def add_nodes(parent_node: Tree.Node, bin_id: int) -> None:
+#             for child in self.db.get_subbins(bin_id):
+#                 label = f"{child['name']}  ({child['subbins']}/{child['reminders']})"
+#                 child_node = parent_node.add(label)
+#                 add_nodes(child_node, child["id"])  # recurse
+#                 # optionally auto-expand populated nodes:
+#                 if child["subbins"] or child["reminders"]:
+#                     child_node.expand()
+#
+#         add_nodes(root, root_id)
+#         tree.refresh(layout=True)
+
+
+INITIAL_EXPAND_DEPTH = (
+    9  # 0=root only, 1=children, 2=grandchildren, 3=great-grandchildren, ...
+)
+
+
+class BinHierarchyScreen(Screen[None]):
+    """Bins tree with pretty labels and counts."""
+
+    BINDINGS = [
+        ("escape", "dismiss", "Close"),
+        ("+", "expand_depth_plus", "Depth +1"),
+        ("-", "expand_depth_minus", "Depth -1"),
+    ]
 
     def __init__(self, db):
         super().__init__()
         self.db = db
         self._tree: Tree | None = None
+        self.expand_depth: int = 3  # <- instance-level default
 
+    # ---------- UI ----------
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=False)
-        tree = Tree("Bins", id="bins-tree")  # ← no expand= here
+        yield Static("Bins Tree", id="bins_title", classes="title-class")
+        tree = Tree("Bins", id="bins-tree")
         self._tree = tree
         yield tree
-        yield Footer()
-
-    def action_dismiss(self) -> None:
-        self.dismiss(None)
-
-    @on(Key)
-    def _(self, event: Key) -> None:
-        if event.key in ("escape"):
-            self.dismiss(None)
+        yield Static(" [bold yellow]esc[/bold yellow] Back")
 
     def on_mount(self) -> None:
         self._populate_tree()
-        # expand the root after it exists
-        if self._tree is not None and self._tree.root is not None:
-            self._tree.root.expand()
+        self._apply_expand_depth()  # <- use the instance value
 
+    def action_dismiss(self) -> None:
+        log_msg("action_dismiss")
+        self.dismiss(None)
+
+    def _apply_expand_depth(self) -> None:
+        if not self._tree:
+            return
+        root = self._tree.root
+        if not root:
+            return
+        with self._tree.batch_update():
+            self._collapse_all(root)
+            self._expand_to_depth(root, self.expand_depth)
+        self._tree.refresh(layout=True)
+
+    def action_expand_depth_plus(self) -> None:
+        self.expand_depth = min(self.expand_depth + 1, 12)
+        self._apply_expand_depth()
+
+    def action_expand_depth_minus(self) -> None:
+        self.expand_depth = max(self.expand_depth - 1, 0)
+        self._apply_expand_depth()
+
+    def action_set_expand_depth(self, depth: str) -> None:
+        # Textual passes args as strings from bindings/commands
+        try:
+            d = max(0, min(int(depth), 99))
+        except ValueError:
+            return
+        self.expand_depth = d
+        self._apply_expand_depth()
+
+    # --- helpers you already have ---
+    def _collapse_all(self, node) -> None:
+        node.collapse()
+        for child in list(node.children):
+            self._collapse_all(child)
+
+    def _expand_to_depth(self, node, depth: int) -> None:
+        if depth <= 0:
+            return
+        node.expand()
+        if depth == 1:
+            return
+        for child in list(node.children):
+            self._expand_to_depth(child, depth - 1)
+
+    # ---------- Helpers ----------
+    def _pretty_child_name(self, parent_name: str, child_name: str) -> str:
+        """Trim exactly 'parent:' from the front of the child name."""
+        if not parent_name:
+            return child_name
+        prefix = f"{parent_name}:"
+        if child_name.startswith(prefix):
+            suffix = child_name[len(prefix) :]
+            return suffix or child_name  # never empty
+        return child_name
+
+    # ---------- Build tree (eager, single pass) ----------
     def _populate_tree(self) -> None:
         tree = self._tree
         if tree is None:
             return
 
+        # Root from DB
         root_id = self.db.ensure_root_exists()
+        root_name = self.db.get_bin_name(root_id)
+
         root = tree.root
-
-        # Set label
+        self._tree_root = tree.root
         root.set_label(self.db.get_bin_name(root_id))
+        # root.set_label(root_name)
+        # root.data = {"bin_id": root_id, "full_name": root_name}
 
-        # 🔧 Instead of root.clear(): remove existing children explicitly
+        # Clear any existing children without nuking the root widget
         for child in list(root.children):
             child.remove()
 
-        def add_nodes(parent_node: Tree.Node, bin_id: int) -> None:
+        # Recurse using your existing API: db.get_subbins(parent_id)
+        def add_nodes(
+            parent_node: Tree.Node, parent_full_name: str, bin_id: int
+        ) -> None:
+            # Expecting each item to have: id, name (full), subbins, reminders
             for child in self.db.get_subbins(bin_id):
-                label = f"{child['name']}  ({child['subbins']}/{child['reminders']})"
-                child_node = parent_node.add(label)
-                add_nodes(child_node, child["id"])  # recurse
-                # optionally auto-expand populated nodes:
-                if child["subbins"] or child["reminders"]:
-                    child_node.expand()
+                full_name = child["name"]
+                pretty = self._pretty_child_name(parent_full_name, full_name)
+                label = f"{pretty}  ({child['subbins']}/{child['reminders']})"
 
-        add_nodes(root, root_id)
+                child_node = parent_node.add(
+                    label,
+                    data={"bin_id": child["id"], "full_name": full_name},
+                )
+                # Recurse
+                add_nodes(child_node, full_name, child["id"])
+
+        add_nodes(root, root_name, root_id)
+
+        # Expand to desired initial depth
+        self._expand_to_depth(root, INITIAL_EXPAND_DEPTH)
+
+        # Refresh layout once at the end
         tree.refresh(layout=True)
+
+    def _expand_to_depth(self, node, depth: int) -> None:
+        if depth <= 0:
+            return
+        node.expand()
+        if depth == 1:
+            return
+        for child in list(node.children):
+            self._expand_to_depth(child, depth - 1)
+
+    def _collapse_all(self, node) -> None:
+        node.collapse()
+        for child in list(node.children):
+            self._collapse_all(child)
+
+    def _apply_expand_depth(self) -> None:
+        """Collapse everything, then expand to self.expand_depth, then repaint."""
+        if not self._tree:
+            return
+        root = self._tree.root
+        if not root:
+            return
+
+        # 1) mutate the nodes
+        self._collapse_all(root)
+        self._expand_to_depth(root, self.expand_depth)
+
+        # 2) force a repaint of the Tree (and optionally the whole Screen)
+        self._tree.refresh(layout=True)
+        # If your terminal/UI still doesn’t show it immediately, schedule a next-tick refresh:
+        # self.set_timer(0, lambda: self._tree.refresh(layout=True))
+
+    def action_expand_depth_plus(self) -> None:
+        self.expand_depth = min(self.expand_depth + 1, 12)
+        self._apply_expand_depth()
+
+    def action_expand_depth_minus(self) -> None:
+        self.expand_depth = max(self.expand_depth - 1, 0)
+        self._apply_expand_depth()
+
+    def action_set_expand_depth(self, depth: str) -> None:
+        try:
+            self.expand_depth = max(0, min(int(depth), 99))
+        except ValueError:
+            return
+        self._apply_expand_depth()
 
 
 class ListWithDetails(Container):
@@ -794,7 +977,9 @@ class EditorScreen(Screen):
         from tklr.item import Item  # adjust import to your layout if needed
 
         self.ItemCls = Item
-        self.item = self.ItemCls(seed_text)  # initialize with existing text
+        self.item = self.ItemCls(
+            seed_text, controller=self.controller
+        )  # initialize with existing text
         self._feedback_lines: list[str] = []
 
         # widgets
@@ -894,6 +1079,7 @@ class EditorScreen(Screen):
 
         self.item.final = True
         self.item.parse_input(self.entry_text)
+        self.item.finalize_record()
         return self.item.parse_ok
 
         # Repaint feedback based on current item state (errors or token help).
@@ -1021,7 +1207,7 @@ class EditorScreen(Screen):
         log_msg(f"{idx = } {tok = }")
 
         if not tok:
-            panel.update("")
+            # panel.update("")
             return
 
         ttype = tok.get("t", "")
@@ -1055,68 +1241,6 @@ class EditorScreen(Screen):
             panel.update(f"{description} {preview or raw}")
         else:
             panel.update(f"↳ {raw}{preview}")
-
-        # def _format_token_info(self, t: dict) -> str:
-        #     """Human-friendly, minimal description for a token dict."""
-        #     tok = t.get("token", "")
-        #     ttype = t.get("t", "")
-        #     key = t.get("k", "")
-        #
-        #     # Friendly names for @-keys and &-keys (extend as you like)
-        #     _AT_DESC = {
-        #         "#": "Ref / id",
-        #         "+": "Include date",
-        #         "-": "Omit date",
-        #         "a": "Alert",
-        #         "b": "Begin-by",
-        #         "c": "Context",
-        #         "d": "Description",
-        #         "e": "Extent",
-        #         "g": "Goal",
-        #         "k": "Keyword",
-        #         "l": "Location",
-        #         "m": "Mask",
-        #         "n": "Notice",
-        #         "o": "Offset",
-        #         "p": "Priority (0 or 1–9)",
-        #         "r": "Repetition rule",
-        #         "s": "Scheduled date/time",
-        #         "t": "Tag(s)",
-        #         "u": "URL",
-        #         "w": "Wait / defer until",
-        #         "x": "Exclude dates",
-        #         "z": "Time zone",
-        #     }
-        #     _AMP_DESC = {
-        #         "r": "Repetiton frequency",
-        #         "c": "Count",
-        #         "d": "By month day",
-        #         "m": "By month",
-        #         "H": "By hour",
-        #         "M": "By minute",
-        #         "E": "By-second",
-        #         "i": "Interval",
-        #         "s": "Schedule offset",
-        #         "u": "Until",
-        #         "W": "ISO week",
-        #         "w": "Weekday modifier",
-        #     }
-        #
-        #     if ttype == "@":
-        #         desc = _AT_DESC.get(key, "Field")
-        #         return f"↳ @{key} — {desc}\n   {tok}"
-        #     if ttype == "&":
-        #         desc = _AMP_DESC.get(key, "Modifier")
-        #         # Show parent if present (e.g., modifiers under @r)
-        #         parent = t.get("parent")
-        #         parent_str = f" (for @{parent})" if parent else ""
-        #         return f"↳ &{key}{parent_str} — {desc}\n   {tok}"
-        #     if ttype == "itemtype":
-        #         return f"↳ Type\n   {tok}"
-        #     if ttype == "subject":
-        #         return f"↳ Subject\n   {tok}"
-        #     # Fallback
-        #     return f"↳ {tok}"
 
     def _persist(self, item) -> None:
         """Create or update the DB row using your model layer; only called when parse_ok is True."""
@@ -2454,123 +2578,6 @@ class BinView(SearchableScreen):
             return ""
         # return " ".join("●" if i == self.current_page else "○" for i in range(n))
         return f"{self.current_page + 1}/{n}"
-
-    # Search routing already provided by SearchableScreen.get_search_target()
-
-
-# class BinScreen(SearchableScreen):
-#     """Single-bin browser using controller-prepared pages."""
-#
-#     def __init__(self, pages: List[Page], title: str, bin_id: int, footer: str = ""):
-#         super().__init__()
-#         self.pages = pages
-#         self.title = title
-#         self.bin_id = bin_id
-#         self.current_page = 0
-#         self.list_with_details: Optional[ListWithDetails] = None
-#         self.footer_text = (
-#             footer
-#             or f"[bold {FOOTER}]esc[/bold {FOOTER}] Root   [bold {FOOTER}]←/→[/bold {FOOTER}] Page"
-#         )
-#
-#     # --- small API so DynamicViewApp can drive it like your other views ----
-#     def has_next_page(self) -> bool:
-#         return self.current_page < len(self.pages) - 1
-#
-#     def has_prev_page(self) -> bool:
-#         return self.current_page > 0
-#
-#     def next_page(self) -> None:
-#         if self.has_next_page():
-#             self.current_page += 1
-#             self._refresh_page()
-#
-#     def previous_page(self) -> None:
-#         if self.has_prev_page():
-#             self.current_page -= 1
-#             self._refresh_page()
-#
-#     def reset_to_first_page(self) -> None:
-#         self.current_page = 0
-#         self._refresh_page()
-#
-#     def get_record_for_tag(self, tag: str):
-#         """For compatibility: return (record_id, job_id) or None when tag is a reminder; None for bins."""
-#         if not self.pages:
-#             return None
-#         _, tag_map = self.pages[self.current_page]
-#         hit = tag_map.get(tag)
-#         if not hit:
-#             return None
-#         kind, payload = hit
-#         if kind == "reminder":
-#             return payload  # (record_id, job_id)
-#         return None
-#
-#     def show_details_for_tag(self, tag: str) -> None:
-#         """Handle both kinds: bins navigate, reminders open details."""
-#         if not self.pages:
-#             return
-#         _, tag_map = self.pages[self.current_page]
-#         hit = tag_map.get(tag)
-#         if not hit:
-#             return
-#         kind, payload = hit
-#         if kind == "bin":
-#             self._goto_bin(int(payload))
-#             return
-#         record_id, job_id = payload
-#         title, lines, meta = self.app.controller.get_details_for_record(
-#             record_id, job_id
-#         )
-#         if self.list_with_details:
-#             self.list_with_details.show_details(title, lines, meta)
-#
-#     # --- compose / mount / refresh -----------------------------------------
-#     def compose(self):
-#         yield Static("", id="bin_title", classes="title-class")
-#         self.list_with_details = ListWithDetails(id="list")
-#         # reuse your detail handler (same as other views)
-#         self.list_with_details.set_detail_key_handler(
-#             self.app.make_detail_key_handler(view_name="bin")
-#         )
-#         yield self.list_with_details
-#         yield Static(self.footer_text, id="custom_footer")
-#
-#     def on_mount(self):
-#         self._refresh_page()
-#
-#     def _page_bullets(self) -> str:
-#         n = len(self.pages)
-#         if n <= 1:
-#             return ""
-#         return " ".join("●" if i == self.current_page else "○" for i in range(n))
-#
-#     def _refresh_page(self):
-#         if not self.list_with_details:
-#             return
-#         if not self.pages:
-#             self.list_with_details.update_list([])
-#             self.query_one("#bin_title", Static).update(self.title)
-#             return
-#
-#         rows, _ = self.pages[self.current_page]
-#         self.list_with_details.update_list(rows)
-#         self.query_one("#bin_title", Static).update(
-#             f"{self.title}\n{self._page_bullets()}"
-#         )
-#
-#         if self.list_with_details.has_details_open():
-#             self.list_with_details.hide_details()
-#
-#     # --- internal navigation -------------------------------------------------
-#     def _goto_bin(self, new_bin_id: int):
-#         pages, title = self.app.controller.get_bin(new_bin_id)
-#         self.pages = pages
-#         self.title = title
-#         self.bin_id = new_bin_id
-#         self.current_page = 0
-#         self._refresh_page()
 
 
 class DynamicViewApp(App):

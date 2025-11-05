@@ -22,7 +22,8 @@ Screen {
 #events_title,
 #tasks_title,
 #dt_title,
-#ed_title {
+#ed_title,
+#bins_title {
   color: white;
   border-bottom: solid #7f7f7f;
   text-style: bold;
@@ -227,4 +228,68 @@ ListWithDetails > #details-list.hidden {
   height: auto;
   /* border: none; */
   border-bottom: #7f7f7f; /* optional separator */
+}
+
+/* ── BinHierarchyScreen ───────────────────────────── */
+
+/* Make the tree fill the vertical space between Header and Footer */
+#bins-tree {
+  height: 1fr; /* grow to fill */
+  margin: 0;
+  padding: 0 1; /* match your other lists */
+  /* border: solid #7f7f7f; */
+  background: #373737; /* same dark base */
+  color: #e0e0e0; /* legible on dark */
+  overflow: auto; /* scroll if tall */
+}
+
+/* Stronger focus ring to mirror inputs’ focus state */
+#bins-tree:focus {
+  /* border: heavy #7f7f7f; */
+  background: #2e2e2e; /* slight focus darken like #dt_entry / #ed_entry */
+}
+
+/* Optional: tighten header/footer to your house style */
+BinHierarchyScreen > Header,
+BinHierarchyScreen > Footer {
+  background: #373737;
+  color: white;
+  border: none;
+}
+
+/* ── Tree niceties (Textual’s internal parts) ───────
+   These selectors are supported by Textual’s Tree widget.
+   If you’re on a very old Textual, you can safely delete them. */
+
+/* Guides (│ ├ └) */
+#bins-tree .tree--guides {
+  color: #7f7f7f;
+}
+
+/* The row your cursor is on */
+#bins-tree .tree--cursor {
+  background: #2e2e2e;
+  color: white;
+  text-style: bold;
+}
+
+/* Labels (node text) */
+#bins-tree .tree--label {
+  color: #e0e0e0;
+}
+
+/* Expanded node labels a touch bolder for hierarchy pop */
+#bins-tree .tree--label.-expanded {
+  text-style: bold;
+}
+
+/* Dim disabled nodes (if you ever mark any) */
+#bins-tree .-disabled .tree--label {
+  color: #7f7f7f;
+}
+
+/* Scrollbar to match the rest of the app (works on recent Textual) */
+#bins-tree {
+  scrollbar-gutter: stable;
+  scrollbar-color: #7f7f7f #373737; /* thumb, track */
 }

@@ -100,6 +100,39 @@ def _attach_zone(dt: datetime, zone) -> datetime:
     return dt.astimezone(zone)
 
 
+def _parts(s: str) -> List[str]:
+    return [p for p in s.split("/") if p]
+
+
+def _norm(s: str) -> str:
+    return "/".join(_parts(s)).lower()
+
+
+def _ordered_prefix_matches(paths: List[str], frag: str, limit: int = 24) -> List[str]:
+    segs = [s.lower() for s in _parts(frag)]
+    out: List[str] = []
+    for p in paths:
+        toks = [t.lower() for t in p.split("/")]
+        if len(toks) >= len(segs) and all(
+            toks[i].startswith(segs[i]) for i in range(len(segs))
+        ):
+            out.append(p)
+            if len(out) >= limit:
+                break
+    out.sort(key=lambda s: (s.count("/"), s))
+    return out
+
+
+def _lcp(strings: List[str]) -> str:
+    if not strings:
+        return ""
+    a, b = min(strings), max(strings)
+    i = 0
+    while i < len(a) and i < len(b) and a[i] == b[i]:
+        i += 1
+    return a[:i]
+
+
 def dtstr_to_compact(dt: str) -> str:
     obj = parse_dt(dt)
     if not obj:
@@ -794,6 +827,8 @@ class Item:
         - Item(entry_str, env=env)
         """
         # --- resolve arguments flexibly ---
+        self.controller = kwargs.get("controller")
+
         env = kwargs.get("env")
         raw = kwargs.get("raw")
         self.final: bool = bool(kwargs.get("final", False))  # ← NEW
@@ -885,6 +920,7 @@ class Item:
         self.completion: tuple[datetime, datetime | None] | None = None
         self.over = ""
         self.has_f = False  # True if there is an @f to process after parsing tokens
+        self.has_s = False  # True if there is an @f to process after parsing tokens
 
         # --- optional initial parse ---
         self.ampm = False
@@ -921,6 +957,12 @@ class Item:
             self.parse_input(raw)
             # if self.final:
             #     self.finalize_record()
+            #
+
+    def get_name_to_binpath(self) -> dict:
+        if self.final or not self.controller:
+            return {}
+        return self.controller.get_name_to_binpath()
 
     def to_entry(self) -> str:
         """
@@ -1030,6 +1072,9 @@ class Item:
         if self.has_f:
             self.itemtype = "x"
             self.finish()
+
+        if self.has_s:
+            self._set_start_dt()
 
         self.tokens = self._strip_positions(self.relative_tokens)
         log_msg(f"{self.relative_tokens = }; {self.tokens = }")
@@ -1141,7 +1186,7 @@ from: * (event), ~ (task), ^ (project), % (note),
             needed_msg = ""
         return needed_msg
 
-    def fmt_user(self, dt: datetime) -> str:
+    def fmt_user(self, dt: date | datetime) -> str:
         """
         User friendly formatting for dates and datetimes using env settings
         for ampm, yearfirst, dayfirst and two_digit year.
@@ -1154,6 +1199,21 @@ from: * (event), ~ (task), ^ (project), % (note),
             return d.strftime(self.datetimefmt)
         if isinstance(dt, date):
             return dt.strftime(self.datefmt)
+        raise ValueError(f"Error: {dt} must either be a date or datetime")
+
+    def fmt_verbose(self, dt: date | datetime) -> str:
+        """
+        User friendly formatting for dates and datetimes using env settings
+        for ampm, yearfirst, dayfirst and two_digit year.
+        """
+        # Simple user-facing formatter; tweak to match your prefs
+        if isinstance(dt, datetime):
+            d = dt
+            if d.tzinfo == tz.UTC and not getattr(self, "final", False):
+                d = d.astimezone()
+            return d.strftime(f"%a, %b %-d %Y {self.timefmt} %Z")
+        if isinstance(dt, date):
+            return dt.strftime("%a, %b %-d %Y")
         raise ValueError(f"Error: {dt} must either be a date or datetime")
 
     def fmt_compact(self, dt: datetime) -> str:
@@ -1452,6 +1512,7 @@ from: * (event), ~ (task), ^ (project), % (note),
 
         for token in affected_tokens:
             start_pos, end_pos = token["s"], token["e"]
+            log_msg(f"{start_pos = }, {end_pos = }, {len(entry) = },  {token = }")
             if not self._token_has_changed(token):
                 continue
 
@@ -1468,6 +1529,9 @@ from: * (event), ~ (task), ^ (project), % (note),
                 token_str, anchor_start, anchor_end = anchor_token_info
                 token_type = token["k"]
 
+                log_msg(
+                    f"{anchor_start = }, {anchor_end = }, {len(entry) = },  {token_str = }"
+                )
                 self._dispatch_token(token_str, anchor_start, anchor_end, token_type)
                 dispatched_anchors.add(anchor_pos)
                 continue
@@ -1477,6 +1541,7 @@ from: * (event), ~ (task), ^ (project), % (note),
             elif start_pos == 2:
                 self._dispatch_token(token, start_pos, end_pos, "subject")
             else:
+                log_msg(f"{end_pos = }, {len(entry) = }")
                 token_type = token["k"]
                 self._dispatch_token(token, start_pos, end_pos, token_type)
 
@@ -1964,6 +2029,7 @@ from: * (event), ~ (task), ^ (project), % (note),
                 return False, tz_used or f"Invalid @s value: {raw}", []
 
             userfmt = self.fmt_user(obj)
+            verbosefmt = self.fmt_verbose(obj)
 
             if kind == "date":
                 compact = self._serialize_date(obj)
@@ -1985,36 +2051,127 @@ from: * (event), ~ (task), ^ (project), % (note),
                 else f"DTSTART;VALUE=DATE:{compact}"
             )
             self.rdstart_str = f"RDATE:{compact}"
+            token["token"] = f"@s {userfmt}"
+            log_msg(f"@s --- {token = }")
+            retval = userfmt if self.final else verbosefmt
 
-            return True, userfmt, []
+            return True, retval, []
 
         except Exception as e:
             return False, f"Invalid @s value: {e}", []
 
-    # def do_b(self, token: dict) -> tuple[bool, str, list]:
-    #     """
-    #     Handle @b <bin_path> (index/bin linkage)
-    #     """
-    #     path = token["token"][2:].strip()  # strip "@b"
-    #     if not path:
-    #         return False, "Missing bin path after @i", []
-    #
-    #     self.bin_path = path  # store temporarily for later linking
-    #     log_msg(f"saved {self.bin_path = }")
-    #     return True, f"Linked to bin path '{path}'", []
+    def do_b(self, token: dict) -> Tuple[bool, str, List[str]]:
+        """
+        Live resolver for '@b Leaf/Parent/.../Root' (leaf→root, '/' only).
+        - If matches exist: preview; auto-lock when unique/exact.
+        - If no matches: show per-segment status, e.g. 'Churchill (new)/quotations/library'.
+        """
+        path = token["token"][2:].strip()  # strip '@b'
+        rev_dict = self.get_name_to_binpath()  # {leaf_lower: "Leaf/.../Root"}
+        path = token["token"][2:].strip()  # after '@b'
+        parts = [p.strip() for p in path.split("/") if p.strip()]
 
-    def do_b(self, token: dict) -> str:
-        path = token["token"][2:].strip()  # strip "@b"
-        if not path:
-            return False, "Missing bin path after @b", []
-        parts = [p.strip() for p in (path or "").split("/") if p.strip()]
-        if not parts:
-            return False, "Missing bin path after @b", []
-        self.bin_paths.append(parts)
-        v = f"@b {parts[0]}"
-        token["token"] = v
-        log_msg(f"{token = }, {v = }")
-        return True, v, []
+        # Batch/final or no controller dict → one-shot resolve
+        if self.final or not self.get_name_to_binpath():
+            if not parts:
+                return False, "Missing bin path after @b", []
+            norm = "/".join(parts)  # Leaf/Parent/.../Root
+            token["token"] = f"@b {parts[0]}"  # keep prefix; no decoration
+            if not token.get("_b_resolved"):  # append ONCE (batch runs once anyway)
+                self.bin_paths.append(parts)  # store Leaf→…→Root parts
+                token["_b_resolved"] = True
+            return True, token["token"], []
+
+        # Fallback for batch/final or if controller not wired
+        if not rev_dict:
+            if not path:
+                return False, "Missing bin path after @b", []
+            parts = [p.strip() for p in (path or "").split("/") if p.strip()]
+            if not parts:
+                return False, "Missing bin path after @b", []
+            # keep full token; don't truncate to parts[0]
+            token["token"] = f"@b {parts[0]}"
+            # don't append to bin_paths here; do it on save
+            return True, token["token"], []
+
+        raw = token.get("token", "")
+        frag = raw[2:].strip() if raw.startswith("@b") else raw
+
+        if not frag:
+            msg = "@b Type bin as Leaf/Parent/…"
+            token["token"] = msg
+            token.pop("_b_resolved", None)
+            token.pop("_b_new", None)
+            return True, msg, []
+
+        paths = list(rev_dict.values())  # existing reversed paths
+        matches = _ordered_prefix_matches(paths, frag, limit=24)
+
+        if matches:
+            nf = _norm(frag)
+            exact = next((m for m in matches if _norm(m) == nf), None)
+            if exact or len(matches) == 1:
+                resolved = exact or matches[0]
+                token["token"] = f"@b {resolved}"
+                token["_b_new"] = False
+                token["_b_resolved"] = True
+                return True, token["token"], []
+            # ambiguous → preview + suggestions
+            lcp = _lcp(matches)
+            preview = lcp if lcp and len(lcp) >= len(frag) else matches[0]
+            token["token"] = f"@b {preview}"
+            token.pop("_b_resolved", None)
+            token["_b_new"] = False
+            return True, token["token"], matches
+
+        # ---------- No matches → per-segment feedback ----------
+        parts = [p.strip() for p in frag.split("/") if p.strip()]
+        leaf_to_path = {k.lower(): v for k, v in rev_dict.items()}
+        leafnames = set(leaf_to_path.keys())
+
+        # Build a set of existing leaf-first prefixes for quick “does any path start with X?”
+        # Example: for 'quotations/library/root' we add 'quotations', 'quotations/library', ...
+        prefix_set = set()
+        for p in paths:
+            toks = p.split("/")
+            for i in range(1, len(toks) + 1):
+                prefix_set.add("/".join(toks[:i]).lower())
+
+        decorated: list[str] = []
+        for i, seg in enumerate(parts):
+            seg_l = seg.lower()
+            if i == 0:
+                # Leaf segment: does *any* existing path start with this leaf?
+                starts = f"{seg_l}"
+                if starts not in prefix_set and not any(
+                    s.startswith(starts + "/") for s in prefix_set
+                ):
+                    decorated.append(f"{seg} (new)")
+                else:
+                    decorated.append(seg)
+            else:
+                # Parent segments: if this segment is an existing leaf name, show its known ancestry
+                if seg_l in leafnames:
+                    known = leaf_to_path[seg_l].split(
+                        "/"
+                    )  # e.g., ['quotations','library','root']
+                    # drop the leaf itself (known[0]) since we already have 'seg', and (optionally) drop 'root'
+                    tail = [x for x in known[1:] if x.lower() != "root"]
+                    if tail:
+                        decorated.append("/".join([seg] + tail))
+                    else:
+                        decorated.append(seg)
+                else:
+                    # Not an exact leaf; if no prefixes suggest it, mark (new)
+                    any_prefix = any(k.startswith(seg_l) for k in leafnames)
+                    decorated.append(seg if any_prefix else f"{seg} (new)")
+
+        pretty = "@b " + "/".join(decorated)
+        # Keep the actual token clean (no "(new)"); only the feedback string is decorated
+        token["token"] = f"@b {parts[0]}"
+        token.pop("_b_resolved", None)
+        token["_b_new"] = True
+        return True, pretty, []
 
     def do_job(self, token):
         # Process journal token
@@ -2847,115 +3004,6 @@ from: * (event), ~ (task), ^ (project), % (note),
         self.jobs = job_entries
         return job_entries
 
-    # def finalize_jobs(self, jobs):
-    #     """
-    #     With jobs that have explicit ids and prereqs, build:
-    #     - available jobs (no prereqs or prereqs finished)
-    #     - waiting jobs (unmet prereqs)
-    #     - finished jobs
-    #     """
-    #
-    #     if not jobs:
-    #         return False, "No jobs to process"
-    #     if not self.parse_ok:
-    #         return False, "Error parsing job tokens"
-    #
-    #     # map id -> job
-    #     job_map = {job["i"]: job for job in jobs if "i" in job}
-    #
-    #     # determine finished
-    #     finished = {job["i"] for job in jobs if "f" in job}
-    #
-    #     # build transitive prereqs
-    #     all_prereqs = {}
-    #     for job in jobs:
-    #         if "i" not in job:
-    #             continue
-    #         i = job["i"]
-    #         deps = set([j for j in job.get("reqs", []) if j not in finished])
-    #
-    #         transitive = set(deps)
-    #         to_process = list(deps)
-    #         while to_process:
-    #             d = to_process.pop()
-    #             if d in job_map:
-    #                 subdeps = set(job_map[d].get("reqs", []))
-    #                 for sd in subdeps:
-    #                     if sd not in transitive:
-    #                         transitive.add(sd)
-    #                         to_process.append(sd)
-    #         all_prereqs[i] = transitive
-    #
-    #     available = set()
-    #     waiting = set()
-    #     for i, reqs in all_prereqs.items():
-    #         unmet = reqs - finished
-    #         if unmet:
-    #             waiting.add(i)
-    #         elif i in finished:
-    #             continue
-    #         else:
-    #             available.add(i)
-    #
-    #     for job in jobs:
-    #         if "i" in job and job["i"] not in all_prereqs and job["i"] not in finished:
-    #             available.add(job["i"])
-    #
-    #     blocking = {}
-    #     for i in available:
-    #         blocking[i] = len(waiting) / len(available) if available else 0.0
-    #
-    #     num_available = len(available)
-    #     num_waiting = len(waiting)
-    #     num_finished = len(finished)
-    #
-    #     task_subject = self.subject
-    #     if len(task_subject) > 12:
-    #         task_subject_display = task_subject[:10] + " …"
-    #     else:
-    #         task_subject_display = task_subject
-    #
-    #     final = []
-    #     for job in jobs:
-    #         if "i" not in job:
-    #             continue
-    #         i = job["i"]
-    #         job["prereqs"] = sorted(all_prereqs.get(i, []))
-    #         if i in available:
-    #             job["status"] = "available"
-    #             job["blocking"] = blocking[i]
-    #         elif i in waiting:
-    #             job["status"] = "waiting"
-    #         elif i in finished:
-    #             job["status"] = "finished"
-    #             self.token_map.setdefault("~f", {})
-    #             self.token_map["~f"][i] = self.fmt_user(parse_dt(job["f"]))
-    #
-    #         job["display_subject"] = (
-    #             f"{job['~']} ∊ {task_subject_display} {num_available}/{num_waiting}/{num_finished}"
-    #         )
-    #         final.append(job)
-    #
-    #     self.jobset = json.dumps(final, cls=CustomJSONEncoder)
-    #     self.jobs = final
-    #
-    #     # 🔑 unified injection of @f
-    #     if len(finished) == len(job_map) and finished:
-    #         finish_dts = [parse_dt(job["f"]) for job in jobs if "f" in job]
-    #         if finish_dts:
-    #             finished_dt = max(finish_dts)
-    #             finished_tok = {
-    #                 "token": f"@f {self.fmt_user(finished_dt)}",
-    #                 "t": "@",
-    #                 "k": "f",
-    #             }
-    #             self.add_token(finished_tok)
-    #             self.has_f = True
-    #         for job in jobs:
-    #             job.pop("f", None)
-    #
-    #     return True, final
-
     def finalize_jobs(self, jobs):
         """
         Compute job status (finished / available / waiting)
@@ -3135,70 +3183,6 @@ from: * (event), ~ (task), ^ (project), % (note),
         self.jobset = json.dumps(self.jobs, cls=CustomJSONEncoder)
         return True, self.jobs
 
-    # def do_completion(self, token, *, job_id: int | None = None):
-    #     """
-    #     Handle both:
-    #     - @f <datetime>  (task-wide)  -> add (dt, None) to self.completions
-    #     - &f <datetime>  (job-level)  -> add (dt, job_id) to self.completions
-    #     """
-    #     # Ensure store exists
-    #     if not hasattr(self, "completions"):
-    #         self.completions = []  # list[(datetime, job_id|None)]
-    #
-    #     # Dispatcher passes relative dict for @f and a raw string for &f
-    #     if isinstance(token, dict):  # @f path
-    #         body = token["token"][2:].strip()  # strip "@f"
-    #         # dt = _parse_compact_dt(body) if body[:4].isdigit() else parse(body)
-    #         parts = body.split(",")
-    #         dts = []
-    #         dt_objs = []
-    #         msgs = []
-    #         for part in parts:  # NOTE: there should be at most 2 parts
-    #             try:
-    #                 dt = parse(part)
-    #                 dt_objs.append(dt)
-    #                 dts.append(self.fmt_user(dt))
-    #             except Exception as e:
-    #                 msgs.append(f"Error parsing {part}: {e}")
-    #         if msgs:
-    #             log_msg(f"completion error {msgs = }")
-    #             return False, ", ".join(msgs), []
-    #         token["token"] = f"@f {', '.join(dts)}"
-    #         token["t"] = "@"
-    #         token["k"] = "f"
-    #
-    #         # dt = parse(body)
-    #         # # normalize token text to compact
-    #         # token["token"] = f"@f {dt.strftime('%Y%m%dT%H%M')} "
-    #         # token["t"] = "@"
-    #         # token["k"] = "f"
-    #         # task-level completion
-    #         self.completions.append(dt_objs)
-    #         log_msg(f"adding {dts = } to token_map")
-    #         # self.token_map["f"] = self.fmt_user(dt)
-    #         self.has_f = True
-    #         return True, token["token"], []
-    #
-    #     # &f path: token is the string after "&f "
-    #     try:
-    #         log_msg(f"processing completion for {job_id = }")
-    #         body = str(token).strip()
-    #         # dt = _parse_compact_dt(body) if body[:4].isdigit() else parse(body)
-    #         dt = parse(body)
-    #         self.completions.append((dt, job_id))
-    #         log_msg(f"adding {dt = } to token_map for {job_id = }")
-    #         log_msg(f"got here {self.token_map = }")
-    #         self.token_map.setdefault("~f", {})
-    #         log_msg(f"got here {self.token_map = }")
-    #         self.token_map["~f"][job_id] = self.fmt_user(dt)
-    #         log_msg(f"got here {self.token_map = }")
-    #         # If you also mirror &f into tokens, you can return normalized text here,
-    #         # but typically &f lives in jobs JSON, not the top-level tokens.
-    #         return True, int(dt.timestamp()), []
-    #     except Exception as e:
-    #         log_msg(f"error: {e = }")
-    #         return False, f"invalid &f datetime: {e}, {body = }", []
-
     def do_completion(self, token: dict | str, *, job_id: str | None = None):
         """
         Handle both:
@@ -3268,22 +3252,6 @@ from: * (event), ~ (task), ^ (project), % (note),
             tok.get("t") == "@" and tok.get("k") == "s" for tok in self.relative_tokens
         )
 
-    # def _get_start_dt(self):
-    #     """Parse the @s token to datetime (UTC naive or local—match your parser)."""
-    #     tok = next(
-    #         (
-    #             t
-    #             for t in self.relative_tokens
-    #             if t.get("t") == "@" and t.get("k") == "s"
-    #         ),
-    #         None,
-    #     )
-    #     if not tok:
-    #         return None
-    #     s = tok["token"][2:].strip()  # after '@s'
-    #
-    #     return parse(s)
-
     def _get_start_dt(self) -> datetime | None:
         # return self.dtstart
         tok = next(
@@ -3302,14 +3270,17 @@ from: * (event), ~ (task), ^ (project), % (note),
         except Exception:
             return None
 
-    def _set_start_dt(self, dt):
+    def _set_start_dt(self, dt: datetime | None = None):
         """Replace or add an @s token; keep your formatting with trailing space."""
+        dt = dt | self._get_start_dt()
+        if not dt:
+            return
         ts = dt.strftime("%Y%m%dT%H%M")
-        log_msg(f"starting {self.relative_tokens = }")
+        log_msg(f"starting {self.relative_tokens = }, {ts = }")
         tok = next(
             (
                 t
-                for t in self.relative_tokens  # TODO: self.tokens instead?
+                for t in self.relative_tokens
                 if t.get("t") == "@" and t.get("k") == "s"
             ),
             None,
@@ -3865,16 +3836,6 @@ from: * (event), ~ (task), ^ (project), % (note),
                 elif key == "c":
                     comps["COUNT"] = value
         return comps
-
-    # def _strip_positions(self, tokens_with_pos: list[dict]) -> list[dict]:
-    #     """Remove 'start'/'end' from editing tokens to store as record tokens."""
-    #     out = []
-    #     for t in tokens_with_pos:
-    #         t2 = dict(t)
-    #         t2.pop("s", None)
-    #         t2.pop("e", None)
-    #         out.append(t2)
-    #     return out
 
     def _strip_positions(self, tokens_with_pos: list[dict]) -> list[dict]:
         """Remove 'start'/'end' from editing tokens and strip whitespace from 'token'."""

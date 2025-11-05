@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 import sqlite3
 import json
@@ -6,7 +7,7 @@ from datetime import date, datetime, time, timedelta
 from dateutil.rrule import rrulestr
 from dateutil.parser import parse
 
-from typing import List, Tuple, Optional, Dict, Any, Set
+from typing import List, Tuple, Optional, Dict, Any, Set, Iterable
 from rich import print
 from tklr.tklr_env import TklrEnvironment
 from dateutil import tz
@@ -39,7 +40,9 @@ from .shared import (
 )
 
 import re
-from tklr.item import Item
+from .item import Item
+from collections import defaultdict, deque
+
 
 anniversary_regex = re.compile(r"!(\d{4})!")
 
@@ -755,6 +758,145 @@ class BinPathProcessor:
         return norm_tokens, combined_log, leaf_ids
 
 
+# bin_cache.py
+def _rev_path_for(
+    bid: int, name: Dict[int, str], parent: Dict[int, Optional[int]]
+) -> str:
+    parts: List[str] = []
+    cur = bid
+    while cur is not None:
+        parts.append(name[cur])
+        cur = parent.get(cur)
+    return "/".join(parts)  # leaf → ... → root
+
+
+class BinCache:
+    """
+    Incremental cache for bins/links with a simple public API:
+
+      - name_to_binpath(): Dict[str, str]   # { leaf_lower: "Leaf/Parent/.../Root" }
+
+    Update methods you call from your existing model helpers:
+
+      - on_create(bid, name, parent_id)
+      - on_rename(bid, new_name)
+      - on_link(bid, parent_id)             # (re)parent; also used by move
+      - on_unlink(bid)                      # set parent to None
+      - on_delete(bid)                      # delete a bin and its subtree
+    """
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+        self.name: Dict[int, str] = {}
+        self.parent: Dict[int, Optional[int]] = {}
+        self.children: Dict[Optional[int], Set[int]] = defaultdict(set)
+        self.rev_path: Dict[int, str] = {}
+        self._name_to_binpath: Dict[str, str] = {}
+        self._load_all()
+
+    # ---------- initial build ----------
+
+    def _load_all(self) -> None:
+        rows = self.conn.execute("""
+            SELECT b.id, b.name, bl.container_id
+            FROM Bins b
+            LEFT JOIN BinLinks bl ON bl.bin_id = b.id
+        """).fetchall()
+
+        self.name.clear()
+        self.parent.clear()
+        self.children.clear()
+        for bid, nm, par in rows:
+            self.name[bid] = nm
+            self.parent[bid] = par
+            self.children[par].add(bid)
+
+        # compute reversed (leaf→root) paths
+        self.rev_path = {
+            bid: _rev_path_for(bid, self.name, self.parent) for bid in self.name
+        }
+        self._rebuild_name_dict()
+        log_msg(f"{self.name_to_binpath() = }")
+
+    def _rebuild_name_dict(self) -> None:
+        self._name_to_binpath = {
+            nm.lower(): self.rev_path[bid] for bid, nm in self.name.items()
+        }
+
+    # ---------- subtree utilities ----------
+
+    def _iter_subtree(self, root_id: int) -> Iterable[int]:
+        q = deque([root_id])
+        while q:
+            x = q.popleft()
+            yield x
+            for c in self.children.get(x, ()):
+                q.append(c)
+
+    def _refresh_paths_for_subtree(self, root_id: int) -> None:
+        # recompute rev_path for root and descendants; update name_to_binpath values
+        for bid in self._iter_subtree(root_id):
+            self.rev_path[bid] = _rev_path_for(bid, self.name, self.parent)
+        for bid in self._iter_subtree(root_id):
+            self._name_to_binpath[self.name[bid].lower()] = self.rev_path[bid]
+
+    # ---------- mutations you call ----------
+
+    def on_create(self, bid: int, nm: str, parent_id: Optional[int]) -> None:
+        self.name[bid] = nm
+        self.parent[bid] = parent_id
+        self.children[parent_id].add(bid)
+        self.rev_path[bid] = _rev_path_for(bid, self.name, self.parent)
+        self._name_to_binpath[nm.lower()] = self.rev_path[bid]
+
+    def on_rename(self, bid: int, new_name: str) -> None:
+        old = self.name[bid]
+        if old.lower() != new_name.lower():
+            self._name_to_binpath.pop(old.lower(), None)
+        self.name[bid] = new_name
+        self._refresh_paths_for_subtree(bid)
+
+    def on_link(self, bid: int, new_parent_id: Optional[int]) -> None:
+        old_parent = self.parent.get(bid)
+        if old_parent == new_parent_id:
+            # nothing changed
+            return
+        if old_parent in self.children:
+            self.children[old_parent].discard(bid)
+        self.children[new_parent_id].add(bid)
+        self.parent[bid] = new_parent_id
+        self._refresh_paths_for_subtree(bid)
+
+    def on_unlink(self, bid: int) -> None:
+        old_parent = self.parent.get(bid)
+        if old_parent in self.children:
+            self.children[old_parent].discard(bid)
+        self.parent[bid] = None
+        self._refresh_paths_for_subtree(bid)
+
+    def on_delete(self, bid: int) -> None:
+        # remove whole subtree
+        to_rm = list(self._iter_subtree(bid))
+        par = self.parent.get(bid)
+        if par in self.children:
+            self.children[par].discard(bid)
+        for x in to_rm:
+            self._name_to_binpath.pop(self.name[x].lower(), None)
+            # detach from parent/children maps
+            p = self.parent.get(x)
+            if p in self.children:
+                self.children[p].discard(x)
+            self.children.pop(x, None)
+            self.parent.pop(x, None)
+            self.rev_path.pop(x, None)
+            self.name.pop(x, None)
+
+    # ---------- query ----------
+
+    def name_to_binpath(self) -> Dict[str, str]:
+        return self._name_to_binpath
+
+
 class UrgencyComputer:
     def __init__(self, env: TklrEnvironment):
         self.env = env
@@ -1006,6 +1148,8 @@ class DatabaseManager:
                 standard_roots=BIN_ROOTS,  # <— same set, all lowercase
             ),
         )
+        self.bin_cache = BinCache(self.conn)
+        log_msg(f"{self.bin_cache.name_to_binpath() = }")
 
         yr, wk = datetime.now().isocalendar()[:2]
         log_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
@@ -4103,29 +4247,73 @@ class DatabaseManager:
         )
         return self.cursor.fetchone() is not None
 
+    # def ensure_bin_exists(self, name: str) -> int:
+    #     """
+    #     Case-preserving, case-insensitive ensure:
+    #     - Looks up by NOCASE (so 'SmithCB' and 'smithcb' are the same bin)
+    #     - Inserts using the *provided* display case if not found (first-write-wins)
+    #     """
+    #     disp = (name or "").strip()
+    #     if not disp:
+    #         raise ValueError("Bin name must be non-empty")
+    #
+    #     # NOCASE lookup matches any casing, but doesn't change stored display
+    #     self.cursor.execute(
+    #         "SELECT id FROM Bins WHERE name = ? COLLATE NOCASE",
+    #         (disp,),
+    #     )
+    #     row = self.cursor.fetchone()
+    #     if row:
+    #         return row[0]
+    #
+    #     # First creation: store exactly as provided (display casing)
+    #     self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (disp,))
+    #     self.conn.commit()
+    #     return self.cursor.lastrowid
+
+    # def ensure_bin_exists(self, name: str) -> int:
+    #     disp = (name or "").strip()
+    #     if not disp:
+    #         raise ValueError("Bin name must be non-empty")
+    #
+    #     self.cursor.execute(
+    #         "SELECT id FROM Bins WHERE name = ? COLLATE NOCASE", (disp,)
+    #     )
+    #     row = self.cursor.fetchone()
+    #     if row:
+    #         return row[0]
+    #
+    #     self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (disp,))
+    #     self.conn.commit()
+    #     bid = self.cursor.lastrowid
+    #
+    #     # 👇 new: record the creation with unknown parent (None) for now
+    #     if hasattr(self, "bin_cache"):
+    #         self.bin_cache.on_create(bid, disp, None)
+    #
+    #     return bid
+
     def ensure_bin_exists(self, name: str) -> int:
-        """
-        Case-preserving, case-insensitive ensure:
-        - Looks up by NOCASE (so 'SmithCB' and 'smithcb' are the same bin)
-        - Inserts using the *provided* display case if not found (first-write-wins)
-        """
         disp = (name or "").strip()
         if not disp:
             raise ValueError("Bin name must be non-empty")
 
-        # NOCASE lookup matches any casing, but doesn't change stored display
         self.cursor.execute(
-            "SELECT id FROM Bins WHERE name = ? COLLATE NOCASE",
-            (disp,),
+            "SELECT id FROM Bins WHERE name = ? COLLATE NOCASE", (disp,)
         )
         row = self.cursor.fetchone()
         if row:
             return row[0]
 
-        # First creation: store exactly as provided (display casing)
         self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (disp,))
         self.conn.commit()
-        return self.cursor.lastrowid
+        bid = self.cursor.lastrowid
+
+        # 👇 cache: record the creation with unknown parent (None) for now
+        if hasattr(self, "bin_cache"):
+            self.bin_cache.on_create(bid, disp, None)
+
+        return bid
 
     def ensure_bin_path(self, path: str) -> int:
         """
@@ -4160,28 +4348,84 @@ class DatabaseManager:
         self.conn.commit()
         return parent_id
 
+    def ensure_bin_path(self, path: str) -> int:
+        root_id, unlinked_id = self.ensure_system_bins()
+        parts = [p.strip() for p in path.split("/") if p.strip()]
+        if not parts:
+            return root_id
+
+        parent_id = root_id
+        if len(parts) == 1:
+            parent_id = unlinked_id  # single bin goes under 'unlinked'
+
+        for name in parts:
+            bin_id = self.ensure_bin_exists(name)
+            self.cursor.execute(
+                "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
+                (bin_id, parent_id),
+            )
+
+            # 👇 cache: reflect the *actual* parent from DB after the insert/ignore
+            if hasattr(self, "bin_cache"):
+                self.cursor.execute(
+                    "SELECT container_id FROM BinLinks WHERE bin_id=?", (bin_id,)
+                )
+                row = self.cursor.fetchone()
+                eff_parent = row[0] if row else None
+                self.bin_cache.on_link(bin_id, eff_parent)
+
+            parent_id = bin_id
+
+        self.conn.commit()
+        return parent_id
+
+    # def ensure_system_bins(self) -> tuple[int, int]:
+    #     """Guarantee that root and unlinked bins exist and are properly linked."""
+    #     root_id = self.ensure_bin_exists("root")
+    #     unlinked_id = self.ensure_bin_exists("unlinked")
+    #
+    #     # link unlinked → root (if not already)
+    #     self.cursor.execute(
+    #         """
+    #         INSERT OR IGNORE INTO BinLinks (bin_id, container_id)
+    #         VALUES (?, ?)
+    #     """,
+    #         (unlinked_id, root_id),
+    #     )
+    #
+    #     # Ensure root has no parent (NULL)
+    #     self.cursor.execute(
+    #         """
+    #         INSERT OR IGNORE INTO BinLinks (bin_id, container_id)
+    #         VALUES (?, NULL)
+    #     """,
+    #         (root_id,),
+    #     )
+    #
+    #     self.conn.commit()
+    #     return root_id, unlinked_id
+
     def ensure_system_bins(self) -> tuple[int, int]:
-        """Guarantee that root and unlinked bins exist and are properly linked."""
         root_id = self.ensure_bin_exists("root")
         unlinked_id = self.ensure_bin_exists("unlinked")
 
         # link unlinked → root (if not already)
         self.cursor.execute(
-            """
-            INSERT OR IGNORE INTO BinLinks (bin_id, container_id)
-            VALUES (?, ?)
-        """,
+            "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
             (unlinked_id, root_id),
         )
+        # 👇 cache: reflect current effective parent
+        if hasattr(self, "bin_cache"):
+            self.bin_cache.on_link(unlinked_id, root_id)
 
         # Ensure root has no parent (NULL)
         self.cursor.execute(
-            """
-            INSERT OR IGNORE INTO BinLinks (bin_id, container_id)
-            VALUES (?, NULL)
-        """,
+            "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, NULL)",
             (root_id,),
         )
+        # 👇 cache: reflect root’s parent = None
+        if hasattr(self, "bin_cache"):
+            self.bin_cache.on_link(root_id, None)
 
         self.conn.commit()
         return root_id, unlinked_id

@@ -310,7 +310,7 @@ items = [
 
 bins = [
     "% Journal entry for October @b 2025:10/2025/journal @s 2p @d Test bin entries",
-    "% Churchill - Give me a pig @b churchill/quotations/library @d dogs look up at you",
+    "% Churchill - Give me a pig @b Churchill/quotations/library @d Dogs look up at you.\nCats look down at you.\nGive me a pig. They look you in the eye and treat you as an equal.",
     "* Ellen's French adventure @s mon @r d &c 7 @b travel/activities @b Lille/France/places",
     "% Charles and Bonnie Smith @b SmithCB/people:S/people @d details about Charles and Bonnie @b Athens/Greece/places",
     "% itenerary  @b Athens-Istanbul/travel/activities @b Istanbul/Turkey/places",
@@ -354,7 +354,7 @@ for entry in items + bins:
     count += 1
     id += 1
     print(f"---\n{entry = }")
-    item = Item(raw=entry, env=env, final=True)  # .to_dict()
+    item = Item(raw=entry, env=env, final=True, controller=ctrl)  # .to_dict()
     # new_entry = item.to_entry()
     # print(f">>>\n{new_entry = }")
     # continue
