@@ -7,11 +7,50 @@ from datetime import datetime
 from pathlib import Path
 import tomllib
 from tomlkit import parse as toml_parse, dumps as toml_dumps
+import shutil
+import itertools
 
 PYPROJECT_PATH = Path("pyproject.toml")
 MAIN_BRANCH = "master"
 WORKING_BRANCH = "working"
 DRY_RUN = "--dry-run" in sys.argv
+
+
+# add near the top
+def clean_build_artifacts(verbose=True):
+    """
+    Remove common build artifacts and caches:
+      dist/, build/, *.egg-info, **/__pycache__, .pytest_cache, .mypy_cache
+    """
+    root = Path(__file__).resolve().parent
+    dirs_to_remove = [
+        root / "dist",
+        root / "build",
+        root / ".pytest_cache",
+        root / ".mypy_cache",
+    ]
+    # egg-info directories/files at project root
+    dirs_to_remove += list(root.glob("*.egg-info"))
+    # any __pycache__ under the project
+    dirs_to_remove += list(root.rglob("__pycache__"))
+
+    for p in dirs_to_remove:
+        try:
+            if p.is_dir():
+                shutil.rmtree(p)
+                if verbose:
+                    print(f"🧹 removed dir: {p.relative_to(root)}")
+            elif p.exists():
+                p.unlink()
+                if verbose:
+                    print(f"🧹 removed file: {p.relative_to(root)}")
+        except Exception as e:
+            print(f"⚠️ could not remove {p}: {e}")
+
+
+# optional CLI flags
+CLEAN_ONLY = "--clean" in sys.argv
+NO_CLEAN = "--no-clean" in sys.argv
 
 
 def load_version():
@@ -160,7 +199,10 @@ if input("Switch to master, merge working, and push? [yN] ").lower() == "y":
     check_output(f"git push origin {WORKING_BRANCH} --force")
 
     if input("Upload to PyPI using uv publish? [yN] ").lower() == "y":
+        if not NO_CLEAN:
+            clean_build_artifacts()
         check_output("uv publish --yes")
+
 else:
     print(f"Retained version: {version}")
 

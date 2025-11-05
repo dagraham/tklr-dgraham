@@ -1,50 +1,40 @@
 [project]
-name = "tklr"
+name = "tklr-dgraham"
 version = "0.0.0rc1"
-description = "CLI task and job planning tool"
-authors = [
-    { name = "Daniel Graham", email = "dnlgrhm@gmail.com" },
-]
+description = "Reminders Tickler / CLI and Textual UI"
+authors = [{ name = "Daniel Graham", email = "dnlgrhm@gmail.com" }]
 readme = "README.md"
-requires-python = ">=3.11,<4.0"
+requires-python = ">=3.12,<4.0"
 dependencies = [
-    "textual >=0.42.0",
-    "python-dateutil >=2.8.2",
-    "tzlocal >=5.3.1",
-    "packaging >=25.0",
-    "pydantic >=2.11.7",
-    "jinja2 >=3.1.6",
-    "click>=8.2.1",
-    "lorem>=0.1.1",
-    "readchar>=4.2.1",
-    "numpy>=2.3.3",
-    "pip>=25.3",
-    "pyperclip>=1.11.0",
-    "tomli-w>=1.2.0",
-    "tomlkit>=0.13.3",
+  "textual>=0.60",
+  "python-dateutil>=2.8.2",
+  "tzlocal>=5.3.1",
+  "packaging>=25.0",
+  "pydantic>=2.11.7",
+  "jinja2>=3.1.6",
+  "click>=8.2.1",
+  "lorem>=0.1.1",
+  "readchar>=4.2.1",
+  "numpy>=2.3.3",
+  "pyperclip>=1.11.0",
+  "tomlkit>=0.13.3",
 ]
 
 [project.optional-dependencies]
-dev = [
-    "lorem>=0.1.1",
-    "tomli-w",
-]
+dev = ["lorem>=0.1.1"] # removed tomli-w
 
 [project.scripts]
 tklr = "tklr.cli.main:cli"
 
 [build-system]
-requires = [
-    "uv-build>=0.7.19,<0.8.0",
-]
+requires = ["uv-build>=0.7.19,<0.8.0"]
 build-backend = "uv_build"
 
+# Tell uv-build you're using a src layout and what to package
 [tool.uv-build]
-packages = [
-    "tklr",
-]
+package-dir = "src"
+packages = ["tklr"]
 
+# Optional: if you use uv’s dependency groups (parallel to extras)
 [dependency-groups]
-dev = [
-    "ty>=0.0.1a14",
-]
+dev = ["ty>=0.0.1a14"]
