@@ -39,7 +39,7 @@ def write_version(new_version):
         data = tomllib.load(f)
     data["project"]["version"] = new_version
     with open(PYPROJECT_PATH, "wb") as f:
-        f.write(tomli_w.dumps(data).encode("utf-8"))
+        f.write(tomllib.dumps(data).encode("utf-8"))
 
 
 # --- Ensure we're on the working branch ---
