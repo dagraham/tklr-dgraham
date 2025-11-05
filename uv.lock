@@ -434,6 +434,7 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "readchar" },
     { name = "textual" },
+    { name = "tomli-w" },
     { name = "tzlocal" },
 ]
 
@@ -462,6 +463,7 @@ requires-dist = [
     { name = "python-dateutil", specifier = ">=2.8.2" },
     { name = "readchar", specifier = ">=4.2.1" },
     { name = "textual", specifier = ">=0.42.0" },
+    { name = "tomli-w", specifier = ">=1.2.0" },
     { name = "tomli-w", marker = "extra == 'dev'" },
     { name = "tzlocal", specifier = ">=5.3.1" },
 ]

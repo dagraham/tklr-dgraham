@@ -1,6 +1,6 @@
 [project]
 name = "tklr"
-version = "0.0.0b46"
+version = "0.0.0rc0"
 description = "CLI task and job planning tool"
 authors = [
     { name = "Daniel Graham", email = "dnlgrhm@gmail.com" },
@@ -20,6 +20,7 @@ dependencies = [
     "numpy>=2.3.3",
     "pip>=25.3",
     "pyperclip>=1.11.0",
+    "tomli-w>=1.2.0",
 ]
 
 [project.optional-dependencies]
