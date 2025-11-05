@@ -26,15 +26,21 @@ dev = ["lorem>=0.1.1"] # removed tomli-w
 [project.scripts]
 tklr = "tklr.cli.main:cli"
 
-[build-system]
-requires = ["uv-build>=0.7.19,<0.8.0"]
-build-backend = "uv_build"
-
-# Tell uv-build you're using a src layout and what to package
-[tool.uv-build]
-package-dir = "src"
-packages = ["tklr"]
-
 # Optional: if you use uv’s dependency groups (parallel to extras)
 [dependency-groups]
 dev = ["ty>=0.0.1a14"]
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true  # <- important
+
+[tool.setuptools.package-data]
+tklr = ["*.css"] # ship CSS files in tklr/
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["tklr*"]

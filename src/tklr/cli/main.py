@@ -10,11 +10,10 @@ from tklr.model import DatabaseManager, UrgencyComputer
 from tklr.view import DynamicViewApp
 from tklr.tklr_env import TklrEnvironment
 from tklr.view_agenda import run_agenda_view
-from tklr.shared import get_version
-from tklr.shared import log_msg
-# from tklr.shared import print_msg as print
+from tklr.versioning import get_version
 
 VERSION = get_version()
+print(f"{VERSION = }")
 
 
 def ensure_database(db_path: str, env: TklrEnvironment):
