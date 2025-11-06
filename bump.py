@@ -39,6 +39,53 @@ def clean_env_for_twine() -> dict:
     return env
 
 
+def exec_cmd(cmd: str, *, env=None, stream: bool = False):
+    """
+    Run a shell command.
+    - stream=False: capture and return stdout (like check_output)
+    - stream=True: inherit stdout/stderr so output appears live
+    """
+    if not cmd:
+        return True, ""
+    if DRY_RUN:
+        print(f"[dry-run] {cmd}")
+        return True, ""
+
+    try:
+        if stream:
+            # inherit parent's stdio -> live output
+            res = subprocess.run(cmd, shell=True, env=env, check=True)
+            return True, ""  # nothing captured
+        else:
+            out = subprocess.check_output(
+                cmd, stderr=subprocess.STDOUT, shell=True, encoding="utf-8", env=env
+            )
+            return True, out
+    except subprocess.CalledProcessError as e:
+        # If streaming, e.output may be empty; we still show a concise error
+        msg = (
+            getattr(e, "output", "") or f"Command failed with exit code {e.returncode}"
+        )
+        print(f"❌ Error running: {cmd}\n{msg}")
+        return False, msg
+
+
+def check_output(cmd, env=None):
+    if not cmd:
+        return True, ""
+    if DRY_RUN:
+        print(f"[dry-run] {cmd}")
+        return True, ""
+    try:
+        res = subprocess.check_output(
+            cmd, stderr=subprocess.STDOUT, shell=True, encoding="utf-8", env=env
+        )
+        return True, res
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error running: {cmd}\n{e.output}")
+        return False, e.output.strip().split("\n")[-1]
+
+
 def run(cmd: str):
     """Run state-changing commands. Suppressed in --dry-run."""
     if not cmd:
@@ -131,11 +178,32 @@ def clean_build_artifacts(verbose=True):
 #     return run(f"uvx twine upload {' '.join(flags)} dist/*")
 
 
+# def build_and_upload(repo="pypi", verbose=True, skip_existing=False):
+#     # clean build
+#     clean_build_artifacts()
+#     check_output("uv build")
+#     check_output("uvx twine check dist/*")
+#
+#     flags = ["-r", repo]
+#     if verbose:
+#         flags.append("--verbose")
+#     if skip_existing:
+#         flags.append("--skip-existing")
+#
+#     env = clean_env_for_twine()  # ensure ~/.pypirc is honored
+#     return check_output(f"uvx twine upload {' '.join(flags)} dist/*", env=env)
+
+
 def build_and_upload(repo="pypi", verbose=True, skip_existing=False):
-    # clean build
     clean_build_artifacts()
-    check_output("uv build")
-    check_output("uvx twine check dist/*")
+
+    ok, out = exec_cmd("uv build", stream=True)  # or stream=False if you prefer quiet
+    if not ok:
+        return ok, out
+
+    ok, out = exec_cmd("uvx twine check dist/*", stream=True)
+    if not ok:
+        return ok, out
 
     flags = ["-r", repo]
     if verbose:
@@ -143,8 +211,9 @@ def build_and_upload(repo="pypi", verbose=True, skip_existing=False):
     if skip_existing:
         flags.append("--skip-existing")
 
-    env = clean_env_for_twine()  # ensure ~/.pypirc is honored
-    return check_output(f"uvx twine upload {' '.join(flags)} dist/*", env=env)
+env = clean_env_for_twine()  # ensure ~/.pypirc is honored
+    # STREAM this so PyPI/Twine logs show up live
+    return exec_cmd(f"uvx twine upload {' '.join(flags)} dist/*", env=env, stream=True)
 
 
 def load_version():
