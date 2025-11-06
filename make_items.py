@@ -350,7 +350,7 @@ while len(items) < num_items:
 id = 0
 # for entry in items:  # + alerts:
 # for entry in busy + items:
-for entry in items + bins:
+for entry in items + bins + alerts:
     count += 1
     id += 1
     print(f"---\n{entry = }")

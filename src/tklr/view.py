@@ -3004,11 +3004,14 @@ class DynamicViewApp(App):
 
     def action_show_alerts(self):
         self.view = "alerts"
-        details = self.controller.get_active_alerts()
-        log_msg(f"{details = }")
+        pages, header = self.controller.get_active_alerts()
+        log_msg(f"{pages = }, {header = }")
 
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
-        self.push_screen(FullScreenList(details, footer))
+
+        self.push_screen(
+            FullScreenList(pages, "Active Alerts for Today", header, footer)
+        )
 
     def on_input_submitted(self, event: Input.Submitted):
         search_term = event.value

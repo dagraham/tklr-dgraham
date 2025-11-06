@@ -1104,38 +1104,22 @@ class Controller:
     def get_active_alerts(self, width: int = 70):
         # now_fmt = datetime.now().strftime("%A, %B %-d %H:%M:%S")
         alerts = self.db_manager.get_active_alerts()
-        header = "Remaining alerts for today"
-        results = [header]
+        log_msg(f"{alerts = }")
+        title = "Remaining alerts for today"
         if not alerts:
-            results.append(f" [{HEADER_COLOR}]none scheduled[/{HEADER_COLOR}]")
-            return results
+            header = f"{HEADER_COLOR}]none scheduled[/{HEADER_COLOR}]"
+            return [], header
+
         now = datetime.now()
 
-        table = Table(title="Remaining alerts for today", expand=True, box=HEAVY_EDGE)
-        table.add_column("row", justify="center", width=3, style="dim")
-        table.add_column("cmd", justify="center", width=3)
-        table.add_column("time", justify="left", width=24)
-        table.add_column("subject", width=25, overflow="ellipsis", no_wrap=True)
-
-        # 4*2 + 2*3 + 7 + 14 = 35 => subject width = width - 35
         trigger_width = 7 if self.AMPM else 8
         start_width = 7 if self.AMPM else 6
         alert_width = trigger_width + 3
         name_width = width - 35
-        results.append(
-            # f"[bold][dim]{'tag':^3}[/dim]  {'  alert         @s ':^{alert_width}}     {'subject':<{name_width}}[/bold]",
-            f"[bold][dim]{'tag':^3}[/dim]  {'alert':^{alert_width}}  {'@s':^{start_width}}   {'subject':<{name_width}}[/bold]",
-        )
+        header = f"[bold][dim]{'tag':^3}[/dim] {'alert':^{alert_width}}   {'@s':^{start_width}}    {'subject':<{name_width}}[/bold]"
 
-        self.list_tag_to_id.setdefault("alerts", {})
-        # self.afill = 1 if len(alerts) <= 26 else 2 if len(alerts) <= 676 else 3
-        # self.set_afill(alerts, "get_active_alerts")
-        # indx = 0
-        # tag = indx_to_tag(indx, self.afill)
-
-        self.set_afill(alerts, "alerts")
-        indx = 0
-        self.list_tag_to_id.setdefault("alerts", {})
+        rows = []
+        log_msg(f"processing {len(alerts)} alerts")
 
         for alert in alerts:
             log_msg(f"Alert: {alert = }")
@@ -1150,20 +1134,20 @@ class Controller:
                 alert_command,
             ) = alert
             if now > datetime_from_timestamp(trigger_datetime):
+                log_msg("skipping - already passed")
                 continue
-            tag_fmt, indx = self.add_tag("alerts", indx, record_id)
+            # tag_fmt, indx = self.add_tag("alerts", indx, record_id)
             trtime = self.format_datetime(trigger_datetime)
             sttime = self.format_datetime(start_datetime)
             subject = truncate_string(record_name, name_width)
-            row = "  ".join(
-                [
-                    f"{tag_fmt}",
-                    f"[{SALMON}] {alert_name} {trtime:<{trigger_width}}[/{SALMON}][{PALE_GREEN}] → {sttime:<{start_width}}[/{PALE_GREEN}]",
-                    f"[{AVAILABLE_COLOR}]{subject:<{name_width}}[/{AVAILABLE_COLOR}]",
-                ]
+            text = (
+                f"[{SALMON}] {alert_name} {trtime:<{trigger_width}}[/{SALMON}][{PALE_GREEN}] → {sttime:<{start_width}}[/{PALE_GREEN}] "
+                + f" [{AVAILABLE_COLOR}]{subject:<{name_width}}[/{AVAILABLE_COLOR}]"
             )
-            results.append(row)
-        return results
+            rows.append({"record_id": record_id, "job_id": None, "text": text})
+        pages = page_tagger(rows)
+        log_msg(f"{header = }\n{rows = }\n{pages = }")
+        return pages, header
 
     def process_tag(self, tag: str, view: str, selected_week: tuple[int, int]):
         job_id = None
