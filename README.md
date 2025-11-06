@@ -100,9 +100,9 @@ Intelligent parsing of the user's entry of a datetime is supported. Suppose it i
 | wed             | 2025-11-12           | Wed, Nov 12 2025           |
 | 9a              | 2025-11-06 09:00 EST | Thu, Nov 6 2025 09:00 EST  |
 | 9a fri          | 2025-11-07 09:00 EST | Fri, Nov 7 2025 09:00 EST  |
-| 9p 10 z none    | 2025-11-10 09:00     | Mon, Nov 10 2025 21:00     |
+| 10 9p z none    | 2025-11-10 09:00     | Mon, Nov 10 2025 21:00     |
 | 3p z US/Pacific | 2025-11-06 18:00 EST | Thu, Nov 6 2025 18:00 EST  |
-| 13:30 10 z CET  | 2025-11-23 07:30 EST | Mon, Nov 10 2025 07:30 EST |
+| 10 13:30 z CET  | 2025-11-10 07:30 EST | Mon, Nov 10 2025 07:30 EST |
 | 10 20h z none   | 2025-11-23 20:00     | Mon, Nov 10 2025 20:00     |
 
 Datetimes entered with "z none" and dates are _naive_ - have no timezone information. Datetimes entered with "z TIMEZONE" are interpreted as _aware_ datetimes in TIMEZONE. Datetimes without a "z" entry are also interpreted as _aware_ but in the timezone of the user's computer. Aware datetimes are always reported using the timezone of the user's computer, wherever it might be. Times can be entered using the suffix of either a/p or am/pm for AM/PM times or h for 24-hour times. Times are reported using the preference of the user, here as 24-times.
