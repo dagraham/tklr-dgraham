@@ -1,19 +1,20 @@
 <table>
   <tr>
-    <td>
-  <h1>tklr</h1>
-      The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates the same purpose - managing what you need to know quickly and easily. It supports the entry format and projects of <strong>etm</strong>, the datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line (Click) and graphical user interfaces (Textual).</p>
-  <p>Make the most of your time!</p>
-      <p></p>
+    <td style="vertical-align: top; width: 75%;">
+      <h1>tklr</h1>
+      <p>
+        The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates the same purpose - managing what you need to know quickly and easily. It supports the entry format and projects of <strong>etm</strong>, the datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line (Click) and graphical user interfaces (Textual). 
+      </p>
+      <p>Make the most of your time!</p>
+    </td>
     <td style="width: 25%; vertical-align: middle;">
       <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif"
-           alt="tklr" title="Tklr" style="max-width: 360px; width: 100%; height: auto;" />
+           alt="tklr logo" title="Tklr" style="max-width: 360px; width: 100%; height: auto;">
     </td>
-
   </tr>
 </table>
 
-Join the conversation on the [Discussions tab](https://github.com/dagraham/tklr-dgraham/discussions)
+<p><a href="https://github.com/dagraham/tklr-dgraham/discussions">Join the conversation</a></p>
 
 ❌ Preliminary and incomplete. This notice will be removed when the code is ready for general use.
 
