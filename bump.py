@@ -211,7 +211,7 @@ def build_and_upload(repo="pypi", verbose=True, skip_existing=False):
     if skip_existing:
         flags.append("--skip-existing")
 
-env = clean_env_for_twine()  # ensure ~/.pypirc is honored
+    env = clean_env_for_twine()  # ensure ~/.pypirc is honored
     # STREAM this so PyPI/Twine logs show up live
     return exec_cmd(f"uvx twine upload {' '.join(flags)} dist/*", env=env, stream=True)
 
