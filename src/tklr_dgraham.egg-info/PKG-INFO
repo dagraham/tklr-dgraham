@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: tklr-dgraham
-Version: 0.0.0rc6
+Version: 0.0.0rc7
 Summary: Reminders Tickler / CLI and Textual UI
 Author-email: Daniel Graham <dnlgrhm@gmail.com>
 Requires-Python: <4.0,>=3.12

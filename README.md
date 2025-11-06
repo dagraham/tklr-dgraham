@@ -2,7 +2,7 @@
   <tr>
     <td>
   <h1>tklr</h1>
-      The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates the same purpose - discovering what's relevant <b>now</b> quickly and easily. It supports the entry format and projects of <strong>etm</strong>, the datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line (Click) and graphical user interfaces (Textual).</p>
+      The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates the same purpose - managing what you need to know quickly and easily. It supports the entry format and projects of <strong>etm</strong>, the datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line (Click) and graphical user interfaces (Textual).</p>
   <p>Make the most of your time!</p>
       <p></p>
     <td style="width: 25%; vertical-align: middle;">
@@ -25,7 +25,7 @@ _tklr_ began life in 2013 as _etm-qt_ sporting a gui based on _Qt_. The intent w
 
 _tklr_ offers a simple way to manage your events, tasks and other reminders.
 
-Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used. Each reminder in _tklr_ begins with a _type character_ followed by the _subject_ of the reminder and then, perhaps, by one or more _@key value_ pairs to specify other attributes of the reminder. Mnemonics are used to make the keys easy to remember, e.g, @s for scheduled datetime, @l for location, @d for description and so forth.
+Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used. Each reminder in _tklr_ begins with a _type character_ followed by the _subject_ of the reminder and then, perhaps, by one or more _@key value_ pairs to specify other attributes of the reminder. Mnemonics are used to make the keys easy to remember, e.g, @s for scheduled datetime, @l for location, @d for details and so forth.
 
 The 4 types of reminders in _tklr_ with their associated type characters:
 
@@ -34,7 +34,6 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 | event   | \*   |
 | task    | ~    |
 | project | ^    |
-| goal    | +    |
 | note    | %    |
 | draft   | ?    |
 
@@ -67,11 +66,11 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
   The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e _extent_" entries give estimates of the times required to complete the various tasks.
 
-- A _draft_ reminder, **!**: meet Alex for coffee Friday.
+- A _draft_ reminder, **?**: meet Alex for coffee Friday.
 
-        ! Coffee with Alex @s fri @e 1h
+        ? Coffee with Alex @s fri @e 1h
 
-  This can be changed to an event when the details are confirmed by replacing the **!** with an **\*** and adding the time to `@s`. This _draft_ will appear highlighted on the current day until you make the changes to complete it.
+  This can be changed to an event when the details are confirmed by replacing the **?** with an **\*** and adding the time to `@s`. This _draft_ will appear highlighted on the current day until you make the changes to complete it.
 
 ### Simple repetition
 
@@ -79,7 +78,7 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
         * dental exam and cleaning @s 2p feb 5 @e 45m @+ 9am Sep 3
 
-- A reminder (_task_) to fill the bird feeders starting Friday of the current week and repeat (do over) thereafter 4 days after the previous completion.
+- A reminder (_task_) to fill the bird feeders starting Friday of the current week and repeat after an _offset_ of 4 days from datetime of the previous completion.
 
        ~ fill bird feeders @s fri @o 4d
 
@@ -87,28 +86,30 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
 - The full flexibility of the superb Python _dateutil_ package is supported. Consider, for example, a reminder for Presidential election day which starts in November, 2020 and repeats every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
 
--        * Presidential election day @s nov 1 2020 @r y &i 4
+         * Presidential election day @s nov 1 2020 @r y &i 4
             &w TU &m 2, 3, 4, 5, 6, 7, 8 &M 11
 
 ## Details
 
 ### Dates and times
 
-Suppose it is Monday, September 15 2025 in the US/Eastern timezone. When a datetime is entered it is interpreted _relative_ to the current date, time and timezone. When entering the scheduled datetime for a reminder using `@s`, the following table illustrates how the entries would be interpreted
+Intelligent parsing of the user's entry of a datetime is supported. Suppose it is Thursday, November 6 2025 in the US/Eastern timezone. When a datetime is entered it is interpreted _relative_ to the current date, time and timezone. When entering the scheduled datetime for a reminder using `@s`, the following table illustrates how various entries would be interpreted and the resulting user feedback.
 
-| @s entry           | scheduled datetime  |
-| ------------------ | ------------------- |
-| @s wed             | 25-09-17            |
-| @s 9a              | 25-09-15 9:00am EST |
-| @s 9a fri          | 25-09-19 9:00am EST |
-| @s 9a 23 z none    | 25-09-23 9:00am     |
-| @s 3p z US/Pacific | 25-09-15 3:00pm PST |
-| @s 13h 23 z CET    | 25-09-23 13:00 CET  |
-| @s 20h 23 z none   | 25-09-23 20:00      |
+| @s entry        | interpretation       | user feedback              |
+| --------------- | -------------------- | -------------------------- |
+| wed             | 2025-11-12           | Wed, Nov 12 2025           |
+| 9a              | 2025-11-06 09:00 EST | Thu, Nov 6 2025 09:00 EST  |
+| 9a fri          | 2025-11-07 09:00 EST | Fri, Nov 7 2025 09:00 EST  |
+| 9p 10 z none    | 2025-11-10 09:00     | Mon, Nov 10 2025 21:00     |
+| 3p z US/Pacific | 2025-11-06 18:00 EST | Thu, Nov 6 2025 18:00 EST  |
+| 13:30 10 z CET  | 2025-11-23 07:30 EST | Mon, Nov 10 2025 07:30 EST |
+| 10 20h z none   | 2025-11-23 20:00     | Mon, Nov 10 2025 20:00     |
 
-Datetimes entered with "z none" and dates are _naive_ - have no timezone information. Datetimes entered with "z TIMEZONE" are interpreted as _aware_ datetimes in TIMEZONE. Datetimes without a "z" entry are also interpreted as _aware_ but in the timezone of the user's computer.
+Datetimes entered with "z none" and dates are _naive_ - have no timezone information. Datetimes entered with "z TIMEZONE" are interpreted as _aware_ datetimes in TIMEZONE. Datetimes without a "z" entry are also interpreted as _aware_ but in the timezone of the user's computer. Aware datetimes are always reported using the timezone of the user's computer, wherever it might be. Times can be entered using the suffix of either a/p or am/pm for AM/PM times or h for 24-hour times. Times are reported using the preference of the user, here as 24-times.
 
-When dates and datetimes are recorded, _aware_ datetimes are first converted to UTC time and then stored with a "Z" appended. E.g., the "25-09-15 3:00pm PST" datetime would be recorded as "20250915T2200Z". Dates and _naive_ datetimes are recorded without conversion and without the trailing "Z". When _aware_ datetimes are displayed to the user, they are first converted to the timezone of the user's computer. Thus the "PST" example would be displayed as scheduled for 6pm today in US/Eastern. Dates and _naive_ datetimes are displayed without change in every timezone.
+Why would you want to use a "z" in specifying a time? Suppose a colleague in Europe at asked you to call Friday at 18:00 CET time. Then setting "@s fri 18h z CET" will schedule your reminder for the correct time to call wherever you might be. In the US/Eastern timezone, this would be "Fri, Nov 12 2025 12:00 EST". As a second example, suppose you want to take a daily medication at 4pm in whatever timezone you happen to be. Then you will want to schedule the reminder for "@s 4p z none".
+
+When dates and datetimes are recorded, _aware_ datetimes are first converted to UTC time and then stored with a "Z" appended. E.g., the "3p z US/Pacific" datetime would be interpreted as "2025-11-06 18:00 EST" but would be recorded as "20251106T2300Z". Dates and _naive_ datetimes are recorded without conversion and without the trailing "Z". When _aware_ datetimes are displayed to the user, they are first converted to the timezone of the user's computer. Thus the "PST" example would be displayed as scheduled for 6pm today in US/Eastern. Dates and _naive_ datetimes are displayed without change in every timezone.
 
 When an `@s` scheduled entry specifies a date without a time, i.e., a date instead of a datetime, the interpretation is that the task is due sometime on that day. Specifically, it is not due until `00:00` on that day and not past due until `00:00` on the following day. The interpretation of `@b` and `@u` in this circumstance is similar. For example, if `@s 2025-04-06` is specified with `@b 3d` and `@u 2d` then the task status would change from waiting to pending at `2025-04-03 00:00` and, if not completed, to deleted at `2025-04-09 00:00`.
 
@@ -132,7 +133,7 @@ An interval, `I`, can be added to a datetime, `T`, to get a datetime, `T + I`, t
 
 ### Scheduled datetimes and related intervals
 
-For the discussion that follows, it will be assumed that the current date is `2025-10-01` and that `@s 2025-10-21 10a` so that the _scheduled datetime_ for the illustrative reminder is
+For the discussion that follows, it will be assumed that the current date is `2025-10-01` and that the _scheduled datetime_ for the illustrative reminder is
 
     @s 2025-10-21 10:00am
 
@@ -146,15 +147,15 @@ For a task, this same entry would indicate that attention to completing the task
 
 For a project, this same entry would similarly indicate that attention to completing the project should begin no later than 10am and that two hours and 30 minutes is estimated for completion subject to additional times specified in the jobs. A job entry containing `&s 2d &e 3h`, for example, would set the scheduled time for this job to be two days _after_ the `@s` entry for the project and would add three hours to the estimate of total time required for the project.
 
-#### begin
+#### notice
 
-The entry `@b B` where `B` is a _positive_ interval specifies the date on which the datetime `scheduled - B` falls. For the example, adding `@b 1d12h` would set _begin_ to the date corresponding to
+The entry `@n I` where `I` is a _positive_ interval specifies that a notice for the reminder should begin on the date in which `scheduled - I` falls. For the example, adding `@b 1d12h` would set _notice_ to the date corresponding to
 
       2025-10-21 10am - 1d12h = 2025-10-19 10pm
 
-i.e., to `25-10-19`.
+so notices would begin on `2025-10-19`.
 
-If the reminder is an event, then the agenda view would display an beginby notice for the event beginning on `25-10-19` and continuing on the `25-10-20`. For an _event_ think of this begin notice as a visual alert.
+If the reminder is an event, then the agenda view would display an notice for the event beginning on `25-10-19` and continuing on the `25-10-20`, i.e., from the date of the notice through the date before the scheduled datetime. For an _event_ think of this notice as a visual alert of the proximity of the event.
 
 If the reminder is a task, then the task would _not_ appear in the agenda view until `25-10-19`, i.e., it would be hidden before that date.
 
@@ -170,13 +171,9 @@ The entry `@w BEFORE, AFTER`, where `BEFORE` and `AFTER` are _intervals_, can be
 
 Consider an event with `@s 2025-10-21 10am @e 2h30m`, which starts at 10am and ends at 12:30pm and suppose that it will take an hour to travel to the location of the event and 30 minutes to travel from the event to the next location. The entry `@w 1h, 30m` could be used to indicate these travel periods from 9am until 10am before the event begins and from 12:30pm until 1pm after the event ends.
 
-For a task, consider a situation in which the trash is picked up weekly on Monday mornings sometime between 8am and 10am and you would like a reminder to put the trash at the curb to appear in agenda view beginning at 6pm on Sunday and then disappear if marked completed between 6pm Sunday and 10am Monday or, if not marked completed by 10am Monday, then just disappear until the next Sunday. Here's the reminder to do that:
-
-      ~ trash to curb @s 8a mon @r w @e 15m @w 14h, 2h
-
-This reminder for a _task_ will appear weekly from 6pm Sunday until 10am Monday unless marked completed sometime during that interval. Note that the `@w` entry wraps the _scheduled_ datetime but, unlike the case for an _event_, ignores the _extent_.
-
 #### alert
+
+> [!NOTE] Needs an example.
 
 ### Recurrence
 
@@ -185,58 +182,45 @@ This reminder for a _task_ will appear weekly from 6pm Sunday until 10am Monday 
 When an item is specified with an `@r` entry, an `@s` entry is required and is used as the `DTSTART` entry in the recurrence rule. E.g.,
 
 ```python
-* datetime repeating @s 2024-08-07 14:00 @r d &i 2
+* datetime repeating @s 2025-11-06 14:00 @r d &i 2
 ```
 
-is serialized (stored) as
+With this entry, the `@s 2025-11-06 14:00` and `@r d &i 2` parts would be combined by _tklr_ to generate this \_rruleset:
 
 ```python
-  {
-      "itemtype": "*",
-      "subject": "datetime repeating",
-      "rruleset": "DTSTART:20240807T1400Z\nRRULE:FREQ=DAILY;INTERVAL=2",
-  }
+      "rruleset": "DTSTART:20251106T1900Z\nRRULE:FREQ=DAILY;INTERVAL=2"
 ```
 
-**Note**: The datetimes generated by the rrulestr correspond to datetimes matching the specification of `@r` which occur **on or after** the datetime specified by `@s`. The datetime corresponding to `@s` itself will only be generated if it matches the specification of `@r`.
+**Note**: The datetimes generated by the RRULE correspond to datetimes matching the specification of `@r` which occur **on or after** the datetime specified by `@s`. The datetime corresponding to `@s` itself will only be generated if it matches the specification of `@r`.
 
-### @s is given but not @r
+#### @s is given but not @r
 
-On the other hand, if an `@s` entry is specified, but `@r` is not, then the `@s` entry is stored as an `RDATE` in the recurrence rule. E.g.,
-
-```python
-* datetime only @s 2024-08-07  14:00 @e 1h30m
-```
-
-is serialized (stored) as
+On the other hand, if an `@s` entry is specified, but `@r` is not, then the `@s` entry would be stored as an `RDATE` in the recurrence rule. E.g.,
 
 ```python
-{
-  "itemtype": "*",
-  "subject": "datetime only",
-  "e": 5400,
-  "rruleset": "RDATE:20240807T1400Z"
-}
-```
-
-The datetime corresponding to `@s` itself is, of course, generated in this case.
-
-### @+ is specified, with or without @r
-
-When `@s` is specified, an `@+` entry can be used to specify one or more, comma separated datetimes. When `@r` is given, these datetimes are added to those generated by the `@r` specification. Otherwise, they are added to the datetime specified by `@s`. E.g., is a special case. It is used to specify a datetime that is relative to the current datetime. E.g.,
-
-```python
-* rdates @s 2024-08-07 14:00 @+ 2024-08-09 21:00
+* datetime only @s 2025-11-06 14:00
 ```
 
 would be serialized (stored) as
 
 ```python
-{
-  "itemtype": "*",
-  "subject": "rdates",
-  "rruleset": "RDATE:20240807T140000, 20240809T210000"
-}
+  "rruleset": "RDATE:20251106T1900Z"
+```
+
+The datetime corresponding to `@s` itself is, of course, generated in this case.
+
+#### @+ is specified, with or without @r
+
+When `@s` is specified, an `@+` entry can be used to specify one or more, comma separated datetimes. When `@r` is given, these datetimes are added to those generated by the `@r` specification. Otherwise, they are added to the datetime specified by `@s`. E.g., is a special case. It is used to specify a datetime that is relative to the current datetime. E.g.,
+
+```python
+* rdates @s 2025-11-06 14:00 @+ 2025-11-13 21:00
+```
+
+would be serialized (stored) as
+
+```python
+  "rruleset": "RDATE:20251106T1900Z, 20251114T0200Z"
 ```
 
 This option is particularly useful for irregular recurrences such as annual doctor visits. After the initial visit, subsequent visits can simply be added to the `@+` entry of the existing event once the new appointment is made.
@@ -245,28 +229,23 @@ This option is particularly useful for irregular recurrences such as annual doct
 
 ### Timezone considerations
 
-[[timezones.md]]
+When a datetime is specified without an `z` component, the timezone is assumed to be aware and in the local timezone. The datetime is converted to UTC for storage in the database. When a datetime is displayed, it is displayed using the local timezone of the computer.
 
-When a datetime is specified, the timezone is assumed to be the local timezone. The datetime is converted to UTC for storage in the database. When a datetime is displayed, it is converted back to the local timezone.
-
-This would work perfectly but for _recurrence_ and _daylight savings time_. The recurrence rules are stored in UTC and the datetimes generated by the rules are also in UTC. When these datetimes are displayed, they are converted to the local timezone.
+This remains true with _recurrence_ and _daylight savings time_ but is a little more complicated. As always, the recurrence rules are stored in UTC and the datetimes generated by the rules are also in UTC. When these datetimes are displayed, they are converted to the local timezone.
 
 ```python
-- fall back @s 2024-11-01 10:00 EST  @r d &i 1 &c 4
+* fall back @s 2025-10-31 14:00 EST  @r d &i 1 &c 4
 ```
 
+With this entry, the rruleset and datetimes generated show the effect of the transition from daylight to standard time:
+
 ```python
-rruleset_str = 'DTSTART:20241101T140000\nRRULE:FREQ=DAILY;INTERVAL=1;COUNT=4'
-item.entry = '- fall back @s 2024-11-01 10:00 EST  @r d &i 1 &c 4'
-{
-  "itemtype": "-",
-  "subject": "fall back",
-  "rruleset": "DTSTART:20241101T140000\nRRULE:FREQ=DAILY;INTERVAL=1;COUNT=4"
-}
-  Fri 2024-11-01 10:00 EDT -0400
-  Sat 2024-11-02 10:00 EDT -0400
-  Sun 2024-11-03 09:00 EST -0500
-  Mon 2024-11-04 09:00 EST -0500
+"rruleset": "DTSTART:20251031T1800Z\nRRULE:FREQ=DAILY;INTERVAL=1;COUNT=4"
+
+  Fri 2025-10-31 14:00 EDT -0400
+  Sat 2025-11-01 14:00 EDT -0400
+  Sun 2025-11-02 13:00 EST -0500
+  Mon 2025-11-03 13:00 EST -0500
 ```
 
 ### Urgency

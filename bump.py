@@ -155,43 +155,14 @@ def clean_build_artifacts(verbose=True):
         try:
             if p.is_dir():
                 shutil.rmtree(p)
-                if verbose:
-                    print(f"🧹 removed dir: {p.relative_to(root)}")
+                # if verbose:
+                #     print(f"🧹 removed dir: {p.relative_to(root)}")
             elif p.exists():
                 p.unlink()
-                if verbose:
-                    print(f"🧹 removed file: {p.relative_to(root)}")
+                # if verbose:
+                #     print(f"🧹 removed file: {p.relative_to(root)}")
         except Exception as e:
             print(f"⚠️ could not remove {p}: {e}")
-
-
-# def build_and_upload(to="pypi", verbose=True, skip_existing=False, clean=True):
-#     if clean:
-#         clean_build_artifacts(verbose=verbose)
-#     run("uv build")
-#     run("uvx twine check dist/*")
-#     flags = ["-r", to]
-#     if verbose:
-#         flags.append("--verbose")
-#     if skip_existing:
-#         flags.append("--skip-existing")
-#     return run(f"uvx twine upload {' '.join(flags)} dist/*")
-
-
-# def build_and_upload(repo="pypi", verbose=True, skip_existing=False):
-#     # clean build
-#     clean_build_artifacts()
-#     check_output("uv build")
-#     check_output("uvx twine check dist/*")
-#
-#     flags = ["-r", repo]
-#     if verbose:
-#         flags.append("--verbose")
-#     if skip_existing:
-#         flags.append("--skip-existing")
-#
-#     env = clean_env_for_twine()  # ensure ~/.pypirc is honored
-#     return check_output(f"uvx twine upload {' '.join(flags)} dist/*", env=env)
 
 
 def build_and_upload(repo="pypi", verbose=True, skip_existing=False):
