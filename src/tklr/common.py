@@ -30,6 +30,7 @@ from time import perf_counter
 from typing import List, Callable, Any
 import inspect
 from typing import Literal
+from .versioning import get_version
 
 # import logging
 # import logging.config
@@ -47,34 +48,34 @@ from pathlib import Path
 ETMDB = DBITEM = DBARCH = dataview = data_changed = None
 
 
-def get_version(pyproject_path: Path | None = None) -> str:
-    """
-    Extract the version from pyproject.toml [project] section.
-
-    Args:
-        pyproject_path (Path or None): Optional override path. If None, searches upward.
-
-    Returns:
-        str: version string (e.g., "0.1.0")
-    """
-    if pyproject_path is None:
-        # Search upward from current working dir
-        current = Path.cwd()
-        while current != current.parent:
-            candidate = current / "pyproject.toml"
-            if candidate.exists():
-                pyproject_path = candidate
-                break
-            current = current.parent
-        else:
-            return "dev"
-
-    try:
-        with open(pyproject_path, "rb") as f:
-            data = tomllib.load(f)
-        return data.get("project", {}).get("version", "dev")
-    except Exception:
-        return "dev"
+# def get_version(pyproject_path: Path | None = None) -> str:
+#     """
+#     Extract the version from pyproject.toml [project] section.
+#
+#     Args:
+#         pyproject_path (Path or None): Optional override path. If None, searches upward.
+#
+#     Returns:
+#         str: version string (e.g., "0.1.0")
+#     """
+#     if pyproject_path is None:
+#         # Search upward from current working dir
+#         current = Path.cwd()
+#         while current != current.parent:
+#             candidate = current / "pyproject.toml"
+#             if candidate.exists():
+#                 pyproject_path = candidate
+#                 break
+#             current = current.parent
+#         else:
+#             return "dev"
+#
+#     try:
+#         with open(pyproject_path, "rb") as f:
+#             data = tomllib.load(f)
+#         return data.get("project", {}).get("version", "dev")
+#     except Exception:
+#         return "dev"
 
 
 def log_msg(msg: str, file_path: str = "log_msg.md"):

@@ -1150,18 +1150,19 @@ class DatabaseManager:
         )
         self.bin_cache = BinCache(self.conn)
         log_msg(f"{self.bin_cache.name_to_binpath() = }")
+        self.populate_dependent_tables()
 
-        yr, wk = datetime.now().isocalendar()[:2]
-        log_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
-        self.extend_datetimes_for_weeks(yr, wk, 12)
-
-        # self.populate_tags()  # NEW: Populate Tags + RecordTags
-        self.populate_alerts()  # Populate today's alerts
-        log_msg("calling notice")
-        self.populate_notice()
-        self.populate_all_urgency()
-
-        log_msg("back from notice")
+        # yr, wk = datetime.now().isocalendar()[:2]
+        # log_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
+        # self.extend_datetimes_for_weeks(yr, wk, 12)
+        #
+        # # self.populate_tags()  # NEW: Populate Tags + RecordTags
+        # self.populate_alerts()  # Populate today's alerts
+        # log_msg("calling notice")
+        # self.populate_notice()
+        # self.populate_all_urgency()
+        #
+        # log_msg("back from notice")
 
     def format_datetime(self, fmt_dt: str) -> str:
         return format_datetime(fmt_dt, self.ampm)
@@ -1599,14 +1600,19 @@ class DatabaseManager:
 
     def populate_dependent_tables(self):
         """Populate all tables derived from current Records (Tags, DateTimes, Alerts, notice)."""
+        log_msg("populate dependent tables")
         yr, wk = datetime.now().isocalendar()[:2]
         log_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
         self.extend_datetimes_for_weeks(yr, wk, 12)
         # self.populate_tags()
+        log_msg("calling populate_alerts")
         self.populate_alerts()
+        log_msg("calling populate_notice")
         self.populate_notice()
+        log_msg("calling populate_busy_from_datetimes")
         self.populate_busy_from_datetimes()  # 👈 new step: source layer
         self.rebuild_busyweeks_from_source()  # 👈 add this line
+        self.populate_all_urgency()
         self.ensure_system_bins()
 
     def _normalize_tags(self, tags) -> list[str]:
@@ -3251,70 +3257,70 @@ class DatabaseManager:
 
         self.conn.commit()
 
-    def populate_busy_from_datetimes(self):
-        """
-        Populate BusyWeeksFromDateTimes from the DateTimes table.
-
-        Uses fine_busy_bits_for_event(start, end) to generate 679-slot bit arrays.
-        Each event produces one or more rows in BusyWeeksFromDateTimes
-        (one per affected year-week).
-        """
-
-        print("🔄 Rebuilding BusyWeeksFromDateTimes from DateTimes...")
-
-        # Clear previous content
-        self.cursor.execute("DELETE FROM BusyWeeksFromDateTimes")
-
-        # Fetch all event-type records from DateTimes joined with Records
-        self.cursor.execute("""
-            SELECT
-                dt.record_id,
-                dt.start_datetime,
-                dt.end_datetime
-            FROM DateTimes AS dt
-            JOIN Records AS r ON r.id = dt.record_id
-            WHERE r.itemtype = '*'
-        """)
-
-        rows = self.cursor.fetchall()
-        total = len(rows)
-        print(f"Found {total} event datetime(s).")
-
-        if not rows:
-            return
-
-        for record_id, start_str, end_str in rows:
-            log_msg(f"{record_id = }, {start_str = }, {end_str = }")
-            # Convert from stored compact format
-            start = start_str.strip()
-            end = end_str.strip() if end_str else None
-
-            try:
-                # get per-week bitmaps
-                week_maps = fine_busy_bits_for_event(start, end)
-
-                for year_week, bits in week_maps.items():
-                    # Ensure numpy array type
-                    arr = np.asarray(bits, dtype=np.uint8)
-                    blob = arr.tobytes()
-
-                    # insert or replace
-                    self.cursor.execute(
-                        """
-                        INSERT INTO BusyWeeksFromDateTimes (record_id, year_week, busybits)
-                        VALUES (?, ?, ?)
-                        ON CONFLICT(record_id, year_week)
-                        DO UPDATE SET busybits = excluded.busybits
-                    """,
-                        (record_id, year_week, blob),
-                    )
-
-            except Exception as e:
-                print(f"⚠️ Error building busy bits for record {record_id}: {e}")
-                continue
-
-        self.conn.commit()
-        print("✅ BusyWeeksFromDateTimes population complete.")
+    # def populate_busy_from_datetimes(self):
+    #     """
+    #     Populate BusyWeeksFromDateTimes from the DateTimes table.
+    #
+    #     Uses fine_busy_bits_for_event(start, end) to generate 679-slot bit arrays.
+    #     Each event produces one or more rows in BusyWeeksFromDateTimes
+    #     (one per affected year-week).
+    #     """
+    #
+    #     log_msg("🔄 Rebuilding BusyWeeksFromDateTimes from DateTimes...")
+    #
+    #     # Clear previous content
+    #     self.cursor.execute("DELETE FROM BusyWeeksFromDateTimes")
+    #
+    #     # Fetch all event-type records from DateTimes joined with Records
+    #     self.cursor.execute("""
+    #         SELECT
+    #             dt.record_id,
+    #             dt.start_datetime,
+    #             dt.end_datetime
+    #         FROM DateTimes AS dt
+    #         JOIN Records AS r ON r.id = dt.record_id
+    #         WHERE r.itemtype = '*'
+    #     """)
+    #
+    #     rows = self.cursor.fetchall()
+    #     total = len(rows)
+    #     print(f"Found {total} event datetime(s).")
+    #
+    #     if not rows:
+    #         return
+    #
+    #     for record_id, start_str, end_str in rows:
+    #         log_msg(f"{record_id = }, {start_str = }, {end_str = }")
+    #         # Convert from stored compact format
+    #         start = start_str.strip()
+    #         end = end_str.strip() if end_str else None
+    #
+    #         try:
+    #             # get per-week bitmaps
+    #             week_maps = fine_busy_bits_for_event(start, end)
+    #
+    #             for year_week, bits in week_maps.items():
+    #                 # Ensure numpy array type
+    #                 arr = np.asarray(bits, dtype=np.uint8)
+    #                 blob = arr.tobytes()
+    #
+    #                 # insert or replace
+    #                 self.cursor.execute(
+    #                     """
+    #                     INSERT INTO BusyWeeksFromDateTimes (record_id, year_week, busybits)
+    #                     VALUES (?, ?, ?)
+    #                     ON CONFLICT(record_id, year_week)
+    #                     DO UPDATE SET busybits = excluded.busybits
+    #                 """,
+    #                     (record_id, year_week, blob),
+    #                 )
+    #
+    #         except Exception as e:
+    #             print(f"⚠️ Error building busy bits for record {record_id}: {e}")
+    #             continue
+    #
+    #     self.conn.commit()
+    #     print("✅ BusyWeeksFromDateTimes population complete.")
 
     def populate_busy_from_datetimes(self):
         """
@@ -3324,7 +3330,7 @@ class DatabaseManager:
         """
         import numpy as np
 
-        print("🧩 Rebuilding BusyWeeksFromDateTimes…")
+        log_msg("🧩 Rebuilding BusyWeeksFromDateTimes…")
         self.cursor.execute("DELETE FROM BusyWeeksFromDateTimes")
 
         # fetch all events

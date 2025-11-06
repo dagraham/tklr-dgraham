@@ -10,6 +10,7 @@ from pathlib import Path
 from dateutil.parser import parse as dateutil_parse
 from dateutil.parser import parserinfo
 from zoneinfo import ZoneInfo
+from .versioning import get_version
 
 from tklr.tklr_env import TklrEnvironment
 
@@ -36,34 +37,34 @@ def get_anchor(aware: bool) -> datetime:
     return dt
 
 
-def get_version(pyproject_path: Path | None = None) -> str:
-    """
-    Extract the version from pyproject.toml [project] section.
-
-    Args:
-        pyproject_path (Path or None): Optional override path. If None, searches upward.
-
-    Returns:
-        str: version string (e.g., "0.1.0")
-    """
-    if pyproject_path is None:
-        # Search upward from current working dir
-        current = Path.cwd()
-        while current != current.parent:
-            candidate = current / "pyproject.toml"
-            if candidate.exists():
-                pyproject_path = candidate
-                break
-            current = current.parent
-        else:
-            return "dev"
-
-    try:
-        with open(pyproject_path, "rb") as f:
-            data = tomllib.load(f)
-        return data.get("project", {}).get("version", "dev")
-    except Exception:
-        return "dev"
+# def get_version(pyproject_path: Path | None = None) -> str:
+#     """
+#     Extract the version from pyproject.toml [project] section.
+#
+#     Args:
+#         pyproject_path (Path or None): Optional override path. If None, searches upward.
+#
+#     Returns:
+#         str: version string (e.g., "0.1.0")
+#     """
+#     if pyproject_path is None:
+#         # Search upward from current working dir
+#         current = Path.cwd()
+#         while current != current.parent:
+#             candidate = current / "pyproject.toml"
+#             if candidate.exists():
+#                 pyproject_path = candidate
+#                 break
+#             current = current.parent
+#         else:
+#             return "dev"
+#
+#     try:
+#         with open(pyproject_path, "rb") as f:
+#             data = tomllib.load(f)
+#         return data.get("project", {}).get("version", "dev")
+#     except Exception:
+#         return "dev"
 
 
 def fmt_user(dt_str: str) -> str:

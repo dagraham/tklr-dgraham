@@ -39,6 +39,7 @@ from .item import Item
 from .model import DatabaseManager, UrgencyComputer
 from .model import _fmt_naive, _to_local_naive
 from .list_colors import css_named_colors
+from .versioning import get_version
 
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -62,7 +63,6 @@ from .shared import (
     parse_local_compact,
     fmt_utc_z,
     parse_utc_z,
-    get_version,
 )
 from tklr.tklr_env import TklrEnvironment
 

@@ -13,7 +13,43 @@ import itertools
 PYPROJECT_PATH = Path("pyproject.toml")
 MAIN_BRANCH = "master"
 WORKING_BRANCH = "working"
+
 DRY_RUN = "--dry-run" in sys.argv
+
+# optional CLI flags
+CLEAN_ONLY = "--clean" in sys.argv
+NO_CLEAN = "--no-clean" in sys.argv
+
+
+def run(cmd: str):
+    """Run state-changing commands. Suppressed in --dry-run."""
+    if not cmd:
+        return True, ""
+    if DRY_RUN:
+        print(f"[dry-run] {cmd}")
+        return True, ""  # success, but no output
+    try:
+        out = subprocess.check_output(
+            cmd, stderr=subprocess.STDOUT, shell=True, encoding="utf-8"
+        )
+        return True, out
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error running: {cmd}\n{e.output}")
+        return False, e.output.strip().split("\n")[-1]
+
+
+def read(cmd: str):
+    """Run read-only commands even in --dry-run (e.g., git rev-parse)."""
+    if not cmd:
+        return True, ""
+    try:
+        out = subprocess.check_output(
+            cmd, stderr=subprocess.STDOUT, shell=True, encoding="utf-8"
+        )
+        return True, out
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error running: {cmd}\n{e.output}")
+        return False, e.output.strip().split("\n")[-1]
 
 
 # add near the top
@@ -48,9 +84,17 @@ def clean_build_artifacts(verbose=True):
             print(f"⚠️ could not remove {p}: {e}")
 
 
-# optional CLI flags
-CLEAN_ONLY = "--clean" in sys.argv
-NO_CLEAN = "--no-clean" in sys.argv
+def build_and_upload(to="pypi", verbose=True, skip_existing=False, clean=True):
+    if clean:
+        clean_build_artifacts(verbose=verbose)
+    run("uv build")
+    run("uvx twine check dist/*")
+    flags = ["-r", to]
+    if verbose:
+        flags.append("--verbose")
+    if skip_existing:
+        flags.append("--skip-existing")
+    return run(f"uvx twine upload {' '.join(flags)} dist/*")
 
 
 def load_version():
@@ -66,38 +110,24 @@ def write_version(new_version: str):
     PYPROJECT_PATH.write_text(toml_dumps(doc), encoding="utf-8")
 
 
-def check_output(cmd):
-    if not cmd:
-        return
-    if DRY_RUN:
-        print(f"[dry-run] {cmd}")
-        return True, ""
-    try:
-        res = subprocess.check_output(
-            cmd, stderr=subprocess.STDOUT, shell=True, encoding="utf-8"
-        )
-        return True, res
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error running: {cmd}\n{e.output}")
-        return False, e.output.strip().split("\n")[-1]
-
-
-# def load_version():
-#     with open(PYPROJECT_PATH, "rb") as f:
-#         data = tomllib.load(f)
-#     return data["project"]["version"]
-#
-#
-# def write_version(new_version):
-#     with open(PYPROJECT_PATH, "rb") as f:
-#         data = tomllib.load(f)
-#     data["project"]["version"] = new_version
-#     with open(PYPROJECT_PATH, "wb") as f:
-#         f.write(tomli_w.dumps(data).encode("utf-8"))
+# def check_output(cmd):
+#     if not cmd:
+#         return
+#     if DRY_RUN:
+#         print(f"[dry-run] {cmd}")
+#         return True, ""
+#     try:
+#         res = subprocess.check_output(
+#             cmd, stderr=subprocess.STDOUT, shell=True, encoding="utf-8"
+#         )
+#         return True, res
+#     except subprocess.CalledProcessError as e:
+#         print(f"❌ Error running: {cmd}\n{e.output}")
+#         return False, e.output.strip().split("\n")[-1]
 
 
 # --- Ensure we're on the working branch ---
-ok, current_branch = check_output("git rev-parse --abbrev-ref HEAD")
+ok, current_branch = read("git rev-parse --abbrev-ref HEAD")
 current_branch = current_branch.strip()
 if current_branch != WORKING_BRANCH:
     print(f"⚠️  You are on '{current_branch}', not '{WORKING_BRANCH}'.")
@@ -172,13 +202,13 @@ if input(f"Commit and tag new version: {new_version}? [yN] ").lower() != "y":
     sys.exit()
 
 write_version(new_version)
-check_output(f"git commit -a -m '{tmsg}'")
-ok, version_info = check_output("git log --pretty=format:'%ai' -n 1")
-check_output(f"git tag -a -f '{new_version}' -m '{version_info}'")
+run(f"git commit -a -m '{tmsg}'")
+ok, version_info = read("git log --pretty=format:'%ai' -n 1")
+run(f"git tag -a -f '{new_version}' -m '{version_info}'")
 
 # Generate CHANGES.txt
 changes_text = f"Recent tagged changes as of {datetime.now()}:\n"
-ok, changelog = check_output(
+ok, changelog = read(
     "git log --pretty=format:'- %ar%d %an%n    %h %ai%n%w(70,4,4)%B' "
     "--max-count=20 --no-walk --tags"
 )
@@ -190,21 +220,19 @@ if ok:
 
 # Merge to master and sync
 if input("Switch to master, merge working, and push? [yN] ").lower() == "y":
-    check_output(f"git checkout {MAIN_BRANCH}")
-    check_output(f"git merge {WORKING_BRANCH}")
-    check_output(f"git push origin {MAIN_BRANCH}")
+    run(f"git checkout {MAIN_BRANCH}")
+    run(f"git merge {WORKING_BRANCH}")
+    run(f"git push origin {MAIN_BRANCH}")
 
-    check_output(f"git checkout {WORKING_BRANCH}")
-    check_output(f"git reset --hard {MAIN_BRANCH}")
-    check_output(f"git push origin {WORKING_BRANCH} --force")
+    run(f"git checkout {WORKING_BRANCH}")
+    run(f"git reset --hard {MAIN_BRANCH}")
+    run(f"git push origin {WORKING_BRANCH} --force")
 
     if input("Upload to PyPI using uv publish? [yN] ").lower() == "y":
-        if not NO_CLEAN:
-            clean_build_artifacts()
-        check_output("uv publish")
+        build_and_upload()
 
 else:
     print(f"Retained version: {version}")
 
 if not DRY_RUN:
-    check_output("uv pip install -e .")
+    run("uv pip install -e .")

@@ -2,7 +2,8 @@ from __future__ import annotations
 import tklr
 
 from asyncio import create_task
-from importlib.metadata import version
+
+# from importlib.metadata import version
 from .shared import log_msg, display_messages, parse
 from datetime import datetime, timedelta, date
 from logging import log
@@ -32,7 +33,7 @@ from textual import on
 import string
 import shutil
 import asyncio
-from .shared import get_version, fmt_user
+from .shared import fmt_user
 from typing import Dict, Tuple
 import pyperclip
 from .item import Item
@@ -49,10 +50,10 @@ from typing import List, Callable, Optional, Any, Iterable
 from textual import events
 
 from textual.events import Key
+from .versioning import get_version
 
 
-tklr_version = version("tklr")
-# tklr_version = get_version()
+tklr_version = get_version()
 
 # Color hex values for readability (formerly from prompt_toolkit.styles.named_colors)
 LEMON_CHIFFON = "#FFFACD"
@@ -466,48 +467,48 @@ class BinHierarchyScreen(Screen[None]):
         log_msg("action_dismiss")
         self.dismiss(None)
 
-    def _apply_expand_depth(self) -> None:
-        if not self._tree:
-            return
-        root = self._tree.root
-        if not root:
-            return
-        with self._tree.batch_update():
-            self._collapse_all(root)
-            self._expand_to_depth(root, self.expand_depth)
-        self._tree.refresh(layout=True)
-
-    def action_expand_depth_plus(self) -> None:
-        self.expand_depth = min(self.expand_depth + 1, 12)
-        self._apply_expand_depth()
-
-    def action_expand_depth_minus(self) -> None:
-        self.expand_depth = max(self.expand_depth - 1, 0)
-        self._apply_expand_depth()
-
-    def action_set_expand_depth(self, depth: str) -> None:
-        # Textual passes args as strings from bindings/commands
-        try:
-            d = max(0, min(int(depth), 99))
-        except ValueError:
-            return
-        self.expand_depth = d
-        self._apply_expand_depth()
-
-    # --- helpers you already have ---
-    def _collapse_all(self, node) -> None:
-        node.collapse()
-        for child in list(node.children):
-            self._collapse_all(child)
-
-    def _expand_to_depth(self, node, depth: int) -> None:
-        if depth <= 0:
-            return
-        node.expand()
-        if depth == 1:
-            return
-        for child in list(node.children):
-            self._expand_to_depth(child, depth - 1)
+    # def _apply_expand_depth(self) -> None:
+    #     if not self._tree:
+    #         return
+    #     root = self._tree.root
+    #     if not root:
+    #         return
+    #     with self._tree.batch_update():
+    #         self._collapse_all(root)
+    #         self._expand_to_depth(root, self.expand_depth)
+    #     self._tree.refresh(layout=True)
+    #
+    # def action_expand_depth_plus(self) -> None:
+    #     self.expand_depth = min(self.expand_depth + 1, 12)
+    #     self._apply_expand_depth()
+    #
+    # def action_expand_depth_minus(self) -> None:
+    #     self.expand_depth = max(self.expand_depth - 1, 0)
+    #     self._apply_expand_depth()
+    #
+    # def action_set_expand_depth(self, depth: str) -> None:
+    #     # Textual passes args as strings from bindings/commands
+    #     try:
+    #         d = max(0, min(int(depth), 99))
+    #     except ValueError:
+    #         return
+    #     self.expand_depth = d
+    #     self._apply_expand_depth()
+    #
+    # # --- helpers you already have ---
+    # def _collapse_all(self, node) -> None:
+    #     node.collapse()
+    #     for child in list(node.children):
+    #         self._collapse_all(child)
+    #
+    # def _expand_to_depth(self, node, depth: int) -> None:
+    #     if depth <= 0:
+    #         return
+    #     node.expand()
+    #     if depth == 1:
+    #         return
+    #     for child in list(node.children):
+    #         self._expand_to_depth(child, depth - 1)
 
     # ---------- Helpers ----------
     def _pretty_child_name(self, parent_name: str, child_name: str) -> str:
@@ -548,7 +549,7 @@ class BinHierarchyScreen(Screen[None]):
             for child in self.db.get_subbins(bin_id):
                 full_name = child["name"]
                 pretty = self._pretty_child_name(parent_full_name, full_name)
-                label = f"{pretty}  ({child['subbins']}/{child['reminders']})"
+                label = f"{pretty} [dim]{child['subbins']}/{child['reminders']}[/dim]"
 
                 child_node = parent_node.add(
                     label,
@@ -1925,6 +1926,7 @@ class WeeksScreen(SearchableScreen, SafeScreen):
         footer_content: str,
     ):
         super().__init__()
+        log_msg(f"{self.app = }, {self.app.controller = }")
         self.add_class("panel-bg-weeks")  # WeeksScreen
         self.table_title = title
         self.table = table  # busy bar / calendar mini-grid content (string)
