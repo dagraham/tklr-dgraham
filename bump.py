@@ -9,6 +9,16 @@ import tomllib
 from tomlkit import parse as toml_parse, dumps as toml_dumps
 import shutil
 import itertools
+import os
+import subprocess
+
+TWINE_ENV_KEYS = (
+    "TWINE_USERNAME",
+    "TWINE_PASSWORD",
+    "UV_PUBLISH_TOKEN",
+    "PYPI_USERNAME",
+    "PYPI_PASSWORD",
+)
 
 PYPROJECT_PATH = Path("pyproject.toml")
 MAIN_BRANCH = "master"
@@ -19,6 +29,14 @@ DRY_RUN = "--dry-run" in sys.argv
 # optional CLI flags
 CLEAN_ONLY = "--clean" in sys.argv
 NO_CLEAN = "--no-clean" in sys.argv
+
+
+def clean_env_for_twine() -> dict:
+    """Return a copy of os.environ with variables that override ~/.pypirc removed."""
+    env = os.environ.copy()
+    for k in TWINE_ENV_KEYS:
+        env.pop(k, None)
+    return env
 
 
 def run(cmd: str):
@@ -47,6 +65,22 @@ def read(cmd: str):
             cmd, stderr=subprocess.STDOUT, shell=True, encoding="utf-8"
         )
         return True, out
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Error running: {cmd}\n{e.output}")
+        return False, e.output.strip().split("\n")[-1]
+
+
+def check_output(cmd, env=None):
+    if not cmd:
+        return True, ""
+    if DRY_RUN:
+        print(f"[dry-run] {cmd}")
+        return True, ""
+    try:
+        res = subprocess.check_output(
+            cmd, stderr=subprocess.STDOUT, shell=True, encoding="utf-8", env=env
+        )
+        return True, res
     except subprocess.CalledProcessError as e:
         print(f"❌ Error running: {cmd}\n{e.output}")
         return False, e.output.strip().split("\n")[-1]
@@ -84,17 +118,33 @@ def clean_build_artifacts(verbose=True):
             print(f"⚠️ could not remove {p}: {e}")
 
 
-def build_and_upload(to="pypi", verbose=True, skip_existing=False, clean=True):
-    if clean:
-        clean_build_artifacts(verbose=verbose)
-    run("uv build")
-    run("uvx twine check dist/*")
-    flags = ["-r", to]
+# def build_and_upload(to="pypi", verbose=True, skip_existing=False, clean=True):
+#     if clean:
+#         clean_build_artifacts(verbose=verbose)
+#     run("uv build")
+#     run("uvx twine check dist/*")
+#     flags = ["-r", to]
+#     if verbose:
+#         flags.append("--verbose")
+#     if skip_existing:
+#         flags.append("--skip-existing")
+#     return run(f"uvx twine upload {' '.join(flags)} dist/*")
+
+
+def build_and_upload(repo="pypi", verbose=True, skip_existing=False):
+    # clean build
+    clean_build_artifacts()
+    check_output("uv build")
+    check_output("uvx twine check dist/*")
+
+    flags = ["-r", repo]
     if verbose:
         flags.append("--verbose")
     if skip_existing:
         flags.append("--skip-existing")
-    return run(f"uvx twine upload {' '.join(flags)} dist/*")
+
+    env = clean_env_for_twine()  # ensure ~/.pypirc is honored
+    return check_output(f"uvx twine upload {' '.join(flags)} dist/*", env=env)
 
 
 def load_version():
@@ -108,22 +158,6 @@ def write_version(new_version: str):
     doc = toml_parse(text)
     doc["project"]["version"] = new_version
     PYPROJECT_PATH.write_text(toml_dumps(doc), encoding="utf-8")
-
-
-# def check_output(cmd):
-#     if not cmd:
-#         return
-#     if DRY_RUN:
-#         print(f"[dry-run] {cmd}")
-#         return True, ""
-#     try:
-#         res = subprocess.check_output(
-#             cmd, stderr=subprocess.STDOUT, shell=True, encoding="utf-8"
-#         )
-#         return True, res
-#     except subprocess.CalledProcessError as e:
-#         print(f"❌ Error running: {cmd}\n{e.output}")
-#         return False, e.output.strip().split("\n")[-1]
 
 
 # --- Ensure we're on the working branch ---
