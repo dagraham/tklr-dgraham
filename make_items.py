@@ -142,7 +142,7 @@ env = TklrEnvironment()
 ctrl = Controller("./example/tklr.db", env, reset=True)
 # Insert the UTC records into the database
 
-num_items = 200
+num_items = 0
 types = ["~", "~", "*", "~", "*", "*", "*", "*", "%"]
 
 contexts = ["errands", "home", "office", "shop"]
@@ -328,9 +328,9 @@ alerts = [
 ]
 
 records = []
-num_items = 200
 count = 0
-items = []
+# items = []
+# num_items = 0
 while len(items) < num_items:
     t = random.choice(types)
     name = phrase()
@@ -355,8 +355,7 @@ while len(items) < num_items:
 id = 0
 # for entry in items:  # + alerts:
 # for entry in busy + items:
-# for entry in items + bins + alerts:
-for entry in items:
+for entry in items + bins + alerts:
     count += 1
     id += 1
     try:

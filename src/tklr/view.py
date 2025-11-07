@@ -51,6 +51,7 @@ from textual import events
 
 from textual.events import Key
 from .versioning import get_version
+from pathlib import Path
 
 
 tklr_version = get_version()
@@ -288,6 +289,14 @@ details of the item and access related commands.
 """.splitlines()
 #
 # tklr/clipboard.py
+
+
+def timestamped_screenshot_path(
+    view: str, directory: str = "screenshots_tmp", ext: str = "svg"
+) -> Path:
+    Path(directory).mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    return Path(directory) / f"{view}_screenshot-{ts}.{ext}"
 
 
 class ClipboardUnavailable(RuntimeError):
@@ -2917,11 +2926,16 @@ class DynamicViewApp(App):
                 screen.show_details_for_tag(key)
         return
 
+    # def action_take_screenshot(self):
+    #     """Save a screenshot of the current app state."""
+    #     screenshot_path = f"{self.view}_screenshot.svg"
+    #     self.save_screenshot(screenshot_path)
+    #     log_msg(f"Screenshot saved to: {screenshot_path}")
+
     def action_take_screenshot(self):
-        """Save a screenshot of the current app state."""
-        screenshot_path = f"{self.view}_screenshot.svg"
-        self.save_screenshot(screenshot_path)
-        log_msg(f"Screenshot saved to: {screenshot_path}")
+        path = timestamped_screenshot_path(self.view)
+        self.save_screenshot(str(path))
+        log_msg(f"Screenshot saved to: {path}")
 
     def run_daily_tasks(self):
         created, kept, removed = self.controller.rotate_daily_backups()
