@@ -111,6 +111,8 @@ Scheduled Reminders for the Week with busy times displayed by a leading _busy ba
   <em>Weeks View: busy bar and scheduled reminders for week</em>
 </p>
 
+The _left_ and _right_ cursor keys shift the display backward and forward one week at a time. Adding _shift_ to these cursor keys shifts by four weeks at a time. The _space_ key restores the display to the current week.
+
 There are 5 cells in the _busy bar_ for each week day. The first (furthest left) displays a yellow square if an _all day event_ such as a holiday is scheduled for that date. The remaining 4 cells correspond to the 6-hour periods during the day:
 
 - 00:00-05:59 _night_
