@@ -3257,71 +3257,6 @@ class DatabaseManager:
 
         self.conn.commit()
 
-    # def populate_busy_from_datetimes(self):
-    #     """
-    #     Populate BusyWeeksFromDateTimes from the DateTimes table.
-    #
-    #     Uses fine_busy_bits_for_event(start, end) to generate 679-slot bit arrays.
-    #     Each event produces one or more rows in BusyWeeksFromDateTimes
-    #     (one per affected year-week).
-    #     """
-    #
-    #     log_msg("🔄 Rebuilding BusyWeeksFromDateTimes from DateTimes...")
-    #
-    #     # Clear previous content
-    #     self.cursor.execute("DELETE FROM BusyWeeksFromDateTimes")
-    #
-    #     # Fetch all event-type records from DateTimes joined with Records
-    #     self.cursor.execute("""
-    #         SELECT
-    #             dt.record_id,
-    #             dt.start_datetime,
-    #             dt.end_datetime
-    #         FROM DateTimes AS dt
-    #         JOIN Records AS r ON r.id = dt.record_id
-    #         WHERE r.itemtype = '*'
-    #     """)
-    #
-    #     rows = self.cursor.fetchall()
-    #     total = len(rows)
-    #     print(f"Found {total} event datetime(s).")
-    #
-    #     if not rows:
-    #         return
-    #
-    #     for record_id, start_str, end_str in rows:
-    #         log_msg(f"{record_id = }, {start_str = }, {end_str = }")
-    #         # Convert from stored compact format
-    #         start = start_str.strip()
-    #         end = end_str.strip() if end_str else None
-    #
-    #         try:
-    #             # get per-week bitmaps
-    #             week_maps = fine_busy_bits_for_event(start, end)
-    #
-    #             for year_week, bits in week_maps.items():
-    #                 # Ensure numpy array type
-    #                 arr = np.asarray(bits, dtype=np.uint8)
-    #                 blob = arr.tobytes()
-    #
-    #                 # insert or replace
-    #                 self.cursor.execute(
-    #                     """
-    #                     INSERT INTO BusyWeeksFromDateTimes (record_id, year_week, busybits)
-    #                     VALUES (?, ?, ?)
-    #                     ON CONFLICT(record_id, year_week)
-    #                     DO UPDATE SET busybits = excluded.busybits
-    #                 """,
-    #                     (record_id, year_week, blob),
-    #                 )
-    #
-    #         except Exception as e:
-    #             print(f"⚠️ Error building busy bits for record {record_id}: {e}")
-    #             continue
-    #
-    #     self.conn.commit()
-    #     print("✅ BusyWeeksFromDateTimes population complete.")
-
     def populate_busy_from_datetimes(self):
         """
         Build BusyWeeksFromDateTimes from DateTimes.
@@ -3333,19 +3268,25 @@ class DatabaseManager:
         log_msg("🧩 Rebuilding BusyWeeksFromDateTimes…")
         self.cursor.execute("DELETE FROM BusyWeeksFromDateTimes")
 
-        # fetch all events
-        self.cursor.execute(
-            "SELECT record_id, start_datetime, end_datetime FROM DateTimes"
-        )
+        # Only include Records that are events (itemtype='*')
+        self.cursor.execute("""
+            SELECT dt.record_id, dt.start_datetime, dt.end_datetime
+            FROM DateTimes AS dt
+            JOIN Records AS r ON r.id = dt.record_id
+            WHERE r.itemtype = '*'
+        """)
         rows = self.cursor.fetchall()
         if not rows:
-            print("⚠️ No DateTimes entries found.")
+            print("⚠️ No event DateTimes entries found.")
             return
 
         total_inserted = 0
         for record_id, start_str, end_str in rows:
             weeks = fine_busy_bits_for_event(start_str, end_str)
             for yw, arr in weeks.items():
+                # ensure numpy array
+                arr = np.asarray(arr, dtype=np.uint8)
+
                 # check if a row already exists for (record_id, week)
                 self.cursor.execute(
                     "SELECT busybits FROM BusyWeeksFromDateTimes WHERE record_id=? AND year_week=?",
@@ -3883,128 +3824,128 @@ class DatabaseManager:
         cur.execute("SELECT COUNT(*) FROM Records")
         return cur.fetchone()[0]
 
-    def rebuild_busyweeks_from_source(self):
-        """
-        Aggregate BusyWeeksFromDateTimes → BusyWeeks.
+    # def rebuild_busyweeks_from_source(self):
+    #     """
+    #     Aggregate BusyWeeksFromDateTimes → BusyWeeks.
+    #
+    #     - Combines all busybit arrays per year_week.
+    #     - Uses ternary encoding:
+    #         0 = free
+    #         1 = busy (exactly one event)
+    #         2 = conflict (2+ overlapping events)
+    #     """
+    #
+    #     self.cursor.execute("SELECT DISTINCT year_week FROM BusyWeeksFromDateTimes")
+    #     weeks = [row[0] for row in self.cursor.fetchall()]
+    #     log_msg(f"{weeks = }")
+    #     if not weeks:
+    #         return
+    #
+    #     for yw in weeks:
+    #         # Get all 672-slot arrays for this week
+    #         self.cursor.execute(
+    #             "SELECT busybits FROM BusyWeeksFromDateTimes WHERE year_week = ?",
+    #             (yw,),
+    #         )
+    #         rows = self.cursor.fetchall()
+    #         if not rows:
+    #             continue
+    #
+    #         # Decode each blob back to numpy array
+    #         arrays = [np.frombuffer(row[0], dtype=np.uint8) for row in rows]
+    #         for array in arrays:
+    #             log_msg(f"{yw = }, {array.sum() = }")
+    #
+    #         # Sum them elementwise
+    #         summed = np.sum(arrays, axis=0)
+    #
+    #         # Convert summed counts → ternary busy/conflict encoding
+    #         # 0 = free, 1 = busy (exactly 1), 2 = conflict (≥2)
+    #         merged = np.where(summed == 0, 0, np.where(summed == 1, 1, 2)).astype(
+    #             np.uint8
+    #         )
+    #
+    #         # Store back as BLOB
+    #         blob = merged.tobytes()
+    #         self.cursor.execute(
+    #             """
+    #             INSERT INTO BusyWeeks (year_week, busybits)
+    #             VALUES (?, ?)
+    #             ON CONFLICT(year_week)
+    #             DO UPDATE SET busybits = excluded.busybits
+    #             """,
+    #             (yw, blob),
+    #         )
+    #
+    #     self.conn.commit()
 
-        - Combines all busybit arrays per year_week.
-        - Uses ternary encoding:
-            0 = free
-            1 = busy (exactly one event)
-            2 = conflict (2+ overlapping events)
-        """
-
-        self.cursor.execute("SELECT DISTINCT year_week FROM BusyWeeksFromDateTimes")
-        weeks = [row[0] for row in self.cursor.fetchall()]
-        log_msg(f"{weeks = }")
-        if not weeks:
-            return
-
-        for yw in weeks:
-            # Get all 672-slot arrays for this week
-            self.cursor.execute(
-                "SELECT busybits FROM BusyWeeksFromDateTimes WHERE year_week = ?",
-                (yw,),
-            )
-            rows = self.cursor.fetchall()
-            if not rows:
-                continue
-
-            # Decode each blob back to numpy array
-            arrays = [np.frombuffer(row[0], dtype=np.uint8) for row in rows]
-            for array in arrays:
-                log_msg(f"{yw = }, {array.sum() = }")
-
-            # Sum them elementwise
-            summed = np.sum(arrays, axis=0)
-
-            # Convert summed counts → ternary busy/conflict encoding
-            # 0 = free, 1 = busy (exactly 1), 2 = conflict (≥2)
-            merged = np.where(summed == 0, 0, np.where(summed == 1, 1, 2)).astype(
-                np.uint8
-            )
-
-            # Store back as BLOB
-            blob = merged.tobytes()
-            self.cursor.execute(
-                """
-                INSERT INTO BusyWeeks (year_week, busybits)
-                VALUES (?, ?)
-                ON CONFLICT(year_week)
-                DO UPDATE SET busybits = excluded.busybits
-                """,
-                (yw, blob),
-            )
-
-        self.conn.commit()
-
-    def rebuild_busyweeks_from_source(self):
-        """
-        Aggregate all BusyWeeksFromDateTimes → BusyWeeks.
-
-        Rules:
-        - busybits are 679-slot uint8 arrays per (record_id, year_week)
-        - if any slot has 2 or more overlapping events → 2 (conflict)
-        - else if >=1 event → 1 (busy)
-        - else 0 (free)
-        """
-
-        self.cursor.execute("SELECT DISTINCT year_week FROM BusyWeeksFromDateTimes")
-        weeks = [row[0] for row in self.cursor.fetchall()]
-        if not weeks:
-            print("⚠️ No data to aggregate.")
-            return
-
-        print(f"Aggregating {len(weeks)} week(s)...")
-
-        for yw in weeks:
-            # --- Gather all event arrays for this week
-            self.cursor.execute(
-                "SELECT busybits FROM BusyWeeksFromDateTimes WHERE year_week = ?",
-                (yw,),
-            )
-            blobs = [
-                np.frombuffer(row[0], dtype=np.uint8) for row in self.cursor.fetchall()
-            ]
-            if not blobs:
-                continue
-
-            # Ensure all same length (safety)
-            n = len(blobs[0])
-            if any(arr.size != n for arr in blobs):
-                print(f"⚠️ Skipping {yw}: inconsistent array sizes")
-                continue
-
-            # Stack vertically -> shape (num_events, 679)
-            stack = np.vstack(blobs)
-
-            # Sum across events
-            counts = stack.sum(axis=0)
-
-            # Collapse:
-            # ≥2 overlapping → 2
-            # ≥1 → 1
-            # 0 → 0
-            merged = np.where(counts >= 2, 2, np.where(counts >= 1, 1, 0)).astype(
-                np.uint8
-            )
-
-            # Serialize as BLOB
-            blob = merged.tobytes()
-
-            # Upsert into BusyWeeks
-            self.cursor.execute(
-                """
-                INSERT INTO BusyWeeks (year_week, busybits)
-                VALUES (?, ?)
-                ON CONFLICT(year_week)
-                DO UPDATE SET busybits = excluded.busybits
-                """,
-                (yw, blob),
-            )
-
-        self.conn.commit()
-        print("✅ BusyWeeks aggregation complete.")
+    # def rebuild_busyweeks_from_source(self):
+    #     """
+    #     Aggregate all BusyWeeksFromDateTimes → BusyWeeks.
+    #
+    #     Rules:
+    #     - busybits are 679-slot uint8 arrays per (record_id, year_week)
+    #     - if any slot has 2 or more overlapping events → 2 (conflict)
+    #     - else if >=1 event → 1 (busy)
+    #     - else 0 (free)
+    #     """
+    #
+    #     self.cursor.execute("SELECT DISTINCT year_week FROM BusyWeeksFromDateTimes")
+    #     weeks = [row[0] for row in self.cursor.fetchall()]
+    #     if not weeks:
+    #         print("⚠️ No data to aggregate.")
+    #         return
+    #
+    #     print(f"Aggregating {len(weeks)} week(s)...")
+    #
+    #     for yw in weeks:
+    #         # --- Gather all event arrays for this week
+    #         self.cursor.execute(
+    #             "SELECT busybits FROM BusyWeeksFromDateTimes WHERE year_week = ?",
+    #             (yw,),
+    #         )
+    #         blobs = [
+    #             np.frombuffer(row[0], dtype=np.uint8) for row in self.cursor.fetchall()
+    #         ]
+    #         if not blobs:
+    #             continue
+    #
+    #         # Ensure all same length (safety)
+    #         n = len(blobs[0])
+    #         if any(arr.size != n for arr in blobs):
+    #             print(f"⚠️ Skipping {yw}: inconsistent array sizes")
+    #             continue
+    #
+    #         # Stack vertically -> shape (num_events, 679)
+    #         stack = np.vstack(blobs)
+    #
+    #         # Sum across events
+    #         counts = stack.sum(axis=0)
+    #
+    #         # Collapse:
+    #         # ≥2 overlapping → 2
+    #         # ≥1 → 1
+    #         # 0 → 0
+    #         merged = np.where(counts >= 2, 2, np.where(counts >= 1, 1, 0)).astype(
+    #             np.uint8
+    #         )
+    #
+    #         # Serialize as BLOB
+    #         blob = merged.tobytes()
+    #
+    #         # Upsert into BusyWeeks
+    #         self.cursor.execute(
+    #             """
+    #             INSERT INTO BusyWeeks (year_week, busybits)
+    #             VALUES (?, ?)
+    #             ON CONFLICT(year_week)
+    #             DO UPDATE SET busybits = excluded.busybits
+    #             """,
+    #             (yw, blob),
+    #         )
+    #
+    #     self.conn.commit()
+    #     print("✅ BusyWeeks aggregation complete.")
 
     def rebuild_busyweeks_from_source(self):
         """

@@ -90,6 +90,47 @@ The 4 types of reminders in _tklr_ with their associated type characters:
          * Presidential election day @s nov 1 2020 @r y &i 4
             &w TU &m 2, 3, 4, 5, 6, 7, 8 &M 11
 
+## Views
+
+Each of the views listed below can be opened by entering the first letter of the view's name, e.g., pressing `A` (`shift+a`) will open _Agenda View_.
+
+These views involve vertical lists of reminders, each row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder. When necessary, lists are split into pages so that no more than 26 reminders appear on any one page. The left and right cursor keys are used to move back and forth between pages.
+
+On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. When the details of reminder are being displayed, various commands are available to modify the reminder. E.g., `,e` (comma followed by e) to edit the reminder or `,d` to delete the reminder are two examples. Additionally, the key corresponding to the tag of another reminder will switch the details display to that reminder, `escape` will close the details display and entering the upper case letter corresponding to another view will open that view.
+
+The point of using tags to select and display reminders in this way is to minimize key presses. Any reminder on a page can be selected and its details displayed with a single key press.
+
+### Weekly
+
+Scheduled Reminders by Week with Busy Bar showing the busy times during the week at a glance.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/week_screenshot.svg"
+       alt="Agenda view in Tklr" width="600">
+  <br>
+  <em>Agenda view showing events and tasks sorted by urgency.</em>
+</p>
+
+### Agenda
+
+The next three days of events with notices and drafts and then tasks ordered by their urgency
+
+### Next
+
+The next instance of every scheduled reminder
+
+### Last
+
+The last instance of every scheduled reminder
+
+### Find
+
+Reminders whose subject or detail entries contain a case-insensitive match for an entered expression
+
+### Bins
+
+Reminders listed by their assigned _bins_
+
 ## Details
 
 ### Dates and times
@@ -106,7 +147,7 @@ Intelligent parsing of the user's entry of a datetime is supported. Suppose it i
 | 10 13:30 z CET  | 2025-11-10 07:30 EST | Mon, Nov 10 2025 07:30 EST |
 | 10 20h z none   | 2025-11-23 20:00     | Mon, Nov 10 2025 20:00     |
 
-Datetimes entered with "z none" and dates are _naive_ - have no timezone information. Datetimes entered with "z TIMEZONE" are interpreted as _aware_ datetimes in TIMEZONE. Datetimes without a "z" entry are also interpreted as _aware_ but in the timezone of the user's computer. Aware datetimes are always reported using the timezone of the user's computer, wherever it might be. Times can be entered using the suffix of either a/p or am/pm for AM/PM times or h for 24-hour times. Times are reported using the preference of the user, here as 24-times.
+Datetimes entered with "z none" and dates are _naive_ - have no timezone information. Datetimes entered with "z TIMEZONE" are interpreted as _aware_ datetimes in TIMEZONE. Datetimes without a "z" entry are also interpreted as _aware_ but in the timezone of the user's computer. Aware datetimes are always reported using the timezone of the user's computer, wherever it might be. Times can be entered using the suffix of either a/p or am/pm for AM/PM times or h for 24-hour times. Times are reported using the preference of the user, here as 24-hour times.
 
 Why would you want to use a "z" in specifying a time? Suppose a colleague in Europe at asked you to call Friday at 18:00 CET time. Then setting "@s fri 18h z CET" will schedule your reminder for the correct time to call wherever you might be. In the US/Eastern timezone, this would be "Fri, Nov 12 2025 12:00 EST". As a second example, suppose you want to take a daily medication at 4pm in whatever timezone you happen to be. Then you will want to schedule the reminder for "@s 4p z none".
 
@@ -174,7 +215,21 @@ Consider an event with `@s 2025-10-21 10am @e 2h30m`, which starts at 10am and e
 
 #### alert
 
-> [!NOTE] Needs an example.
+An alert is specified using `@a <list of invervals> : <list of commands>`. An `@s <datetime>` is required and the result is to execute the commands in `<list of commands>` at the datetimes resulting from subtracting the intervals in `<list of intervals>` from `<datetime>`. E.g., with `@s 17:00 fri` and `@a 1h, -15m: c, d`, the commands `c` and `d` would each be executed at `17:00 - 1h = 16:00` and `17:00 + 15m = 17:15` on Friday.
+
+A command such as `d` in the example must be specified in the user configuration file. This is the relevant section:
+
+```
+[alerts]
+# dict[str, str]: character -> command_str.
+# E.g., this entry
+#   d: '/usr/bin/say -v Alex "[[volm 0.5]] {subject}, {when}"'
+# would, on my macbook, invoke the system voice to speak the subject
+# of the reminder and the time remaining until the scheduled datetime.
+# The character "d" would be associated with this command so that, e.g.,
+# the alert entry "@a 30m, 15m: d" would trigger this command 30
+# minutes before and again 15 minutes before the scheduled datetime.
+```
 
 ### Recurrence
 

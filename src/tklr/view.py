@@ -457,7 +457,9 @@ class BinHierarchyScreen(Screen[None]):
         tree = Tree("Bins", id="bins-tree")
         self._tree = tree
         yield tree
-        yield Static(" [bold yellow]esc[/bold yellow] Back")
+        yield Static(
+            " [bold yellow]esc[/bold yellow] Back  [bold yellow]+/-[/bold yellow] expand/collapse "
+        )
 
     def on_mount(self) -> None:
         self._populate_tree()

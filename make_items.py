@@ -100,10 +100,14 @@ def local_dtstr_to_utc_str(local_dt_str: str) -> str:
     """
     from dateutil import parser
 
-    local_dt = parser.parse(local_dt_str).astimezone()
-    utc_dt = local_dt.astimezone(tz=gettz("UTC")).replace(tzinfo=None)
-    # return utc_dt.isoformat()
-    return utc_dt.strftime("%Y-%m-%d %H:%M")
+    try:
+        local_dt = parser.parse(local_dt_str).astimezone()
+        utc_dt = local_dt.astimezone(tz=gettz("UTC")).replace(tzinfo=None)
+        # return utc_dt.isoformat()
+        return utc_dt.strftime("%Y-%m-%d %H:%M")
+    except:
+        print(f"error parsing {local_dt_str = }")
+        return ""
 
 
 def to_tdstr(seconds: int) -> str:
@@ -138,23 +142,23 @@ env = TklrEnvironment()
 ctrl = Controller("./example/tklr.db", env, reset=True)
 # Insert the UTC records into the database
 
-num_items = 20
-types = ["-", "*"]
+num_items = 200
+types = ["~", "~", "*", "~", "*", "*", "*", "*", "%"]
 
 contexts = ["errands", "home", "office", "shop"]
 tags = ["red", "green", "blue"]
 dates = [0, 0, 0, 1, 0, 0, 0]  # dates 1/7 of the time
 repeat = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0]  # repeat 1/10 of the time
 # duration = [to_tdstr(x) for x in range(6, 2 * 60 * 60, 6)]
-duration = [to_tdstr(x) for x in range(0, 2 * 60 * 60, 300)]
+duration = [to_tdstr(x) for x in range(0, 2 * 60 * 60, 900)]
 
 now = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 num_konnections = 0
 num_items = int(num_items)
 wkbeg, wkend = week(now)
 months = num_items // 200
-start = wkbeg - 12 * 7 * ONEDAY
-until = wkend + (40 * 7) * ONEDAY
+start = wkbeg - 2 * 7 * ONEDAY
+until = wkend + (10 * 7) * ONEDAY
 print(f"Generating {num_items} records from {start} to {until}...")
 
 
@@ -193,8 +197,8 @@ datetimes = list(
     rrule.rrule(
         rrule.DAILY,
         byweekday=range(7),
-        byhour=range(6, 20),
-        byminute=range(0, 60, 15),
+        byhour=range(7, 20),
+        byminute=range(0, 60, 30),
         dtstart=start,
         until=until,
     )
@@ -324,8 +328,9 @@ alerts = [
 ]
 
 records = []
-num_items = 0
+num_items = 200
 count = 0
+items = []
 while len(items) < num_items:
     t = random.choice(types)
     name = phrase()
@@ -334,33 +339,37 @@ while len(items) < num_items:
     date = random.choice(dates)
     if date:
         # all day if event else end of day
-        dts = start.strftime("%Y%m%d") if t == "*" else start.strftime("%Y%m%dT235959")
+        dtstart = start.strftime("%Y%m%d")
     else:
-        dts = start.strftime("%Y-%m-%d %H:%M00")
-    dtstart = local_dtstr_to_utc_str(dts)
-    extent = random.choice(duration)
+        dtstart = start.strftime("%Y-%m-%d %H:%M")
+    # dtstart = local_dtstr_to_utc_str(dts)
+    extent = f" @e {random.choice(duration)}" if (t == "*" and not date) else ""
     if random.choice(repeat):
         items.append(
-            f"{t} {name} @d {description} @s {dtstart} @e {extent} @r {random.choice(freq)} &i {random.choice(count)}"
+            f"{t} {name} @d {description} @s {dtstart}{extent} @r {random.choice(freq)} "
         )
     else:
-        items.append(f"{t} {name} @d {description} @s {dtstart} @e {extent}")
+        items.append(f"{t} {name} @d {description} @s {dtstart}{extent}")
 
 
 id = 0
 # for entry in items:  # + alerts:
 # for entry in busy + items:
-for entry in items + bins + alerts:
+# for entry in items + bins + alerts:
+for entry in items:
     count += 1
     id += 1
-    print(f"---\n{entry = }")
-    item = Item(raw=entry, env=env, final=True, controller=ctrl)  # .to_dict()
-    # new_entry = item.to_entry()
-    # print(f">>>\n{new_entry = }")
-    # continue
-    record_id = ctrl.add_item(item)  # .to_dict()
-    print(f"\n{item.entry}\n")
-    print(f"{record_id = }, {item.tokens = }; {item.rruleset = }")
+    try:
+        item = Item(raw=entry, env=env, final=True, controller=ctrl)  # .to_dict()
+        # new_entry = item.to_entry()
+        # print(f">>>\n{new_entry = }")
+        # continue
+        record_id = ctrl.add_item(item)  # .to_dict()
+        if count % 20 == 0:
+            print(f"---\n{count} {entry = }")
+    except:
+        print(f"\n{item.entry}\n")
+        print(f"{record_id = }, {item.tokens = }; {item.rruleset = }")
 
 try:
     ctrl.db_manager.populate_dependent_tables()
