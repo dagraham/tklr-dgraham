@@ -106,14 +106,39 @@ Scheduled Reminders by Week with Busy Bar showing the busy times during the week
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/week_screenshot.svg"
-       alt="Agenda view in Tklr" width="600">
+       alt="Agenda view in Tklr" width="500">
   <br>
-  <em>Agenda view showing events and tasks sorted by urgency.</em>
+  <em>Weeks view showing busy bar and events for week sorted by weekday.</em>
+</p>
+
+There are 5 cells in the busy bar for each week day. The first (furthest left) displays a yellow square if an _all day_ event such as a holiday is scheduled for that date. The remaining 4 cells correspond to the periods during the day:
+
+- 00:00-05:59 _night_
+- 06:00-11:59 _morning_
+- 12:00-17:59 _afternoon_
+- 18:00-23:59 _evening_
+
+If the busy period for an event overlaps one or more of these periods then those periods are tentatively colored green. If the busy periods for two events overlap within one or more periods, then those periods are colored red to indicate the conflict. E.g., the red _evening_ cell for Monday, reflects the conflict between the reminders tagged _d_ and _e_
+
+Pressing _g_ displays the details for that reminder.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/week_with_details_screenshot.svg"
+       alt="Agenda view in Tklr" width="500">
+  <br>
+  <em>Weeks view showing showing details for event tagged g.</em>
 </p>
 
 ### Agenda
 
 The next three days of events with notices and drafts and then tasks ordered by their urgency
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/events_screenshot.svg"
+       alt="Agenda view in Tklr" width="500">
+  <br>
+  <em>Agenda view showing 3 days of events and all tasks ordered by urgency.</em>
+</p>
 
 ### Next
 
