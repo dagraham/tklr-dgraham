@@ -1,9 +1,9 @@
 from __future__ import annotations
 import tklr
 
+
 from asyncio import create_task
 
-# from importlib.metadata import version
 from .shared import log_msg, display_messages, parse
 from datetime import datetime, timedelta, date
 from logging import log
@@ -44,7 +44,7 @@ import re
 from rich.panel import Panel
 from textual.containers import Container
 
-from typing import List, Callable, Optional, Any, Iterable
+from typing import List, Callable, Optional, Any, Iterable, Tuple
 
 # details_drawer.py
 from textual import events
@@ -53,6 +53,11 @@ from textual.events import Key
 from .versioning import get_version
 from pathlib import Path
 
+from dataclasses import dataclass
+
+from .shared import (
+    TYPE_TO_COLOR,
+)
 
 tklr_version = get_version()
 
@@ -71,6 +76,7 @@ ORANGE_RED = "#FF4500"
 TOMATO = "#FF6347"
 CORNSILK = "#FFF8DC"
 FOOTER = "#FF8C00"
+DARK_SALMON = "#E9967A"
 
 # App version
 VERSION = parse_version(tklr_version)
@@ -95,6 +101,8 @@ SELECTED_BACKGROUND = "#dcdcdc"
 MATCH_COLOR = GOLD
 TITLE_COLOR = CORNSILK
 BIN_COLOR = TOMATO
+NOTE_COLOR = DARK_SALMON
+NOTICE_COLOR = GOLD
 
 # This one appears to be a Rich/Textual style string
 SELECTED_COLOR = "bold yellow"
@@ -103,17 +111,8 @@ ONEDAY = timedelta(days=1)
 ONEWK = 7 * ONEDAY
 alpha = [x for x in string.ascii_lowercase]
 
-TYPE_TO_COLOR = {
-    "*": EVENT_COLOR,  # event
-    "-": AVAILABLE_COLOR,  # available task
-    "+": WAITING_COLOR,  # waiting task
-    "%": FINISHED_COLOR,  # finished task
-    "~": GOAL_COLOR,  # goal
-    "^": CHORE_COLOR,  # chore
-    "<": PASTDUE_COLOR,  # past due task
-    ">": BEGIN_COLOR,  # begin
-    "!": DRAFT_COLOR,  # draft
-}
+
+# TYPE_TO_COLOR - moved to shared.py
 
 
 def base26_to_decimal(tag: str) -> int:
@@ -378,252 +377,6 @@ class SafeScreen(Screen):
             self.set_timer(0.01, self.after_mount)
 
 
-#
-# ---- Textual screen: Bin Hierarchy ----
-
-
-# class BinHierarchyScreen(Screen[None]):
-#     BINDINGS = [("escape", "dismiss", "Close")]
-#
-#     def __init__(self, db):
-#         super().__init__()
-#         self.db = db
-#         self._tree: Tree | None = None
-#
-#     def compose(self) -> ComposeResult:
-#         # yield Header(show_clock=False)
-#         yield Static("Bin Paths", id="bins_title", classes="title-class")
-#         tree = Tree("Bins", id="bins-tree")  # ← no expand= here
-#         self._tree = tree
-#         yield tree
-#         yield Static(" [bold yellow]esc[/bold yellow] Back")
-#
-#     # def action_dismiss(self) -> None:
-#     #     self.dismiss(None)
-#
-#     # @on(Key)
-#     # def _(self, event: Key) -> None:
-#     #     if event.key in ("escape"):
-#     #         self.dismiss(None)
-#
-#     def on_mount(self) -> None:
-#         self._populate_tree()
-#         # expand the root after it exists
-#         if self._tree is not None and self._tree.root is not None:
-#             self._tree.root.expand()
-#
-#     def _populate_tree(self) -> None:
-#         tree = self._tree
-#         if tree is None:
-#             return
-#
-#         root_id = self.db.ensure_root_exists()
-#         root = tree.root
-#
-#         # Set label
-#         root.set_label(self.db.get_bin_name(root_id))
-#
-#         # 🔧 Instead of root.clear(): remove existing children explicitly
-#         for child in list(root.children):
-#             child.remove()
-#
-#         def add_nodes(parent_node: Tree.Node, bin_id: int) -> None:
-#             for child in self.db.get_subbins(bin_id):
-#                 label = f"{child['name']}  ({child['subbins']}/{child['reminders']})"
-#                 child_node = parent_node.add(label)
-#                 add_nodes(child_node, child["id"])  # recurse
-#                 # optionally auto-expand populated nodes:
-#                 if child["subbins"] or child["reminders"]:
-#                     child_node.expand()
-#
-#         add_nodes(root, root_id)
-#         tree.refresh(layout=True)
-
-
-INITIAL_EXPAND_DEPTH = (
-    9  # 0=root only, 1=children, 2=grandchildren, 3=great-grandchildren, ...
-)
-
-
-class BinHierarchyScreen(Screen[None]):
-    """Bins tree with pretty labels and counts."""
-
-    BINDINGS = [
-        ("escape", "dismiss", "Close"),
-        ("+", "expand_depth_plus", "Depth +1"),
-        ("-", "expand_depth_minus", "Depth -1"),
-    ]
-
-    def __init__(self, db):
-        super().__init__()
-        self.db = db
-        self._tree: Tree | None = None
-        self.expand_depth: int = 3  # <- instance-level default
-
-    # ---------- UI ----------
-    def compose(self) -> ComposeResult:
-        yield Static("Bins Tree", id="bins_title", classes="title-class")
-        tree = Tree("Bins", id="bins-tree")
-        self._tree = tree
-        yield tree
-        yield Static(
-            " [bold yellow]esc[/bold yellow] Back  [bold yellow]+/-[/bold yellow] expand/collapse "
-        )
-
-    def on_mount(self) -> None:
-        self._populate_tree()
-        self._apply_expand_depth()  # <- use the instance value
-
-    def action_dismiss(self) -> None:
-        log_msg("action_dismiss")
-        self.dismiss(None)
-
-    # def _apply_expand_depth(self) -> None:
-    #     if not self._tree:
-    #         return
-    #     root = self._tree.root
-    #     if not root:
-    #         return
-    #     with self._tree.batch_update():
-    #         self._collapse_all(root)
-    #         self._expand_to_depth(root, self.expand_depth)
-    #     self._tree.refresh(layout=True)
-    #
-    # def action_expand_depth_plus(self) -> None:
-    #     self.expand_depth = min(self.expand_depth + 1, 12)
-    #     self._apply_expand_depth()
-    #
-    # def action_expand_depth_minus(self) -> None:
-    #     self.expand_depth = max(self.expand_depth - 1, 0)
-    #     self._apply_expand_depth()
-    #
-    # def action_set_expand_depth(self, depth: str) -> None:
-    #     # Textual passes args as strings from bindings/commands
-    #     try:
-    #         d = max(0, min(int(depth), 99))
-    #     except ValueError:
-    #         return
-    #     self.expand_depth = d
-    #     self._apply_expand_depth()
-    #
-    # # --- helpers you already have ---
-    # def _collapse_all(self, node) -> None:
-    #     node.collapse()
-    #     for child in list(node.children):
-    #         self._collapse_all(child)
-    #
-    # def _expand_to_depth(self, node, depth: int) -> None:
-    #     if depth <= 0:
-    #         return
-    #     node.expand()
-    #     if depth == 1:
-    #         return
-    #     for child in list(node.children):
-    #         self._expand_to_depth(child, depth - 1)
-
-    # ---------- Helpers ----------
-    def _pretty_child_name(self, parent_name: str, child_name: str) -> str:
-        """Trim exactly 'parent:' from the front of the child name."""
-        if not parent_name:
-            return child_name
-        prefix = f"{parent_name}:"
-        if child_name.startswith(prefix):
-            suffix = child_name[len(prefix) :]
-            return suffix or child_name  # never empty
-        return child_name
-
-    # ---------- Build tree (eager, single pass) ----------
-    def _populate_tree(self) -> None:
-        tree = self._tree
-        if tree is None:
-            return
-
-        # Root from DB
-        root_id = self.db.ensure_root_exists()
-        root_name = self.db.get_bin_name(root_id)
-
-        root = tree.root
-        self._tree_root = tree.root
-        root.set_label(self.db.get_bin_name(root_id))
-        # root.set_label(root_name)
-        # root.data = {"bin_id": root_id, "full_name": root_name}
-
-        # Clear any existing children without nuking the root widget
-        for child in list(root.children):
-            child.remove()
-
-        # Recurse using your existing API: db.get_subbins(parent_id)
-        def add_nodes(
-            parent_node: Tree.Node, parent_full_name: str, bin_id: int
-        ) -> None:
-            # Expecting each item to have: id, name (full), subbins, reminders
-            for child in self.db.get_subbins(bin_id):
-                full_name = child["name"]
-                pretty = self._pretty_child_name(parent_full_name, full_name)
-                label = f"{pretty} [dim]{child['subbins']}/{child['reminders']}[/dim]"
-
-                child_node = parent_node.add(
-                    label,
-                    data={"bin_id": child["id"], "full_name": full_name},
-                )
-                # Recurse
-                add_nodes(child_node, full_name, child["id"])
-
-        add_nodes(root, root_name, root_id)
-
-        # Expand to desired initial depth
-        self._expand_to_depth(root, INITIAL_EXPAND_DEPTH)
-
-        # Refresh layout once at the end
-        tree.refresh(layout=True)
-
-    def _expand_to_depth(self, node, depth: int) -> None:
-        if depth <= 0:
-            return
-        node.expand()
-        if depth == 1:
-            return
-        for child in list(node.children):
-            self._expand_to_depth(child, depth - 1)
-
-    def _collapse_all(self, node) -> None:
-        node.collapse()
-        for child in list(node.children):
-            self._collapse_all(child)
-
-    def _apply_expand_depth(self) -> None:
-        """Collapse everything, then expand to self.expand_depth, then repaint."""
-        if not self._tree:
-            return
-        root = self._tree.root
-        if not root:
-            return
-
-        # 1) mutate the nodes
-        self._collapse_all(root)
-        self._expand_to_depth(root, self.expand_depth)
-
-        # 2) force a repaint of the Tree (and optionally the whole Screen)
-        self._tree.refresh(layout=True)
-        # If your terminal/UI still doesn’t show it immediately, schedule a next-tick refresh:
-        # self.set_timer(0, lambda: self._tree.refresh(layout=True))
-
-    def action_expand_depth_plus(self) -> None:
-        self.expand_depth = min(self.expand_depth + 1, 12)
-        self._apply_expand_depth()
-
-    def action_expand_depth_minus(self) -> None:
-        self.expand_depth = max(self.expand_depth - 1, 0)
-        self._apply_expand_depth()
-
-    def action_set_expand_depth(self, depth: str) -> None:
-        try:
-            self.expand_depth = max(0, min(int(depth), 99))
-        except ValueError:
-            return
-        self._apply_expand_depth()
-
-
 class ListWithDetails(Container):
     """Container with a main ScrollableList and a bottom details ScrollableList."""
 
@@ -635,26 +388,6 @@ class ListWithDetails(Container):
         self._detail_key_handler: callable | None = None  # ← inject this
         self._details_active = False
         self.details_meta: dict = {}  # ← you already have this
-
-    # def on_mount(self) -> None:
-    #     # existing on_mount behaviour (if any) should remain
-    #     # debug: list child widgets and their classes/ids
-    #     container = self  # ListWithDetails instance
-    #     log_msg("calling rprint")
-    #     msgs = []
-    #     msgs.append("[bold yellow]ListWithDetails children:[/bold yellow]")
-    #     for i, ch in enumerate(container.children):
-    #         msgs.append(
-    #             f"  {i}: id={repr(ch.id)} class={type(ch).__name__} classes={list(ch.classes)}"
-    #         )
-    #         # and inspect grandchildren
-    #         for j, g in enumerate(ch.children):
-    #             msgs.append(
-    #                 f"    {i}.{j}: id={repr(g.id)} class={type(g).__name__} classes={list(g.classes)}"
-    #             )
-    #     msg = "\n".join(msgs)
-    #     log_msg(f"{msg = }")
-    #
 
     def on_mount(self):
         # 1) Set the widget backgrounds (outer)
@@ -953,8 +686,6 @@ class DatetimePrompt(ModalScreen[datetime | None]):
 
 
 ORANGE_RED = "red3"
-
-
 FOOTER = "yellow"
 
 
@@ -1093,13 +824,6 @@ class EditorScreen(Screen):
         self.item.parse_input(self.entry_text)
         self.item.finalize_record()
         return self.item.parse_ok
-
-        # Repaint feedback based on current item state (errors or token help).
-        if not self.item.parse_ok:
-            self._render_feedback()
-            return False
-
-        return True
 
     def _live_parse_and_feedback(self, *, final: bool) -> None:
         """Non-throwing live parse + feedback for current cursor token."""
@@ -1542,22 +1266,6 @@ class HelpScreen(Screen):
             id="help_layout",
         )
 
-    # def on_mount(self):
-    #     self.styles.width = "100%"
-    #     self.styles.height = "100%"
-    #     self.query_one("#help_layout").styles.height = "100%"
-    #
-    #     help_list = self.query_one("#help_list", ScrollableList)
-    #
-    #     for attr in ("_viewport", "_window", "_scroll_view", "_view", "_content"):
-    #         vp = getattr(help_list, attr, None)
-    #         if vp and hasattr(vp, "styles"):
-    #             vp.styles.background = "#373737"
-    #             try:
-    #                 vp.refresh()
-    #             except Exception:
-    #                 pass
-
     def on_mount(self):
         self.styles.width = "100%"
         self.styles.height = "100%"
@@ -1592,25 +1300,6 @@ class ScrollableList(ScrollView):
         background: #373737 90%;
     }
     """
-
-    # def __init__(
-    #     self, lines: List[str], *, match_color: str = MATCH_COLOR, **kwargs
-    # ) -> None:
-    #     super().__init__(**kwargs)
-    #     self.console = Console()
-    #     self.match_color = match_color
-    #
-    #     # Backing store
-    #     self.lines: List[Text] = [Text.from_markup(line) for line in lines]
-    #
-    #     # Virtual size: width is terminal width minus small gutter; height = #lines
-    #     width = shutil.get_terminal_size().columns - 3
-    #     self.virtual_size = Size(width, len(self.lines))
-    #
-    #     # Search state
-    #     self.search_term: Optional[str] = None
-    #     self.matches: List[int] = []
-    #     self.current_match_idx: int = -1
 
     def __init__(self, lines: List[str], *, match_color: str = MATCH_COLOR, **kwargs):
         super().__init__(**kwargs)
@@ -1679,31 +1368,6 @@ class ScrollableList(ScrollView):
         self.scroll_to(0, self.matches[self.current_match_idx])
         self.refresh()
 
-    # ---------- Rendering ----------
-
-    # def render_line(self, y: int) -> Strip:
-    #     """Render a single virtual line at viewport row y."""
-    #     scroll_x, scroll_y = self.scroll_offset
-    #     y += scroll_y
-    #
-    #     # Out of bounds -> blank
-    #     if y < 0 or y >= len(self.lines):
-    #         return Strip.blank(self.size.width)
-    #
-    #     # Copy so we can stylize without mutating the source
-    #     line_text = self.lines[y].copy()
-    #
-    #     # Highlight if this line is a match
-    #     if self.search_term and y in self.matches:
-    #         line_text.stylize(f"bold {self.match_color}")
-    #
-    #     segments = list(line_text.render(self.console))
-    #     # Fit to width
-    #     cropped_segments = Segment.adjust_line_length(
-    #         segments, self.size.width, style=None
-    #     )
-    #     return Strip(cropped_segments, self.size.width)
-
     def render_line(self, y: int) -> Strip:
         """Render a single virtual line at viewport row y with full-row background."""
         scroll_x, scroll_y = self.scroll_offset
@@ -1737,13 +1401,6 @@ class ScrollableList(ScrollView):
 
 class SearchableScreen(Screen):
     """Base class for screens that support search on a list widget."""
-
-    # def get_search_target(self) -> ScrollableList:
-    #     """Return the ScrollableList to search.
-    #     Default: the '#list' widget, so WeeksScreen keeps working.
-    #     AgendaScreen will override this to point at its active pane.
-    #     """
-    #     return self.query_one("#list", ScrollableList)
 
     def get_search_target(self):
         """Return the ScrollableList that should receive search/scroll commands.
@@ -1827,90 +1484,6 @@ class SearchableScreen(Screen):
 
         # 3) fallback app-wide value
         return getattr(self.app, "search_term", "") or ""
-
-
-# class WeeksScreen(SearchableScreen, SafeScreen):
-#     """1-week grid with a bottom details panel, powered by ListWithDetails."""
-#
-#     def __init__(
-#         self,
-#         title: str,
-#         table: str,
-#         details: list[str],
-#         footer_content: str,
-#     ):
-#         super().__init__()
-#         self.table_title = title
-#         self.table = table
-#         self.details = details
-#         self.footer_content = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
-#         self.list_with_details: ListWithDetails | None = None
-#
-#     # Let global search target the currently-focused list
-#     def get_search_target(self):
-#         if not self.list_with_details:
-#             return None
-#         return (
-#             self.list_with_details._details
-#             if self.list_with_details.has_details_open()
-#             else self.list_with_details._main
-#         )
-#
-#     def after_mount(self) -> None:
-#         """Fill the list with the initially provided details once layout is ready."""
-#         if self.list_with_details and self.details:
-#             self.list_with_details.update_list(self.details[1:])
-#
-#     def compose(self) -> ComposeResult:
-#         yield Static(
-#             self.table_title or "Untitled",
-#             id="table_title",
-#             classes="title-class",
-#         )
-#
-#         yield Static(
-#             self.table or "[i]No data[/i]",
-#             id="table",
-#             classes="busy-bar",
-#             markup=True,
-#         )
-#
-#         # Single list (no separate list title)
-#         self.list_with_details = ListWithDetails(id="list")
-#         self.list_with_details.set_detail_key_handler(
-#             self.app.make_detail_key_handler(
-#                 view_name="week",
-#                 week_provider=lambda: self.app.selected_week,
-#             )
-#         )
-#         self.app.detail_handler = self.list_with_details._detail_key_handler
-#         yield self.list_with_details
-#
-#         yield Static(self.footer_content)
-#
-#     def update_table_and_list(self):
-#         title, busy_bar, details = self.app.controller.get_table_and_list(
-#             self.app.current_start_date, self.app.selected_week
-#         )
-#
-#         self.query_one("#table_title", Static).update(title)
-#         self.query_one("#table", Static).update(busy_bar)
-#
-#         if self.list_with_details:
-#             self.list_with_details.update_list(details[1:] if details else [])
-#             if self.list_with_details.has_details_open():
-#                 self.list_with_details.hide_details()
-#
-#     # Called from DynamicViewApp.on_key when a tag is completed
-#     def show_details_for_tag(self, tag: str) -> None:
-#         app = self.app  # DynamicViewApp
-#         parts = app.controller.process_tag(tag, "week", app.selected_week)
-#         if not parts:
-#             return
-#         title, lines = parts[0], parts[1:]
-#         meta = getattr(self.app.controller, "_last_details_meta", None) or {}
-#         if self.list_with_details:
-#             self.list_with_details.show_details(title, lines, meta)
 
 
 # type aliases for clarity
@@ -2267,205 +1840,6 @@ class FullScreenList(SearchableScreen):
         )
 
 
-# class BinView(SearchableScreen):
-#     """
-#     Single-bin browser with:
-#       • Tagged path header (sticky across pages)
-#       • Tagged sub-bins and reminders
-#       • 1-char tags with paging (left/right)
-#       • Escape -> jump to root
-#     """
-#
-#     def __init__(self, bin_id: Optional[int] = None, footer: str = ""):
-#         super().__init__()
-#         self.bin_id: Optional[int] = bin_id  # filled on mount if None
-#         self.pages: List[Tuple[List[str], Dict[str, Tuple[str, object]]]] = []
-#         self.current_page: int = 0
-#         self.list_with_details: Optional[ListWithDetails] = None
-#         self.footer_text = (
-#             footer
-#             or "[bold yellow]esc[/bold yellow] Root   [bold yellow]←/→[/bold yellow] Page"
-#         )
-#
-#     # ---- Compose ---------------------------------------------------------
-#     def compose(self):
-#         yield Static("", id="bin_header", classes="title-class")
-#         self.list_with_details = ListWithDetails(id="list")
-#         # If you have a special detail handler for 'bin', wire it; otherwise reuse a default
-#         if hasattr(self.app, "make_detail_key_handler"):
-#             self.list_with_details.set_detail_key_handler(
-#                 self.app.make_detail_key_handler(view_name="bin")
-#             )
-#         yield self.list_with_details
-#         yield Static(self.footer_text, id="custom_footer")
-#
-#     # ---- Lifecycle -------------------------------------------------------
-#     def on_mount(self):
-#         if self.bin_id is None:
-#             self.bin_id = self.app.controller.root_id
-#         self._rebuild_pages()
-#         self._refresh_page()
-#
-#     # ---- Paging API (used by app on_key) --------------------------------
-#     def has_next_page(self) -> bool:
-#         return self.current_page < len(self.pages) - 1
-#
-#     def has_prev_page(self) -> bool:
-#         return self.current_page > 0
-#
-#     def next_page(self):
-#         if self.has_next_page():
-#             self.current_page += 1
-#             self._refresh_page()
-#
-#     def previous_page(self):
-#         if self.has_prev_page():
-#             self.current_page -= 1
-#             self._refresh_page()
-#
-#     def reset_to_first_page(self):
-#         self.current_page = 0
-#         self._refresh_page()
-#
-#     # ---- Tag activation (generic on_key calls this) ----------------------
-#     def show_details_for_tag(self, tag: str) -> None:
-#         """If tag points to a bin -> navigate. If reminder -> open details."""
-#         if not self.pages:
-#             return
-#         _, tag_map = self.pages[self.current_page]
-#         target = tag_map.get(tag)
-#         if not target:
-#             return
-#
-#         kind, payload = target
-#         if kind == "bin":
-#             self._goto_bin(int(payload))
-#         else:
-#             record_id, job_id = payload  # (int, Optional[int])
-#             title, lines, meta = self.app.controller.get_details_for_record(
-#                 record_id, job_id
-#             )
-#             if self.list_with_details:
-#                 self.list_with_details.show_details(title, lines, meta)
-#
-#     # ---- Local key handling for esc/left/right (optional, can be app-level) ---
-#     def on_key(self, event):
-#         k = event.key
-#         if k == "escape":
-#             self._goto_root()
-#             event.stop()
-#         elif k == "left":
-#             if self.has_prev_page():
-#                 self.previous_page()
-#                 event.stop()
-#         elif k == "right":
-#             if self.has_next_page():
-#                 self.next_page()
-#                 event.stop()
-#
-#     # ---- Internal helpers ------------------------------------------------
-#     def _goto_root(self):
-#         root = self.app.controller.root_id
-#         if self.bin_id != root:
-#             self.bin_id = root
-#             self._rebuild_pages()
-#             self._refresh_page()
-#
-#     def _goto_bin(self, bin_id: int):
-#         if self.bin_id != bin_id:
-#             self.bin_id = bin_id
-#             self._rebuild_pages()
-#             self._refresh_page()
-#
-#     def _fetch_path(self, bin_id: int) -> List[Dict]:
-#         """Try controller.get_bin_path(); otherwise, climb parents to root."""
-#         ctrl = self.app.controller
-#         if hasattr(ctrl, "get_bin_path"):
-#             path = ctrl.get_bin_path(bin_id) or []
-#             # Expect list of {'id','name'} root->...->current
-#             return path
-#         # fallback via get_parent_bin
-#         path_rev = []
-#         seen = set()
-#         cur = bin_id
-#         while cur is not None and cur not in seen:
-#             seen.add(cur)
-#             if hasattr(ctrl, "get_bin_info"):
-#                 info = ctrl.get_bin_info(cur) or {}
-#                 name = info.get("name") or "?"
-#             else:
-#                 # minimal: get name via subbins of parent OR cache
-#                 name = f"bin:{cur}"
-#             path_rev.append({"id": cur, "name": name})
-#             parent = None
-#             if hasattr(ctrl, "get_parent_bin"):
-#                 p = ctrl.get_parent_bin(cur)  # {'id','name'} or None
-#                 parent = p["id"] if p else None
-#             cur = parent
-#         path_rev.reverse()
-#         return path_rev
-#
-#     def _rebuild_pages(self):
-#         """Recompute pages from controller data for current bin."""
-#         ctrl = self.app.controller
-#         bin_id = int(self.bin_id)
-#
-#         path = self._fetch_path(bin_id)  # [{'id','name'}, ...]
-#         subbins = sorted(ctrl.get_subbins(bin_id), key=lambda b: b["name"].lower())
-#         reminders_raw = sorted(
-#             ctrl.get_reminders_in_bin(bin_id), key=lambda r: r["subject"].lower()
-#         )
-#
-#         # normalize reminders to have job_id
-#         reminders = [
-#             {
-#                 "id": r["id"],
-#                 "subject": r["subject"],
-#                 "itemtype": r.get("itemtype", ""),
-#                 "job_id": r.get("job_id"),
-#             }
-#             for r in reminders_raw
-#         ]
-#
-#         # TYPE_TO_COLOR may exist globally; pass it if available
-#         type_to_color = globals().get("TYPE_TO_COLOR", {})
-#
-#         self.pages = bin_tagger(
-#             path=path,
-#             subbins=subbins,
-#             reminders=reminders,
-#             page_size=26,
-#             include_root_in_path=True,
-#             type_to_color=type_to_color,
-#         )
-#         self.current_page = 0
-#
-#     def _page_bullets(self) -> str:
-#         n = len(self.pages)
-#         if n <= 1:
-#             return ""
-#         return " ".join("●" if i == self.current_page else "○" for i in range(n))
-#
-#     def _refresh_page(self):
-#         if not self.list_with_details:
-#             return
-#         if not self.pages:
-#             self.list_with_details.update_list([])
-#             return
-#
-#         rows, _ = self.pages[self.current_page]
-#         self.list_with_details.update_list(rows)
-#
-#         # The first row of rows is the header path line; reuse it for the Static header + bullets
-#         header_path_text = rows[0]
-#         header_with_bullets = f"{header_path_text}\n{self._page_bullets()}"
-#         self.query_one("#bin_header", Static).update(header_with_bullets)
-#
-#         # Close details when page changes (optional)
-#         if self.list_with_details.has_details_open():
-#             self.list_with_details.hide_details()
-
-
 Page = Tuple[List[str], Dict[str, Tuple[str, object]]]
 
 # Reuse your ListWithDetails and SearchableScreen base
@@ -2593,6 +1967,323 @@ class BinView(SearchableScreen):
         return f"{self.current_page + 1}/{n}"
 
 
+###VVV new for tagged bin screen
+# --- Row types expected from the controller ---
+@dataclass
+class ChildBinRow:
+    bin_id: int
+    name: str
+    child_ct: int
+    rem_ct: int
+
+
+@dataclass
+class ReminderRow:
+    record_id: int
+    subject: str
+    itemtype: str
+
+
+# --- Constants ---
+TAGS = [chr(ord("a") + i) for i in range(26)]  # single-letter tags per page
+
+
+class TaggedHierarchyScreen(SearchableScreen):
+    """
+    Tagged hierarchy browser that mirrors BinView’s behavior:
+
+      • Uses SearchableScreen + ListWithDetails.
+      • Shows the *entire subtree of bins* under the current bin (bins only; no reminders below).
+      • Only the current bin's *immediate children* + its *reminders* are taggable:
+          - children appear in the tree with inline tags (a..z) on depth-1 rows;
+          - reminders appear at the bottom with their tags.
+      • Tags are paged 26-per-page (children first, then reminders).
+      • a–z tags are handled by DynamicViewApp via show_details_for_tag(), exactly like BinView.
+      • / search highlights within the list.
+      • Digits 0..9 jump to breadcrumb ancestors (0=root, 1=child, etc.), current bin unnumbered.
+      • Left/Right change pages; ESC jumps to root.
+    """
+
+    def __init__(self, controller, bin_id: int, footer_content: str = ""):
+        super().__init__()
+        self.controller = controller
+        self.bin_id = bin_id
+
+        # pages: list[(rows, tag_map)], where:
+        #   rows    -> list[str] rendered in ListWithDetails
+        #   tag_map -> {tag: ("bin", bin_id) | ("rem", (record_id, job_id))}
+        self.pages: list[tuple[list[str], dict[str, tuple[str, object]]]] = []
+        self.current_page: int = 0
+        self.title: str = ""
+        self.footer_content = (
+            footer_content
+            or f"[bold {FOOTER}]?[/bold {FOOTER}] Help "
+            f" [bold {FOOTER}]/[/bold {FOOTER}] Search "
+        )
+        self.list_with_details: Optional[ListWithDetails] = None
+        self.tag_map: dict[str, tuple[str, object]] = {}
+        self.crumb: list[tuple[int, str]] = []  # [(id, name), ...]
+        self.descendants: list[tuple[int, str, int]] = []  # (bin_id, name, depth)
+
+    # ----- Compose -----
+    def compose(self) -> ComposeResult:
+        # Title: breadcrumb + optional page indicator
+        yield Static("", id="scroll_title", classes="title-class", expand=True)
+
+        self.list_with_details = ListWithDetails(id="list")
+        # Details handler is the same pattern as other views
+        self.list_with_details.set_detail_key_handler(
+            self.app.make_detail_key_handler(view_name="bins")
+        )
+        yield self.list_with_details
+
+        yield Static(self.footer_content, id="custom_footer")
+
+    # ----- Lifecycle -----
+    def on_mount(self) -> None:
+        self.refresh_hierarchy()
+
+    # ----- Public mini-API (called by app’s on_key for tags) -----
+    def next_page(self) -> None:
+        if self.current_page < len(self.pages) - 1:
+            self.current_page += 1
+            self._refresh_page()
+
+    def previous_page(self) -> None:
+        if self.current_page > 0:
+            self.current_page -= 1
+            self._refresh_page()
+
+    def has_next_page(self) -> bool:
+        return self.current_page < len(self.pages) - 1
+
+    def has_prev_page(self) -> bool:
+        return self.current_page > 0
+
+    def show_details_for_tag(self, tag: str) -> None:
+        """Called by DynamicViewApp for tag keys a–z."""
+        if not self.pages:
+            return
+        _, tag_map = self.pages[self.current_page]
+        payload = tag_map.get(tag)
+        if not payload:
+            return
+
+        kind, data = payload
+        if kind == "bin":
+            # navigate into that bin
+            self.bin_id = int(data)
+            self.refresh_hierarchy()
+            return
+
+        # "rem" -> open details
+        record_id, job_id = data
+        title, lines, meta = self.controller.get_details_for_record(record_id, job_id)
+        if self.list_with_details:
+            self.list_with_details.show_details(title, lines, meta)
+
+    # ----- Local key handling -----
+    def on_key(self, event) -> None:
+        k = event.key
+
+        # ESC -> jump to root (same behavior as BinView)
+        if k == "escape":
+            root_id = getattr(self.controller, "root_id", None)
+            if root_id is not None:
+                self.bin_id = root_id
+                self.refresh_hierarchy()
+                event.stop()
+                return
+
+        # digits -> breadcrumb jump (ancestors only, last crumb is current bin)
+        if k.isdigit():
+            i = int(k)
+            if 0 <= i < len(self.crumb) - 1:
+                self.bin_id = self.crumb[i][0]
+                self.refresh_hierarchy()
+                event.stop()
+                return
+
+        # Left/Right for paging
+        if k == "left":
+            if self.has_prev_page():
+                self.previous_page()
+                event.stop()
+        elif k == "right":
+            if self.has_next_page():
+                self.next_page()
+                event.stop()
+        # All other keys (including /, a–z) bubble up to SearchableScreen / app
+
+    # ----- Internal helpers -----
+    def refresh_hierarchy(self) -> None:
+        """Rebuild pages and redraw from the current bin."""
+        self.pages, self.title = self._build_pages_and_title()
+        self.current_page = 0
+        self._refresh_page()
+
+    def _refresh_page(self) -> None:
+        rows, tag_map = self.pages[self.current_page] if self.pages else ([], {})
+        self.tag_map = tag_map
+
+        if self.list_with_details:
+            self.list_with_details.update_list(rows)
+            if self.list_with_details.has_details_open():
+                self.list_with_details.hide_details()
+
+        self._refresh_header()
+
+    def _refresh_header(self) -> None:
+        bullets = self._page_bullets()  # "1/3" or ""
+        if bullets:
+            header = f"Bins ({bullets})"
+        else:
+            header = "Bins"
+        self.query_one("#scroll_title", Static).update(header)
+
+    def _page_bullets(self) -> str:
+        n = len(self.pages)
+        if n <= 1:
+            return ""
+        return f"{self.current_page + 1}/{n}"
+
+    def _build_pages_and_title(
+        self,
+    ) -> tuple[list[tuple[list[str], dict[str, tuple[str, object]]]], str]:
+        """
+        Build pages:
+        - rows: breadcrumb line + tree (bins only) + reminders for that page
+        - tag_map: tags -> ("bin", bin_id) or ("rem", (record_id, job_id))
+        Returns (pages, title), where title is just the breadcrumb text (no page indicator).
+        """
+        # 1) Summary + breadcrumb
+        children, reminders, crumb = self.controller.get_bin_summary(
+            self.bin_id, filter_text=None
+        )
+        self.crumb = crumb
+
+        # 2) Full subtree (bins only)
+        self.descendants = self.controller.get_descendant_tree(self.bin_id)
+
+        # 3) Crumb text: ancestors numbered, last (current) unnumbered
+        if crumb:
+            parts: list[str] = []
+            for i, (_bid, name) in enumerate(crumb):
+                if i < len(crumb) - 1:
+                    parts.append(
+                        f"[dim]{i}[/dim] [{TYPE_TO_COLOR['b']}]{name}[/{TYPE_TO_COLOR['b']}]"
+                    )
+                else:
+                    parts.append(
+                        f"[bold {TYPE_TO_COLOR['B']}]{name}[/bold {TYPE_TO_COLOR['B']}]"
+                    )
+                    # parts.append(f"[bold red]{name}[/bold red]")
+            crumb_txt = " / ".join(parts)
+        else:
+            crumb_txt = "root"
+
+        # 4) Build taggable items: children first, then reminders
+        taggable: list[tuple[str, object]] = []
+        for ch in children:
+            taggable.append(("bin", ch.bin_id))
+        for r in reminders:
+            taggable.append(("rem", (r.record_id, None)))  # job_id=None for now
+
+        # Map reminders by ID for label rendering
+        rem_by_id: dict[int, ReminderRow] = {r.record_id: r for r in reminders}
+
+        pages: list[tuple[list[str], dict[str, tuple[str, object]]]] = []
+
+        if not taggable:
+            # No taggable items; show breadcrumb + tree as a single page
+            tree_rows = self._render_tree_rows(self.descendants, child_tags={})
+            rows = [crumb_txt] + tree_rows
+            pages.append((rows, {}))
+            return pages, crumb_txt  # title = crumb_txt
+
+        total = len(taggable)
+        num_pages = (total + 25) // 26  # 26 tags per page
+
+        for page_index in range(num_pages):
+            start = page_index * 26
+            end = min(start + 26, total)
+            page_items = taggable[start:end]
+
+            page_tag_map: dict[str, tuple[str, object]] = {}
+            child_tags: dict[int, str] = {}
+
+            # Assign tags to taggable items for this page
+            for i, (kind, data) in enumerate(page_items):
+                tag = TAGS[i]
+                if kind == "bin":
+                    bin_id = int(data)
+                    page_tag_map[tag] = ("bin", bin_id)
+                    child_tags[bin_id] = tag
+                else:  # "rem"
+                    record_id, job_id = data
+                    page_tag_map[tag] = ("rem", (record_id, job_id))
+
+            # Tree rows (bins only) with inline tags on depth-1 nodes
+            rows: list[str] = self._render_tree_rows(self.descendants, child_tags)
+
+            # Reminders for this page, appended below the tree
+            for i, (kind, data) in enumerate(page_items):
+                tag = TAGS[i]
+                if kind != "rem":
+                    continue
+                record_id, job_id = data
+                r = rem_by_id.get(record_id)
+                if not r:
+                    continue
+                label = self._render_reminder_label(r)
+                rows.append(
+                    f"    [dim]{tag}[/dim] {label}"
+                )  # 4-space indent to align with depth-1
+
+            # Insert breadcrumb as FIRST row in the list (no page indicator here)
+            rows.insert(0, crumb_txt)
+
+            pages.append((rows, page_tag_map))
+
+        # Title is just the crumb text; page indicator is added in _refresh_header
+        return pages, crumb_txt
+
+    def _render_tree_rows(
+        self,
+        flat_nodes: list[tuple[int, str, int]],
+        child_tags: dict[int, str],
+    ) -> list[str]:
+        """
+        Render the pre-ordered subtree as simple indented lines.
+
+        • No box/branch glyphs.
+        • Skip the root row (depth==0) so the current bin name is not repeated.
+        • Insert inline tags for depth-1 nodes that are on the current page.
+        """
+        rows: list[str] = []
+        for bid, name, depth in flat_nodes:
+            if depth == 0:
+                continue  # skip the current bin itself
+            indent = "    " * depth
+            tag_prefix = (
+                f"[dim]{child_tags[bid]}[/dim] "
+                if (depth == 1 and bid in child_tags)
+                else ""
+            )
+            rows.append(
+                f"{indent}{tag_prefix}[{TYPE_TO_COLOR['b']}]{name}[/ {TYPE_TO_COLOR['b']}]"
+            )
+        return rows
+
+    def _render_reminder_label(self, r: ReminderRow) -> str:
+        # Example: "Fix itinerary  [dim]task[/dim]"
+        tclr = TYPE_TO_COLOR[r.itemtype]
+        return f"[{tclr}]{r.itemtype} {r.subject}[/ {tclr}]"
+
+
+###^^^ new for tagged bin screen
+
+
 class DynamicViewApp(App):
     """A dynamic app that supports temporary and permanent view changes."""
 
@@ -2612,7 +2303,7 @@ class DynamicViewApp(App):
         ("escape", "close_details", "Close details"),
         ("R", "show_alerts", "Show Alerts"),
         ("A", "show_agenda", "Show Agenda"),
-        ("B", "show_bin", "Bins"),
+        ("B", "show_bins", "Bins"),
         ("L", "show_last", "Show Last"),
         ("N", "show_next", "Show Next"),
         ("F", "show_find", "Find"),
@@ -2625,7 +2316,7 @@ class DynamicViewApp(App):
         (">", "next_match", "Next Match"),
         ("<", "previous_match", "Previous Match"),
         ("ctrl+z", "copy_search", "Copy Search"),
-        ("ctrl-b", "show_bins", "Bins"),
+        ("ctrl-b", "show_bin", "Bin"),
     ]
 
     def __init__(self, controller) -> None:
@@ -2835,13 +2526,6 @@ class DynamicViewApp(App):
                     log_msg(f"[LEFT/RIGHT] has_next_page() raised: {e}")
                     has_next_available = False
 
-                # log_msg(
-                #     f"[LEFT/RIGHT] has_prev_callable={has_prev_callable}, "
-                #     f"has_prev_available={has_prev_available}, do_prev={do_prev}; "
-                #     f"has_next_callable={has_next_callable}, "
-                #     f"has_next_available={has_next_available}, do_next={do_next}"
-                # )
-
                 # Prefer page navigation when page available; otherwise fallback to week nav.
                 if event.key == "left":
                     if has_prev_available and do_prev:
@@ -2926,12 +2610,6 @@ class DynamicViewApp(App):
                 screen.show_details_for_tag(key)
         return
 
-    # def action_take_screenshot(self):
-    #     """Save a screenshot of the current app state."""
-    #     screenshot_path = f"{self.view}_screenshot.svg"
-    #     self.save_screenshot(screenshot_path)
-    #     log_msg(f"Screenshot saved to: {screenshot_path}")
-
     def action_take_screenshot(self):
         path = timestamped_screenshot_path(self.view)
         self.save_screenshot(str(path))
@@ -2954,8 +2632,6 @@ class DynamicViewApp(App):
         now = datetime.now()
         if now.hour == 0 and now.minute == 0 and 0 <= now.second < 6:
             self.run_daily_tasks()
-            # self.controller.populate_alerts()
-            # self.controller.populate_notice()
         if now.minute % 10 == 0 and now.second == 0:
             # check alerts every 10 minutes
             self.notify(
@@ -2986,11 +2662,6 @@ class DynamicViewApp(App):
         self.push_screen(FullScreenList(details, title, "", footer))
 
         return
-
-    # def action_show_bintree(self) -> None:
-    #     """Open the BinTree (forest) view."""
-    #     self.view = "bintree"
-    #     self.push_screen(BinTree(controller=self.controller))
 
     def action_show_bin(self, bin_id: Optional[int] = None):
         self.view = "bin"
@@ -3211,9 +2882,13 @@ class DynamicViewApp(App):
         """Show DatetimePrompt and return parsed datetime or None."""
         return await self.push_screen_wait(DatetimePrompt(message, default))
 
-    def action_show_bins(self) -> None:
-        log_msg(f"action show_bins {self.controller.db_manager = }")
-        self.push_screen(BinHierarchyScreen(self.controller.db_manager))
+    # def action_show_bins(self) -> None:
+    #     log_msg(f"action show_bins {self.controller.db_manager = }")
+    #     self.push_screen(BinHierarchyScreen(self.controller.db_manager))
+
+    def action_show_bins(self, start_bin_id: int | None = None):
+        root_id = start_bin_id or self.controller.get_root_bin_id()
+        self.push_screen(TaggedHierarchyScreen(self.controller, root_id))
 
 
 if __name__ == "__main__":

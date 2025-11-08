@@ -970,13 +970,6 @@ class Item:
         """
         # --- map itemtype ---
         itemtype = self.itemtype
-        # if itemtype == "-":  # special case: etm task/project split
-        #     if self.jobs and self.jobs != "[]":
-        #         itemtype = "^"  # project
-        #     else:
-        #         itemtype = "~"  # task
-        # else:
-        #     itemtype = TYPE_MAP.get(itemtype, itemtype)
 
         # --- start with type and subject ---
         parts = [f"{itemtype} {self.subject}"]
@@ -1920,12 +1913,6 @@ from: * (event), ~ (task), ^ (project), % (note),
 
     def do_string(self, token):
         obj = rep = token["token"][2:].strip()
-        # try:
-        #     obj = tok_str
-        #     rep = tok_str
-        # except Exception:
-        #     obj = None
-        #     rep = f"invalid: {token}"
         return obj, rep, []
 
     def do_timezone(self, token: dict):
@@ -2698,7 +2685,6 @@ from: * (event), ~ (task), ^ (project), % (note),
         log_msg(f"processing rdate {token = }")
         try:
             # Remove the "@+" prefix and extra whitespace
-            # token_body = token.strip()[2:].strip()
             token_body = token["token"][2:].strip()
 
             # Split on commas to get individual date strings
@@ -2873,77 +2859,6 @@ from: * (event), ~ (task), ^ (project), % (note),
         log_msg(f"RETURNING {lines = }")
 
         return "\n".join(lines)
-
-    # def build_jobs(self):
-    #     """
-    #     Build self.jobset from @~ + &... token groups in self.relative_tokens.
-    #     In the new explicit &r format:
-    #     - parse &r for job id and immediate prereqs
-    #     - keep job name
-    #     """
-    #     job_groups = self.collect_grouped_tokens({"~"})
-    #     # print(f"{job_groups = }")
-    #     job_entries = []
-    #
-    #     count = 0
-    #     for group in job_groups:
-    #         anchor = group[0]
-    #         token_str = anchor["token"]
-    #
-    #         # get job name up to first &
-    #         job_portion = token_str[3:].strip()
-    #         split_index = job_portion.find("&")
-    #         if split_index != -1:
-    #             job_name = job_portion[:split_index].strip()
-    #         else:
-    #             job_name = job_portion
-    #
-    #         job = {"~": job_name}
-    #         count += 1
-    #
-    #         # process &-keys
-    #         for token in group[1:]:
-    #             try:
-    #                 k, v = token["token"][1:].split(maxsplit=1)
-    #                 k = k.strip()
-    #                 v = v.strip()
-    #
-    #                 if k == "r":
-    #                     ok, primary, dependencies = self.do_requires(
-    #                         {"token": f"&r {v}"}
-    #                     )
-    #                     if not ok:
-    #                         self.errors.append(primary)
-    #                         continue
-    #                     job["i"] = primary
-    #                     job["reqs"] = dependencies
-    #                 elif k == "f":  # finished
-    #                     log_msg(f"processing job finished for {v = }")
-    #                     try:
-    #                         dts = parse_pair(v)
-    #                         log_msg(f"got {dts = } for {count = }")
-    #                         job["f"] = ",".join([self.fmt_compact(dt) for dt in dts])
-    #                         log_msg(f"{job['f'] = }")
-    #                         log_msg(f"adding to {self.token_map = }")
-    #                         self.token_map.setdefault("~f", {})
-    #                         self.token_map["~f"][count] = ", ".join(
-    #                             [self.fmt_user(dt) for dt in dts]
-    #                         )
-    #                         log_msg(f"added to {self.token_map = }")
-    #                     except Exception as e:
-    #                         log_msg(f"Error: {e = }")
-    #                         job["f"] = v
-    #                 else:
-    #                     job[k] = v
-    #             except Exception as e:
-    #                 self.errors.append(
-    #                     f"Failed to parse job metadata token: {token['token']} ({e})"
-    #                 )
-    #
-    #         job_entries.append(job)
-    #
-    #     self.jobs = job_entries
-    #     return job_entries
 
     def build_jobs(self):
         """
@@ -3287,7 +3202,7 @@ from: * (event), ~ (task), ^ (project), % (note),
         )
         if tok:
             tok["token"] = f"@s {ts} "
-            log_msg(f'{tok["token"] = }')
+            log_msg(f"{tok["token"] = }")
         else:
             self.relative_tokens.append({"token": f"@s {ts} ", "t": "@", "k": "s"})
         log_msg(f"ending {self.relative_tokens = }")

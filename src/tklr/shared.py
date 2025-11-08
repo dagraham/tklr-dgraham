@@ -29,42 +29,80 @@ ELLIPSIS_CHAR = "…"
 
 # from shared import fmt_local_compact, parse_local_compact, fmt_local_seconds, parse_local_seconds, fmt_utc_z, parse_utc_z
 
+CORNSILK = "#FFF8DC"
+DARK_GRAY = "#A9A9A9"
+DARK_GREY = "#A9A9A9"  # same as DARK_GRAY
+DARK_OLIVEGREEN = "#556B2F"
+DARK_ORANGE = "#FF8C00"
+DARK_SALMON = "#E9967A"
+GOLD = "#FFD700"
+GOLDENROD = "#DAA520"
+KHAKI = "#F0E68C"
+LAWN_GREEN = "#7CFC00"
+LEMON_CHIFFON = "#FFFACD"
+LIGHT_CORAL = "#F08080"
+LIGHT_SKY_BLUE = "#87CEFA"
+LIME_GREEN = "#32CD32"
+ORANGE_RED = "#FF4500"
+PALE_GREEN = "#98FB98"
+PEACHPUFF = "#FFDAB9"
+SALMON = "#FA8072"
+SANDY_BROWN = "#F4A460"
+SEA_GREEN = "#2E8B57"
+SLATE_GREY = "#708090"
+TOMATO = "#FF6347"
+
+# Colors for UI elements
+DAY_COLOR = LEMON_CHIFFON
+FRAME_COLOR = KHAKI
+HEADER_COLOR = LIGHT_SKY_BLUE
+DIM_COLOR = DARK_GRAY
+ALLDAY_COLOR = SANDY_BROWN
+EVENT_COLOR = LIME_GREEN
+NOTE_COLOR = DARK_SALMON
+PASSED_EVENT = DARK_OLIVEGREEN
+ACTIVE_EVENT = LAWN_GREEN
+TASK_COLOR = LIGHT_SKY_BLUE
+AVAILABLE_COLOR = LIGHT_SKY_BLUE
+WAITING_COLOR = SLATE_GREY
+FINISHED_COLOR = DARK_GREY
+GOAL_COLOR = GOLDENROD
+BIN_COLOR = GOLDENROD
+ACTIVE_BIN = GOLD
+CHORE_COLOR = KHAKI
+PASTDUE_COLOR = DARK_ORANGE
+NOTICE_COLOR = GOLD
+DRAFT_COLOR = ORANGE_RED
+TODAY_COLOR = TOMATO
+SELECTED_BACKGROUND = "#566573"
+MATCH_COLOR = TOMATO
+TITLE_COLOR = CORNSILK
+BUSY_COLOR = "#9acd32"
+BUSY_COLOR = "#adff2f"
+CONF_COLOR = TOMATO
+BUSY_FRAME_COLOR = "#5d5d5d"
+
+TYPE_TO_COLOR = {
+    "*": EVENT_COLOR,  # event
+    "~": AVAILABLE_COLOR,  # available task
+    "x": FINISHED_COLOR,  # finished task
+    "^": AVAILABLE_COLOR,  # available task
+    "+": WAITING_COLOR,  # waiting task
+    "%": NOTE_COLOR,  # note
+    "<": PASTDUE_COLOR,  # past due task
+    ">": NOTICE_COLOR,  # begin
+    "!": GOAL_COLOR,  # draft
+    "?": DRAFT_COLOR,  # draft
+    "b": BIN_COLOR,
+    "B": ACTIVE_BIN,
+}
+
 
 def get_anchor(aware: bool) -> datetime:
     dt = datetime(1970, 1, 1, 0, 0, 0)
     if aware:
         return dt.replace(tzinfo=ZoneInfo("UTC"))
     return dt
-
-
-# def get_version(pyproject_path: Path | None = None) -> str:
-#     """
-#     Extract the version from pyproject.toml [project] section.
-#
-#     Args:
-#         pyproject_path (Path or None): Optional override path. If None, searches upward.
-#
-#     Returns:
-#         str: version string (e.g., "0.1.0")
-#     """
-#     if pyproject_path is None:
-#         # Search upward from current working dir
-#         current = Path.cwd()
-#         while current != current.parent:
-#             candidate = current / "pyproject.toml"
-#             if candidate.exists():
-#                 pyproject_path = candidate
-#                 break
-#             current = current.parent
-#         else:
-#             return "dev"
-#
-#     try:
-#         with open(pyproject_path, "rb") as f:
-#             data = tomllib.load(f)
-#         return data.get("project", {}).get("version", "dev")
-#     except Exception:
-#         return "dev"
 
 
 def fmt_user(dt_str: str) -> str:

@@ -215,6 +215,7 @@ ListWithDetails > #details_text {
   /* border-bottom: solid #7f7f7f; */
   /* padding-left: 1; */
   /* border: none; */
+  padding: 1 0;
 }
 
 ListWithDetails > #details-list.hidden {

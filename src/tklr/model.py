@@ -320,26 +320,9 @@ def fine_busy_bits_for_event(
     Return dict of {year_week: 679-slot uint8 array}
     (7 days × (1 all-day + 96 fifteen-minute blocks))
     """
-    # start = datetime.strptime(start_str, "%Y%m%dT%H%M")
-    # start = (
-    #     datetime.strptime(start_str, "%Y%m%dT%H%M")
-    #     if "T" in start_str
-    #     else datetime.strptime(start_str, "%Y%m%d")
-    # )
     start = parse(start_str)
 
     # --- handle end rules ---
-    # if end_str:
-    #     end = datetime.strptime(end_str, "%Y%m%dT%H%M")
-    #     if end <= start:
-    #         return {}
-    # else:
-    #     # all-day only if starts exactly at 00:00
-    #     if start.hour == 0 and start.minute == 0:
-    #         end = None
-    #     else:
-    #         # zero-extent event: contributes nothing
-    #         return {}
     end = parse(end_str) if end_str else None
 
     if end is None and (start.hour != 0 or start.minute != 0):
@@ -416,38 +399,6 @@ def _reduce_to_35_slots(arr: np.ndarray) -> np.ndarray:
 
     return coarse.flatten()
 
-    def _reduce_to_35_slots(arr: np.ndarray) -> np.ndarray:
-        """
-        Convert 672 or 679 fine bits into 35 coarse slots
-        (7 × [1 all-day + 4 × 6-hour blocks]).
-        If 672: treat all-day bit as 0 for all days.
-        """
-        days = 7
-        slots_per_day = arr.size // days
-
-        if slots_per_day == 97:
-            allday_bits = arr.reshape(days, 97)[:, 0]
-            quarters = arr.reshape(days, 97)[:, 1:]
-        elif slots_per_day == 96:
-            allday_bits = np.zeros(days, dtype=np.uint8)
-            quarters = arr.reshape(days, 96)
-        else:
-            raise ValueError(f"Unexpected array size: {arr.size}")
-
-        coarse = np.zeros((days, 5), dtype=np.uint8)
-
-        for d in range(days):
-            coarse[d, 0] = allday_bits[d]
-            for i in range(4):  # 4 six-hour blocks
-                start = i * 24
-                end = start + 24
-                chunk = quarters[d, start:end]
-                coarse[d, i + 1] = (
-                    2 if np.any(chunk == 2) else 1 if np.any(chunk == 1) else 0
-                )
-
-        return coarse.flatten()
-
 
 @dataclass
 class BinPathConfig:
@@ -455,146 +406,6 @@ class BinPathConfig:
     standard_roots: Set[str] = field(
         default_factory=lambda: {"places"}
     )  # force under root
-
-
-# class BinPathProcessor:
-#     def __init__(self, model, cfg: Optional[BinPathConfig] = None):
-#         """
-#         model: your Model instance (with ensure_system_bins, move_bin, etc.)
-#         """
-#         self.m = model
-#         self.cfg = cfg or BinPathConfig()
-#         # Ensure system bins + standard roots exist at startup
-#         root_id, _ = self.m.ensure_system_bins()
-#         if self.cfg.standard_roots:
-#             self.m.ensure_root_children(sorted(self.cfg.standard_roots))  # idempotent
-#
-#     # Utility: lowercase canonical names the same way your model does
-#     @staticmethod
-#     def canon(name: str) -> str:
-#         return (name or "").strip().lower()
-#
-#     def _is_unlinked(self, bin_id: int) -> bool:
-#         """
-#         Treat as 'unlinked' if:
-#           - there is no parent row in BinLinks, OR
-#           - the parent is the explicit 'unlinked' bin
-#         """
-#         parent = self.m.get_parent_bin(bin_id)  # {'id','name'} or None
-#         if parent is None:
-#             return True
-#         return self.canon(parent["name"]) == "unlinked"
-#
-#     def _ensure_standard_root_anchor(self, name: str) -> None:
-#         """
-#         For a standard root (e.g., 'places'), ensure it's anchored under root (not under 'unlinked').
-#         Uses your existing helpers; idempotent.
-#         """
-#         roots = self.m.ensure_root_children([name])  # returns {name: id}
-#         # Nothing else to do; ensure_root_children puts child under root.
-#
-#     def apply_slashpath(self, raw_path: str) -> Tuple[str, List[str], int]:
-#         """
-#         Process a reverse backslash path like 'lille/france/places'.
-#         Returns:
-#           normalized_token: '@b <leaf>'
-#           log: list[str]
-#           leaf_bin_id: int
-#         """
-#         log: List[str] = []
-#         parts = [p.strip() for p in (raw_path or "").split("/") if p.strip()]
-#         leaf_name = self.canon(parts[0])
-#         ancestors = [self.canon(p) for p in parts[1:]]  # nearest first
-#         log.append(f"Parsed leaf='{leaf_name}', ancestors={ancestors!r}")
-#
-#         # System bins
-#         root_id, unlinked_id = self.m.ensure_system_bins()
-#
-#         # Ensure leaf exists (no parent link implied)
-#         leaf_id = self.m.ensure_bin_exists(leaf_name)
-#         normalized = f"@b {leaf_name}"
-#
-#         # Fast path: if no ancestors and leaf is already linked (not under 'unlinked'), we're done
-#         if not ancestors:
-#             if not self._is_unlinked(leaf_id):
-#                 log.append("Leaf already linked (not under 'unlinked'); no changes.")
-#                 return normalized, log, leaf_id
-#             # If truly unlinked and no ancestors were provided, attach to explicit 'unlinked'
-#             self._attach_if_missing(leaf_name, "unlinked", log)
-#             log.append("Leaf had no parent; placed under 'unlinked'.")
-#             return normalized, log, leaf_id
-#
-#         # Walk up the chain: leaf -> nearest ancestor -> ... -> top
-#         child_name = leaf_name
-#         for anc in ancestors:
-#             if anc in self.cfg.standard_roots:
-#                 # Ensure standard root exists + anchored at root
-#                 self._ensure_standard_root_anchor(anc)
-#             # Move (or attach) child under this ancestor
-#             self._attach_if_missing(child_name, anc, log)
-#             child_name = (
-#                 anc  # now attach this ancestor under its own ancestor (next loop)
-#             )
-#
-#         # Final cleanup: if the topmost provided ancestor is a standard root, it's already a child of root
-#         top = ancestors[-1]
-#         if top in self.cfg.standard_roots:
-#             log.append(f"Ensured standard root '{top}' is anchored under root.")
-#
-#         return normalized, log, leaf_id
-#
-#     def _attach_if_missing(
-#         self, child_name: str, parent_name: str, log: List[str]
-#     ) -> None:
-#         """
-#         Attach child under parent if not already so. Uses move_bin (reparenting-safe).
-#         """
-#         try:
-#             # Resolve IDs if present; if either is missing, move_bin will ensure them
-#             child_id = self.m.ensure_bin_exists(child_name)
-#             parent_id = self.m.ensure_bin_exists(parent_name)
-#
-#             # If already correctly attached, no-op
-#             parent = self.m.get_parent_bin(child_id)
-#             if parent and self.canon(parent["name"]) == self.canon(parent_name):
-#                 log.append(f"'{child_name}' already under '{parent_name}'.")
-#                 return
-#
-#             # Respect allow_reparent flag by short-circuiting obvious conflicts
-#             if (
-#                 not self.cfg.allow_reparent
-#                 and parent
-#                 and self.canon(parent["name"]) != self.canon(parent_name)
-#             ):
-#                 log.append(
-#                     f"Skipped reparenting '{child_name}' (existing parent='{parent['name']}') "
-#                     f"-> requested '{parent_name}' (allow_reparent=False)"
-#                 )
-#                 return
-#
-#             # Do the move (idempotent + cycle-safe per your helper)
-#             ok = self.m.move_bin(child_name, parent_name)
-#             if ok:
-#                 log.append(f"Attached '{child_name}' under '{parent_name}'.")
-#             else:
-#                 log.append(
-#                     f"Failed to attach '{child_name}' under '{parent_name}'. See logs."
-#                 )
-#
-#         except Exception as e:
-#             log.append(f"Error attaching '{child_name}' -> '{parent_name}': {e}")
-#
-#     # Public entrypoint you can call from your record parsing/handling flow
-#     def assign_record_via_slashpath(
-#         self, record_id: int, slashpath: str
-#     ) -> Tuple[str, List[str], int]:
-#         normalized, log, leaf_id = self.apply_slashpath(slashpath)
-#         # Link the record to the leaf (idempotent)
-#         self.m.link_record_to_bin(record_id, leaf_id)
-#         log.append(
-#             f"Linked record {record_id} → bin {leaf_id} ('{self.m.get_bin_name(leaf_id)}')."
-#         )
-#         return normalized, log, leaf_id
 
 
 @dataclass
@@ -1152,18 +963,6 @@ class DatabaseManager:
         log_msg(f"{self.bin_cache.name_to_binpath() = }")
         self.populate_dependent_tables()
 
-        # yr, wk = datetime.now().isocalendar()[:2]
-        # log_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
-        # self.extend_datetimes_for_weeks(yr, wk, 12)
-        #
-        # # self.populate_tags()  # NEW: Populate Tags + RecordTags
-        # self.populate_alerts()  # Populate today's alerts
-        # log_msg("calling notice")
-        # self.populate_notice()
-        # self.populate_all_urgency()
-        #
-        # log_msg("back from notice")
-
     def format_datetime(self, fmt_dt: str) -> str:
         return format_datetime(fmt_dt, self.ampm)
 
@@ -1398,72 +1197,6 @@ class DatabaseManager:
 
         self.conn.commit()
 
-    # def setup_busy_tables(self):
-    #     """
-    #     Create fine-grained and aggregated busy/conflict tables
-    #     (15-minute resolution, ternary busy bits stored as BLOBs).
-    #     """
-    #
-    #     # One row per event occurrence per week
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS BusyWeeksFromDateTimes (
-    #             id INTEGER PRIMARY KEY AUTOINCREMENT,
-    #             record_id INTEGER NOT NULL,
-    #             year_week TEXT NOT NULL,
-    #             busybits BLOB NOT NULL,           -- 672 slots (15-min blocks, 0/1)
-    #             FOREIGN KEY(record_id) REFERENCES DateTimes(record_id)
-    #         );
-    #     """)
-    #
-    #     self.cursor.execute("""
-    #         CREATE UNIQUE INDEX IF NOT EXISTS idx_busy_from_record_week
-    #             ON BusyWeeksFromDateTimes(record_id, year_week);
-    #     """)
-    #
-    #     # Aggregate layer: one per year-week
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS BusyWeeks (
-    #             id INTEGER PRIMARY KEY AUTOINCREMENT,
-    #             year_week TEXT UNIQUE NOT NULL,
-    #             busybits TEXT NOT NULL  -- 35-character string of '0','1','2' (7×[1+4] per day)
-    #         );
-    #     """)
-    #
-    #     # Update queue table for incremental recomputation
-    #     self.cursor.execute("""
-    #         CREATE TABLE IF NOT EXISTS BusyUpdateQueue (
-    #             record_id INTEGER PRIMARY KEY
-    #         );
-    #     """)
-    #
-    #     # Triggers on DateTimes to enqueue changed record_id
-    #     self.cursor.execute("""
-    #         CREATE TRIGGER IF NOT EXISTS trig_busy_insert
-    #         AFTER INSERT ON DateTimes
-    #         BEGIN
-    #             INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
-    #             VALUES (NEW.record_id);
-    #         END;
-    #     """)
-    #
-    #     self.cursor.execute("""
-    #         CREATE TRIGGER IF NOT EXISTS trig_busy_update
-    #         AFTER UPDATE ON DateTimes
-    #         BEGIN
-    #             INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
-    #             VALUES (NEW.record_id);
-    #         END;
-    #     """)
-    #
-    #     self.cursor.execute("""
-    #         CREATE TRIGGER IF NOT EXISTS trig_busy_delete
-    #         AFTER DELETE ON DateTimes
-    #         BEGIN
-    #             INSERT OR IGNORE INTO BusyUpdateQueue(record_id)
-    #             VALUES (OLD.record_id);
-    #         END;
-    #     """)
-
     def setup_busy_tables(self):
         """
         Create / reset busy cache tables and triggers.
@@ -1625,51 +1358,6 @@ class DatabaseManager:
             parts = list(tags)
         return sorted({p.strip().lower() for p in parts if p and p.strip()})
 
-    # def add_item(self, item: Item) -> int:
-    #     if item.has_f:
-    #         log_msg(
-    #             f"{item.itemtype = }, {item = } {item.has_f = } both: {item.itemtype in '~^' and item.has_f = }"
-    #         )
-    #     try:
-    #         timestamp = utc_now_string()
-    #         self.cursor.execute(
-    #             """
-    #             INSERT INTO Records (
-    #                 itemtype, subject, description, rruleset, timezone,
-    #                 extent, alerts, notice, context, jobs, priority, tags,
-    #                 tokens, processed, created, modified
-    #             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    #             """,
-    #             (
-    #                 item.itemtype,
-    #                 item.subject,
-    #                 item.description,
-    #                 item.rruleset,
-    #                 item.tz_str,
-    #                 item.extent,
-    #                 json.dumps(item.alerts),
-    #                 item.notice,
-    #                 item.context,
-    #                 json.dumps(item.jobs),
-    #                 item.priority,
-    #                 json.dumps(item.tags),
-    #                 json.dumps(item.tokens),
-    #                 0,
-    #                 timestamp,  # created
-    #                 timestamp,  # modified
-    #             ),
-    #         )
-    #         self.conn.commit()
-    #         record_id = self.cursor.lastrowid  # <-- return the new record id
-    #         if hasattr(item, "bin_path") and item.bin_path:
-    #             log_msg(f"linking bin_path {item.bin_path =  } for {record_id = }")
-    #             self.link_record_to_bin_path(record_id, item.bin_path)
-    #         return record_id
-    #
-    #     except Exception as e:
-    #         print(f"Error adding {item}: {e}")
-    #         raise
-
     def add_item(self, item: Item) -> int:
         try:
             timestamp = utc_now_string()
@@ -1700,10 +1388,6 @@ class DatabaseManager:
                 ),
             )
             self.conn.commit()
-            # rid = self.cursor.lastrowid
-            # if getattr(item, "bin_path", None):
-            #     self.link_record_to_bin_path(rid, item.bin_path)
-            # return rid
 
             record_id = self.cursor.lastrowid
             self.relink_bins_and_tags_for_record(record_id, item)  # ← add this
@@ -1735,9 +1419,6 @@ class DatabaseManager:
             set_field("context", item.context)
             set_field("jobs", json.dumps(item.jobs) if item.jobs is not None else None)
             set_field("priority", item.priority)
-            # ← tags only as JSON in Records
-            # if item.tags is not None:
-            #     set_field("tags", json.dumps(self._normalize_tags(item.tags)))
             set_field(
                 "tokens", json.dumps(item.tokens) if item.tokens is not None else None
             )
@@ -1748,8 +1429,6 @@ class DatabaseManager:
             values.append(record_id)
 
             sql = f"UPDATE Records SET {', '.join(fields)} WHERE id = ?"
-            # self.cursor.execute(sql, values)
-            # self.conn.commit()
 
             self.cursor.execute(sql, values)
             self.conn.commit()
@@ -1823,7 +1502,6 @@ class DatabaseManager:
         self.conn.commit()
 
         # Refresh auxiliary tables
-        # self.update_tags_for_record(record_id)
         self.generate_datetimes_for_record(record_id)
         self.populate_alerts_for_record(record_id)
         if item.notice:
@@ -1858,31 +1536,6 @@ class DatabaseManager:
                 out.append((rid, subj))
         return out
 
-    # def add_completion(
-    #     self,
-    #     record_id: int,
-    #     completion: tuple[int | None, int | None] | None,
-    # ) -> None:
-    #     """
-    #     Add a completion record for a given record_id.
-    #
-    #     completion: (completed_ts, due_ts | None)
-    #     """
-    #     if completion is None:
-    #         return
-    #
-    #     completed_ts, due_ts = completion
-    #     log_msg(f"{record_id = }, {completed_ts = }, {due_ts = }, {completion = }")
-    #
-    #     self.cursor.execute(
-    #         """
-    #         INSERT INTO Completions (record_id, completed, due)
-    #         VALUES (?, ?, ?)
-    #         """,
-    #         (record_id, completed_ts, due_ts),
-    #     )
-    #     self.conn.commit()
-
     def add_completion(
         self,
         record_id: int,
@@ -1905,33 +1558,6 @@ class DatabaseManager:
             ),
         )
         self.conn.commit()
-
-    # def get_completions(
-    #     self, record_id: int
-    # ) -> list[tuple[int, str, str, str, int | None, int | None]]:
-    #     """
-    #     Retrieve all completions for a given record_id.
-    #
-    #     Returns list of tuples:
-    #         (record_id, subject, description, itemtype, completed, due)
-    #     """
-    #     self.cursor.execute(
-    #         """
-    #         SELECT
-    #             r.id,
-    #             r.subject,
-    #             r.description,
-    #             r.itemtype,
-    #             c.completed,
-    #             c.due
-    #         FROM Completions c
-    #         JOIN Records r ON c.record_id = r.id
-    #         WHERE r.id = ?
-    #         ORDER BY c.completed DESC
-    #         """,
-    #         (record_id,),
-    #     )
-    #     return self.cursor.fetchall()
 
     def get_completions(self, record_id: int):
         """
@@ -2246,134 +1872,6 @@ class DatabaseManager:
             ) in self.cursor.fetchall()
         ]
 
-    # def populate_tags(self):
-    #     """
-    #     Populate Tags and RecordTags tables from the JSON 'tags' field in Records.
-    #     This rebuilds the tag index from scratch.
-    #     """
-    #     self.cursor.execute("DELETE FROM RecordTags;")
-    #     self.cursor.execute("DELETE FROM Tags;")
-    #     self.conn.commit()
-    #
-    #     self.cursor.execute(
-    #         "SELECT id, tags FROM Records WHERE tags IS NOT NULL AND tags != ''"
-    #     )
-    #     records = self.cursor.fetchall()
-    #
-    #     for record_id, tags_json in records:
-    #         try:
-    #             tags = json.loads(tags_json)
-    #         except Exception as e:
-    #             log_msg(f"⚠️ Failed to parse tags for record {record_id}: {e}")
-    #             continue
-    #
-    #         for tag in tags:
-    #             # Insert into Tags table, avoid duplicates
-    #             self.cursor.execute(
-    #                 "INSERT OR IGNORE INTO Tags (name) VALUES (?)", (tag,)
-    #             )
-    #             self.cursor.execute("SELECT id FROM Tags WHERE name = ?", (tag,))
-    #             tag_id = self.cursor.fetchone()[0]
-    #
-    #             # Insert into RecordTags mapping table
-    #             self.cursor.execute(
-    #                 "INSERT INTO RecordTags (record_id, tag_id) VALUES (?, ?)",
-    #                 (record_id, tag_id),
-    #             )
-    #
-    #     self.conn.commit()
-    #     log_msg("✅ Tags and RecordTags tables populated.")
-
-    # def populate_alerts(self):
-    #     """
-    #     Populate the Alerts table for all records that have alerts defined.
-    #     Alerts are only added if they are scheduled to trigger today.
-    #     """
-    #     # ✅ Step 1: Clear existing alerts
-    #     self.cursor.execute("DELETE FROM Alerts;")
-    #     self.conn.commit()
-    #
-    #     # ✅ Step 2: Find all records with non-empty alerts
-    #     self.cursor.execute(
-    #         """
-    #         SELECT R.id, R.subject, R.description, R.context, R.alerts, D.start_datetime
-    #         FROM Records R
-    #         JOIN DateTimes D ON R.id = D.record_id
-    #         WHERE R.alerts IS NOT NULL AND R.alerts != ''
-    #         """
-    #     )
-    #     records = self.cursor.fetchall()
-    #
-    #     if not records:
-    #         print("🔔 No records with alerts found.")
-    #         return
-    #     now = round(datetime.now().timestamp())  # Current timestamp
-    #     midnight = round(
-    #         (datetime.now().replace(hour=23, minute=59, second=59)).timestamp()
-    #     )  # Midnight timestamp
-    #
-    #     # ✅ Step 3: Process alerts for each record
-    #     for (
-    #         record_id,
-    #         record_name,
-    #         record_description,
-    #         record_location,
-    #         alerts,
-    #         start_datetime,
-    #     ) in records:
-    #         log_msg(f"processing {alerts = }")
-    #         start_dt = datetime_from_timestamp(
-    #             start_datetime
-    #         )  # Convert timestamp to datetime
-    #         today = date.today()
-    #
-    #         # Convert alerts from JSON string to list
-    #         alert_list = json.loads(alerts)
-    #
-    #         for alert in alert_list:
-    #             if ":" not in alert:
-    #                 continue  # Ignore malformed alerts
-    #
-    #             time_part, command_part = alert.split(":")
-    #             timedelta_values = [
-    #                 td_str_to_seconds(t.strip()) for t in time_part.split(",")
-    #             ]
-    #             log_msg(f"{timedelta_values = }")
-    #             commands = [cmd.strip() for cmd in command_part.split(",")]
-    #
-    #             for td in timedelta_values:
-    #                 trigger_datetime = (
-    #                     start_datetime - td
-    #                 )  # When the alert should trigger
-    #
-    #                 # ✅ Only insert alerts that will trigger before midnight and after now
-    #                 if now <= trigger_datetime < midnight:
-    #                     for alert_name in commands:
-    #                         alert_command = self.create_alert(
-    #                             alert_name,
-    #                             td,
-    #                             start_datetime,
-    #                             record_id,
-    #                             record_name,
-    #                             record_description,
-    #                             record_location,
-    #                         )
-    #
-    #                         if alert_command:  # ✅ Ensure it's valid before inserting
-    #                             self.cursor.execute(
-    #                                 "INSERT INTO Alerts (record_id, record_name, trigger_datetime, start_datetime, alert_name, alert_command) VALUES (?, ?, ?, ?, ?, ?)",
-    #                                 (
-    #                                     record_id,
-    #                                     record_name,
-    #                                     trigger_datetime,
-    #                                     start_datetime,
-    #                                     alert_name,
-    #                                     alert_command,
-    #                                 ),
-    #                             )
-    #     self.conn.commit()
-    #     log_msg("✅ Alerts table updated with today's relevant alerts.")
-
     def populate_alerts(self):
         """
         Populate the Alerts table for all records that have alerts defined.
@@ -2411,12 +1909,6 @@ class DatabaseManager:
         # --- time window (local-naive) ---
         now = datetime.now()
         end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
-
-        # You *can* clear today's alerts only, but a full clear is OK if you prefer.
-        # Safer approach: clear only alerts that trigger today or later and will be re-generated.
-        # If you *really* want a full reset, uncomment the next two lines and remove the targeted delete.
-        # self.cursor.execute("DELETE FROM Alerts;")
-        # self.conn.commit()
 
         # Targeted delete: remove alerts in [now, end_of_day] so we can repopulate without duplicates.
         self.cursor.execute(
@@ -2686,21 +2178,6 @@ class DatabaseManager:
 
         return False
 
-    # def ensure_week_generated(self, year: int, week: int, extra_weeks: int = 6) -> bool:
-    #     """
-    #     Ensure (year, week) is present. If it's outside the cached range (either
-    #     earlier or later), extend the DateTimes by calling extend_datetimes_for_weeks()
-    #     starting from the requested week, plus a cushion of `extra_weeks`.
-    #     Returns True if an extension was performed.
-    #     """
-    #     if self.is_week_in_generated(year, week):
-    #         return False
-    #
-    #     # This call merges with the existing range in your implementation,
-    #     # expanding earlier or later as needed.
-    #     self.extend_datetimes_for_weeks(year, week, extra_weeks + 1)
-    #     return True
-
     def extend_datetimes_for_weeks(self, start_year, start_week, weeks):
         """
         Extend the DateTimes table by generating data for the specified number of weeks
@@ -2716,8 +2193,6 @@ class DatabaseManager:
 
         start_year, start_week = start.isocalendar()[:2]
         end_year, end_week = end.isocalendar()[:2]
-        # beg_year, beg_week = datetime.min.isocalendar()[:2]
-        # log_msg(f"Generating weeks {beg_year}-{beg_week} to {end_year}-{end_week}")
 
         self.cursor.execute(
             "SELECT start_year, start_week, end_year, end_week FROM GeneratedWeeks"
@@ -2794,12 +2269,6 @@ class DatabaseManager:
         results = []
         for start_dt in occurrences:
             end_dt = start_dt + extent if extent else start_dt
-            # while start_dt.date() != end_dt.date():
-            #     day_end = datetime.combine(start_dt.date(), datetime.max.time())
-            #     results.append((start_dt, day_end))
-            #     start_dt = datetime.combine(
-            #         start_dt.date() + timedelta(days=1), datetime.min.time()
-            #     )
             results.append((start_dt, end_dt))
 
         return results
@@ -2835,9 +2304,6 @@ class DatabaseManager:
 
         itemtype, rruleset, record_extent, jobs_json, processed = row
         rule_str = (rruleset or "").replace("\\N", "\n").replace("\\n", "\n")
-        # log_msg(
-        #     f"generating datetimes for {record_id = } with {rule_str = } and {rruleset = } "
-        # )
 
         # Nothing to do without any schedule
         if not rule_str:
@@ -3188,26 +2654,6 @@ class DatabaseManager:
 
             iso_year, iso_week, iso_weekday = start_dt.isocalendar()
             grouped_events[iso_year][iso_week][iso_weekday].append((start_dt, end_dt))
-            # Process and split events across day boundaries
-            # while start_dt.date() <= end_dt.date():
-            #     # Compute the end time for the current day
-            #     day_end = min(
-            #         end_dt,
-            #         datetime.combine(
-            #             start_dt.date(), datetime.max.time()
-            #         ),  # End of the current day
-            #     )
-            #
-            #     # Group by ISO year, week, and weekday
-            #     iso_year, iso_week, iso_weekday = start_dt.isocalendar()
-            #     # grouped_events[iso_year][iso_week][iso_weekday].append((start_dt, day_end, event_type, name))
-            #     grouped_events[iso_year][iso_week][iso_weekday].append(
-            #         (start_dt, day_end)
-            #     )
-            #     # Move to the start of the next day
-            #     start_dt = datetime.combine(
-            #         start_dt.date() + timedelta(days=1), datetime.min.time()
-            #     )
 
         return grouped_events
 
@@ -3374,44 +2820,6 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
-    # def get_next_instances(self) -> List[Tuple[int, int | None, str, str, str, str]]:
-    #     """
-    #     Retrieve the next instance *at or after now* for each record.
-    #
-    #     Returns:
-    #         List of tuples:
-    #             (record_id, job_id, subject, description, itemtype, next_datetime)
-    #     """
-    #     today_key = _today_key()
-    #
-    #     sql = """
-    #     WITH norm AS (
-    #     SELECT
-    #         r.id            AS record_id,
-    #         r.subject       AS subject,
-    #         r.description   AS description,
-    #         r.itemtype      AS itemtype,
-    #         CASE
-    #         WHEN LENGTH(d.start_datetime) = 8 THEN d.start_datetime || 'T000000'
-    #         ELSE d.start_datetime
-    #         END             AS start_norm
-    #     FROM Records r
-    #     JOIN DateTimes d ON r.id = d.record_id
-    #     )
-    #     SELECT
-    #     n1.record_id,
-    #     n1.subject,
-    #     n1.description,
-    #     n1.itemtype,
-    #     MIN(n1.start_norm) AS next_datetime
-    #     FROM norm n1
-    #     WHERE n1.start_norm >= ?
-    #     GROUP BY n1.record_id
-    #     ORDER BY next_datetime ASC
-    #     """
-    #     self.cursor.execute(sql, (today_key,))
-    #     return self.cursor.fetchall()
-
     def get_next_instance_for_record(
         self, record_id: int
     ) -> tuple[str, str | None] | None:
@@ -3436,24 +2844,6 @@ class DatabaseManager:
         if row:
             return row[0], row[1]
         return None
-
-    # def get_next_start_datetimes_for_record(self, record_id: int) -> list[str]:
-    #     """
-    #     Return up to 2 upcoming start datetimes (as compact local-naive strings)
-    #     for the given record, sorted ascending.
-    #     """
-    #     self.cursor.execute(
-    #         """
-    #         SELECT start_datetime
-    #         FROM DateTimes
-    #         WHERE record_id = ?
-    #         AND start_datetime >= ?
-    #         ORDER BY start_datetime ASC
-    #         LIMIT 2
-    #         """,
-    #         (record_id, _fmt_naive(datetime.now())),
-    #     )
-    #     return [row[0] for row in self.cursor.fetchall()]
 
     def get_next_start_datetimes_for_record(
         self, record_id: int, job_id: int | None = None
@@ -3480,58 +2870,6 @@ class DatabaseManager:
 
         self.cursor.execute(sql, params)
         return [row[0] for row in self.cursor.fetchall()]
-
-    # def find_records(
-    #     self, regex: str
-    # ) -> List[Tuple[int, str, str, str, Optional[int], Optional[int]]]:
-    #     """
-    #     Find records whose name or description fields contain a match for the given regex,
-    #     including their last and next instances if they exist.
-    #
-    #     Args:
-    #         regex (str): The regex pattern to match.
-    #
-    #     Returns:
-    #         List[Tuple[int, str, str, str, Optional[int], Optional[int]]]:
-    #             List of tuples containing:
-    #                 - record ID
-    #                 - subject
-    #                 - description
-    #                 - itemtype
-    #                 - last instance datetime (or None)
-    #                 - next instance datetime (or None)
-    #     """
-    #     today = int(datetime.now().timestamp())
-    #     self.cursor.execute(
-    #         """
-    #         WITH
-    #         LastInstances AS (
-    #             SELECT record_id, MAX(start_datetime) AS last_datetime
-    #             FROM DateTimes
-    #             WHERE start_datetime < ?
-    #             GROUP BY record_id
-    #         ),
-    #         NextInstances AS (
-    #             SELECT record_id, MIN(start_datetime) AS next_datetime
-    #             FROM DateTimes
-    #             WHERE start_datetime >= ?
-    #             GROUP BY record_id
-    #         )
-    #         SELECT
-    #             r.id,
-    #             r.subject,
-    #             r.description,
-    #             r.itemtype,
-    #             li.last_datetime,
-    #             ni.next_datetime
-    #         FROM Records r
-    #         LEFT JOIN LastInstances li ON r.id = li.record_id
-    #         LEFT JOIN NextInstances ni ON r.id = ni.record_id
-    #         WHERE r.subject REGEXP ? OR r.description REGEXP ?
-    #         """,
-    #         (today, today, regex, regex),
-    #     )
-    #     return self.cursor.fetchall()
 
     def find_records(self, regex: str):
         regex_ci = f"(?i){regex}"  # force case-insensitive
@@ -3824,129 +3162,6 @@ class DatabaseManager:
         cur.execute("SELECT COUNT(*) FROM Records")
         return cur.fetchone()[0]
 
-    # def rebuild_busyweeks_from_source(self):
-    #     """
-    #     Aggregate BusyWeeksFromDateTimes → BusyWeeks.
-    #
-    #     - Combines all busybit arrays per year_week.
-    #     - Uses ternary encoding:
-    #         0 = free
-    #         1 = busy (exactly one event)
-    #         2 = conflict (2+ overlapping events)
-    #     """
-    #
-    #     self.cursor.execute("SELECT DISTINCT year_week FROM BusyWeeksFromDateTimes")
-    #     weeks = [row[0] for row in self.cursor.fetchall()]
-    #     log_msg(f"{weeks = }")
-    #     if not weeks:
-    #         return
-    #
-    #     for yw in weeks:
-    #         # Get all 672-slot arrays for this week
-    #         self.cursor.execute(
-    #             "SELECT busybits FROM BusyWeeksFromDateTimes WHERE year_week = ?",
-    #             (yw,),
-    #         )
-    #         rows = self.cursor.fetchall()
-    #         if not rows:
-    #             continue
-    #
-    #         # Decode each blob back to numpy array
-    #         arrays = [np.frombuffer(row[0], dtype=np.uint8) for row in rows]
-    #         for array in arrays:
-    #             log_msg(f"{yw = }, {array.sum() = }")
-    #
-    #         # Sum them elementwise
-    #         summed = np.sum(arrays, axis=0)
-    #
-    #         # Convert summed counts → ternary busy/conflict encoding
-    #         # 0 = free, 1 = busy (exactly 1), 2 = conflict (≥2)
-    #         merged = np.where(summed == 0, 0, np.where(summed == 1, 1, 2)).astype(
-    #             np.uint8
-    #         )
-    #
-    #         # Store back as BLOB
-    #         blob = merged.tobytes()
-    #         self.cursor.execute(
-    #             """
-    #             INSERT INTO BusyWeeks (year_week, busybits)
-    #             VALUES (?, ?)
-    #             ON CONFLICT(year_week)
-    #             DO UPDATE SET busybits = excluded.busybits
-    #             """,
-    #             (yw, blob),
-    #         )
-    #
-    #     self.conn.commit()
-
-    # def rebuild_busyweeks_from_source(self):
-    #     """
-    #     Aggregate all BusyWeeksFromDateTimes → BusyWeeks.
-    #
-    #     Rules:
-    #     - busybits are 679-slot uint8 arrays per (record_id, year_week)
-    #     - if any slot has 2 or more overlapping events → 2 (conflict)
-    #     - else if >=1 event → 1 (busy)
-    #     - else 0 (free)
-    #     """
-    #
-    #     self.cursor.execute("SELECT DISTINCT year_week FROM BusyWeeksFromDateTimes")
-    #     weeks = [row[0] for row in self.cursor.fetchall()]
-    #     if not weeks:
-    #         print("⚠️ No data to aggregate.")
-    #         return
-    #
-    #     print(f"Aggregating {len(weeks)} week(s)...")
-    #
-    #     for yw in weeks:
-    #         # --- Gather all event arrays for this week
-    #         self.cursor.execute(
-    #             "SELECT busybits FROM BusyWeeksFromDateTimes WHERE year_week = ?",
-    #             (yw,),
-    #         )
-    #         blobs = [
-    #             np.frombuffer(row[0], dtype=np.uint8) for row in self.cursor.fetchall()
-    #         ]
-    #         if not blobs:
-    #             continue
-    #
-    #         # Ensure all same length (safety)
-    #         n = len(blobs[0])
-    #         if any(arr.size != n for arr in blobs):
-    #             print(f"⚠️ Skipping {yw}: inconsistent array sizes")
-    #             continue
-    #
-    #         # Stack vertically -> shape (num_events, 679)
-    #         stack = np.vstack(blobs)
-    #
-    #         # Sum across events
-    #         counts = stack.sum(axis=0)
-    #
-    #         # Collapse:
-    #         # ≥2 overlapping → 2
-    #         # ≥1 → 1
-    #         # 0 → 0
-    #         merged = np.where(counts >= 2, 2, np.where(counts >= 1, 1, 0)).astype(
-    #             np.uint8
-    #         )
-    #
-    #         # Serialize as BLOB
-    #         blob = merged.tobytes()
-    #
-    #         # Upsert into BusyWeeks
-    #         self.cursor.execute(
-    #             """
-    #             INSERT INTO BusyWeeks (year_week, busybits)
-    #             VALUES (?, ?)
-    #             ON CONFLICT(year_week)
-    #             DO UPDATE SET busybits = excluded.busybits
-    #             """,
-    #             (yw, blob),
-    #         )
-    #
-    #     self.conn.commit()
-    #     print("✅ BusyWeeks aggregation complete.")
-
     def rebuild_busyweeks_from_source(self):
         """
         Aggregate all BusyWeeksFromDateTimes → BusyWeeks,
@@ -4194,52 +3409,6 @@ class DatabaseManager:
         )
         return self.cursor.fetchone() is not None
 
-    # def ensure_bin_exists(self, name: str) -> int:
-    #     """
-    #     Case-preserving, case-insensitive ensure:
-    #     - Looks up by NOCASE (so 'SmithCB' and 'smithcb' are the same bin)
-    #     - Inserts using the *provided* display case if not found (first-write-wins)
-    #     """
-    #     disp = (name or "").strip()
-    #     if not disp:
-    #         raise ValueError("Bin name must be non-empty")
-    #
-    #     # NOCASE lookup matches any casing, but doesn't change stored display
-    #     self.cursor.execute(
-    #         "SELECT id FROM Bins WHERE name = ? COLLATE NOCASE",
-    #         (disp,),
-    #     )
-    #     row = self.cursor.fetchone()
-    #     if row:
-    #         return row[0]
-    #
-    #     # First creation: store exactly as provided (display casing)
-    #     self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (disp,))
-    #     self.conn.commit()
-    #     return self.cursor.lastrowid
-
-    # def ensure_bin_exists(self, name: str) -> int:
-    #     disp = (name or "").strip()
-    #     if not disp:
-    #         raise ValueError("Bin name must be non-empty")
-    #
-    #     self.cursor.execute(
-    #         "SELECT id FROM Bins WHERE name = ? COLLATE NOCASE", (disp,)
-    #     )
-    #     row = self.cursor.fetchone()
-    #     if row:
-    #         return row[0]
-    #
-    #     self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (disp,))
-    #     self.conn.commit()
-    #     bid = self.cursor.lastrowid
-    #
-    #     # 👇 new: record the creation with unknown parent (None) for now
-    #     if hasattr(self, "bin_cache"):
-    #         self.bin_cache.on_create(bid, disp, None)
-    #
-    #     return bid
-
     def ensure_bin_exists(self, name: str) -> int:
         disp = (name or "").strip()
         if not disp:
@@ -4325,32 +3494,6 @@ class DatabaseManager:
 
         self.conn.commit()
         return parent_id
-
-    # def ensure_system_bins(self) -> tuple[int, int]:
-    #     """Guarantee that root and unlinked bins exist and are properly linked."""
-    #     root_id = self.ensure_bin_exists("root")
-    #     unlinked_id = self.ensure_bin_exists("unlinked")
-    #
-    #     # link unlinked → root (if not already)
-    #     self.cursor.execute(
-    #         """
-    #         INSERT OR IGNORE INTO BinLinks (bin_id, container_id)
-    #         VALUES (?, ?)
-    #     """,
-    #         (unlinked_id, root_id),
-    #     )
-    #
-    #     # Ensure root has no parent (NULL)
-    #     self.cursor.execute(
-    #         """
-    #         INSERT OR IGNORE INTO BinLinks (bin_id, container_id)
-    #         VALUES (?, NULL)
-    #     """,
-    #         (root_id,),
-    #     )
-    #
-    #     self.conn.commit()
-    #     return root_id, unlinked_id
 
     def ensure_system_bins(self) -> tuple[int, int]:
         root_id = self.ensure_bin_exists("root")
@@ -4659,3 +3802,83 @@ class DatabaseManager:
                 nm, parent_id=default_parent_id
             )  # puts leaf under 'unlinked' if new
             self.link_record_to_bin(record_id, bid)
+
+    ###VVV new for tagged bin treated
+    def get_root_bin_id(self) -> int:
+        # Reuse your existing, tested anchor
+        return self.ensure_root_exists()
+
+    def _make_crumb(self, bin_id: int | None):
+        """Return [(id, name), ...] from root to current."""
+        if bin_id is None:
+            rid = self.ensure_root_exists()
+            return [(rid, "root")]
+        # climb using your get_parent_bin
+        chain = []
+        cur = bin_id
+        while cur is not None:
+            name = self.get_bin_name(cur)
+            chain.append((cur, name))
+            parent = self.get_parent_bin(cur)  # {'id','name'} or None
+            cur = parent["id"] if parent else None
+        return list(reversed(chain)) or [(self.ensure_root_exists(), "root")]
+
+    def get_bin_summary(self, bin_id: int | None, *, filter_text: str | None = None):
+        """
+        Returns:
+          children  -> [ChildBinRow]
+          reminders -> [ReminderRow]
+          crumb     -> [(id, name), ...]
+        Uses ONLY DatabaseManager public methods you showed.
+        """
+        # 1) children (uses your counts + sort)
+        raw_children = self.get_subbins(
+            bin_id if bin_id is not None else self.get_root_bin_id()
+        )
+        # shape: {"id","name","subbins","reminders"}
+        children = [
+            ChildBinRow(
+                bin_id=c["id"],
+                name=c["name"],
+                child_ct=c["subbins"],
+                rem_ct=c["reminders"],
+            )
+            for c in raw_children
+        ]
+
+        # 2) reminders (linked via ReminderLinks)
+        raw_reminders = self.get_reminders_in_bin(
+            bin_id if bin_id is not None else self.get_root_bin_id()
+        )
+        # shape: {"id","subject","itemtype"}
+        reminders = [
+            ReminderRow(
+                record_id=r["id"],
+                subject=r["subject"],
+                # keep optional fields absent; view handles it
+            )
+            for r in raw_reminders
+        ]
+
+        # 3) apply filter (controller-level; no new SQL)
+        if filter_text:
+            f = filter_text.casefold()
+            children = [c for c in children if f in c.name.casefold()]
+            reminders = [r for r in reminders if f in r.subject.casefold()]
+
+        # 4) crumb
+        crumb = self._make_crumb(
+            bin_id if bin_id is not None else self.get_root_bin_id()
+        )
+        return children, reminders, crumb
+
+    def get_reminder_details(self, record_id: int) -> str:
+        # Minimal, safe detail using your existing schema
+        row = self.cursor.execute(
+            "SELECT subject, itemtype FROM Records WHERE id=?",
+            (record_id,),
+        ).fetchone()
+        if not row:
+            return "[b]Unknown reminder[/b]"
+        subject, itemtype = row
+        return f"[b]{subject}[/b]\n[dim]type:[/dim] {itemtype or '—'}"
