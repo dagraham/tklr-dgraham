@@ -9,7 +9,6 @@ import tomllib
 from tomlkit import parse as toml_parse, dumps as toml_dumps
 import shutil
 import itertools
-import os
 import subprocess
 
 TWINE_ENV_KEYS = (
@@ -112,22 +111,6 @@ def read(cmd: str):
             cmd, stderr=subprocess.STDOUT, shell=True, encoding="utf-8"
         )
         return True, out
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error running: {cmd}\n{e.output}")
-        return False, e.output.strip().split("\n")[-1]
-
-
-def check_output(cmd, env=None):
-    if not cmd:
-        return True, ""
-    if DRY_RUN:
-        print(f"[dry-run] {cmd}")
-        return True, ""
-    try:
-        res = subprocess.check_output(
-            cmd, stderr=subprocess.STDOUT, shell=True, encoding="utf-8", env=env
-        )
-        return True, res
     except subprocess.CalledProcessError as e:
         print(f"❌ Error running: {cmd}\n{e.output}")
         return False, e.output.strip().split("\n")[-1]
