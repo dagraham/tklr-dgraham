@@ -1,5 +1,9 @@
 # Organizing Reminders with Bins
 
+## Idea Garden
+
+0: "tosser", 1: "seed", 2: "seedling", 3: "plant", 4: "keeper"
+
 ##
 
 Just thinking about bins and tags.

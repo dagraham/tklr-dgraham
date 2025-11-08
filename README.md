@@ -160,7 +160,7 @@ Reminders whose subject or detail entries contain a case-insensitive match for a
 
 ### Bins
 
-Reminders listed by their assigned _bins_
+Hierarchical display of bins and reminders.
 
 ## Details
 

@@ -46,7 +46,30 @@ from collections import defaultdict, deque
 
 anniversary_regex = re.compile(r"!(\d{4})!")
 
-BIN_ROOTS = {"activities", "journal", "library", "people", "places", "tags", "unlinked"}
+BIN_ROOTS = {
+    "activities",
+    "journal",
+    "library",
+    "people",
+    "places",
+    "projects",
+    "seedbed",
+    "tags",
+    "unlinked",
+}
+
+BIN_PATHS = [
+    ["books", "library"],
+    ["movies", "library"],
+    ["series", "library"],
+    ["poetry", "library"],
+    ["quotations", "library"],
+    ["tosser", "seedbed"],
+    ["seed", "seedbed"],
+    ["seedling", "seedbed"],
+    ["plant", "seedbed"],
+    ["keeper", "seedbed"],
+]
 
 
 def regexp(pattern, value):
@@ -404,16 +427,9 @@ def _reduce_to_35_slots(arr: np.ndarray) -> np.ndarray:
 class BinPathConfig:
     allow_reparent: bool = True
     standard_roots: Set[str] = field(
-        default_factory=lambda: {"places"}
-    )  # force under root
-
-
-@dataclass
-class BinPathConfig:
-    allow_reparent: bool = True
-    standard_roots: Set[str] = field(
         default_factory=lambda: BIN_ROOTS
     )  # anchored at root
+    standard_paths: List[List[str]] = field(default_factory=lambda: BIN_PATHS)
 
 
 class BinPathProcessor:
@@ -427,6 +443,16 @@ class BinPathProcessor:
         self.m.ensure_system_bins()
         if self.cfg.standard_roots:
             self.m.ensure_root_children(sorted(self.cfg.standard_roots))  # idempotent
+        # NEW: ensure standard child paths exist + are correctly anchored
+        for parts in self.cfg.standard_paths or []:
+            try:
+                # parts: ["leaf", "parent", "grandparent", ...]
+                # apply_parts ensures/repairs hierarchy without touching records
+                _norm, _log, _leaf_id = self.apply_parts(parts)
+                # You could log _log somewhere if desired
+            except Exception as e:
+                # Fail soft: don’t break startup if one path is weird
+                print(f"[binpaths] error applying standard path {parts!r}: {e}")
 
     @staticmethod
     def canon(name: str) -> str:
