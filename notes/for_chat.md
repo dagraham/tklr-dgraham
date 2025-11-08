@@ -1,5 +1,26 @@
 # For ChatGPT
 
+```
+src
+├── tklr
+│   ├── __init__.py
+│   ├── cli
+│   │   ├── main.py
+│   │   └── migrate_etm_to_tklr.py
+│   ├── common.py
+│   ├── controller.py
+│   ├── item.py
+│   ├── list_colors.py
+│   ├── model.py
+│   ├── shared.py
+│   ├── tklr_env.py
+│   ├── versioning.py
+│   ├── view_agenda.py
+│   ├── view_textual.css
+│   └── view.py
+
+```
+
 ## 25-09-24
 
 I would appreciate your thoughts on the following. I modified "finalize_jobs" slightly to set self.has_f = True and to add the token "@f" with the max of the finish_dts to self.tokens instead of setting self.project_f:

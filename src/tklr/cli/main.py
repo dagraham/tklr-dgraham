@@ -90,14 +90,6 @@ def add(ctx, entry, file, batch):
     bad_items = []
     dbm = DatabaseManager(db, env)
 
-    # def clean_and_split(content: str) -> list[str]:
-    #     """Remove comment lines and split into entries separated by '...' markers."""
-    #     lines = [
-    #         line for line in content.splitlines() if not line.strip().startswith("#")
-    #     ]
-    #     cleaned = "\n".join(lines)
-    #     return split_entries(cleaned)
-
     def clean_and_split(content: str) -> list[str]:
         """
         Remove comment-like lines (starting with any '#', regardless of spacing)
@@ -110,14 +102,6 @@ def add(ctx, entry, file, batch):
                 lines.append(line)
         cleaned = "\n".join(lines)
         return split_entries(cleaned)
-
-        def edit_entry(initial: str = "") -> str | None:
-            result = click.edit(initial, extension=".tklr")
-            if result is None:
-                return None
-            entries = clean_and_split(result)
-            return "\n\n".join(entries) if entries else None
-            # return "\n".join(entries) if entries else None
 
     def split_entries(content: str) -> list[str]:
         """Split raw text into entries using '...' line as separator."""
