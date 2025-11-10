@@ -2165,6 +2165,7 @@ class TaggedHierarchyScreen(SearchableScreen):
 
         # 2) Full subtree (bins only)
         self.descendants = self.controller.get_descendant_tree(self.bin_id)
+        log_msg(f"{self.descendants = }, {children = }")
 
         # 3) Crumb text: ancestors numbered, last (current) unnumbered
         if crumb:
@@ -2274,6 +2275,57 @@ class TaggedHierarchyScreen(SearchableScreen):
             rows.append(
                 f"{indent}{tag_prefix}[{TYPE_TO_COLOR['b']}]{name}[/ {TYPE_TO_COLOR['b']}]"
             )
+        return rows
+
+    def _render_tree_rows(
+        self,
+        flat_nodes: list[tuple[int, str, int]],
+        child_tags: dict[int, str],
+    ) -> list[str]:
+        """
+        Render the pre-ordered subtree as simple indented lines.
+
+        • No box/branch glyphs.
+        • Skip the root row (depth==0) so the current bin name is not repeated.
+        • Insert inline tags for depth-1 nodes that are on the current page.
+        • If a child's name looks like "PARENT:SUFFIX" where PARENT == parent's name,
+          display only "SUFFIX".
+        """
+        rows: list[str] = []
+        # Track last seen name at each depth to know the parent name
+        last_name_at_depth: dict[int, str] = {}
+
+        for bid, name, depth in flat_nodes:
+            if depth == 0:
+                # Root row: remember its name but don't render it here
+                last_name_at_depth[0] = name
+                continue
+
+            # Remember this bin's name at its depth
+            last_name_at_depth[depth] = name
+
+            # Determine parent name (if any)
+            parent_name = last_name_at_depth.get(depth - 1, "")
+
+            # Default display name is the full name
+            display_name = name
+
+            # If "PARENT:rest" and PARENT matches parent_name, show only "rest"
+            if parent_name and ":" in name:
+                prefix, suffix = name.split(":", 1)
+                if prefix == parent_name:
+                    display_name = suffix
+
+            indent = "    " * depth
+            tag_prefix = (
+                f"[dim]{child_tags[bid]}[/dim] "
+                if (depth == 1 and bid in child_tags)
+                else ""
+            )
+            rows.append(
+                f"{indent}{tag_prefix}[{TYPE_TO_COLOR['b']}]{display_name}[/ {TYPE_TO_COLOR['b']}]"
+            )
+
         return rows
 
     def _render_reminder_label(self, r: ReminderRow) -> str:

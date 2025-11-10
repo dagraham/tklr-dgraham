@@ -1,0 +1,147 @@
+# DO NOT EDIT TITLE
+title = "Tklr Configuration"
+
+[ui]
+# theme: str = 'dark' | 'light'
+theme = "dark"
+
+# ampm: bool = true | false
+# Use 12 hour AM/PM when true else 24 hour
+ampm = false
+
+# history_weight: int 
+# Apply this weight to the prior history when computing
+# the next offset for a task
+history_weight = 3
+
+# dayfirst and yearfirst settings
+# These settings are used to resolve ambiguous date entries involving
+# 2-digit components. E.g., the interpretation of the date "12-10-11" 
+# with the various possible settings for dayfirst and yearfirst: 
+#
+# dayfirst  yearfirst    date     interpretation  standard
+# ========  =========  ========   ==============  ========
+#   True     True      12-10-11    2012-11-10     Y-D-M ??
+#   True     False     12-10-11    2011-10-12     D-M-Y EU
+#   False    True      12-10-11    2012-10-11     Y-M-D ISO 8601
+#   False    False     12-10-11    2011-12-10     M-D-Y US
+#
+# The defaults:
+#   dayfirst = false
+#   yearfirst = true 
+# correspond to the Y-M-D ISO 8601 standard.
+
+# dayfirst: bool = true | false 
+dayfirst = false
+
+# yearfirst: bool = true | false
+yearfirst = true
+
+# two_digit_year: bool = true | false 
+# If true, years are displayed using the last two digits, e.g.,
+# 25 instead of 2025. 
+two_digit_year = true 
+
+[alerts]
+# dict[str, str]: character -> command_str.
+# E.g., this entry
+#   v = '/usr/bin/say -v Alex "{name}, {when}"'
+# would, on my macbook, invoke the system voice to speak the name (subject)
+# of the reminder and when (the time remaining until the scheduled datetime).
+# The character "d" would be associated with this command so that, e.g.,
+# the alert entry "@a 30m, 15m: d" would trigger this command 30
+# minutes before and again 15 minutes before the scheduled datetime. 
+# Additional keys: start (scheduled datetime), time (spoken version of
+# start), location, description.  
+
+
+# ─── Urgency Configuration ─────────────────────────────────────
+
+[urgency.colors]
+# The hex color "min_hex_color" applies to urgencies in [-1.0, min_urgency]. 
+# Hex colors for the interval [min_urgency, 1.0] are broken into "steps" 
+# equal steps along the gradient from "min_hex_color" to "max_hex_color". 
+# These colors are used for tasks in the urgency listing. 
+min_hex_color = "#6495ed"
+max_hex_color = "#ffff00"
+min_urgency = 0.5
+steps = 10
+
+[urgency.due]
+# The "due" urgency increases from 0.0 to "max" as now passes from
+# due - interval to due.
+interval = "1w"
+max = 8.0
+
+
+[urgency.pastdue]
+# The "pastdue" urgency increases from 0.0 to "max" as now passes
+# from due to due + interval.
+interval = "2d"
+max = 2.0
+
+[urgency.recent]
+# The "recent" urgency decreases from "max" to 0.0 as now passes
+# from modified to modified + interval.
+interval = "2w"
+max = 4.0
+
+[urgency.age]
+# The "age" urgency  increases from 0.0 to "max" as now increases
+# from modified to modified + interval.
+interval = "26w"
+max = 10.0
+
+[urgency.extent]
+# The "extent" urgency increases from 0.0 when extent = "0m" to "max"
+# when extent >= interval.
+interval = "12h"
+max = 4.0
+
+[urgency.blocking]
+# The "blocking" urgency increases from 0.0 when blocked = 0 to "max"
+# when blocked >= count.
+count = 3
+max = 6.0
+
+[urgency.tags]
+# The "tags" urgency increases from 0.0 when tags = 0 to "max" when
+# when tags >= count.
+count = 3
+max = 3.0
+
+[urgency.priority]
+# The "priority" urgency corresponds to the value from "1" to "5" of `@p`
+# specified in the task. E.g, with "@p 3", the value would correspond to
+# the "3" entry below. Absent an entry for "@p", the value would be 0.0.
+
+"1" = 10.0
+
+"2" = 8.0
+
+"3" = 5.0
+
+"4" = 2.0
+
+"5" = -5.0
+
+
+# In the default settings, a priority of "5" is the only one that yields
+# a negative value, `-5`, and thus reduces the urgency of the task.
+
+[urgency.description]
+# The "description" urgency equals "max" if the task has an "@d" entry and
+# 0.0 otherwise.
+max = 2.0
+
+[urgency.project]
+# The "project" urgency equals "max" if the task belongs to a project and
+# 0.0 otherwise.
+max = 3.0
+
+[bin_orders]
+# Specify custom ordering of children for a root bin.
+# Example:
+#   seedbed = ["seed", "germination", "seedling", "growth", "flowering"]
+
+seedbed = ["seed","germination","seedling","growing","flowering"]

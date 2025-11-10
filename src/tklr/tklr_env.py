@@ -3,7 +3,7 @@ import os
 import sys
 import tomllib
 from pydantic import BaseModel, Field, ValidationError
-from typing import Optional
+from typing import Dict, List, Optional
 from jinja2 import Template
 
 from pydantic import RootModel
@@ -103,6 +103,7 @@ class TklrConfig(BaseModel):
     ui: UIConfig = UIConfig()
     alerts: dict[str, str] = {}
     urgency: UrgencyConfig = UrgencyConfig()
+    bin_orders: Dict[str, List[str]] = Field(default_factory=dict)
 
 
 CONFIG_TEMPLATE = """\
@@ -241,6 +242,14 @@ max = {{ urgency.description.max }}
 # 0.0 otherwise.
 max = {{ urgency.project.max }}
 
+[bin_orders]
+# Specify custom ordering of children for a root bin.
+# Example:
+#   seedbed = ["seed", "germination", "seedling", "growth", "flowering"]
+{% for root, order_list in bin_orders.items() %}
+{{ root }} = ["{{ order_list | join('","') }}"]
+{% endfor %}
+
 """
 # # ─── Commented Template ────────────────────────────────────
 # CONFIG_TEMPLATE = """\
@@ -356,6 +365,14 @@ max = {{ urgency.project.max }}
 # high    = {{ urgency.priority.high }}
 # next    = {{ urgency.priority.next }}
 #
+# [bin_orders]
+# # Specify custom ordering of children for a root bin.
+# # Example:
+# #   seedbed = ["seed", "germination", "seedling", "growth", "flowering"]
+# {% for root, order_list in bin_orders.items() %}
+# {{ root }} = ["{{ order_list | join('","') }}"]
+# {% endfor %}
+
 # ─── Save Config with Comments ───────────────────────────────
 
 

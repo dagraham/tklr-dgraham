@@ -24,7 +24,7 @@ _tklr_ began life in 2013 as _etm-qt_ sporting a gui based on _Qt_. The intent w
 
 ## Reminders
 
-_tklr_ offers a simple way to manage your events, tasks and other reminders.
+_tklr_ offers a simple way to manage your event, task and note reminders.
 
 Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used. Each reminder in _tklr_ begins with a _type character_ followed by the _subject_ of the reminder and then, perhaps, by one or more _@key value_ pairs to specify other attributes of the reminder. Mnemonics are used to make the keys easy to remember, e.g, @s for scheduled datetime, @l for location, @d for details and so forth.
 

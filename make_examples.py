@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-# To test tklr
+# To illustrate tklr
 import random
 
 from datetime import datetime, timedelta
@@ -20,6 +20,31 @@ from dateutil.parser import parse
 
 ONEDAY = timedelta(days=1)
 ONEWEEK = timedelta(days=7)
+
+
+BINS = [
+    "activities/root",
+    "2025:11/2025/journal/root",
+    "2025:12/2025/journal/root",
+    "2026:01/2026/journal/root",
+    "library/root",
+    "books/library/root",
+    "movies/library/root",
+    "series/library/root",
+    "poetry/library/root",
+    "quotations/library/root",
+    "people:A/people/root",
+    "people:B/people/root",
+    "people:C/people/root",
+    "places/root",
+    "projects/root",
+    "seed/seedbed/root",
+    "germination/seedbed/root",
+    "seedling/seedbed/root",
+    "growth/seedbed/root",
+    "flowering/seedbed/root",
+    "tags/root",
+]
 
 
 # in_one_hour = (
@@ -146,7 +171,7 @@ def week(dt: datetime) -> Union[datetime, datetime]:
 
 
 env = TklrEnvironment()
-ctrl = Controller("./items/tklr.db", env, reset=True)
+ctrl = Controller("./examples/tklr.db", env, reset=True)
 # Insert the UTC records into the database
 
 num_items = 0
@@ -255,88 +280,17 @@ in_one_week = (now + ONEWEEK).strftime("%Y-%m-%d")
 # type, name, details, rrulestr, extent, alerts, location
 
 
-busy = [
-    f"* all-day yesterday @d all day event @s {yesterday_date}",
-    f"* all-day today @d all day event @s {today_date}",
-    f"* all-day tomorrow @d all day event @s {tomorrow_date}",
-    f"* one hour yesterday @s {yesterday_date} 9a @e 1h",
-    f"* one hour today @s {today_date} 10a @e 1h",
-    f"* one hour tomorrow @s {tomorrow_date} 11a @e 1h",
-    "* all-day every Tuesday @s tue @r w &c 3",
-    "* all-day every fourth day @s wed @r d &i 3 &c 5",
-    f"* 2-hours every third day @s {in_one_week} 9a @e 2h @r d &i 3 &c 5",
-    "* spanning 3 days @s sat 7p @e 2d2h30m",
-    f"* 1-hour last, this and next week @s {one_week_ago} 4p @e 1h  @+ {today_date} 4p, {in_one_week} 4p",
+one_off = [
+    f"* {phrase()}  @s {in_ten_minutes()} @a 3m, 1m: v @d alert test #lorem",
+    f"* {phrase()} @s {in_ten_minutes()} @a 4m, 2m, 0m: n @d notify test #lorem",
+    f"? {phrase()} @d draft test #lorem",
 ]
 
-
-items = [
-    f"* first of the month @d all day event @s {first_of_month}",
-    f"* event in 2 days with 1d beginby @s {in_two_days()} @n 1d",
-    f"~ task in 5 days with 1w beginby @s {in_five_days()} @n 1w",
-    f"* event in 1 day with beginby @s {tomorrow_date} @n 1w",
-    f"~ all day yesterday @d all day task @p 2 @s {yesterday_date}",
-    f"~ all day today @d all day task @p 2 @s {today_date}",
-    f"~ all day tomorrow @d all day event @p 2 @s {tomorrow_date}",
-    f"* zero extent naive @s {tomorrow_date} 10h @z none",
-    f"* zero extent naive from z @s {tomorrow_date} 10h z none",
-    "* daily with US/Pacific from z @s 3pm z US/Pacific @d whatever @c wherever @r d &i 3 &c 10",
-    "* daily datetime US/Pacific @s 1pm @z US/Pacific @d whatever @c wherever @r d &i 3 &c 10",
-    f"~ every other day @s {today_date} 10p @r d &i 2",
-    f"* starting in 5 days repeating for 3 days @s {in_five_days()} 8:30a @e 4h @r d &c 3 @n 1w",
-    f"~ repeating and rdates @s {today_date} 1:30p @r d @+ 2:30p, 3:30p",
-    f"~ repeating, rdates and finish  @s {today_date} 1:30p @r d &c 3 @+ 10:30a, 3:30p @f 8:15a",
-    f"* repeating until  @s {today_date} 7:30p @e 1h @r d &u {in_two_weeks()}",
-    f"~ due, tags, description, priority one @p 1 @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
-    f"* three datetimes @s {in_ten_minutes()} @e 45m  @+ {in_one_hour()}, {in_one_day()}",
-    f"""% long formatted description @s {yesterday_date}
-    @d Title
-    1. This
-       i. with part one
-       ii. and this
-    2. And finally this. 
-    """,
-    f"""^ dog house @s {in_five_days()} @e 3h @n 2w @p 3 @~ create plan &s 1w &e 1h &r 1 &f {one_hour_ago()} @~ go to Lowes &s 1w &e 2h &r 2: 1 @~ buy lumber &s 1w &r 3: 2 @~ buy hardware &s 1w &r 4: 2 @~ buy paint &s 1w &r 5: 2 @~ cut pieces &s 6d &e 3h &r 6: 3 @~ assemble &s 4d &e 5h &r 7: 4, 6 @~ sand &s 3d &e 1h &r 8: 7 @~ paint &s 2d &e 2h &r 9: 8 """,
-    "~ no due date or datetime and priority one @p 1",
-    f"~ one due date and priority one @s {today_date} @p 1",
-    f"~ one due datetime and priority one @s {in_one_hour()} @p 1",
-    "~ no due date and priority two @p 2",
-    "~ no due date and priority three @p 3",
-    "~ no due date and priority four @p 4",
-    "~ no due date and no priority",
-    "~ no due date and priority five @p 5",
-    f"~ finished one hour ago @s {in_one_hour()} @f {one_hour_ago()}",
-    f"^ no prerequisites @s {today_date} @n 1w @~ this &r 1 &f {today_date}  @~ that &r 2",
-    f"~ do over with finish @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o 4d",
-    f"~ do over learn with finish  @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o ~4d",
-    "? draft reminder - no checks",
-    f"~ one date with priority three @s {yesterday_date} @p 3",
-    "~ three datetimes @s 9am @+ 10am, 11am",
-    "* event spread over multiple days @s 3p fri @e 2d2h30m",
-    "* daily datetime @s 3p @e 30m @r d",
-    "* gour Tiki Roundtable Meeting @s 1/1 14:00 z UTC @e 1h30m @r m &w +3TH &c 10",
-    "* timezone test for noon CET @s 12p z CET @e 1h",
-    "* timezone test for noon naive @s 12p z none @e 1h",
-]
-
-bins = [
-    "% Journal entry for October @b 2025:10/2025/journal @s 2p @d Test bin entries",
-    "% Churchill - Give me a pig @b Churchill/quotations/library @d Dogs look up at you.\nCats look down at you.\nGive me a pig. They look you in the eye and treat you as an equal.",
-    "* Ellen's French adventure @s mon @r d &c 7 @b travel/activities @b Lille/France/places",
-    "% Charles and Bonnie Smith @b SmithCB/people:S/people @d details about Charles and Bonnie @b Athens/Greece/places",
-    "% itenerary  @b Athens-Istanbul/travel/activities @b Istanbul/Turkey/places",
-]
-
-alerts = [
-    f"* alert test  @s {in_five_minutes()} @a 3m, 1m: v",
-    f"* notify test @s {in_five_minutes()} @a 4m, 2m, 0m: n",
-]
-
-records = []
+items = []
 count = 0
-# items = []
-# num_items = 0
+num_items = 200
 while len(items) < num_items:
+    count += 1
     t = random.choice(types)
     name = phrase()
     description = lorem.paragraph() + " #lorem"
@@ -349,18 +303,19 @@ while len(items) < num_items:
         dtstart = start.strftime("%Y-%m-%d %H:%M")
     # dtstart = local_dtstr_to_utc_str(dts)
     extent = f" @e {random.choice(duration)}" if (t == "*" and not date) else ""
+    # add_bin = random.choice([0, 0, 0, 0, 1, 1])
+    # bin = f" @b {random.choice(BINS)}" if add_bin else ""
+    bin = f" @b {random.choice(BINS)}"
     if random.choice(repeat):
         items.append(
-            f"{t} {name} @d {description} @s {dtstart}{extent} @r {random.choice(freq)} "
+            f"{t} {name} @d {description} @s {dtstart}{extent} @r {random.choice(freq)} {bin}"
         )
     else:
-        items.append(f"{t} {name} @d {description} @s {dtstart}{extent}")
+        items.append(f"{t} {name} @d {description} @s {dtstart}{extent} {bin}")
 
 
 id = 0
-# for entry in items:  # + alerts:
-# for entry in busy + items:
-for entry in items + bins + alerts:
+for entry in one_off + items:
     count += 1
     id += 1
     try:
@@ -369,11 +324,8 @@ for entry in items + bins + alerts:
         # print(f">>>\n{new_entry = }")
         # continue
         record_id = ctrl.add_item(item)  # .to_dict()
-        if count % 20 == 0:
-            print(f"---\n{count} {entry = }")
-    except:
-        print(f"\n{item.entry}\n")
-        print(f"{record_id = }, {item.tokens = }; {item.rruleset = }")
+    except Exception as e:
+        print(f"error processing {entry}\n{e = }")
 
 try:
     ctrl.db_manager.populate_dependent_tables()

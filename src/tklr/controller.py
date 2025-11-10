@@ -187,6 +187,40 @@ def _ensure_tokens_list(value):
 RE_BIN = re.compile(r"@b\s+([^\s].*?)\s*(?=$|[@&+%-])", re.IGNORECASE)
 
 
+# def sort_children_for_bin(
+#     root_name: str,
+#     children: list[dict],
+#     bin_orders: dict[str, list[str]],
+# ) -> list[dict]:
+#     """
+#     Return children sorted according to custom order list for root_name,
+#     if present; otherwise fall back to alphabetical by name.
+#     Children not included in the custom order list will come after the listed ones,
+#     in alphabetical order.
+#     :param root_name: name of the container bin whose children these are
+#     :param children: list of dicts, each with at least a "name" key
+#     :param bin_orders: dict mapping root bin name -> list of child names in desired order
+#     :return: sorted list of children dicts
+#     """
+#     if root_name in bin_orders:
+#         order_list = bin_orders[root_name]
+#
+#         def sort_key(ch: dict):
+#             name = ch["name"]
+#             try:
+#                 idx = order_list.index(name)
+#                 return (0, idx)
+#             except ValueError:
+#                 return (
+#                     1,
+#                     name.lower(),
+#                 )  # fallback: non-listed come after, alphabetical
+#
+#         return sorted(children, key=sort_key)
+#     else:
+#         return sorted(children, key=lambda ch: ch["name"].lower())
+
+
 def extract_bin_slashpath(line: str) -> str | None:
     """
     Example:
@@ -2521,13 +2555,62 @@ class Controller:
             cur = parent["id"] if parent else None
         return list(reversed(chain)) or [(self.db_manager.ensure_root_exists(), "root")]
 
+    # def get_bin_summary(self, bin_id: int | None, *, filter_text: str | None = None):
+    #     """
+    #     Returns:
+    #       children  -> [ChildBinRow]
+    #       reminders -> [ReminderRow]
+    #       crumb     -> [(id, name), ...]
+    #     Uses ONLY DatabaseManager public methods you showed.
+    #     """
+    #     # 1) children (uses your counts + sort)
+    #     raw_children = self.db_manager.get_subbins(
+    #         bin_id if bin_id is not None else self.get_root_bin_id()
+    #     )
+    #     # shape: {"id","name","subbins","reminders"}
+    #     children = [
+    #         ChildBinRow(
+    #             bin_id=c["id"],
+    #             name=c["name"],
+    #             child_ct=c["subbins"],
+    #             rem_ct=c["reminders"],
+    #         )
+    #         for c in raw_children
+    #     ]
+    #
+    #     # 2) reminders (linked via ReminderLinks)
+    #     raw_reminders = self.db_manager.get_reminders_in_bin(
+    #         bin_id if bin_id is not None else self.get_root_bin_id()
+    #     )
+    #     # shape: {"id","subject","itemtype"}
+    #     reminders = [
+    #         ReminderRow(
+    #             record_id=r["id"],
+    #             subject=r["subject"],
+    #             itemtype=r["itemtype"],
+    #         )
+    #         for r in raw_reminders
+    #     ]
+    #
+    #     # 3) apply filter (controller-level; no new SQL)
+    #     if filter_text:
+    #         f = filter_text.casefold()
+    #         children = [c for c in children if f in c.name.casefold()]
+    #         reminders = [r for r in reminders if f in r.subject.casefold()]
+    #
+    #     # 4) crumb
+    #     crumb = self._make_crumb(
+    #         bin_id if bin_id is not None else self.get_root_bin_id()
+    #     )
+    #     return children, reminders, crumb
+
     def get_bin_summary(self, bin_id: int | None, *, filter_text: str | None = None):
         """
         Returns:
-          children  -> [ChildBinRow]
-          reminders -> [ReminderRow]
-          crumb     -> [(id, name), ...]
-        Uses ONLY DatabaseManager public methods you showed.
+        children  -> [ChildBinRow]
+        reminders -> [ReminderRow]
+        crumb     -> [(id, name), ...]
+        Uses ONLY DatabaseManager public methods.
         """
         # 1) children (uses your counts + sort)
         raw_children = self.db_manager.get_subbins(
@@ -2544,11 +2627,27 @@ class Controller:
             for c in raw_children
         ]
 
+        # — Custom ordering of children based on config.bin_orders —
+        root_name = self.get_bin_name(
+            bin_id if bin_id is not None else self.get_root_bin_id()
+        )
+        order_list = self.env.config.bin_orders.get(root_name, [])
+        if order_list:
+
+            def _child_sort_key(c: ChildBinRow):
+                try:
+                    return (0, order_list.index(c.name))
+                except ValueError:
+                    return (1, c.name.lower())
+
+            children.sort(key=_child_sort_key)
+        else:
+            children.sort(key=lambda c: c.name.lower())
+
         # 2) reminders (linked via ReminderLinks)
         raw_reminders = self.db_manager.get_reminders_in_bin(
             bin_id if bin_id is not None else self.get_root_bin_id()
         )
-        # shape: {"id","subject","itemtype"}
         reminders = [
             ReminderRow(
                 record_id=r["id"],
@@ -2581,22 +2680,47 @@ class Controller:
         subject, itemtype = row
         return f"[b]{subject}[/b]\n[dim]type:[/dim] {itemtype or '—'}"
 
-    def get_descendant_tree(self, bin_id: int) -> List[Tuple[int, str, int]]:
+    # def get_descendant_tree(self, bin_id: int) -> List[Tuple[int, str, int]]:
+    #     """
+    #     Return a pre-order flattened list of (bin_id, name, depth)
+    #     for the *bins-only* subtree rooted at `bin_id`.
+    #     Uses DatabaseManager.get_subbins() (which already returns sorted children).
+    #     """
+    #     out: List[Tuple[int, str, int]] = []
+    #
+    #     def walk(current_id: int, depth: int) -> None:
+    #         children = self.db_manager.get_subbins(
+    #             current_id
+    #         )  # [{id,name,subbins,reminders}, ...]
+    #         for ch in children:
+    #             out.append((ch["id"], ch["name"], depth + 1))
+    #             walk(ch["id"], depth + 1)
+    #
+    #     out.append((bin_id, self.db_manager.get_bin_name(bin_id), 0))
+    #     walk(bin_id, 0)
+    #     return out
+
+    def get_descendant_tree(self, bin_id: int) -> list[tuple[int, str, int]]:
         """
         Return a pre-order flattened list of (bin_id, name, depth)
-        for the *bins-only* subtree rooted at `bin_id`.
-        Uses DatabaseManager.get_subbins() (which already returns sorted children).
+        for the bins-only subtree rooted at `bin_id`.
+        Uses DatabaseManager.get_subbins(), but applies custom sorting.
         """
-        out: List[Tuple[int, str, int]] = []
+        out: list[tuple[int, str, int]] = []
+        bin_orders = self.env.config.bin_orders  # Adjust this to how you access config
 
         def walk(current_id: int, depth: int) -> None:
-            children = self.db_manager.get_subbins(
-                current_id
-            )  # [{id,name,subbins,reminders}, ...]
-            for ch in children:
+            root_name = self.db_manager.get_bin_name(current_id)
+            order_list = self.env.config.bin_orders.get(root_name)
+            sorted_children = self.db_manager.get_subbins(
+                current_id, custom_order=order_list
+            )
+
+            for ch in sorted_children:
                 out.append((ch["id"], ch["name"], depth + 1))
                 walk(ch["id"], depth + 1)
 
-        out.append((bin_id, self.db_manager.get_bin_name(bin_id), 0))
+        root_name = self.db_manager.get_bin_name(bin_id)
+        out.append((bin_id, root_name, 0))
         walk(bin_id, 0)
         return out

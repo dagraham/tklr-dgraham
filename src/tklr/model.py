@@ -63,11 +63,11 @@ BIN_PATHS = [
     ["series", "library"],
     ["poetry", "library"],
     ["quotations", "library"],
-    ["tosser", "seedbed"],
     ["seed", "seedbed"],
+    ["germination", "seedbed"],
     ["seedling", "seedbed"],
-    ["plant", "seedbed"],
-    ["keeper", "seedbed"],
+    ["growing", "seedbed"],
+    ["flowering", "seedbed"],
 ]
 
 
@@ -3648,8 +3648,33 @@ class DatabaseManager:
         row = self.cursor.fetchone()
         return {"id": row[0], "name": row[1]} if row else None
 
-    def get_subbins(self, bin_id: int) -> list[dict]:
-        """Return bins contained in this bin, with counts of subbins/reminders."""
+    # def get_subbins(self, bin_id: int) -> list[dict]:
+    #     """Return bins contained in this bin, with counts of subbins/reminders."""
+    #     self.cursor.execute(
+    #         """
+    #         SELECT b.id, b.name,
+    #             (SELECT COUNT(*) FROM BinLinks sub WHERE sub.container_id = b.id) AS subbins,
+    #             (SELECT COUNT(*) FROM ReminderLinks rl WHERE rl.bin_id = b.id) AS reminders
+    #         FROM BinLinks bl
+    #         JOIN Bins b ON bl.bin_id = b.id
+    #         WHERE bl.container_id = ?
+    #         ORDER BY b.name COLLATE NOCASE
+    #     """,
+    #         (bin_id,),
+    #     )
+    #     return [
+    #         {"id": row[0], "name": row[1], "subbins": row[2], "reminders": row[3]}
+    #         for row in self.cursor.fetchall()
+    #     ]
+
+    def get_subbins(
+        self, bin_id: int, custom_order: list[str] | None = None
+    ) -> list[dict]:
+        """
+        Return bins contained in this bin, with counts of subbins/reminders.
+        If custom_order is provided (list of child names in order), place those
+        first in that sequence, then any others alphabetically by name.
+        """
         self.cursor.execute(
             """
             SELECT b.id, b.name,
@@ -3658,14 +3683,26 @@ class DatabaseManager:
             FROM BinLinks bl
             JOIN Bins b ON bl.bin_id = b.id
             WHERE bl.container_id = ?
-            ORDER BY b.name COLLATE NOCASE
         """,
             (bin_id,),
         )
-        return [
+        results = [
             {"id": row[0], "name": row[1], "subbins": row[2], "reminders": row[3]}
             for row in self.cursor.fetchall()
         ]
+
+        if custom_order:
+
+            def sort_key(ch):
+                try:
+                    idx = custom_order.index(ch["name"])
+                    return (0, idx)
+                except ValueError:
+                    return (1, ch["name"].lower())
+
+            return sorted(results, key=sort_key)
+        else:
+            return sorted(results, key=lambda ch: ch["name"].lower())
 
     def get_reminders_in_bin(self, bin_id: int) -> list[dict]:
         """Return reminders linked to this bin."""
@@ -3866,6 +3903,8 @@ class DatabaseManager:
         tags, simple_bins = self._extract_tag_and_bin_names(
             item
         )  # your existing helper
+        print(f"{tags = }, {simple_bins =}")
+        tags = list(tags)
         for name in tags:
             bid = self.get_or_create_tag_bin(name)
             self.link_record_to_bin(record_id, bid)
