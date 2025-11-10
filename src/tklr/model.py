@@ -26,7 +26,6 @@ from rich.text import Text
 
 from .shared import (
     HRS_MINS,
-    ALERT_COMMANDS,
     log_msg,
     format_datetime,
     datetime_from_timestamp,
@@ -421,6 +420,12 @@ def _reduce_to_35_slots(arr: np.ndarray) -> np.ndarray:
                 coarse[d, i + 1] = 0
 
     return coarse.flatten()
+
+
+class SafeDict(dict):
+    def __missing__(self, key):
+        # Return a placeholder or empty string
+        return f"{{{key}}}"
 
 
 @dataclass
@@ -967,6 +972,7 @@ class DatabaseManager:
         self.db_path = db_path
         self.env = env
         self.AMPM = env.config.ui.ampm
+        self.ALERTS = env.config.alerts
         self.urgency = self.env.config.urgency
 
         if reset and os.path.exists(self.db_path):
@@ -1821,7 +1827,10 @@ class DatabaseManager:
         record_description,
         record_location,
     ):
-        alert_command = ALERT_COMMANDS.get(command_name, "")
+        if command_name == "n":
+            alert_command = "{name} {when} at {start}"
+        else:
+            alert_command = self.ALERTS.get(command_name, "")
         if not alert_command:
             log_msg(f"❌ Alert command not found for '{command_name}'")
             return None  # Explicitly return None if command is missing
@@ -1850,6 +1859,60 @@ class DatabaseManager:
         )
         log_msg(f"formatted alert {alert_command = }")
         return alert_command
+
+    def create_alert(
+        self,
+        command_name,
+        timedelta,
+        start_datetime,
+        record_id,
+        record_name,
+        record_description,
+        record_location,
+    ):
+        if command_name == "n":
+            alert_command_template = "{name} {when} at {start}"
+        else:
+            alert_command_template = self.ALERTS.get(command_name, "")
+        if not alert_command_template:
+            log_msg(f"❌ Alert command not found for '{command_name}'")
+            return None
+
+        name = record_name
+        description = record_description
+        location = record_location
+
+        if timedelta > 0:
+            when = f"in {duration_in_words(timedelta)}"
+        elif timedelta == 0:
+            when = "now"
+        else:
+            when = f"{duration_in_words(-timedelta)} ago"
+
+        start = format_datetime(start_datetime, HRS_MINS)
+        start_words = datetime_in_words(start_datetime)
+
+        # Prepare dict of available fields
+        field_values = {
+            "name": name,
+            "when": when,
+            "start": start,
+            "time": start_words,
+            "description": description,
+            "location": location,
+        }
+
+        # Use SafeDict to avoid KeyError for missing placeholders
+        formatted = None
+        try:
+            formatted = alert_command_template.format_map(SafeDict(field_values))
+        except Exception as e:
+            log_msg(f"❌ Alert formatting error for command '{command_name}': {e}")
+            # Fallback: use a minimal template or use the raw template
+            formatted = alert_command_template.format_map(SafeDict(field_values))
+
+        log_msg(f"formatted alert: {formatted!r}")
+        return formatted
 
     def get_notice_for_today(self):
         self.cursor.execute("""

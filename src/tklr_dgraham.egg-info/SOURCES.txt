@@ -14,6 +14,7 @@ src/tklr/view_agenda.py
 src/tklr/view_textual.css
 src/tklr/cli/main.py
 src/tklr/cli/migrate_etm_to_tklr.py
+src/tklr/sounds/level-up-02-199574.mp3
 src/tklr_dgraham.egg-info/PKG-INFO
 src/tklr_dgraham.egg-info/SOURCES.txt
 src/tklr_dgraham.egg-info/dependency_links.txt

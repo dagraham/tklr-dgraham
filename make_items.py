@@ -24,6 +24,13 @@ ONEWEEK = timedelta(days=7)
 # in_one_hour = (
 #     datetime.now().replace(second=0, microsecond=0) + timedelta(hours=1)
 # ).strftime("%Y-%m-%d %H:%M00")
+def in_two_minutes():
+    now = datetime.now().replace(second=0, microsecond=0)
+    delta_minutes = 2 + (2 - now.minute % 10)
+    next = now + timedelta(minutes=delta_minutes)
+    return next.strftime("%Y-%m-%d %H:%M")
+
+
 def in_five_minutes():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 5 + (5 - now.minute % 10)
@@ -321,10 +328,11 @@ bins = [
 ]
 
 alerts = [
-    f"* alert seconds test @s {in_five_minutes()} @e {random.choice(duration)} @a 1m31s, 1m12s, 1m5s, 30s, -1m10s: d",  # ***
-    f"* alert minutes test @s {in_ten_minutes()} @e {random.choice(duration)} @a 10m, 5m, 1m, 0m, -1m: d",  # ***
+    f"* alert test  @s {in_five_minutes()} @a 3m, 1m: v",
+    f"* notify test @s {in_five_minutes()} @a 4m, 2m, 0m: n",
+    f"* alert 10 minutes test @s {in_ten_minutes()} @a 10m, 5m, 1m, 0m, -1m: v",  # ***
     f"* alert hour test @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
-    f"~ daily datetime @s {in_one_hour()} @e 1h30m @a 20m: d @r d &c 10",  # ***
+    f"~ daily datetime @s {in_one_hour()} @e 1h30m @a 20m: v @r d &c 10",  # ***
 ]
 
 records = []

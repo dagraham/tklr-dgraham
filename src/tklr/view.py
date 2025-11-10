@@ -1,6 +1,7 @@
 from __future__ import annotations
 import tklr
-
+import os
+import time
 
 from asyncio import create_task
 
@@ -37,7 +38,7 @@ from .shared import fmt_user
 from typing import Dict, Tuple
 import pyperclip
 from .item import Item
-
+from .use_system import open_with_default, play_alert_sound
 
 import re
 
@@ -2627,6 +2628,13 @@ class DynamicViewApp(App):
         self.controller.populate_alerts()
         self.controller.populate_notice()
 
+    def play_bells(self) -> None:
+        """An action to ring the bell."""
+        delay = [0.6, 0.4, 0.2]
+        for d in delay:
+            time.sleep(d)  # ~400 ms gap helps trigger distinct alerts
+            self.app.bell()
+
     async def check_alerts(self):
         # called every 6 seconds
         now = datetime.now()
@@ -2638,7 +2646,16 @@ class DynamicViewApp(App):
                 "Checking for scheduled alerts...", severity="info", timeout=1.2
             )
         # execute due alerts
-        self.controller.execute_due_alerts()
+        due = self.controller.get_due_alerts(now)  # list of [alert_id, alert_commands]
+        if not due:
+            return
+        for alert_id, alert_name, alert_command in due:
+            if alert_name == "n":
+                self.notify(f"{alert_command}", timeout=60)
+                play_alert_sound("alert.mp3")
+            else:
+                os.system(alert_command)
+            self.controller.db_manager.mark_alert_executed(alert_id)
 
     def action_new_reminder(self):
         self.push_screen(EditorScreen(self.controller, None, seed_text=""))

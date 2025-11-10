@@ -200,6 +200,7 @@ def ui(ctx):
 
     if verbose:
         print(f"[blue]Launching UI with database:[/blue] {db}")
+
     controller = Controller(db, env)
     DynamicViewApp(controller).run()
 

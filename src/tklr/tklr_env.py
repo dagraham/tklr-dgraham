@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import sys
 import tomllib
 from pydantic import BaseModel, Field, ValidationError
 from typing import Optional
@@ -152,14 +153,16 @@ two_digit_year = {{ ui.two_digit_year | lower }}
 [alerts]
 # dict[str, str]: character -> command_str.
 # E.g., this entry
-#   d: '/usr/bin/say -v Alex "[[volm 0.5]] {subject}, {when}"'
-# would, on my macbook, invoke the system voice to speak the subject
-# of the reminder and the time remaining until the scheduled datetime.
+#   v = '/usr/bin/say -v Alex "{name}, {when}"'
+# would, on my macbook, invoke the system voice to speak the name (subject)
+# of the reminder and when (the time remaining until the scheduled datetime).
 # The character "d" would be associated with this command so that, e.g.,
 # the alert entry "@a 30m, 15m: d" would trigger this command 30
-# minutes before and again 15 minutes before the scheduled datetime.
+# minutes before and again 15 minutes before the scheduled datetime. 
+# Additional keys: start (scheduled datetime), time (spoken version of
+# start), location, description.  
 {% for key, value in alerts.items() %}
-{{ key }} = "{{ value }}"
+{{ key }} = '{{ value }}'
 {% endfor %}
 
 # ─── Urgency Configuration ─────────────────────────────────────
@@ -259,12 +262,11 @@ max = {{ urgency.project.max }}
 # [alerts]
 # # dict[str, str]: character -> command_str
 # {% for key, value in alerts.items() %}
-# {{ key }} = "{{ value }}"
+# {{ key }} = '{{ value }}'
 # {% endfor %}
 #
 # [urgency]
 # # values for task urgency calculation
-#
 #
 # # does this task or job have a description?
 # description = {{ urgency.description }}
@@ -372,6 +374,11 @@ class TklrEnvironment:
         self._home = self._resolve_home()
         self._config: Optional[TklrConfig] = None
         print(f"using\n  {self.home = }\n  {self.db_path = }\n  {self.config_path = }")
+
+        with open(self.config_path, "rb") as f:
+            data = tomllib.load(f)
+            print("Raw config.toml data:", data)
+            sys.exit
 
     @property
     def home(self) -> Path:

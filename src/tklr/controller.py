@@ -1094,15 +1094,33 @@ class Controller:
             (
                 alert_id,
                 record_id,
-                record_name,
                 trigger_datetime,
                 start_datetime,
+                alert_name,
                 alert_command,
             ) = record
-            log_msg(f"Executing alert {alert_command = }, {trigger_datetime = }")
+            log_msg(
+                f"Executing alert {alert_name = }, {alert_command = }, {trigger_datetime = }"
+            )
             self.execute_alert(alert_command)
             # need command to execute command with arguments
             self.db_manager.mark_alert_executed(alert_id)
+
+    def get_due_alerts(self, now: datetime) -> List[Alert]:
+        due = []
+        records = self.db_manager.get_due_alerts()
+        for record in records:
+            (
+                alert_id,
+                record_id,
+                trigger_datetime,
+                start_datetime,
+                alert_name,
+                alert_command,
+            ) = record
+            due.append([alert_id, alert_name, alert_command])
+            log_msg(f"{due[-1] = }")
+        return due
 
     def get_active_alerts(self, width: int = 70):
         # now_fmt = datetime.now().strftime("%A, %B %-d %H:%M:%S")

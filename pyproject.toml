@@ -26,6 +26,7 @@ dev = ["lorem>=0.1.1"] # removed tomli-w
 [project.scripts]
 tklr = "tklr.cli.main:cli"
 
+
 # Optional: if you use uv’s dependency groups (parallel to extras)
 [dependency-groups]
 dev = ["ty>=0.0.1a14"]
@@ -39,8 +40,4 @@ package-dir = { "" = "src" }
 include-package-data = true  # <- important
 
 [tool.setuptools.package-data]
-tklr = ["*.css"] # ship CSS files in tklr/
-
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["tklr*"]
+"tklr" = ["*.css", "sounds/*.aiff", "sounds/*.wav", "sounds/*.mp3"]

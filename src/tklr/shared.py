@@ -14,20 +14,12 @@ from .versioning import get_version
 
 from tklr.tklr_env import TklrEnvironment
 
-# env = TklrEnvironment()
-# AMPM = env.config.ui.ampm
-AMPM = True
+env = TklrEnvironment()
+AMPM = env.config.ui.ampm
 HRS_MINS = "12" if AMPM else "24"
-
-# TODO: these should be in a config file
-ALERT_COMMANDS = {
-    # "d": "/usr/bin/say -v 'Alex' '{name}, {when} at {time}'",
-    "d": "/usr/bin/say -v 'Alex' '{name}, {when}'",
-}
 
 ELLIPSIS_CHAR = "…"
 
-# from shared import fmt_local_compact, parse_local_compact, fmt_local_seconds, parse_local_seconds, fmt_utc_z, parse_utc_z
 
 CORNSILK = "#FFF8DC"
 DARK_GRAY = "#A9A9A9"
