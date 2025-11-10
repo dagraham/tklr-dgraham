@@ -330,9 +330,6 @@ bins = [
 alerts = [
     f"* alert test  @s {in_five_minutes()} @a 3m, 1m: v",
     f"* notify test @s {in_five_minutes()} @a 4m, 2m, 0m: n",
-    f"* alert 10 minutes test @s {in_ten_minutes()} @a 10m, 5m, 1m, 0m, -1m: v",  # ***
-    f"* alert hour test @s {in_one_hour()} @e {random.choice(duration)} @a 1h, 30m, 10m, 5m, 0m, -5m: d",  # ***
-    f"~ daily datetime @s {in_one_hour()} @e 1h30m @a 20m: v @r d &c 10",  # ***
 ]
 
 records = []

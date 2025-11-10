@@ -1128,7 +1128,7 @@ class Controller:
         log_msg(f"{alerts = }")
         title = "Remaining alerts for today"
         if not alerts:
-            header = f"{HEADER_COLOR}]none scheduled[/{HEADER_COLOR}]"
+            header = f"[{HEADER_COLOR}] none remaining [/{HEADER_COLOR}]"
             return [], header
 
         now = datetime.now()
@@ -1504,7 +1504,6 @@ class Controller:
         """
         events = self.db_manager.get_next_instances()
         header = f"Next Instances ({len(events)})"
-        # description = [f"[not bold][{header_color}]{header}[/{header_color}][/not bold]"]
 
         if not events:
             return [], header
