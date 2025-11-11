@@ -140,19 +140,60 @@ The first day will always include any _notice_ or _drafts_ in addition to any sc
 There is also a draft entry displayed in red. This is simply a reminder whose item type is "?". This is used to flag a reminder as incomplete as would be the case, e.g., if a final datetime for the event had not yet been finalized. Draft reminders are displayed on the current, first day in Agenda view until the item type is changed.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/events_screenshot.svg"
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/events_1_screenshot.svg"
        alt="Agenda view in Tklr" width="540">
   <br>
   <em>Agenda View: Upcoming events and tasks ordered by urgency</em>
 </p>
 
+Since there are more than 26 reminders to be displayed and only 26 available lower-case letters to use as tags, the reminders are spread over as many pages as necessary with _left_ and _right_ cursor keys to change pages. Here is the second page.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/events_2_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Agenda View: The second and last page</em>
+</p>
+
 ### Next
 
-The next instance of every scheduled reminder
+The first instance of every scheduled reminder occurring after the current moment listed in **ascending** order by date and time.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/next_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Agenda View: The second and last page</em>
+</p>
+
+Need to find, say, your next dental appointment - this is the view. Just press _/_ to activate search and enter the expression.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/search_entry_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Search: initializing</em>
+</p>
+
+The reminders with case-insensitive matches will be highlighted:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/search_matching_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Search: highlighted matches</em>
+</p>
 
 ### Last
 
-The last instance of every scheduled reminder
+The last instance of every scheduled reminder occurring before the current moment listed in **descending** order by date and time.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/last_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Agenda View: The second and last page</em>
+</p>
 
 ### Find
 
