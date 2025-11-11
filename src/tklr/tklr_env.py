@@ -390,7 +390,9 @@ class TklrEnvironment:
     def __init__(self):
         self._home = self._resolve_home()
         self._config: Optional[TklrConfig] = None
-        print(f"using\n  {self.home = }\n  {self.db_path = }\n  {self.config_path = }")
+
+    def print_paths(self):
+        print(f"paths\n  {self.home = }\n  {self.db_path = }\n  {self.config_path = }")
 
     @property
     def home(self) -> Path:

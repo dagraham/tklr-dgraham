@@ -9,11 +9,12 @@ from tklr.controller import Controller
 from tklr.model import DatabaseManager, UrgencyComputer
 from tklr.view import DynamicViewApp
 from tklr.tklr_env import TklrEnvironment
-from tklr.view_agenda import run_agenda_view
+
+# from tklr.view_agenda import run_agenda_view
 from tklr.versioning import get_version
 
 VERSION = get_version()
-print(f"{VERSION = }")
+# print(f"{VERSION = }")
 
 
 def ensure_database(db_path: str, env: TklrEnvironment):
@@ -59,6 +60,8 @@ def cli(ctx, home, verbose):
         )
 
     env = TklrEnvironment()
+    env.print_paths()
+    print(f"{VERSION = }")
     env.ensure(init_config=True, init_db_fn=lambda path: ensure_database(path, env))
     config = env.load_config()
 
@@ -238,16 +241,16 @@ def check(ctx, entry):
         sys.exit(1)
 
 
-@cli.command()
-@click.pass_context
-def agenda(ctx):
-    """Launch the Tklr agenda split-screen view."""
-    env = ctx.obj["ENV"]
-    db = ctx.obj["DB"]
-    verbose = ctx.obj["VERBOSE"]
-
-    if verbose:
-        print(f"[blue]Launching agenda view with database:[/blue] {db}")
-
-    controller = Controller(db, env)
-    run_agenda_view(controller)
+# @cli.command()
+# @click.pass_context
+# def agenda(ctx):
+#     """Launch the Tklr agenda split-screen view."""
+#     env = ctx.obj["ENV"]
+#     db = ctx.obj["DB"]
+#     verbose = ctx.obj["VERBOSE"]
+#
+#     if verbose:
+#         print(f"[blue]Launching agenda view with database:[/blue] {db}")
+#
+#     controller = Controller(db, env)
+#     run_agenda_view(controller)
