@@ -392,11 +392,6 @@ class TklrEnvironment:
         self._config: Optional[TklrConfig] = None
         print(f"using\n  {self.home = }\n  {self.db_path = }\n  {self.config_path = }")
 
-        with open(self.config_path, "rb") as f:
-            data = tomllib.load(f)
-            print("Raw config.toml data:", data)
-            sys.exit
-
     @property
     def home(self) -> Path:
         return self._home

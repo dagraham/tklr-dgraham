@@ -59,7 +59,7 @@ def cli(ctx, home, verbose):
         )
 
     env = TklrEnvironment()
-    env.ensure(init_db_fn=lambda path: ensure_database(path, env))
+    env.ensure(init_config=True, init_db_fn=lambda path: ensure_database(path, env))
     config = env.load_config()
 
     ctx.ensure_object(dict)

@@ -190,7 +190,7 @@ num_items = int(num_items)
 wkbeg, wkend = week(now)
 months = num_items // 200
 start = wkbeg - 2 * 7 * ONEDAY
-until = wkend + (10 * 7) * ONEDAY
+until = wkend + (6 * 7) * ONEDAY
 print(f"Generating {num_items} records from {start} to {until}...")
 
 
@@ -284,11 +284,12 @@ one_off = [
     f"* {phrase()}  @s {in_ten_minutes()} @a 3m, 1m: v @d alert test #lorem",
     f"* {phrase()} @s {in_ten_minutes()} @a 4m, 2m, 0m: n @d notify test #lorem",
     f"? {phrase()} @d draft test #lorem",
+    f"* {phrase()} @s {in_five_days()} @n 7d @d notice test #lorem",
 ]
 
 items = []
 count = 0
-num_items = 200
+num_items = 160
 while len(items) < num_items:
     count += 1
     t = random.choice(types)
