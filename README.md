@@ -120,7 +120,7 @@ There are 5 cells in the _busy bar_ for each week day. The first (furthest left)
 - 12:00-17:59 _afternoon_
 - 18:00-23:59 _evening_
 
-If the busy period for an event overlaps one or more of these periods then those periods are tentatively colored green. If the busy periods for two events overlap within one or more periods, then those periods are colored red to indicate the conflict. E.g., the red _evening_ cell for Monday, reflects the conflict between the reminders tagged _d_ and _e_
+If the busy period for an event overlaps one or more of these periods then those periods are tentatively colored green. If the busy periods for two events overlap within one or more periods, then those periods are colored red to indicate the conflict. E.g., the red _afternoon_ cell for Wednesday, reflects the conflict between the reminders tagged _g_ and _h_
 
 Pressing _g_ displays the details for that reminder.
 
@@ -135,7 +135,7 @@ Pressing _g_ displays the details for that reminder.
 
 The next three days of _events_ with _notices_ and _drafts_ followed by tasks ordered by their urgency.
 
-The first day will always include any _notice_ or _drafts_ in addition to any scheduled events. In this case the reminber tagged _b_ indicates that there is an event beginning in 11 days (`+11d`) whose subject begins with "Quisquam" and which has a _notice_ entry, "@n INTERVAL" in which `INTERVAL >= 11d`. This notice of the upcoming event will be displayed on the first day (current date) of Agenda View each day until the day of the event.
+The first day will always include any _notice_ or _drafts_ in addition to any scheduled events. In this case the reminber tagged _b_ indicates that there is an event beginning in 4 days (`+4d`) whose subject begins with "Quisquam" and which has a _notice_ entry, "@n INTERVAL" in which `INTERVAL > 4d`. This notice of the upcoming event will be displayed on the first day (current date) of Agenda View each day until the day of the event.
 
 There is also a draft entry displayed in red. This is simply a reminder whose item type is "?". This is used to flag a reminder as incomplete as would be the case, e.g., if a final datetime for the event had not yet been finalized. Draft reminders are displayed on the current, first day in Agenda view until the item type is changed.
 
