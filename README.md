@@ -210,7 +210,7 @@ When you need an exhaustive search across all reminders for a case-insensitive m
 
 When submitted, the matching reminders are listed:
 
-<p align="center">
+<p align="center">Views
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_matches_screenshot.svg"
        alt="Agenda view in Tklr" width="540">
   <br>
@@ -220,6 +220,20 @@ When submitted, the matching reminders are listed:
 ### Bins
 
 Hierarchical display of bins and reminders.
+
+Bins are containers for reminders and other bins. The aspects are worth emphasis:
+
+1. Bin names are unique.
+2. A bin can contain many other bins (children)
+3. A bin can belong to at most one bin (parent).
+4. A reminder can belong to many bins.
+
+<p align="center">Views
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_root_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Bins: root</em>
+</p>
 
 ## Details
 
