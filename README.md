@@ -172,7 +172,7 @@ Need to find, say, your next dental appointment - this is the view. Just press _
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/search_entry_screenshot.svg"
        alt="Agenda view in Tklr" width="540">
   <br>
-  <em>Search: initializing</em>
+  <em>Search: initializing the search</em>
 </p>
 
 The reminders with case-insensitive matches will be highlighted:
@@ -197,7 +197,25 @@ The last instance of every scheduled reminder occurring before the current momen
 
 ### Find
 
-Reminders whose subject or detail entries contain a case-insensitive match for an entered expression
+Reminders whose subject or detail entries contain a case-insensitive match for an entered expression.
+
+When you need an exhaustive search across all reminders for a case-insensitive match in either the subject or the details, this is the view. Just press "F" in any view to activate the search bar:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_entry_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Find: initializing the search</em>
+</p>
+
+When submitted, the matching reminders are listed:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_matches_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Find: matching reminders</em>
+</p>
 
 ### Bins
 
