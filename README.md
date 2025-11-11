@@ -210,7 +210,7 @@ When you need an exhaustive search across all reminders for a case-insensitive m
 
 When submitted, the matching reminders are listed:
 
-<p align="center">Views
+<p align="center">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_matches_screenshot.svg"
        alt="Agenda view in Tklr" width="540">
   <br>
