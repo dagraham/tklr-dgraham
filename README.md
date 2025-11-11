@@ -221,12 +221,14 @@ When submitted, the matching reminders are listed:
 
 Hierarchical display of bins and reminders.
 
-Bins are containers for reminders and other bins. The aspects are worth emphasis:
+Bins are containers for reminders and other bins. These are the important facts:
 
 1. Bin names are unique.
 2. A bin can contain many other bins (children)
 3. A bin can belong to at most one bin (parent).
 4. A reminder can belong to many bins.
+
+The first three are illustrated by _Bins_ view:
 
 <p align="center">Views
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_root_screenshot.svg"
