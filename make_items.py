@@ -317,6 +317,8 @@ items = [
     "* gour Tiki Roundtable Meeting @s 1/1 14:00 z UTC @e 1h30m @r m &w +3TH &c 10",
     "* timezone test for noon CET @s 12p z CET @e 1h",
     "* timezone test for noon naive @s 12p z none @e 1h",
+    f"~ wind grandfather clock @s {five_days_ago()}  @o 4d",
+    f"~ fill birdfeeders @s {five_days_ago()}  @o 4d",
 ]
 
 bins = [

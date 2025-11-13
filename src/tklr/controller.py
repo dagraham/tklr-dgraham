@@ -2555,55 +2555,6 @@ class Controller:
             cur = parent["id"] if parent else None
         return list(reversed(chain)) or [(self.db_manager.ensure_root_exists(), "root")]
 
-    # def get_bin_summary(self, bin_id: int | None, *, filter_text: str | None = None):
-    #     """
-    #     Returns:
-    #       children  -> [ChildBinRow]
-    #       reminders -> [ReminderRow]
-    #       crumb     -> [(id, name), ...]
-    #     Uses ONLY DatabaseManager public methods you showed.
-    #     """
-    #     # 1) children (uses your counts + sort)
-    #     raw_children = self.db_manager.get_subbins(
-    #         bin_id if bin_id is not None else self.get_root_bin_id()
-    #     )
-    #     # shape: {"id","name","subbins","reminders"}
-    #     children = [
-    #         ChildBinRow(
-    #             bin_id=c["id"],
-    #             name=c["name"],
-    #             child_ct=c["subbins"],
-    #             rem_ct=c["reminders"],
-    #         )
-    #         for c in raw_children
-    #     ]
-    #
-    #     # 2) reminders (linked via ReminderLinks)
-    #     raw_reminders = self.db_manager.get_reminders_in_bin(
-    #         bin_id if bin_id is not None else self.get_root_bin_id()
-    #     )
-    #     # shape: {"id","subject","itemtype"}
-    #     reminders = [
-    #         ReminderRow(
-    #             record_id=r["id"],
-    #             subject=r["subject"],
-    #             itemtype=r["itemtype"],
-    #         )
-    #         for r in raw_reminders
-    #     ]
-    #
-    #     # 3) apply filter (controller-level; no new SQL)
-    #     if filter_text:
-    #         f = filter_text.casefold()
-    #         children = [c for c in children if f in c.name.casefold()]
-    #         reminders = [r for r in reminders if f in r.subject.casefold()]
-    #
-    #     # 4) crumb
-    #     crumb = self._make_crumb(
-    #         bin_id if bin_id is not None else self.get_root_bin_id()
-    #     )
-    #     return children, reminders, crumb
-
     def get_bin_summary(self, bin_id: int | None, *, filter_text: str | None = None):
         """
         Returns:

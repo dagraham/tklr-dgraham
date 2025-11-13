@@ -386,13 +386,31 @@ def save_config_from_template(config: TklrConfig, path: Path):
 # ─── Main Environment Class ───────────────────────────────
 
 
+def collapse_home(path: str | Path) -> str:
+    path = Path(path).expanduser().resolve()
+    str_path = path.as_posix()
+    str_path = str_path.replace(str(Path.home()), "~")
+    return str_path
+
+
 class TklrEnvironment:
     def __init__(self):
+        # self.cwd = Path.cwd()
         self._home = self._resolve_home()
+        # self.usrhome = Path.home()
         self._config: Optional[TklrConfig] = None
 
-    def print_paths(self):
-        print(f"paths\n  {self.home = }\n  {self.db_path = }\n  {self.config_path = }")
+    # def norm_path(self, path: Path):
+    #     rpath = path.resolve()
+    #     if rpath.is_relative_to(self.usrhome):
+    #         return rpath.relative_to(self.usrhome).as_posix()
+    #     return rpath.as_posix()
+
+    def get_paths(self):
+        return [collapse_home(p) for p in [self.home, self.db_path, self.config_path]]
+
+    def get_home(self):
+        return collapse_home(self.home)
 
     @property
     def home(self) -> Path:

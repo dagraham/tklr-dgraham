@@ -10,11 +10,49 @@ from tklr.model import DatabaseManager, UrgencyComputer
 from tklr.view import DynamicViewApp
 from tklr.tklr_env import TklrEnvironment
 
-# from tklr.view_agenda import run_agenda_view
+from tklr.view_agenda import run_agenda_view
 from tklr.versioning import get_version
 
+from datetime import date, datetime, timedelta
+
+
+class _DateParam(click.ParamType):
+    name = "date"
+
+    def convert(self, value, param, ctx):
+        if value is None:
+            return None
+        if isinstance(value, date):
+            return value
+        s = str(value).strip().lower()
+        if s in ("today", "now"):
+            return date.today()
+        try:
+            return datetime.strptime(s, "%Y-%m-%d").date()
+        except Exception:
+            self.fail("Expected YYYY-MM-DD or 'today'", param, ctx)
+
+
+class _DateOrInt(click.ParamType):
+    name = "date|int"
+    _date = _DateParam()
+
+    def convert(self, value, param, ctx):
+        if value is None:
+            return None
+        # try int
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            pass
+        # try date
+        return self._date.convert(value, param, ctx)
+
+
+_DATE = _DateParam()
+_DATE_OR_INT = _DateOrInt()
+
 VERSION = get_version()
-# print(f"{VERSION = }")
 
 
 def ensure_database(db_path: str, env: TklrEnvironment):
@@ -60,8 +98,9 @@ def cli(ctx, home, verbose):
         )
 
     env = TklrEnvironment()
-    env.print_paths()
-    print(f"{VERSION = }")
+    # print(f"{env.get_paths() = }")
+    print(f"tklr version: {get_version()}")
+    print(f"using home directory: {env.get_home()}")
     env.ensure(init_config=True, init_db_fn=lambda path: ensure_database(path, env))
     config = env.load_config()
 
@@ -241,16 +280,72 @@ def check(ctx, entry):
         sys.exit(1)
 
 
-# @cli.command()
-# @click.pass_context
-# def agenda(ctx):
-#     """Launch the Tklr agenda split-screen view."""
-#     env = ctx.obj["ENV"]
-#     db = ctx.obj["DB"]
-#     verbose = ctx.obj["VERBOSE"]
-#
-#     if verbose:
-#         print(f"[blue]Launching agenda view with database:[/blue] {db}")
-#
-#     controller = Controller(db, env)
-#     run_agenda_view(controller)
+@cli.command()
+@click.pass_context
+def agenda(ctx):
+    """Display the current agenda."""
+    env = ctx.obj["ENV"]
+    db = ctx.obj["DB"]
+    verbose = ctx.obj["VERBOSE"]
+
+    if verbose:
+        print(f"[blue]Launching agenda view with database:[/blue] {db}")
+
+    controller = Controller(db, env)
+    run_agenda_view(controller)
+
+
+@cli.command()
+@click.option(
+    "--start",
+    type=_DATE,
+    default=None,  # computed to today() inside the function
+    help="Start date (YYYY-MM-DD) or 'today'. Defaults to today.",
+    show_default=True,
+)
+@click.option(
+    "--end",
+    "end_value",
+    type=_DATE_OR_INT,
+    default=4,
+    show_default=True,
+    help="Either an end date (YYYY-MM-DD) or a number of weeks (int). Default: 4.",
+)
+@click.option(
+    "--width",
+    type=click.IntRange(10, 200),
+    default=40,
+    show_default=True,
+    help="Cell width for textual layout.",
+)
+@click.pass_context
+def weeks(ctx, start: date | None, end_value: date | int, width: int):
+    """
+    weeks(start: date = today(), end: date|int = 4, width: int = 40)
+
+    Examples:
+      tklr weeks
+      tklr weeks --start 2025-11-01 --end 8
+      tklr weeks --end 2025-12-31 --width 60
+    """
+    # dynamic default for start
+    if start is None:
+        start = date.today()
+
+    # interpret end_value
+    if isinstance(end_value, int):
+        end = start + timedelta(weeks=end_value)
+    else:
+        end = end_value
+
+    # Hook into your app logic
+    env = ctx.obj["ENV"]
+    db = ctx.obj["DB"]
+    # verbose = ctx.obj["VERBOSE"]
+
+    controller = Controller(db, env)
+
+    # If you already have a renderer in your controller/view, call it here.
+    # For now we just print the interpreted values & leave a clear TODO.
+    # e.g., controller.render_weeks_cli(start=start, end=end, width=width)
+    print(f"[blue]Weeks request:[/blue] start={start}, end={end}, width={width}")
