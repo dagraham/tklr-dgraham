@@ -658,9 +658,9 @@ class DatetimePrompt(ModalScreen[datetime | None]):
         self.query_one("#dt_entry", Input).focus()
         self._update_feedback(self.input.value)
 
-    def on_input_changed(self, event: Input.Changed) -> None:
-        """Live update feedback as user types."""
-        self._update_feedback(event.value)
+    # def on_input_changed(self, event: Input.Changed) -> None:
+    #     """Live update feedback as user types."""
+    #     self._update_feedback(event.value)
 
     def _update_feedback(self, text: str) -> None:
         try:
@@ -703,9 +703,14 @@ class EditorScreen(Screen):
           persist only if parse_ok, else warn.
     """
 
+    # BINDINGS = [
+    #     ("shift+enter", "commit", "Commit"),
+    #     ("ctrl+s", "save", "Save"),
+    #     ("escape", "close", "Back"),
+    # ]
     BINDINGS = [
-        ("shift+enter", "commit", "Commit"),
-        ("ctrl+s", "save", "Save"),
+        ("ctrl+s", "save_and_close", "Save"),
+        ("shift+enter", "save_and_close", "Commit"),
         ("escape", "close", "Back"),
     ]
 
@@ -781,28 +786,47 @@ class EditorScreen(Screen):
         self._render_feedback()
 
     # ---------- Actions ----------
-    def action_close(self) -> None:
-        self.app.pop_screen()
+    # def action_close(self) -> None:
+    #     self.app.pop_screen()
+    #
+    # def action_save(self) -> None:
+    #     """Finalize, re-parse, and persist if valid (no partial saves)."""
+    #     ok = self._finalize_and_validate()
+    #     if not ok:
+    #         self.app.notify("Cannot save: fix errors first.", severity="warning")
+    #         return
+    #     self._persist(self.item)
+    #     self.app.notify("Saved.", timeout=1.0)
+    #
+    #
+    # def action_commit(self) -> None:
+    #     """Same semantics as save; you can keep separate if you want a different UX."""
+    #     ok = self._finalize_and_validate()
+    #     if not ok:
+    #         self.app.notify("Cannot commit: fix errors first.", severity="warning")
+    #         return
+    #     self._persist(self.item)
+    #     self.app.notify("Committed.", timeout=1.0)
+    #     self._try_refresh_calling_view()
+    #     self.app.pop_screen()
 
-    def action_save(self) -> None:
-        """Finalize, re-parse, and persist if valid (no partial saves)."""
+    def action_save_and_close(self) -> None:
         ok = self._finalize_and_validate()
         if not ok:
             self.app.notify("Cannot save: fix errors first.", severity="warning")
             return
         self._persist(self.item)
-        self.app.notify("Saved.", timeout=1.0)
+        self.app.notify("Saved.", timeout=0.8)
+        self.dismiss({"changed": True, "record_id": self.record_id})
 
-    def action_commit(self) -> None:
-        """Same semantics as save; you can keep separate if you want a different UX."""
-        ok = self._finalize_and_validate()
-        if not ok:
-            self.app.notify("Cannot commit: fix errors first.", severity="warning")
-            return
-        self._persist(self.item)
-        self.app.notify("Committed.", timeout=1.0)
-        self._try_refresh_calling_view()
-        self.app.pop_screen()
+    # def action_save(self) -> None:        # optional shim
+    #     self.action_save_and_close()
+    #
+    # def action_commit(self) -> None:      # optional shim
+    #     self.action_save_and_close()
+
+    def action_close(self) -> None:
+        self.dismiss(None)  # close without saving
 
     # ---------- Internals ----------
     def _build_context(self) -> str:
@@ -979,21 +1003,25 @@ class EditorScreen(Screen):
         else:
             panel.update(f"↳ {raw}{preview}")
 
-    def _persist(self, item) -> None:
-        """Create or update the DB row using your model layer; only called when parse_ok is True."""
-        if self.record_id is None:
-            rid = self.controller.db_manager.add_item(item)  # uses full item fields
-            self.record_id = rid
-        else:
-            self.controller.db_manager.update_item(self.record_id, item)
+    # def _persist(self, item) -> None:
+    #     """Create or update the DB row using your model layer; only called when parse_ok is True."""
+    #     if self.record_id is None:
+    #         rid = self.controller.db_manager.add_item(item)  # uses full item fields
+    #         self.record_id = rid
+    #     else:
+    #         self.controller.db_manager.update_item(self.record_id, item)
 
-    def _try_refresh_calling_view(self) -> None:
-        for scr in getattr(self.app, "screen_stack", []):
-            if hasattr(scr, "refresh_data"):
-                try:
-                    scr.refresh_data()
-                except Exception:
-                    pass
+    def _persist(self, item) -> None:
+        rid = self.controller.db_manager.save_record(item, record_id=self.record_id)
+        self.record_id = rid
+
+    # def _try_refresh_calling_view(self) -> None:
+    #     for scr in getattr(self.app, "screen_stack", []):
+    #         if hasattr(scr, "refresh_data"):
+    #             try:
+    #                 scr.refresh_data()
+    #             except Exception:
+    #                 pass
 
 
 class DetailsScreen(ModalScreen[None]):
@@ -1553,7 +1581,7 @@ class WeeksScreen(SearchableScreen, SafeScreen):
         # keep the same handler wiring as before (detail opens a record details)
         self.list_with_details.set_detail_key_handler(
             self.app.make_detail_key_handler(
-                view_name="week",
+                view_name="weeks",
                 week_provider=lambda: self.app.selected_week,
             )
         )
@@ -1614,7 +1642,7 @@ class WeeksScreen(SearchableScreen, SafeScreen):
             if self.list_with_details.has_details_open():
                 self.list_with_details.hide_details()
             # ensure controller expects single-letter tags for weeks
-            self.app.controller.afill_by_view["week"] = 1
+            self.app.controller.afill_by_view["weeks"] = 1
             # ensure title shows base title (no indicator)
             self.query_one("#table_title", Static).update(self.table_title)
             return
@@ -1652,7 +1680,7 @@ class WeeksScreen(SearchableScreen, SafeScreen):
         # update list contents
         self.list_with_details.update_list(rows)
         # reset controller afill for week -> single-letter tags (page_tagger guarantees this)
-        self.app.controller.afill_by_view["week"] = 1
+        self.app.controller.afill_by_view["weeks"] = 1
 
         if self.list_with_details.has_details_open():
             # close stale details when page changes (optional)
@@ -2341,6 +2369,11 @@ class DynamicViewApp(App):
     """A dynamic app that supports temporary and permanent view changes."""
 
     CSS_PATH = "view_textual.css"
+    VIEW_REFRESHERS = {
+        "weeks": "action_show_weeks",
+        "agenda": "action_show_agenda",
+        # ...
+    }
 
     digit_buffer = reactive([])
     # afill = 1
@@ -2379,7 +2412,7 @@ class DynamicViewApp(App):
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
         self.title = ""
         self.view_mode = "list"
-        self.view = "week"
+        self.view = "weeks"
         self.saved_lines = []
         self.afill = 1
         self.leader_mode = False
@@ -2426,7 +2459,7 @@ class DynamicViewApp(App):
         Return (record_id, job_id) for the current view + tag, or (None, None).
         NOTE: uses week_tag_to_id for 'week' view, list_tag_to_id otherwise.
         """
-        if self.view == "week":
+        if self.view == "weeks":
             mapping = self.controller.week_tag_to_id.get(self.selected_week, {})
         else:
             mapping = self.controller.list_tag_to_id.get(self.view, {})
@@ -2487,10 +2520,36 @@ class DynamicViewApp(App):
                 if dt:
                     ctrl.finish_task(record_id, job_id=job_id, when=dt)
 
+            # elif key == "comma,e":
+            #     seed_text = ctrl.get_entry_from_record(record_id)
+            #     log_msg(f"{seed_text = }")
+            #     app.push_screen(EditorScreen(ctrl, record_id, seed_text=seed_text))
+
             elif key == "comma,e":
+                # 1) Get editable text for this record
                 seed_text = ctrl.get_entry_from_record(record_id)
                 log_msg(f"{seed_text = }")
-                app.push_screen(EditorScreen(ctrl, record_id, seed_text=seed_text))
+
+                # 2) Close/hide details before opening the editor to avoid stale view
+                try:
+                    scr = app.screen
+                    if (
+                        hasattr(scr, "list_with_details")
+                        and scr.list_with_details.has_details_open()
+                    ):
+                        # adjust this to your actual API; many people have hide_details()
+                        if hasattr(scr.list_with_details, "hide_details"):
+                            scr.list_with_details.hide_details()
+                except Exception as e:
+                    log_msg(f"Error while hiding details before edit: {e}")
+
+                # 3) Define callback to refresh after editor closes
+
+                # 4) Push editor with callback
+                app.push_screen(
+                    EditorScreen(ctrl, record_id, seed_text=seed_text),
+                    callback=self._after_edit,
+                )
 
             elif key == "comma,c":
                 row = ctrl.db_manager.get_record(record_id)
@@ -2539,7 +2598,7 @@ class DynamicViewApp(App):
             self.action_show_bins()
 
         if event.key in ("left", "right"):
-            if self.view == "week":
+            if self.view == "weeks":
                 screen = getattr(self, "screen", None)
                 # log_msg(
                 #     f"[LEFT/RIGHT] screen={type(screen).__name__ if screen else None}"
@@ -2598,7 +2657,7 @@ class DynamicViewApp(App):
                         self.action_next_week()
                     return
             # else: not week view -> let other code handle left/right
-        if event.key == "full_stop" and self.view == "week":
+        if event.key == "full_stop" and self.view == "weeks":
             # call the existing "center_week" or "go to today" action
             try:
                 self.action_center_week()  # adjust name if different
@@ -2709,26 +2768,52 @@ class DynamicViewApp(App):
                 os.system(alert_command)
             self.controller.db_manager.mark_alert_executed(alert_id)
 
-    def action_new_reminder(self):
-        self.push_screen(EditorScreen(self.controller, None, seed_text=""))
+    # def action_new_reminder(self):
+    #     self.push_screen(EditorScreen(self.controller, None, seed_text=""))
+
+    def action_new_reminder(self) -> None:
+        # Use whatever seed you like (empty, template, clipboard, etc.)
+        self.open_editor_for(seed_text="")
+
+    def show_screen(self, screen: Screen) -> None:
+        """Use switch_screen when possible; fall back to push_screen initially."""
+        try:
+            self.switch_screen(screen)
+        except IndexError:
+            # No screen to switch from yet; first main screen
+            self.push_screen(screen)
+
+    def refresh_view(self) -> None:
+        view_name = getattr(self, "view", None)
+        if not view_name:
+            return
+
+        method_name = self.VIEW_REFRESHERS.get(view_name)
+        log_msg(f"{view_name = }, {method_name = }")
+        if not method_name:
+            return
+
+        method = getattr(self, method_name, None)
+        if callable(method):
+            method()
 
     def action_show_weeks(self):
-        self.view = "week"
+        self.view = "weeks"
         title, table, details = self.controller.get_table_and_list(
             self.current_start_date, self.selected_week
         )
         footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
-        # self.set_afill("week")
+        # self.set_afill("weeks")
 
         screen = WeeksScreen(title, table, details, footer)
-        self.push_screen(screen)
+        self.show_screen(screen)
 
     def action_show_agenda(self):
-        self.view = "events"
+        self.view = "agenda"
         details, title = self.controller.get_agenda()
         # footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
-        self.push_screen(FullScreenList(details, title, "", footer))
+        self.show_screen(FullScreenList(details, title, "", footer))
 
         return
 
@@ -2736,13 +2821,13 @@ class DynamicViewApp(App):
         self.view = "bin"
         if bin_id is None:
             bin_id = self.controller.root_id
-        self.push_screen(BinView(controller=self.controller, bin_id=bin_id))
+        self.show_screen(BinView(controller=self.controller, bin_id=bin_id))
 
     def action_show_last(self):
         self.view = "last"
         details, title = self.controller.get_last()
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
-        self.push_screen(FullScreenList(details, title, "", footer))
+        self.show_screen(FullScreenList(details, title, "", footer))
 
     def action_show_next(self):
         self.view = "next"
@@ -2750,7 +2835,7 @@ class DynamicViewApp(App):
         log_msg(f"{details = }, {title = }")
 
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
-        self.push_screen(FullScreenList(details, title, "", footer))
+        self.show_screen(FullScreenList(details, title, "", footer))
 
     def action_show_find(self):
         self.view = "find"
@@ -2769,6 +2854,47 @@ class DynamicViewApp(App):
             FullScreenList(pages, "Active Alerts for Today", header, footer)
         )
 
+    def _close_details_if_open(self) -> None:
+        # If your details is a modal screen, pop it; if it's a panel, hide it.
+        try:
+            scr = self.screen
+            if (
+                hasattr(scr, "list_with_details")
+                and scr.list_with_details.has_details_open()
+            ):
+                scr.list_with_details.hide_details()  # or details.visible = False / self.app.pop_screen()
+        except Exception:
+            pass
+
+    # def _after_edit(self, result: dict | None) -> None:
+    #     if not result:
+    #         return
+    #     if result.get("changed"):
+    #         rid = result.get("record_id")
+    #         self.refresh_view()
+    #         # Optionally re-open/show details for the updated/created record:
+    #         if rid is not None and hasattr(self, "open_details"):
+    #             self.open_details(rid)
+
+    def _after_edit(self, result: dict | None) -> None:
+        if not result or not result.get("changed"):
+            return
+        rid = result.get("record_id")
+
+        self.refresh_view()
+
+        if rid is not None and hasattr(self, "open_details"):
+            self.open_details(rid)
+
+    def open_editor_for(
+        self, *, record_id: int | None = None, seed_text: str = ""
+    ) -> None:
+        self._close_details_if_open()
+        self.app.push_screen(
+            EditorScreen(self.controller, record_id=record_id, seed_text=seed_text),
+            callback=self._after_edit,
+        )
+
     def on_input_submitted(self, event: Input.Submitted):
         search_term = event.value
         event.input.remove()
@@ -2777,7 +2903,7 @@ class DynamicViewApp(App):
             self.view = "find"
             results, title = self.controller.find_records(search_term)
             footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
-            self.push_screen(FullScreenList(results, title, "", footer))
+            self.show_screen(FullScreenList(results, title, "", footer))
 
         elif event.input.id == "search":
             self.perform_search(search_term)
@@ -2849,19 +2975,19 @@ class DynamicViewApp(App):
     def action_current_period(self):
         self.current_start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
-        # self.set_afill("week")
+        # self.set_afill("weeks")
         self.update_table_and_list()
 
     def action_next_period(self):
         self.current_start_date += timedelta(weeks=4)
         self.selected_week = tuple(self.current_start_date.isocalendar()[:2])
-        # self.set_afill("week")
+        # self.set_afill("weeks")
         self.update_table_and_list()
 
     def action_previous_period(self):
         self.current_start_date -= timedelta(weeks=4)
         self.selected_week = tuple(self.current_start_date.isocalendar()[:2])
-        # self.set_afill("week")
+        # self.set_afill("weeks")
         self.update_table_and_list()
 
     def action_next_week(self):
@@ -2870,14 +2996,14 @@ class DynamicViewApp(App):
             (self.current_start_date + timedelta(weeks=4) - ONEDAY).isocalendar()[:2]
         ):
             self.current_start_date += timedelta(weeks=1)
-        # self.set_afill("week")
+        # self.set_afill("weeks")
         self.update_table_and_list()
 
     def action_previous_week(self):
         self.selected_week = get_previous_yrwk(*self.selected_week)
         if self.selected_week < tuple((self.current_start_date).isocalendar()[:2]):
             self.current_start_date -= timedelta(weeks=1)
-        # self.set_afill("week")
+        # self.set_afill("weeks")
         self.update_table_and_list()
 
     def action_center_week(self):

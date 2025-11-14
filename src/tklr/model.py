@@ -1480,9 +1480,9 @@ class DatabaseManager:
                 """
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
-                    extent, alerts, notice, context, jobs, tags,
-                    tokens, processed, created, modified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    extent, alerts, notice, context, jobs,
+                    tokens, created, modified
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.itemtype,
@@ -1495,9 +1495,7 @@ class DatabaseManager:
                     item.notice,
                     item.context,
                     json.dumps(item.jobs),
-                    # json.dumps(item.tags),
                     json.dumps(item.tokens),
-                    0,
                     timestamp,
                     timestamp,
                 ),
@@ -1524,7 +1522,6 @@ class DatabaseManager:
                     item.notice,
                     item.context,
                     json.dumps(item.jobs),
-                    # json.dumps(item.tags),
                     json.dumps(item.tokens),
                     timestamp,
                     record_id,
@@ -2125,19 +2122,127 @@ class DatabaseManager:
         self.conn.commit()
         print("✅ Alerts table updated with today's relevant alerts.")
 
-    def populate_alerts_for_record(self, record_id: int):
-        """Regenerate alerts for a specific record, but only if any are scheduled for today."""
+    # def populate_alerts_for_record(self, record_id: int):
+    #     """Regenerate alerts for a specific record, but only if any are scheduled for today."""
+    #
+    #     # Clear old alerts for this record
+    #     self.cursor.execute("DELETE FROM Alerts WHERE record_id = ?", (record_id,))
+    #
+    #     # Look up the record’s alert data and start datetimes
+    #     self.cursor.execute(
+    #         """
+    #         SELECT R.subject, R.description, R.context, R.alerts, D.start_datetime
+    #         FROM Records R
+    #         JOIN DateTimes D ON R.id = D.record_id
+    #         WHERE R.id = ? AND R.alerts IS NOT NULL AND R.alerts != ''
+    #         """,
+    #         (record_id,),
+    #     )
+    #     records = self.cursor.fetchall()
+    #     if not records:
+    #         log_msg(f"🔕 No alerts to populate for record {record_id}")
+    #         return
+    #
+    #     now = round(datetime.now().timestamp())
+    #     midnight = round(
+    #         datetime.now().replace(hour=23, minute=59, second=59).timestamp()
+    #     )
+    #
+    #     for subject, description, context, alerts_json, start_ts in records:
+    #         # start_dt = datetime.fromtimestamp(start_ts)
+    #         alerts = json.loads(alerts_json)
+    #         for alert in alerts:
+    #             if ":" not in alert:
+    #                 continue
+    #             time_part, command_part = alert.split(":")
+    #             timedelta_values = [
+    #                 td_str_to_seconds(t.strip()) for t in time_part.split(",")
+    #             ]
+    #             commands = [cmd.strip() for cmd in command_part.split(",")]
+    #
+    #             for td in timedelta_values:
+    #                 trigger = start_ts - td
+    #                 if now <= trigger < midnight:
+    #                     for name in commands:
+    #                         alert_command = self.create_alert(
+    #                             name,
+    #                             td,
+    #                             start_ts,
+    #                             record_id,
+    #                             subject,
+    #                             description,
+    #                             context,
+    #                         )
+    #                         if alert_command:
+    #                             self.cursor.execute(
+    #                                 "INSERT INTO Alerts (record_id, record_name, trigger_datetime, start_datetime, alert_name, alert_command) VALUES (?, ?, ?, ?, ?, ?)",
+    #                                 (
+    #                                     record_id,
+    #                                     subject,
+    #                                     trigger,
+    #                                     start_ts,
+    #                                     name,
+    #                                     alert_command,
+    #                                 ),
+    #                             )
+    #
+    #     self.conn.commit()
+    #     log_msg(f"✅ Alerts updated for record {record_id}")
 
-        # Clear old alerts for this record
-        self.cursor.execute("DELETE FROM Alerts WHERE record_id = ?", (record_id,))
+    def populate_alerts_for_record(self, record_id: int):
+        """
+        Regenerate alerts for a specific record, for alerts that trigger today
+        (local time), using the same TEXT-based semantics as populate_alerts().
+        """
+
+        # --- small helpers (you can factor these out to avoid duplication) ---
+        def _parse_local_text_dt(s: str) -> datetime:
+            """Parse 'YYYYMMDD' or 'YYYYMMDDTHHMM' (local-naive) into datetime."""
+            s = (s or "").strip()
+            if not s:
+                raise ValueError("empty datetime text")
+            if "T" in s:
+                return datetime.strptime(s, "%Y%m%dT%H%M")
+            else:
+                return datetime.strptime(s, "%Y%m%d")
+
+        def _to_text_dt(dt: datetime, is_date_only: bool = False) -> str:
+            """Render datetime back to TEXT storage."""
+            if is_date_only:
+                return dt.strftime("%Y%m%d")
+            return dt.strftime("%Y%m%dT%H%M")
+
+        def _is_date_only_text(s: str) -> bool:
+            return "T" not in (s or "")
+
+        # --- time window (local-naive) ---
+        now = datetime.now()
+        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
+
+        now_text = now.strftime("%Y%m%dT%H%M")
+        eod_text = end_of_day.strftime("%Y%m%dT%H%M")
+
+        # Clear old alerts for this record in today's window
+        self.cursor.execute(
+            """
+            DELETE FROM Alerts
+            WHERE record_id = ?
+            AND trigger_datetime >= ?
+            AND trigger_datetime <= ?
+            """,
+            (record_id, now_text, eod_text),
+        )
+        self.conn.commit()
 
         # Look up the record’s alert data and start datetimes
         self.cursor.execute(
             """
-            SELECT R.subject, R.description, R.context, R.alerts, D.start_datetime 
+            SELECT R.id, R.subject, R.description, R.context, R.alerts, D.start_datetime
             FROM Records R
             JOIN DateTimes D ON R.id = D.record_id
-            WHERE R.id = ? AND R.alerts IS NOT NULL AND R.alerts != ''
+            WHERE R.id = ?
+            AND R.alerts IS NOT NULL
+            AND R.alerts != ''
             """,
             (record_id,),
         )
@@ -2146,48 +2251,97 @@ class DatabaseManager:
             log_msg(f"🔕 No alerts to populate for record {record_id}")
             return
 
-        now = round(datetime.now().timestamp())
-        midnight = round(
-            datetime.now().replace(hour=23, minute=59, second=59).timestamp()
-        )
+        for (
+            rec_id,
+            record_name,
+            record_description,
+            record_location,
+            alerts_json,
+            start_text,
+        ) in records:
+            try:
+                start_dt = _parse_local_text_dt(start_text)
+            except Exception as e:
+                log_msg(
+                    f"⚠️ Skipping record {rec_id}: invalid start_datetime {start_text!r}: {e}"
+                )
+                continue
 
-        for subject, description, context, alerts_json, start_ts in records:
-            # start_dt = datetime.fromtimestamp(start_ts)
-            alerts = json.loads(alerts_json)
-            for alert in alerts:
-                if ":" not in alert:
+            is_date_only = _is_date_only_text(start_text)
+
+            try:
+                alert_list = json.loads(alerts_json)
+                if not isinstance(alert_list, list):
                     continue
-                time_part, command_part = alert.split(":")
-                timedelta_values = [
-                    td_to_seconds(t.strip()) for t in time_part.split(",")
-                ]
-                commands = [cmd.strip() for cmd in command_part.split(",")]
+            except Exception:
+                continue
 
-                for td in timedelta_values:
-                    trigger = start_ts - td
-                    if now <= trigger < midnight:
-                        for name in commands:
-                            alert_command = self.create_alert(
-                                name,
-                                td,
-                                start_ts,
-                                record_id,
-                                subject,
-                                description,
-                                context,
-                            )
-                            if alert_command:
-                                self.cursor.execute(
-                                    "INSERT INTO Alerts (record_id, record_name, trigger_datetime, start_datetime, alert_name, alert_command) VALUES (?, ?, ?, ?, ?, ?)",
-                                    (
-                                        record_id,
-                                        subject,
-                                        trigger,
-                                        start_ts,
-                                        name,
-                                        alert_command,
-                                    ),
-                                )
+            for alert in alert_list:
+                if ":" not in alert:
+                    continue  # malformed, e.g. "10m"
+                time_part, command_part = alert.split(":", 1)
+
+                try:
+                    lead_secs_list = [
+                        td_str_to_seconds(t.strip()) for t in time_part.split(",")
+                    ]
+                except Exception:
+                    continue
+
+                commands = [
+                    cmd.strip() for cmd in command_part.split(",") if cmd.strip()
+                ]
+                if not commands:
+                    continue
+
+                # For date-only starts, schedule relative to midnight of that day
+                if is_date_only:
+                    effective_start_dt = start_dt.replace(
+                        hour=0, minute=0, second=0, microsecond=0
+                    )
+                else:
+                    effective_start_dt = start_dt
+
+                for lead_secs in lead_secs_list:
+                    trigger_dt = effective_start_dt - timedelta(seconds=lead_secs)
+
+                    # only alerts that trigger today between now and end_of_day
+                    if not (now <= trigger_dt <= end_of_day):
+                        continue
+
+                    trigger_text = _to_text_dt(trigger_dt)
+                    start_store_text = _to_text_dt(
+                        effective_start_dt, is_date_only=is_date_only
+                    )
+
+                    for alert_name in commands:
+                        alert_command = self.create_alert(
+                            alert_name,
+                            lead_secs,
+                            start_store_text,  # TEXT, same as in populate_alerts()
+                            rec_id,
+                            record_name,
+                            record_description,
+                            record_location,
+                        )
+                        if not alert_command:
+                            continue
+
+                        self.cursor.execute(
+                            """
+                            INSERT OR IGNORE INTO Alerts
+                                (record_id, record_name, trigger_datetime, start_datetime, alert_name, alert_command)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                rec_id,
+                                record_name,
+                                trigger_text,
+                                start_store_text,
+                                alert_name,
+                                alert_command,
+                            ),
+                        )
 
         self.conn.commit()
         log_msg(f"✅ Alerts updated for record {record_id}")
@@ -3034,14 +3188,13 @@ class DatabaseManager:
         )
         return [row[0] for row in cur.fetchall()]
 
-    def populate_urgency_from_record(self, record: dict):
-        if record["itemtype"] not in ["^", "~"]:
-            log_msg(f"skipping urgency for {record = }")
-            return
+    def populate_urgency_from_record(self, record_id: int):
+        log_msg(f"{record_id = }")
+        record = self.get_record_as_dictionary(record_id)
+
         record_id = record["id"]
-        pinned = self.is_pinned(record_id)
+        itemtype = record["itemtype"]
         # log_msg(f"{record_id = }, {pinned = }, {record = }")
-        now_seconds = utc_now_to_seconds()
         modified_seconds = dt_str_to_seconds(record["modified"])
         extent_seconds = td_str_to_seconds(record.get("extent", "0m"))
         # notice_seconds will be 0 in the absence of notice
@@ -3053,6 +3206,13 @@ class DatabaseManager:
         priority_level = record.get("priority", None)
         # priority = priority_map.get(priority_level, 0)
         description = True if record.get("description", "") else False
+
+        if itemtype not in ["^", "~"]:
+            log_msg(f"skipping urgency for {record = }")
+            return
+
+        now_seconds = utc_now_to_seconds()
+        pinned = self.is_pinned(record_id)
 
         # Try to parse due from first RDATE in rruleset
         due_seconds = None
@@ -3152,7 +3312,8 @@ class DatabaseManager:
                         subject,
                         urgency,
                         color,
-                        record.get("status", "next"),
+                        # record.get("status", "next"),
+                        "next",
                         json.dumps(weights),
                     ),
                 )
@@ -3222,6 +3383,19 @@ class DatabaseManager:
         cur = self.conn.cursor()
         cur.execute("SELECT * FROM Records WHERE id = ?", (record_id,))
         return cur.fetchone()
+
+    def get_record_as_dictionary(self, record: int) -> dict | None:
+        if isinstance(record, dict):
+            return record
+        log_msg(f"get_record_as_dictionary called with {record = } ({type(record)=})")
+        cur = self.conn.cursor()
+        cur.execute("SELECT * FROM Records WHERE id = ?", (record,))
+        row = cur.fetchone()
+        if row is None:
+            return None
+
+        columns = [column[0] for column in cur.description]
+        return dict(zip(columns, row))
 
     def get_jobs_for_record(self, record_id):
         cur = self.conn.cursor()
