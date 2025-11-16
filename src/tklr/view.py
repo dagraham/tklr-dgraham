@@ -2394,6 +2394,7 @@ class DynamicViewApp(App):
         ("B", "show_bins", "Bins"),
         ("L", "show_last", "Show Last"),
         ("N", "show_next", "Show Next"),
+        ("T", "show_tags", "Show Tags"),
         ("F", "show_find", "Find"),
         ("W", "show_weeks", "Weeks"),
         ("?", "show_help", "Help"),
@@ -2834,6 +2835,14 @@ class DynamicViewApp(App):
     def action_show_next(self):
         self.view = "next"
         details, title = self.controller.get_next()
+        log_msg(f"{details = }, {title = }")
+
+        footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
+        self.show_screen(FullScreenList(details, title, "", footer))
+
+    def action_show_tags(self):
+        self.view = "tags"
+        details, title = self.controller.get_tag_view()
         log_msg(f"{details = }, {title = }")
 
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"

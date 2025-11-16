@@ -2675,3 +2675,88 @@ class Controller:
         out.append((bin_id, root_name, 0))
         walk(bin_id, 0)
         return out
+
+    def get_tag_groups(self) -> dict[str, list[dict]]:
+        """
+        Return a mapping: tag -> list of Records rows for that tag.
+        """
+        cur = self.db_manager.conn.cursor()
+        cur.execute(
+            """
+            SELECT H.tag, R.*
+            FROM Hashtags H
+            JOIN Records R ON H.record_id = R.id
+            ORDER BY H.tag, R.id
+            """
+        )
+
+        columns = [col[0] for col in cur.description]
+        tag_index = columns.index("tag")
+
+        tag_groups: dict[str, list[dict]] = {}
+
+        for row in cur.fetchall():
+            row_dict = dict(zip(columns, row))
+            tag = row_dict.pop("tag")
+            tag_groups.setdefault(tag, []).append(row_dict)
+
+        return tag_groups
+
+    def get_tag_view(self):
+        """
+        Build paged rows for the Tag view.
+
+        Returns:
+            pages: list[list[dict]]  # from page_tagger
+            header: str              # e.g. "Tags (N)"
+        """
+        tag_groups = self.get_tag_groups()
+
+        rows: list[dict] = []
+
+        # Sort tags alphabetically (you can tweak this later)
+        for tag in sorted(tag_groups.keys(), key=str.lower):
+            records = tag_groups[tag]
+            if not records:
+                continue
+
+            # Header row for the tag
+            rows.append(
+                {
+                    "record_id": None,
+                    "job_id": None,
+                    "text": f"[bold][{HEADER_COLOR}]{tag}[/{HEADER_COLOR}][/bold]",
+                }
+            )
+
+            # One row per record under this tag
+            for rec in records:
+                rid = rec["id"]
+                subj = rec.get("subject") or ""
+                flags = rec.get("flags") or ""
+                # subject + flags
+                display = subj + flags
+
+                rows.append(
+                    {
+                        "record_id": rid,
+                        "job_id": None,
+                        "text": f"{display}",
+                    }
+                )
+
+        if not rows:
+            header = "Tags (0)"
+            return page_tagger(
+                [
+                    {
+                        "record_id": None,
+                        "job_id": None,
+                        "text": f"[{HEADER_COLOR}]No tags found[/{HEADER_COLOR}]",
+                    }
+                ]
+            ), header
+
+        pages = page_tagger(rows)
+        title = f"Tags ({len(tag_groups)})"
+        return pages, title

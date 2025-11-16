@@ -1246,6 +1246,10 @@ class DatabaseManager:
         self.ensure_root_children(sorted(BIN_ROOTS))
 
         self.conn.commit()
+        self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = [row[0] for row in self.cursor.fetchall()]
+        tables.sort()
+        log_msg(f"Tables after setup_database in {tables = }")
 
     def setup_busy_tables(self):
         """
@@ -1448,6 +1452,8 @@ class DatabaseManager:
     ) -> None:
         text = (subject or "") + "\n" + (description or "")
         tags = set(TAG_RE.findall(text))
+        if "#" in text:
+            log_msg(f"has hash mark: {text = }, {tags = }")
 
         self.cursor.execute("DELETE FROM Hashtags WHERE record_id = ?", (record_id,))
         for tag in tags:
