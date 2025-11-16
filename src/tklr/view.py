@@ -1875,125 +1875,125 @@ Page = Tuple[List[str], Dict[str, Tuple[str, object]]]
 # from .view import ListWithDetails, SearchableScreen, FOOTER  (adjust import as appropriate)
 
 
-class BinView(SearchableScreen):
-    """Single Bin browser with paged tags and a details panel."""
-
-    def __init__(self, controller, bin_id: int, footer_content: str = ""):
-        super().__init__()
-        self.controller = controller
-        self.bin_id = bin_id
-        self.pages = []  # list[Page] = [(rows, tag_map), ...]
-        self.current_page = 0
-        self.title = ""
-        self.footer_content = (
-            footer_content
-            or f"[bold {FOOTER}]←/→[/bold {FOOTER}] Page  [bold {FOOTER}]ESC[/bold {FOOTER}] Root  [bold {FOOTER}]/[/bold {FOOTER}] Search"
-        )
-        self.list_with_details = None
-        self.tag_map = {}
-
-    # ----- Compose -----
-    def compose(self) -> ComposeResult:
-        yield Static("", id="scroll_title", classes="title-class", expand=True)
-        self.list_with_details = ListWithDetails(id="list")
-        # Details handler is the same as other views (uses controller.get_details_for_record)
-        self.list_with_details.set_detail_key_handler(
-            self.app.make_detail_key_handler(view_name="bin")
-        )
-        yield self.list_with_details
-        yield Static(self.footer_content, id="custom_footer")
-
-    # ----- Lifecycle -----
-    def on_mount(self):
-        self.refresh_bin()
-
-    # ----- Public mini-API (called by app’s on_key) -----
-    def next_page(self):
-        if self.current_page < len(self.pages) - 1:
-            self.current_page += 1
-            self._refresh_page()
-
-    def previous_page(self):
-        if self.current_page > 0:
-            self.current_page -= 1
-            self._refresh_page()
-
-    def has_next_page(self) -> bool:
-        return self.current_page < len(self.pages) - 1
-
-    def has_prev_page(self) -> bool:
-        return self.current_page > 0
-
-    def show_details_for_tag(self, tag: str) -> None:
-        """Called by DynamicViewApp for tag keys a–z."""
-        if not self.pages:
-            return
-        _, tag_map = self.pages[self.current_page]
-        payload = tag_map.get(tag)
-        if not payload:
-            return
-
-        kind, data = payload
-        if kind == "bin":
-            # navigate into that bin
-            self.bin_id = int(data)
-            self.refresh_bin()
-            return
-
-        # record -> open details
-        record_id, job_id = data
-        title, lines, meta = self.controller.get_details_for_record(record_id, job_id)
-        if self.list_with_details:
-            self.list_with_details.show_details(title, lines, meta)
-
-    # ----- Local key handling -----
-    def on_key(self, event):
-        k = event.key
-        if k == "escape":
-            # Jump to root
-            root_id = getattr(self.controller, "root_id", None)
-            if root_id is not None:
-                self.bin_id = root_id
-                self.refresh_bin()
-                event.stop()
-                return
-
-        if k == "left":
-            if self.has_prev_page():
-                self.previous_page()
-                event.stop()
-        elif k == "right":
-            if self.has_next_page():
-                self.next_page()
-                event.stop()
-
-    # ----- Internal helpers -----
-    def refresh_bin(self):
-        self.pages, self.title = self.controller.get_bin_pages(self.bin_id)
-        self.current_page = 0
-        self._refresh_page()
-
-    def _refresh_page(self):
-        rows, tag_map = self.pages[self.current_page] if self.pages else ([], {})
-        self.tag_map = tag_map
-        if self.list_with_details:
-            self.list_with_details.update_list(rows)
-            if self.list_with_details.has_details_open():
-                self.list_with_details.hide_details()
-        self._refresh_header()
-
-    def _refresh_header(self):
-        bullets = self._page_bullets()
-        self.query_one("#scroll_title", Static).update(
-            f"{self.title} ({bullets})" if bullets else f"{self.title}"
-        )
-
-    def _page_bullets(self) -> str:
-        n = len(self.pages)
-        if n <= 1:
-            return ""
-        # return " ".join("●" if i == self.current_page else "○" for i in range(n))
-        return f"{self.current_page + 1}/{n}"
+# class BinView(SearchableScreen):
+#     """Single Bin browser with paged tags and a details panel."""
+#
+#     def __init__(self, controller, bin_id: int, footer_content: str = ""):
+#         super().__init__()
+#         self.controller = controller
+#         self.bin_id = bin_id
+#         self.pages = []  # list[Page] = [(rows, tag_map), ...]
+#         self.current_page = 0
+#         self.title = ""
+#         self.footer_content = (
+#             footer_content
+#             or f"[bold {FOOTER}]←/→[/bold {FOOTER}] Page  [bold {FOOTER}]ESC[/bold {FOOTER}] Root  [bold {FOOTER}]/[/bold {FOOTER}] Search"
+#         )
+#         self.list_with_details = None
+#         self.tag_map = {}
+#
+#     # ----- Compose -----
+#     def compose(self) -> ComposeResult:
+#         yield Static("", id="scroll_title", classes="title-class", expand=True)
+#         self.list_with_details = ListWithDetails(id="list")
+#         # Details handler is the same as other views (uses controller.get_details_for_record)
+#         self.list_with_details.set_detail_key_handler(
+#             self.app.make_detail_key_handler(view_name="bin")
+#         )
+#         yield self.list_with_details
+#         yield Static(self.footer_content, id="custom_footer")
+#
+#     # ----- Lifecycle -----
+#     def on_mount(self):
+#         self.refresh_bin()
+#
+#     # ----- Public mini-API (called by app’s on_key) -----
+#     def next_page(self):
+#         if self.current_page < len(self.pages) - 1:
+#             self.current_page += 1
+#             self._refresh_page()
+#
+#     def previous_page(self):
+#         if self.current_page > 0:
+#             self.current_page -= 1
+#             self._refresh_page()
+#
+#     def has_next_page(self) -> bool:
+#         return self.current_page < len(self.pages) - 1
+#
+#     def has_prev_page(self) -> bool:
+#         return self.current_page > 0
+#
+#     def show_details_for_tag(self, tag: str) -> None:
+#         """Called by DynamicViewApp for tag keys a–z."""
+#         if not self.pages:
+#             return
+#         _, tag_map = self.pages[self.current_page]
+#         payload = tag_map.get(tag)
+#         if not payload:
+#             return
+#
+#         kind, data = payload
+#         if kind == "bin":
+#             # navigate into that bin
+#             self.bin_id = int(data)
+#             self.refresh_bin()
+#             return
+#
+#         # record -> open details
+#         record_id, job_id = data
+#         title, lines, meta = self.controller.get_details_for_record(record_id, job_id)
+#         if self.list_with_details:
+#             self.list_with_details.show_details(title, lines, meta)
+#
+#     # ----- Local key handling -----
+#     def on_key(self, event):
+#         k = event.key
+#         if k == "escape":
+#             # Jump to root
+#             root_id = getattr(self.controller, "root_id", None)
+#             if root_id is not None:
+#                 self.bin_id = root_id
+#                 self.refresh_bin()
+#                 event.stop()
+#                 return
+#
+#         if k == "left":
+#             if self.has_prev_page():
+#                 self.previous_page()
+#                 event.stop()
+#         elif k == "right":
+#             if self.has_next_page():
+#                 self.next_page()
+#                 event.stop()
+#
+#     # ----- Internal helpers -----
+#     def refresh_bin(self):
+#         self.pages, self.title = self.controller.get_bin_pages(self.bin_id)
+#         self.current_page = 0
+#         self._refresh_page()
+#
+#     def _refresh_page(self):
+#         rows, tag_map = self.pages[self.current_page] if self.pages else ([], {})
+#         self.tag_map = tag_map
+#         if self.list_with_details:
+#             self.list_with_details.update_list(rows)
+#             if self.list_with_details.has_details_open():
+#                 self.list_with_details.hide_details()
+#         self._refresh_header()
+#
+#     def _refresh_header(self):
+#         bullets = self._page_bullets()
+#         self.query_one("#scroll_title", Static).update(
+#             f"{self.title} ({bullets})" if bullets else f"{self.title}"
+#         )
+#
+#     def _page_bullets(self) -> str:
+#         n = len(self.pages)
+#         if n <= 1:
+#             return ""
+#         # return " ".join("●" if i == self.current_page else "○" for i in range(n))
+#         return f"{self.current_page + 1}/{n}"
 
 
 ###VVV new for tagged bin screen
@@ -2265,6 +2265,7 @@ class TaggedHierarchyScreen(SearchableScreen):
                 r = rem_by_id.get(record_id)
                 if not r:
                     continue
+                log_msg(f"view bins {r = }")
                 label = self._render_reminder_label(r)
                 rows.append(
                     f"    [dim]{tag}[/dim] {label}"
@@ -2358,6 +2359,7 @@ class TaggedHierarchyScreen(SearchableScreen):
 
     def _render_reminder_label(self, r: ReminderRow) -> str:
         # Example: "Fix itinerary  [dim]task[/dim]"
+        log_msg(f"view bins {r = }")
         tclr = TYPE_TO_COLOR[r.itemtype]
         return f"[{tclr}]{r.itemtype} {r.subject}[/ {tclr}]"
 
@@ -2594,8 +2596,8 @@ class DynamicViewApp(App):
         # --- View-specific setup ---
         log_msg(f"{self.view = }")
         # ------------------ improved left/right handling ------------------
-        if event.key == "ctrl+b":
-            self.action_show_bins()
+        # if event.key == "ctrl+b":
+        #     self.action_show_bins()
 
         if event.key in ("left", "right"):
             if self.view == "weeks":
@@ -3076,10 +3078,6 @@ class DynamicViewApp(App):
     ) -> datetime | None:
         """Show DatetimePrompt and return parsed datetime or None."""
         return await self.push_screen_wait(DatetimePrompt(message, default))
-
-    # def action_show_bins(self) -> None:
-    #     log_msg(f"action show_bins {self.controller.db_manager = }")
-    #     self.push_screen(BinHierarchyScreen(self.controller.db_manager))
 
     def action_show_bins(self, start_bin_id: int | None = None):
         root_id = start_bin_id or self.controller.get_root_bin_id()

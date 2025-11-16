@@ -216,14 +216,9 @@ def _parse_o_body(body: str) -> tuple[timedelta, bool]:
     Returns (td, learn).
     """
     b = body.strip().lower()
-    learn = False
-    if b.startswith("~"):
-        learn = True
-        b = b[1:].strip()
-    elif b.startswith("learn"):
-        learn = True
-        b = b[5:].strip()
-
+    learn = b.startswith("~")
+    if learn:
+        b = b[1:]
     td = td_str_to_td(b)
     return td, learn
 
@@ -670,12 +665,12 @@ class Paragraph:
         return unwrapped_text
 
 
-@dataclass
-class FinishResult:
-    new_relative_tokens: list  # tokens to persist
-    new_rruleset: str | None  # possibly None/"" if no more repeats
-    due_ts_used: int | None  # the occurrence this finish applies to
-    finished_final: bool  # True -> no more occurrences
+# @dataclass
+# class FinishResult:
+#     new_relative_tokens: list  # tokens to persist
+#     new_rruleset: str | None  # possibly None/"" if no more repeats
+#     due_ts_used: int | None  # the occurrence this finish applies to
+#     finished_final: bool  # True -> no more occurrences
 
 
 class Item:
@@ -691,7 +686,6 @@ class Item:
             "do_summary",
         ],
         "s": ["scheduled", "starting date or datetime", "do_s"],
-        "t": ["tag", "tag name", "do_tag"],
         "r": ["recurrence", "recurrence rule", "do_rrule"],
         "o": ["offset", "offset rule", "do_offset"],
         "~": ["job", "job entry", "do_job"],
@@ -890,7 +884,6 @@ class Item:
         self.bins = []
         self.jobset = []
         self.priority = None
-        self.tags = []
         self.alerts = []
         self.notice = ""
 
@@ -901,6 +894,7 @@ class Item:
         self.exdates = []
         self.rdate_str = ""
         self.exdate_str = ""
+        self.completions = []
 
         # --- DTSTART / RDATE (preserve your sentinels) ---
         self.dtstart = None
@@ -920,22 +914,26 @@ class Item:
         self.completion: tuple[datetime, datetime | None] | None = None
         self.over = ""
         self.has_f = False  # True if there is an @f to process after parsing tokens
-        self.has_s = False  # True if there is an @f to process after parsing tokens
+        self.has_s = False  # True if there is an @s to process after parsing tokens
 
         # --- optional initial parse ---
         self.ampm = False
         self.yearfirst = True
         self.dayfirst = False
         self.two_digit_year = True
+        self.history_weight = 3
         if self.env:
             self.ampm = self.env.config.ui.ampm
             self.timefmt = "%-I:%M%p" if self.ampm else "%H:%M"
             self.dayfirst = self.env.config.ui.dayfirst
             self.yearfirst = self.env.config.ui.yearfirst
             self.history_weight = self.env.config.ui.history_weight
-            _yr = "%y" if self.two_digit_year else "%Y"
-            _dm = "%d-%m" if self.dayfirst else "%m-%d"
-            self.datefmt = f"{_yr}-{_dm}" if self.yearfirst else f"{_dm}-{_yr}"
+            # _yr = "%y" if self.two_digit_year else "%Y"
+            _yr = "%Y"
+            # _dm = "%d-%m" if self.dayfirst else "%m-%d"
+            _dm = "%m-%d"
+            # self.datefmt = f"{_yr}-{_dm}" if self.yearfirst else f"{_dm}-{_yr}"
+            self.datefmt = f"{_yr}-{_dm}"
             self.two_digit_year = self.env.config.ui.two_digit_year
         self.datetimefmt = f"{self.datefmt} {self.timefmt}"
 
@@ -992,11 +990,6 @@ class Item:
 
         if getattr(self, "notice", None):
             parts.append(f"@n {self.notice}")
-
-        # --- tags ---
-        if getattr(self, "tags", None):
-            tags = " ".join(f"@t {t}" for t in self.tags)
-            parts.append(tags)
 
         # --- context ---
         if getattr(self, "context", None):
@@ -1063,7 +1056,17 @@ class Item:
             self.rruleset = self.rdstart_str
 
         if self.has_f:
-            self.itemtype = "x"
+            """
+            if has_o, get learn, td from do_offset, 
+            if learn, compute new td as weighted average of td and @f - @s 
+            change @s to @f + td
+            remove @f 
+            do not mark as finished, x, offsets are never finished
+            """
+            log_msg(f"{self.subject = }, {self.completions = }")
+            if self._has_o():
+                log_msg(f"offset {self._get_o() = }")
+
             self.finish()
 
         if self.has_s:
@@ -1839,17 +1842,6 @@ from: * (event), ~ (task), ^ (project), % (note),
     def do_nothing(self, token):
         return True, "passed", []
 
-    def do_tag(self, token):
-        # Process datetime token
-        tag = re.sub("^@. ", "", token["token"].strip())
-
-        if tag:
-            self.tags.append(tag)
-            # print(f"{self.tags = }")
-            return True, tag, []
-        else:
-            return False, tag, []
-
     @classmethod
     def do_paragraph(cls, arg):
         """
@@ -2493,64 +2485,62 @@ from: * (event), ~ (task), ^ (project), % (note),
         except Exception:
             return None, None
 
-    def _get_o_interval(self):
-        """
-        Return (timedelta, learn_bool) if @o present, else None.
-        Expects self.over to hold the *original* @o string (e.g. '4d' or '~4d').
-        """
-        s = (self.over or "").strip()
-        if not s:
-            return None
-        # FIXME: what about projects?
-        learn = s.startswith("~")
-        base = s[1:].strip() if learn else s
-        ok, seconds = timedelta_str_to_seconds(base)
-        if not ok:
-            return None
+    # def _get_o_interval(self):
+    #     """
+    #     Return (timedelta, learn_bool) if @o present, else None.
+    #     Expects self.over to hold the *original* @o string (e.g. '4d' or '~4d').
+    #     """
+    #     s = (self.over or "").strip()
+    #     if not s:
+    #         return None
+    #     # FIXME: what about projects?
+    #     learn = s.startswith("~")
+    #     base = s[1:].strip() if learn else s
+    #     ok, seconds = timedelta_str_to_seconds(base)
+    #     if not ok:
+    #         return None
+    #
+    #     return (timedelta(seconds=seconds), learn)
+    #
+    # def _set_o_interval(self, td, learn: bool):
+    #     """Write @o token back (e.g., '@o 4d3h ' or '@o ~4d3h ')."""
+    #     # convert timedelta -> your TD string; use your existing helper if you have it
+    #     seconds = int(td.total_seconds())
+    #     # simple example: only days/hours; replace with your own formatter
+    #     days, rem = divmod(seconds, 86400)
+    #     hours, rem = divmod(rem, 3600)
+    #     minutes = rem // 60
+    #     parts = []
+    #     if days:
+    #         parts.append(f"{days}d")
+    #     if hours:
+    #         parts.append(f"{hours}h")
+    #     if minutes:
+    #         parts.append(f"{minutes}m")
+    #     td_str = "".join(parts) or "0m"
+    #
+    #     prefix = "~" if learn else ""
+    #     new_token_text = f"@o {prefix}{td_str} "
+    #
+    #     tok = next(
+    #         (
+    #             t
+    #             for t in self.relative_tokens
+    #             if t.get("t") == "@" and t.get("k") == "o"
+    #         ),
+    #         None,
+    #     )
+    #     if tok:
+    #         tok["token"] = new_token_text
+    #     else:
+    #         self.relative_tokens.append({"token": new_token_text, "t": "@", "k": "o"})
+    #     # keep original string field too, if you use it elsewhere
+    #     self.over = f"{prefix}{td_str}"
 
-        return (timedelta(seconds=seconds), learn)
-
-    def _set_o_interval(self, td, learn: bool):
-        """Write @o token back (e.g., '@o 4d3h ' or '@o ~4d3h ')."""
-        # convert timedelta -> your TD string; use your existing helper if you have it
-        seconds = int(td.total_seconds())
-        # simple example: only days/hours; replace with your own formatter
-        days, rem = divmod(seconds, 86400)
-        hours, rem = divmod(rem, 3600)
-        minutes = rem // 60
-        parts = []
-        if days:
-            parts.append(f"{days}d")
-        if hours:
-            parts.append(f"{hours}h")
-        if minutes:
-            parts.append(f"{minutes}m")
-        td_str = "".join(parts) or "0m"
-
-        prefix = "~" if learn else ""
-        new_token_text = f"@o {prefix}{td_str} "
-
-        tok = next(
-            (
-                t
-                for t in self.relative_tokens
-                if t.get("t") == "@" and t.get("k") == "o"
-            ),
-            None,
-        )
-        if tok:
-            tok["token"] = new_token_text
-        else:
-            self.relative_tokens.append({"token": new_token_text, "t": "@", "k": "o"})
-        # keep original string field too, if you use it elsewhere
-        self.over = f"{prefix}{td_str}"
-
-    def _smooth_interval(
-        self, old: timedelta, new: timedelta, weight: int
-    ) -> timedelta:
+    def _smooth_interval(self, old: timedelta, new: timedelta) -> timedelta:
         # (w*old + new)/(w+1)
-        total = old * weight + new
-        secs = total.total_seconds() / (weight + 1)
+        total = old * self.history_weight + new
+        secs = total.total_seconds() / (self.history_weight + 1)
         return timedelta(seconds=secs)
 
     def _is_rdate_only(self) -> bool:
@@ -2919,83 +2909,83 @@ from: * (event), ~ (task), ^ (project), % (note),
         self.jobs = job_entries
         return job_entries
 
-    def finalize_jobs(self, jobs):
-        """
-        Compute job status (finished / available / waiting)
-        using new &r id: prereqs format and propagate @f if all are done.
-        """
-        if not jobs:
-            return False, "No jobs to process"
-        if not self.parse_ok:
-            return False, "Error parsing job tokens"
-
-        # index by id
-        job_map = {j["id"]: j for j in jobs if "id" in j}
-        finished = {jid for jid, j in job_map.items() if j.get("f")}
-
-        # --- transitive dependency expansion ---
-        all_prereqs = {}
-        for jid, job in job_map.items():
-            deps = set(job.get("reqs", []))
-            trans = set(deps)
-            stack = list(deps)
-            while stack:
-                d = stack.pop()
-                if d in job_map:
-                    for sd in job_map[d].get("reqs", []):
-                        if sd not in trans:
-                            trans.add(sd)
-                            stack.append(sd)
-            all_prereqs[jid] = trans
-
-        # --- classify ---
-        available, waiting = set(), set()
-        for jid, deps in all_prereqs.items():
-            unmet = deps - finished
-            if jid in finished:
-                continue
-            if unmet:
-                waiting.add(jid)
-            else:
-                available.add(jid)
-
-        # annotate job objects
-        for jid, job in job_map.items():
-            if jid in finished:
-                job["status"] = "finished"
-            elif jid in available:
-                job["status"] = "available"
-            elif jid in waiting:
-                job["status"] = "waiting"
-            else:
-                job["status"] = "standalone"
-
-        # --- propagate @f if all jobs finished ---
-        if finished and len(finished) == len(job_map):
-            completed_dts = []
-            for job in job_map.values():
-                if "f" in job:
-                    cdt, _ = parse_completion_value(job["f"])
-                    if cdt:
-                        completed_dts.append(cdt)
-
-            if completed_dts:
-                finished_dt = max(completed_dts)
-                tok = {
-                    "token": f"@f {self.fmt_user(finished_dt)}",
-                    "t": "@",
-                    "k": "f",
-                }
-                self.add_token(tok)
-                self.has_f = True
-
-            for job in job_map.values():
-                job.pop("f", None)
-
-        # --- finalize ---
-        self.jobs = list(job_map.values())
-        self.jobset = json.dumps(self.jobs, cls=CustomJSONEncoder)
-        return True, self.jobs
+    # def finalize_jobs(self, jobs):
+    #     """
+    #     Compute job status (finished / available / waiting)
+    #     using new &r id: prereqs format and propagate @f if all are done.
+    #     """
+    #     if not jobs:
+    #         return False, "No jobs to process"
+    #     if not self.parse_ok:
+    #         return False, "Error parsing job tokens"
+    #
+    #     # index by id
+    #     job_map = {j["id"]: j for j in jobs if "id" in j}
+    #     finished = {jid for jid, j in job_map.items() if j.get("f")}
+    #
+    #     # --- transitive dependency expansion ---
+    #     all_prereqs = {}
+    #     for jid, job in job_map.items():
+    #         deps = set(job.get("reqs", []))
+    #         trans = set(deps)
+    #         stack = list(deps)
+    #         while stack:
+    #             d = stack.pop()
+    #             if d in job_map:
+    #                 for sd in job_map[d].get("reqs", []):
+    #                     if sd not in trans:
+    #                         trans.add(sd)
+    #                         stack.append(sd)
+    #         all_prereqs[jid] = trans
+    #
+    #     # --- classify ---
+    #     available, waiting = set(), set()
+    #     for jid, deps in all_prereqs.items():
+    #         unmet = deps - finished
+    #         if jid in finished:
+    #             continue
+    #         if unmet:
+    #             waiting.add(jid)
+    #         else:
+    #             available.add(jid)
+    #
+    #     # annotate job objects
+    #     for jid, job in job_map.items():
+    #         if jid in finished:
+    #             job["status"] = "finished"
+    #         elif jid in available:
+    #             job["status"] = "available"
+    #         elif jid in waiting:
+    #             job["status"] = "waiting"
+    #         else:
+    #             job["status"] = "standalone"
+    #
+    #     # --- propagate @f if all jobs finished ---
+    #     if finished and len(finished) == len(job_map):
+    #         completed_dts = []
+    #         for job in job_map.values():
+    #             if "f" in job:
+    #                 cdt, _ = parse_completion_value(job["f"])
+    #                 if cdt:
+    #                     completed_dts.append(cdt)
+    #
+    #         if completed_dts:
+    #             finished_dt = max(completed_dts)
+    #             tok = {
+    #                 "token": f"@f {self.fmt_user(finished_dt)}",
+    #                 "t": "@",
+    #                 "k": "f",
+    #             }
+    #             self.add_token(tok)
+    #             self.has_f = True
+    #
+    #         for job in job_map.values():
+    #             job.pop("f", None)
+    #
+    #     # --- finalize ---
+    #     self.jobs = list(job_map.values())
+    #     self.jobset = json.dumps(self.jobs, cls=CustomJSONEncoder)
+    #     return True, self.jobs
 
     def finalize_jobs(self, jobs):
         """
@@ -3117,6 +3107,7 @@ from: * (event), ~ (task), ^ (project), % (note),
             if not completed:
                 return False, f"Invalid completion value: {val}", []
 
+            # we'll handle completions inf
             self.completions.append((completed, due, job_id))
 
             # ---- update token_map ----
@@ -3169,6 +3160,7 @@ from: * (event), ~ (task), ^ (project), % (note),
 
     def _get_start_dt(self) -> datetime | None:
         # return self.dtstart
+        log_msg(f"{self.relative_tokens = }")
         tok = next(
             (
                 t
@@ -3180,6 +3172,7 @@ from: * (event), ~ (task), ^ (project), % (note),
         if not tok:
             return None
         val = tok["token"][2:].strip()  # strip "@s "
+        log_msg(f"{tok = }, {val = }")
         try:
             return parse(val)
         except Exception:
@@ -3434,7 +3427,7 @@ from: * (event), ~ (task), ^ (project), % (note),
             t.get("t") == "@" and t.get("k") == "o" for t in self.relative_tokens
         )
 
-    def _get_o_interval(self) -> tuple[timedelta, bool] | None:
+    def _get_o(self) -> tuple[timedelta, bool] | None:
         """
         Read the first @o token and return (interval, learn) or None.
         """
@@ -3498,10 +3491,11 @@ from: * (event), ~ (task), ^ (project), % (note),
         f_tokens = [t for t in self.relative_tokens if t.get("k") == "f"]
         if not f_tokens:
             return
-        log_msg(f"{f_tokens = }")
+        log_msg(f"{f_tokens = }, {self.relative_tokens = }")
 
         # completed_dt = max(parse_dt(t["token"].split(maxsplit=1)[1]) for t in f_tokens)
         completed_dt, was_due_dt = parse_f_token(f_tokens[0])
+        completed_dt = completed_dt.astimezone()
 
         due_dt = None  # default
 
@@ -3509,19 +3503,29 @@ from: * (event), ~ (task), ^ (project), % (note),
             (t for t in self.relative_tokens if t.get("k") == "o"), None
         ):
             due_dt = self._get_start_dt()
+            log_msg(f"{completed_dt = }, {due_dt = }")
             td = td_str_to_td(offset_tok["token"].split(maxsplit=1)[1])
-            self._replace_or_add_token("s", completed_dt + td)
-            if offset_tok["token"].startswith("~") and due_dt:
+            offset_val = offset_tok["token"][3:]
+            log_msg(
+                f"{offset_val = }, {due_dt = }, {td = }, {offset_val.startswith('~') = }"
+            )
+            if offset_val.startswith("~") and due_dt:
+                log_msg("learn mode")
                 actual = completed_dt - due_dt
                 td = self._smooth_interval(td, actual)
                 offset_tok["token"] = f"@o {td_to_td_str(td)}"
-                self._replace_or_add_token("s", completed_dt + td)
+                self._replace_or_add_token("o", td_to_td_str(td))
+                self._replace_or_add_token("s", self.fmt_user(completed_dt + td))
+                log_msg(f"{actual = }, {td = }")
+            else:
+                self._replace_or_add_token("s", self.fmt_user(completed_dt + td))
+            log_msg(f"after processing offset: {self.relative_tokens = }")
 
         elif self.rruleset:
             first, second = self._get_first_two_occurrences()
             due_dt = first
             if second:
-                self._replace_or_add_token("s", second)
+                self._replace_or_add_token("s", self.fmt_user(second))
             else:
                 self._remove_tokens({"s", "r", "+", "-"})
                 self.itemtype = "x"
@@ -3535,11 +3539,15 @@ from: * (event), ~ (task), ^ (project), % (note),
         self.completion = (completed_dt, due_dt)
 
         self._remove_tokens({"f"})
+        log_msg(f"after removing f: {self.relative_tokens = }")
         self.reparse_finish_tokens()
+        log_msg(f"after reparsing finish tokens: {self.relative_tokens = }")
 
-    def _replace_or_add_token(self, key: str, dt: datetime) -> None:
+    def _replace_or_add_token(self, key: str, dt: str) -> None:
         """Replace token with key `key` or add new one for dt."""
-        new_tok = {"token": f"@{key} {self.fmt_user(dt)}", "t": "@", "k": key}
+        if isinstance(dt, datetime):
+            dt = self.fmt_user(dt)
+        new_tok = {"token": f"@{key} {dt}", "t": "@", "k": key}
         # replace if exists
         for tok in self.relative_tokens:
             if tok.get("k") == key:

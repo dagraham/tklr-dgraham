@@ -49,6 +49,7 @@ from zoneinfo import ZoneInfo
 # import sqlite3
 from .shared import (
     TYPE_TO_COLOR,
+    REPEATING,
     log_msg,
     HRS_MINS,
     # ALERT_COMMANDS,
@@ -827,17 +828,20 @@ class Controller:
         # --- Compute ordinal replacement ---
         return set_anniversary(subject, start_dt, instance, freq)
 
-    # def get_tag_iterator(self, view: str, count: int) -> Iterator[str]:
-    #     """
-    #     Return an iterator over tags (a, b, ..., z, aa, ab, ..., aaa, ...),
-    #     consistent with existing set_afill() and add_tag() logic.
-    #     """
-    #     # determine tag width for this view
-    #     self.set_afill([None] * count, view)
-    #     fill = self.afill_by_view[view]
-    #
-    #     for i in range(count):
-    #         yield indx_to_tag(i, fill)
+    def apply_flags(self, record_id: int, subject: str) -> str:
+        """
+        Append any flags from Records.flags (e.g. 𝕒𝕘𝕠𝕣) to the given subject.
+        """
+        row = self.db_manager.get_record_as_dictionary(record_id)
+        if not row:
+            return subject
+
+        flags = f" {row.get('flags')}" or ""
+        log_msg(f"{row = }, {flags = }")
+        if not flags:
+            return subject
+
+        return subject + flags
 
     def get_name_to_binpath(self) -> Dict[str, str]:
         # leaf_lower -> "Leaf/Parent/.../Root"
@@ -1064,15 +1068,6 @@ class Controller:
 
     def delete_record(self, record_id):
         self.db_manager.delete_record(record_id)
-
-    def update_tags(self, record_data):
-        return self.db_manager.update_record_with_tags(record_data)
-
-    def get_tags(self, record_id):
-        return self.db_manager.get_tags_for_record(record_id)
-
-    def get_tagged_records(self, tag):
-        return self.db_manager.get_tagged(tag)
 
     def sync_jobs(self, record_id, jobs_list):
         self.db_manager.sync_jobs_from_record(record_id, jobs_list)
@@ -1489,6 +1484,11 @@ class Controller:
             if status != "available":
                 type_color = WAITING_COLOR
 
+            # 👉 NEW: append flags from Records.flags
+            old_subject = subject
+            subject = self.apply_flags(id, subject)
+            log_msg(f"{old_subject = }, {subject = }")
+
             row = {
                 "record_id": id,
                 "job_id": job_id,
@@ -1557,6 +1557,10 @@ class Controller:
                     # fail-safe: keep the record subject
                     log_msg(f"{e = }")
                     pass
+
+            # 👉 NEW: append flags from Records.flags
+            subject = self.apply_flags(id, subject)
+
             monthday = start_dt.strftime("%-d")
             start_end = f"{monthday:>2} {format_hours_mins(start_dt, HRS_MINS)}"
             type_color = TYPE_TO_COLOR[itemtype]
@@ -1624,6 +1628,10 @@ class Controller:
                     # fail-safe: keep the record subject
                     log_msg(f"{e = }")
                     pass
+
+            # 👉 NEW: append flags from Records.flags
+            subject = self.apply_flags(id, subject)
+
             monthday = start_dt.strftime("%-d")
             start_end = f"{monthday:>2} {format_hours_mins(start_dt, HRS_MINS)}"
             type_color = TYPE_TO_COLOR[itemtype]
@@ -1673,6 +1681,8 @@ class Controller:
 
         for record_id, subject, _, itemtype, last_ts, next_ts in events:
             subject = f"{truncate_string(subject, 32):<34}"
+            # 👉 NEW: append flags from Records.flags
+            subject = self.apply_flags(record_id, subject)
             last_dt = (
                 datetime_from_timestamp(last_ts).strftime("%y-%m-%d %H:%M")
                 if last_ts
@@ -1914,6 +1924,7 @@ class Controller:
         for d in allowed_dates:
             entries = grouped_by_date.get(d, [])
             for _, (start_ts, end_ts, subject, record_id, job_id) in entries:
+                subject = self.apply_flags(record_id, subject)
                 end_ts = end_ts or start_ts
                 label = format_time_range(start_ts, end_ts, self.AMPM).strip()
                 if end_ts.endswith("T000000"):
@@ -2020,7 +2031,7 @@ class Controller:
                 {
                     "record_id": record_id,
                     "job_id": job_id,
-                    "text": f"[{TASK_COLOR}]{urgency_str} {subject}[/{TASK_COLOR}]",
+                    "text": f"[{TASK_COLOR}]{urgency_str} {self.apply_flags(record_id, subject)}[/{TASK_COLOR}]",
                 }
             )
 
@@ -2149,238 +2160,243 @@ class Controller:
     def get_subbins(self, bin_id: int) -> list[dict]:
         return self.db_manager.get_subbins(bin_id)
 
-    def get_reminders(self, bin_id: int) -> list[dict]:
-        return self.db_manager.get_reminders_in_bin(bin_id)
+        # def get_reminders(self, bin_id: int) -> list[dict]:
+        #     return self.db_manager.get_reminders_in_bin(bin_id)
 
-    # def _bin_name(self, bin_id: int) -> str:
-    #     self.db_manager.cursor.execute("SELECT name FROM Bins WHERE id=?", (bin_id,))
-    #     row = self.db_manager.cursor.fetchone()
-    #     return row[0] if row else f"bin:{bin_id}"
+        # def _bin_name(self, bin_id: int) -> str:
+        #     self.db_manager.cursor.execute("SELECT name FROM Bins WHERE id=?", (bin_id,))
+        #     row = self.db_manager.cursor.fetchone()
+        #     return row[0] if row else f"bin:{bin_id}"
 
-    def _is_root(self, bin_id: int) -> bool:
-        # adjust if your root id differs
-        return bin_id == getattr(self, "root_id", 0)
+        # def _is_root(self, bin_id: int) -> bool:
+        #     # adjust if your root id differs
+        #     return bin_id == getattr(self, "root_id", 0)
 
-    @lru_cache(maxsize=2048)
-    def _bin_name(self, bin_id: int) -> str:
-        if self._is_root(bin_id):
-            # choose what you want to display for root
-            return "root"  # or "" if you prefer no label
-        cur = self.db_manager.cursor
-        cur.execute("SELECT name FROM Bins WHERE id=?", (bin_id,))
-        row = cur.fetchone()
-        return row[0] if row and row[0] else f"bin:{bin_id}"
+        # @lru_cache(maxsize=2048)
+        # def _bin_name(self, bin_id: int) -> str:
+        #     if self._is_root(bin_id):
+        #         # choose what you want to display for root
+        #         return "root"  # or "" if you prefer no label
+        #     cur = self.db_manager.cursor
+        #     cur.execute("SELECT name FROM Bins WHERE id=?", (bin_id,))
+        #     row = cur.fetchone()
+        #     return row[0] if row and row[0] else f"bin:{bin_id}"
+        #
+        # def _parent_bin_id(self, bin_id: int) -> Optional[int]:
+        #     # Root has NULL parent
+        #     self.db_manager.cursor.execute(
+        #         "SELECT container_id FROM BinLinks WHERE bin_id=? LIMIT 1", (bin_id,)
+        #     )
+        #     row = self.db_manager.cursor.fetchone()
+        #     return row[0] if row and row[0] is not None else None
+        #
+        # def _bin_path_ids(self, bin_id: int) -> List[int]:
+        #     """Return path of bin ids from root→...→bin_id, but EXCLUDING root."""
+        #     path: List[int] = []
+        #     cur = bin_id
+        #     while cur is not None:
+        #         parent = self._parent_bin_id(cur)
+        #         path.append(cur)
+        #         cur = parent
+        #     path.reverse()
+        #     # Exclude root if it exists and is first
+        #     if path and self._bin_name(path[0]).lower() == "root":
+        #         path = path[1:]
+        #     return path
 
-    def _parent_bin_id(self, bin_id: int) -> Optional[int]:
-        # Root has NULL parent
-        self.db_manager.cursor.execute(
-            "SELECT container_id FROM BinLinks WHERE bin_id=? LIMIT 1", (bin_id,)
-        )
-        row = self.db_manager.cursor.fetchone()
-        return row[0] if row and row[0] is not None else None
+        # def bin_tagger(self, bin_id: int, page_size: int = 26) -> List[Page]:
+        #     """
+        #     Build pages for a single Bin view.
+        #
+        #     Path (excluding 'root') is shown as the first row on every page.
+        #     - Path segments are tagged a.., but the LAST segment (the current bin) is NOT tagged.
+        #     - On every page, content letters start after the header letters, so if header used a..c,
+        #     content begins at 'd' on each page.
+        #     - Only taggable rows (bins + reminders) count toward page_size.
+        #
+        #     Returns: list[ (rows: list[str], tag_map: dict[str, ('bin'| 'record', target)]) ]
+        #     - target is bin_id for 'bin', or (record_id, job_id|None) for 'record'.
+        #     """
+        #
+        #     # ---------- helpers ----------
+        #     def _is_root(bid: int) -> bool:
+        #         # Adjust if you use a different root id
+        #         return bid == getattr(self, "root_id", 0)
+        #
+        #     @lru_cache(maxsize=4096)
+        #     def _bin_name(bid: int) -> str:
+        #         if _is_root(bid):
+        #             return "root"
+        #         cur = self.db_manager.cursor
+        #         cur.execute("SELECT name FROM Bins WHERE id=?", (bid,))
+        #         row = cur.fetchone()
+        #         return row[0] if row and row[0] else f"bin:{bid}"
+        #
+        #     def _bin_path_ids(bid: int) -> List[int]:
+        #         """Return ancestor path including current bin, excluding root."""
+        #         ids: List[int] = []
+        #         cur = self.db_manager.cursor
+        #         b = bid
+        #         while b is not None and not _is_root(b):
+        #             ids.append(b)
+        #             cur.execute(
+        #                 "SELECT container_id FROM BinLinks WHERE bin_id = ? LIMIT 1", (b,)
+        #             )
+        #             row = cur.fetchone()
+        #             b = row[0] if row else None
+        #         ids.reverse()
+        #         return ids
+        #
+        #     def _pretty_child_name(parent_name: str, child_name: str) -> str:
+        #         """
+        #         Trim exactly 'parent:' from the front of a child name.
+        #         This avoids accidental trims when a child merely starts with the same characters.
+        #         Examples:
+        #         parent='2025', child='2025:10'  -> '10'
+        #         parent='people', child='people:S' -> 'S'
+        #         parent='2025', child='202510'   -> '202510'   (unchanged)
+        #         parent='2025', child='2025x'    -> '2025x'    (unchanged)
+        #         """
+        #         if not parent_name:
+        #             return child_name
+        #         prefix = f"{parent_name}:"
+        #         if child_name.startswith(prefix):
+        #             suffix = child_name[len(prefix) :]
+        #             return suffix or child_name  # never return empty string
+        #         return child_name
+        #
+        #     def _format_path_header(
+        #         path_ids: List[int], continued: bool
+        #     ) -> Tuple[str, Dict[str, Tuple[str, int]], int]:
+        #         """
+        #         Build the header text and its tag_map.
+        #         Tag all but the last path segment (so the current bin is untagged).
+        #         Returns: (header_text, header_tagmap, header_letters_count)
+        #         """
+        #         tag_map: Dict[str, Tuple[str, int]] = {}
+        #         segs: List[str] = []
+        #         if not path_ids:
+        #             header_text = ".."
+        #             return (
+        #                 (header_text + (" [i](continued)[/i]" if continued else "")),
+        #                 tag_map,
+        #                 0,
+        #             )
+        #
+        #         # how many path letters to tag (exclude current bin)
+        #         taggable = max(0, len(path_ids) - 1)
+        #         header_letters = min(taggable, 26)
+        #
+        #         for i, bid in enumerate(path_ids):
+        #             name = _bin_name(bid)
+        #             if i < header_letters:  # tagged ancestor
+        #                 tag = chr(ord("a") + i)
+        #                 tag_map[tag] = ("bin", bid)
+        #                 segs.append(f"[dim]{tag}[/dim] {name}")
+        #             elif i == len(path_ids) - 1:  # current bin (untagged)
+        #                 segs.append(f"[bold red]{name}[/bold red]")
+        #             else:  # very deep path overflow (unlikely)
+        #                 f"[bold yellow]{segs.append(name)}[/bold yellow]"
+        #
+        #         header = " / ".join(segs) if segs else ".."
+        #         if continued:
+        #             header += " [i](continued)[/i]"
+        #         return header, tag_map, header_letters
+        #
+        #     # ---------- gather data ----------
+        #     path_ids = _bin_path_ids(bin_id)  # excludes root, includes current bin
+        #     current_name = "" if _is_root(bin_id) else _bin_name(bin_id)
+        #
+        #     subbins = self.db_manager.get_subbins(bin_id)  # [{id,name,subbins,reminders}]
+        #     reminders = self.db_manager.get_reminders_in_bin(
+        #         bin_id
+        #     )  # [{id,subject,itemtype}]
+        #
+        #     # Prepare content rows (bins then reminders), sorted
+        #     bin_rows: List[Tuple[str, Any, str]] = []
+        #     for b in sorted(subbins, key=lambda x: x["name"].lower()):
+        #         disp = _pretty_child_name(current_name, b["name"])
+        #         bin_rows.append(
+        #             (
+        #                 "bin",
+        #                 b["id"],
+        #                 f"[bold yellow]{disp}[/bold yellow]  [dim]({b['subbins']}/{b['reminders']})[/dim]",
+        #             )
+        #         )
+        #
+        #     rec_rows: List[Tuple[str, Any, str]] = []
+        #
+        #     for r in sorted(reminders, key=lambda x: x["subject"].lower()):
+        #         log_msg(f"bins {r = }")
+        #         color = TYPE_TO_COLOR.get(r.get("itemtype", ""), "white")
+        #         old_subject = r["subject"]
+        #         subject = self.apply_flags(r["id"], r["subject"])
+        #         log_msg(f"bins {old_subject = }, {subject = }")
+        #         rec_rows.append(
+        #             (
+        #                 "record",
+        #                 (r["id"], None),
+        #                 f"[{color}]{r.get('itemtype', '')} {subject}[/{color}]",
+        #             )
+        #         )
+        #
+        #     all_rows: List[Tuple[str, Any, str]] = bin_rows + rec_rows
+        #
+        #     # ---------- paging ----------
+        #     pages: List[Page] = []
+        #     idx = 0
+        #     first = True
+        #
+        #     # header (first page) + how many letters consumed by header
+        #     first_header_text, first_hdr_map, header_letters = _format_path_header(
+        #         path_ids, continued=False
+        #     )
+        #     content_capacity = max(0, page_size - header_letters)
+        #
+        #     while first or idx < len(all_rows):
+        #         if first:
+        #             header_text, hdr_map = first_header_text, dict(first_hdr_map)
+        #         else:
+        #             # repeated header with (continued)
+        #             header_text, hdr_map, _ = _format_path_header(path_ids, continued=True)
+        #
+        #         rows_out: List[str] = [header_text]
+        #         tag_map: Dict[str, Tuple[str, Any]] = dict(hdr_map)
+        #
+        #         if content_capacity == 0:
+        #             # Deep path; show header-only page to avoid infinite loop
+        #             pages.append((rows_out, tag_map))
+        #             break
+        #
+        #         tagged = 0
+        #         next_letter_idx = (
+        #             header_letters  # content starts after header letters every page
+        #         )
+        #         while idx < len(all_rows) and tagged < content_capacity:
+        #             kind, payload, text = all_rows[idx]
+        #             idx += 1
+        #             tag = chr(ord("a") + next_letter_idx)
+        #             if kind == "bin":
+        #                 tag_map[tag] = ("bin", payload)
+        #             else:
+        #                 tag_map[tag] = ("record", payload)  # (record_id, job_id)
+        #             rows_out.append(f" [dim]{tag}[/dim]  {text}")
+        #             tagged += 1
+        #             next_letter_idx += 1
+        #
+        #         pages.append((rows_out, tag_map))
+        #         first = False
+        #
+        #     return pages
 
-    def _bin_path_ids(self, bin_id: int) -> List[int]:
-        """Return path of bin ids from root→...→bin_id, but EXCLUDING root."""
-        path: List[int] = []
-        cur = bin_id
-        while cur is not None:
-            parent = self._parent_bin_id(cur)
-            path.append(cur)
-            cur = parent
-        path.reverse()
-        # Exclude root if it exists and is first
-        if path and self._bin_name(path[0]).lower() == "root":
-            path = path[1:]
-        return path
-
-    def bin_tagger(self, bin_id: int, page_size: int = 26) -> List[Page]:
-        """
-        Build pages for a single Bin view.
-
-        Path (excluding 'root') is shown as the first row on every page.
-        - Path segments are tagged a.., but the LAST segment (the current bin) is NOT tagged.
-        - On every page, content letters start after the header letters, so if header used a..c,
-        content begins at 'd' on each page.
-        - Only taggable rows (bins + reminders) count toward page_size.
-
-        Returns: list[ (rows: list[str], tag_map: dict[str, ('bin'| 'record', target)]) ]
-        - target is bin_id for 'bin', or (record_id, job_id|None) for 'record'.
-        """
-
-        # ---------- helpers ----------
-        def _is_root(bid: int) -> bool:
-            # Adjust if you use a different root id
-            return bid == getattr(self, "root_id", 0)
-
-        @lru_cache(maxsize=4096)
-        def _bin_name(bid: int) -> str:
-            if _is_root(bid):
-                return "root"
-            cur = self.db_manager.cursor
-            cur.execute("SELECT name FROM Bins WHERE id=?", (bid,))
-            row = cur.fetchone()
-            return row[0] if row and row[0] else f"bin:{bid}"
-
-        def _bin_path_ids(bid: int) -> List[int]:
-            """Return ancestor path including current bin, excluding root."""
-            ids: List[int] = []
-            cur = self.db_manager.cursor
-            b = bid
-            while b is not None and not _is_root(b):
-                ids.append(b)
-                cur.execute(
-                    "SELECT container_id FROM BinLinks WHERE bin_id = ? LIMIT 1", (b,)
-                )
-                row = cur.fetchone()
-                b = row[0] if row else None
-            ids.reverse()
-            return ids
-
-        def _pretty_child_name(parent_name: str, child_name: str) -> str:
-            """
-            Trim exactly 'parent:' from the front of a child name.
-            This avoids accidental trims when a child merely starts with the same characters.
-            Examples:
-            parent='2025', child='2025:10'  -> '10'
-            parent='people', child='people:S' -> 'S'
-            parent='2025', child='202510'   -> '202510'   (unchanged)
-            parent='2025', child='2025x'    -> '2025x'    (unchanged)
-            """
-            if not parent_name:
-                return child_name
-            prefix = f"{parent_name}:"
-            if child_name.startswith(prefix):
-                suffix = child_name[len(prefix) :]
-                return suffix or child_name  # never return empty string
-            return child_name
-
-        def _format_path_header(
-            path_ids: List[int], continued: bool
-        ) -> Tuple[str, Dict[str, Tuple[str, int]], int]:
-            """
-            Build the header text and its tag_map.
-            Tag all but the last path segment (so the current bin is untagged).
-            Returns: (header_text, header_tagmap, header_letters_count)
-            """
-            tag_map: Dict[str, Tuple[str, int]] = {}
-            segs: List[str] = []
-            if not path_ids:
-                header_text = ".."
-                return (
-                    (header_text + (" [i](continued)[/i]" if continued else "")),
-                    tag_map,
-                    0,
-                )
-
-            # how many path letters to tag (exclude current bin)
-            taggable = max(0, len(path_ids) - 1)
-            header_letters = min(taggable, 26)
-
-            for i, bid in enumerate(path_ids):
-                name = _bin_name(bid)
-                if i < header_letters:  # tagged ancestor
-                    tag = chr(ord("a") + i)
-                    tag_map[tag] = ("bin", bid)
-                    segs.append(f"[dim]{tag}[/dim] {name}")
-                elif i == len(path_ids) - 1:  # current bin (untagged)
-                    segs.append(f"[bold red]{name}[/bold red]")
-                else:  # very deep path overflow (unlikely)
-                    f"[bold yellow]{segs.append(name)}[/bold yellow]"
-
-            header = " / ".join(segs) if segs else ".."
-            if continued:
-                header += " [i](continued)[/i]"
-            return header, tag_map, header_letters
-
-        # ---------- gather data ----------
-        path_ids = _bin_path_ids(bin_id)  # excludes root, includes current bin
-        current_name = "" if _is_root(bin_id) else _bin_name(bin_id)
-
-        subbins = self.db_manager.get_subbins(bin_id)  # [{id,name,subbins,reminders}]
-        reminders = self.db_manager.get_reminders_in_bin(
-            bin_id
-        )  # [{id,subject,itemtype}]
-
-        # Prepare content rows (bins then reminders), sorted
-        bin_rows: List[Tuple[str, Any, str]] = []
-        for b in sorted(subbins, key=lambda x: x["name"].lower()):
-            disp = _pretty_child_name(current_name, b["name"])
-            bin_rows.append(
-                (
-                    "bin",
-                    b["id"],
-                    f"[bold yellow]{disp}[/bold yellow]  [dim]({b['subbins']}/{b['reminders']})[/dim]",
-                )
-            )
-
-        rec_rows: List[Tuple[str, Any, str]] = []
-        for r in sorted(reminders, key=lambda x: x["subject"].lower()):
-            color = TYPE_TO_COLOR.get(r.get("itemtype", ""), "white")
-            rec_rows.append(
-                (
-                    "record",
-                    (r["id"], None),
-                    f"[{color}]{r.get('itemtype', '')} {r['subject']}[/{color}]",
-                )
-            )
-
-        all_rows: List[Tuple[str, Any, str]] = bin_rows + rec_rows
-
-        # ---------- paging ----------
-        pages: List[Page] = []
-        idx = 0
-        first = True
-
-        # header (first page) + how many letters consumed by header
-        first_header_text, first_hdr_map, header_letters = _format_path_header(
-            path_ids, continued=False
-        )
-        content_capacity = max(0, page_size - header_letters)
-
-        while first or idx < len(all_rows):
-            if first:
-                header_text, hdr_map = first_header_text, dict(first_hdr_map)
-            else:
-                # repeated header with (continued)
-                header_text, hdr_map, _ = _format_path_header(path_ids, continued=True)
-
-            rows_out: List[str] = [header_text]
-            tag_map: Dict[str, Tuple[str, Any]] = dict(hdr_map)
-
-            if content_capacity == 0:
-                # Deep path; show header-only page to avoid infinite loop
-                pages.append((rows_out, tag_map))
-                break
-
-            tagged = 0
-            next_letter_idx = (
-                header_letters  # content starts after header letters every page
-            )
-            while idx < len(all_rows) and tagged < content_capacity:
-                kind, payload, text = all_rows[idx]
-                idx += 1
-                tag = chr(ord("a") + next_letter_idx)
-                if kind == "bin":
-                    tag_map[tag] = ("bin", payload)
-                else:
-                    tag_map[tag] = ("record", payload)  # (record_id, job_id)
-                rows_out.append(f" [dim]{tag}[/dim]  {text}")
-                tagged += 1
-                next_letter_idx += 1
-
-            pages.append((rows_out, tag_map))
-            first = False
-
-        return pages
-
-    def get_bin_pages(self, bin_id: int):
-        """Public API the view will call."""
-        pages = self.bin_tagger(bin_id)
-        # Title: path text without tags, e.g. "Activities / Travel". If no path => "root".
-        path_ids = self._bin_path_ids(bin_id)
-        # title = " / ".join(self._bin_name(b) for b in path_ids) or ".."
-        title = "Bins"
-        return pages, title
+        # def get_bin_pages(self, bin_id: int):
+        #     """Public API the view will call."""
+        #     pages = self.bin_tagger(bin_id)
+        #     # Title: path text without tags, e.g. "Activities / Travel". If no path => "root".
+        #     path_ids = self._bin_path_ids(bin_id)
+        #     # title = " / ".join(self._bin_name(b) for b in path_ids) or ".."
+        #     title = "Bins"
+        #     return pages, title
 
         def get_record_details(self, record_id: int) -> str:
             """Fetch record details formatted for the details pane."""
@@ -2599,10 +2615,12 @@ class Controller:
         raw_reminders = self.db_manager.get_reminders_in_bin(
             bin_id if bin_id is not None else self.get_root_bin_id()
         )
+
         reminders = [
             ReminderRow(
                 record_id=r["id"],
-                subject=r["subject"],
+                subject=self.apply_flags(r["id"], r["subject"]),
+                # subject=r["subject"],
                 itemtype=r["itemtype"],
             )
             for r in raw_reminders
@@ -2620,36 +2638,18 @@ class Controller:
         )
         return children, reminders, crumb
 
-    def get_reminder_details(self, record_id: int) -> str:
-        # Minimal, safe detail using your existing schema
-        row = self.db_manager.cursor.execute(
-            "SELECT subject, itemtype FROM Records WHERE id=?",
-            (record_id,),
-        ).fetchone()
-        if not row:
-            return "[b]Unknown reminder[/b]"
-        subject, itemtype = row
-        return f"[b]{subject}[/b]\n[dim]type:[/dim] {itemtype or '—'}"
-
-    # def get_descendant_tree(self, bin_id: int) -> List[Tuple[int, str, int]]:
-    #     """
-    #     Return a pre-order flattened list of (bin_id, name, depth)
-    #     for the *bins-only* subtree rooted at `bin_id`.
-    #     Uses DatabaseManager.get_subbins() (which already returns sorted children).
-    #     """
-    #     out: List[Tuple[int, str, int]] = []
-    #
-    #     def walk(current_id: int, depth: int) -> None:
-    #         children = self.db_manager.get_subbins(
-    #             current_id
-    #         )  # [{id,name,subbins,reminders}, ...]
-    #         for ch in children:
-    #             out.append((ch["id"], ch["name"], depth + 1))
-    #             walk(ch["id"], depth + 1)
-    #
-    #     out.append((bin_id, self.db_manager.get_bin_name(bin_id), 0))
-    #     walk(bin_id, 0)
-    #     return out
+    # def get_reminder_details(self, record_id: int) -> str:
+    #     # Minimal, safe detail using your existing schema
+    #     row = self.db_manager.cursor.execute(
+    #         "SELECT subject, itemtype FROM Records WHERE id=?",
+    #         (record_id,),
+    #     ).fetchone()
+    #     if not row:
+    #         return "[b]Unknown reminder[/b]"
+    #     old_subject, itemtype = row
+    #     subject = self.apply_flags(record_id, old_subject)
+    #     log_msg(f"bins new {old_subject = }, {subject = }")
+    #     return f"[b]{subject}[/b]\n[dim]type:[/dim] {itemtype or '—'}"
 
     def get_descendant_tree(self, bin_id: int) -> list[tuple[int, str, int]]:
         """

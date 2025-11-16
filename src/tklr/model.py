@@ -42,6 +42,8 @@ import re
 from .item import Item
 from collections import defaultdict, deque
 
+TAG_RE = re.compile(r"(?<!\w)#([A-Za-z0-9]+)")
+
 
 anniversary_regex = re.compile(r"!(\d{4})!")
 
@@ -1034,7 +1036,7 @@ class DatabaseManager:
                 notice            TEXT,
                 context           TEXT,
                 jobs              TEXT,                         -- JSON
-                tags              TEXT,                         -- JSON list[str], normalized in code
+                flags             TEXT,                         -- compact flags (e.g. 𝕒𝕘𝕠𝕣)
                 priority          INTEGER CHECK (priority IN (1,2,3,4,5)),
                 tokens            TEXT,                         -- JSON text (parsed tokens)
                 processed         INTEGER,                      -- 0/1
@@ -1221,6 +1223,22 @@ class DatabaseManager:
             ON ReminderLinks(reminder_id);
         """)
 
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Hashtags (
+                tag       TEXT NOT NULL,
+                record_id INTEGER NOT NULL,
+                FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+            );
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_hashtags_tag ON Hashtags(tag);
+        """)
+
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_hashtags_record ON Hashtags(record_id);
+        """)
+
         # ---------------- Busy tables (unchanged) ----------------
         self.setup_busy_tables()
         # Seed default top-level bins (idempotent)
@@ -1390,16 +1408,65 @@ class DatabaseManager:
             parts = list(tags)
         return sorted({p.strip().lower() for p in parts if p and p.strip()})
 
+    def _compute_flags(self, item) -> str:
+        """
+        Derive flags string from an Item:
+        𝕒 -> has alerts
+        𝕘 -> has goto (@g)
+        𝕠 -> has offset (@o)
+        𝕣 -> has repeat (@r or @+)
+        """
+        flags: list[str] = []
+        tokens = getattr(item, "tokens", []) or []
+
+        # alerts: explicit @a or non-empty item.alerts
+        has_alert = bool(item.alerts) or any(
+            t.get("t") == "@" and t.get("k") == "a" for t in tokens
+        )
+        if has_alert:
+            flags.append("𝕒")
+
+        # goto: @g
+        if any(t.get("t") == "@" and t.get("k") == "g" for t in tokens):
+            flags.append("𝕘")
+
+        # offset: @o
+        if any(t.get("t") == "@" and t.get("k") == "o" for t in tokens):
+            flags.append("𝕠")
+
+        # repeat: @r or @+
+        if any(t.get("t") == "@" and t.get("k") in ("r", "+") for t in tokens):
+            flags.append("𝕣")
+
+        return "".join(flags)
+
+    def _update_hashtags_for_record(
+        self,
+        record_id: int,
+        subject: str | None,
+        description: str | None,
+    ) -> None:
+        text = (subject or "") + "\n" + (description or "")
+        tags = set(TAG_RE.findall(text))
+
+        self.cursor.execute("DELETE FROM Hashtags WHERE record_id = ?", (record_id,))
+        for tag in tags:
+            self.cursor.execute(
+                "INSERT INTO Hashtags (tag, record_id) VALUES (?, ?)",
+                (tag, record_id),
+            )
+
     def add_item(self, item: Item) -> int:
+        flags = self._compute_flags(item)
         try:
             timestamp = utc_now_string()
             self.cursor.execute(
                 """
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
-                    extent, alerts, notice, context, jobs, priority, 
+                    extent, alerts, notice, context, jobs, flags, priority, 
                     tokens, processed, created, modified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.itemtype,
@@ -1412,6 +1479,7 @@ class DatabaseManager:
                     item.notice,
                     item.context,
                     json.dumps(item.jobs),
+                    flags,
                     item.priority,
                     json.dumps(item.tokens),
                     0,
@@ -1422,7 +1490,8 @@ class DatabaseManager:
             self.conn.commit()
 
             record_id = self.cursor.lastrowid
-            self.relink_bins_and_tags_for_record(record_id, item)  # ← add this
+            self.relink_bins_for_record(record_id, item)  # ← add this
+            self._update_hashtags_for_record(record_id, item.subject, item.description)
             return record_id
 
         except Exception as e:
@@ -1464,15 +1533,84 @@ class DatabaseManager:
 
             self.cursor.execute(sql, values)
             self.conn.commit()
-            self.relink_bins_and_tags_for_record(record_id, item)  # ← add this
+            self.relink_bins_for_record(record_id, item)  # ← add this
 
         except Exception as e:
             print(f"Error updating record {record_id}: {e}")
             raise
 
-    def save_record(self, item: Item, record_id: int | None = None):
+    # def save_record(self, item: Item, record_id: int | None = None):
+    #     """Insert or update a record and refresh associated tables."""
+    #     timestamp = utc_now_string()
+    #
+    #     if record_id is None:
+    #         # Insert new record
+    #         self.cursor.execute(
+    #             """
+    #             INSERT INTO Records (
+    #                 itemtype, subject, description, rruleset, timezone,
+    #                 extent, alerts, notice, context, jobs,
+    #                 tokens, created, modified
+    #             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    #             """,
+    #             (
+    #                 item.itemtype,
+    #                 item.subject,
+    #                 item.description,
+    #                 item.rruleset,
+    #                 item.tz_str,
+    #                 item.extent,
+    #                 json.dumps(item.alerts),
+    #                 item.notice,
+    #                 item.context,
+    #                 json.dumps(item.jobs),
+    #                 json.dumps(item.tokens),
+    #                 timestamp,
+    #                 timestamp,
+    #             ),
+    #         )
+    #         record_id = self.cursor.lastrowid
+    #     else:
+    #         # Update existing record
+    #         self.cursor.execute(
+    #             """
+    #             UPDATE Records
+    #             SET itemtype = ?, subject = ?, description = ?, rruleset = ?, timezone = ?,
+    #                 extent = ?, alerts = ?, notice = ?, context = ?, jobs = ?,
+    #                 tokens = ?, modified = ?
+    #             WHERE id = ?
+    #             """,
+    #             (
+    #                 item.itemtype,
+    #                 item.subject,
+    #                 item.description,
+    #                 item.rruleset,
+    #                 item.tz_str,
+    #                 item.extent,
+    #                 json.dumps(item.alerts),
+    #                 item.notice,
+    #                 item.context,
+    #                 json.dumps(item.jobs),
+    #                 json.dumps(item.tokens),
+    #                 timestamp,
+    #                 record_id,
+    #             ),
+    #         )
+    #
+    #     self.conn.commit()
+    #
+    #     # Refresh auxiliary tables
+    #     self.generate_datetimes_for_record(record_id)
+    #     self.populate_alerts_for_record(record_id)
+    #     if item.notice:
+    #         self.populate_notice_for_record(record_id)
+    #     if item.itemtype in ["~", "^"]:
+    #         self.populate_urgency_from_record(record_id)
+
+    def save_record(self, item: Item, record_id: int | None = None) -> int:
         """Insert or update a record and refresh associated tables."""
         timestamp = utc_now_string()
+        flags = self._compute_flags(item)
 
         if record_id is None:
             # Insert new record
@@ -1481,8 +1619,8 @@ class DatabaseManager:
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
                     extent, alerts, notice, context, jobs,
-                    tokens, created, modified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    flags, priority, tokens, processed, created, modified
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.itemtype,
@@ -1495,7 +1633,10 @@ class DatabaseManager:
                     item.notice,
                     item.context,
                     json.dumps(item.jobs),
+                    flags,
+                    item.priority,
                     json.dumps(item.tokens),
+                    0,
                     timestamp,
                     timestamp,
                 ),
@@ -1507,8 +1648,8 @@ class DatabaseManager:
                 """
                 UPDATE Records
                 SET itemtype = ?, subject = ?, description = ?, rruleset = ?, timezone = ?,
-                    extent = ?, alerts = ?, notice = ?, context = ?, jobs = ?, 
-                    tokens = ?, modified = ?
+                    extent = ?, alerts = ?, notice = ?, context = ?, jobs = ?,
+                    flags = ?, priority = ?, tokens = ?, processed = 0, modified = ?
                 WHERE id = ?
                 """,
                 (
@@ -1522,6 +1663,8 @@ class DatabaseManager:
                     item.notice,
                     item.context,
                     json.dumps(item.jobs),
+                    flags,
+                    item.priority,
                     json.dumps(item.tokens),
                     timestamp,
                     record_id,
@@ -1530,7 +1673,8 @@ class DatabaseManager:
 
         self.conn.commit()
 
-        # Refresh auxiliary tables
+        # Dependent tables
+        self.relink_bins_for_record(record_id, item)
         self.generate_datetimes_for_record(record_id)
         self.populate_alerts_for_record(record_id)
         if item.notice:
@@ -1538,32 +1682,38 @@ class DatabaseManager:
         if item.itemtype in ["~", "^"]:
             self.populate_urgency_from_record(record_id)
 
-    def get_record_tags(self, record_id: int) -> list[str]:
-        self.cursor.execute(
-            "SELECT COALESCE(tags,'[]') FROM Records WHERE id=?", (record_id,)
-        )
-        row = self.cursor.fetchone()
-        try:
-            return self._normalize_tags(json.loads(row[0])) if row and row[0] else []
-        except Exception:
-            return []
+        # Hashtags: based on subject + description
+        self._update_hashtags_for_record(record_id, item.subject, item.description)
 
-    def find_records_with_any_tags(self, tags: list[str]) -> list[tuple]:
-        want = set(self._normalize_tags(tags))
-        self.cursor.execute("SELECT id, subject, COALESCE(tags,'[]') FROM Records")
-        out = []
-        for rid, subj, tags_json in self.cursor.fetchall():
-            try:
-                have = (
-                    set(self._normalize_tags(json.loads(tags_json)))
-                    if tags_json
-                    else set()
-                )
-            except Exception:
-                have = set()
-            if want & have:
-                out.append((rid, subj))
-        return out
+        self.conn.commit()
+        return record_id
+
+    # def get_record_tags(self, record_id: int) -> list[str]:
+    #     self.cursor.execute(
+    #         "SELECT COALESCE(tags,'[]') FROM Records WHERE id=?", (record_id,)
+    #     )
+    #     row = self.cursor.fetchone()
+    #     try:
+    #         return self._normalize_tags(json.loads(row[0])) if row and row[0] else []
+    #     except Exception:
+    #         return []
+    #
+    # def find_records_with_any_tags(self, tags: list[str]) -> list[tuple]:
+    #     want = set(self._normalize_tags(tags))
+    #     self.cursor.execute("SELECT id, subject, COALESCE(tags,'[]') FROM Records")
+    #     out = []
+    #     for rid, subj, tags_json in self.cursor.fetchall():
+    #         try:
+    #             have = (
+    #                 set(self._normalize_tags(json.loads(tags_json)))
+    #                 if tags_json
+    #                 else set()
+    #             )
+    #         except Exception:
+    #             have = set()
+    #         if want & have:
+    #             out.append((rid, subj))
+    #     return out
 
     def add_completion(
         self,
@@ -3189,8 +3339,8 @@ class DatabaseManager:
         return [row[0] for row in cur.fetchall()]
 
     def populate_urgency_from_record(self, record_id: int):
-        log_msg(f"{record_id = }")
         record = self.get_record_as_dictionary(record_id)
+        log_msg(f"{record_id = }, {record = }")
 
         record_id = record["id"]
         itemtype = record["itemtype"]
@@ -3385,9 +3535,9 @@ class DatabaseManager:
         return cur.fetchone()
 
     def get_record_as_dictionary(self, record: int) -> dict | None:
+        log_msg(f"get_record_as_dictionary called with {record = } ({type(record)=})")
         if isinstance(record, dict):
             return record
-        log_msg(f"get_record_as_dictionary called with {record = } ({type(record)=})")
         cur = self.conn.cursor()
         cur.execute("SELECT * FROM Records WHERE id = ?", (record,))
         row = cur.fetchone()
@@ -3400,19 +3550,6 @@ class DatabaseManager:
     def get_jobs_for_record(self, record_id):
         cur = self.conn.cursor()
         cur.execute("SELECT * FROM Records WHERE record_id = ?", (record_id,))
-        return cur.fetchall()
-
-    def get_tagged(self, tag):
-        cur = self.conn.cursor()
-        cur.execute(
-            """
-            SELECT Records.* FROM Records
-            JOIN RecordTags ON Records.id = RecordTags.record_id
-            JOIN Tags ON Tags.id = RecordTags.tag_id
-            WHERE Tags.name = ?
-        """,
-            (tag,),
-        )
         return cur.fetchall()
 
     def delete_record(self, record_id):
@@ -3878,6 +4015,21 @@ class DatabaseManager:
         else:
             return sorted(results, key=lambda ch: ch["name"].lower())
 
+    # def apply_flags(self, record_id: int, subject: str) -> str:
+    #     """
+    #     Append any flags from Records.flags (e.g. 𝕒𝕘𝕠𝕣) to the given subject.
+    #     """
+    #     row = self.get_record_as_dictionary(record_id)
+    #     if not row:
+    #         return subject
+    #
+    #     flags = f" {row.get('flags')}" or ""
+    #     log_msg(f"{row = }, {flags = }")
+    #     if not flags:
+    #         return subject
+    #
+    #     return subject + flags
+
     def get_reminders_in_bin(self, bin_id: int) -> list[dict]:
         """Return reminders linked to this bin."""
         self.cursor.execute(
@@ -3891,7 +4043,12 @@ class DatabaseManager:
             (bin_id,),
         )
         return [
-            {"id": row[0], "subject": row[1], "itemtype": row[2]}
+            {
+                "id": row[0],
+                # "subject": self.apply_flags(row[0], row[1]),
+                "subject": row[1],
+                "itemtype": row[2],
+            }
             for row in self.cursor.fetchall()
         ]
 
@@ -3953,33 +4110,6 @@ class DatabaseManager:
 
         return bin_id
 
-    def get_or_create_tag_bin(self, tag_name: str) -> int:
-        """
-        Ensure 'tags' under root, and a child bin 'tags:<name>' that lives under 'tags'.
-        """
-        canon = (tag_name or "").strip().lower()
-        if not canon:
-            raise ValueError("Tag name must be non-empty")
-
-        parents = self.ensure_root_children(["tags"])
-        tags_parent_id = parents["tags"]
-
-        tag_bin_name = f"tags:{canon}"
-        bid = self.ensure_bin_exists(tag_bin_name)
-
-        # Re-anchor under 'tags' if needed
-        parent = self.get_parent_bin(bid)
-        if not parent or parent["name"].lower() != "tags":
-            self.move_bin(tag_bin_name, "tags")
-
-        # Ensure a link row exists (no-op if it already does)
-        self.cursor.execute(
-            "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
-            (bid, tags_parent_id),
-        )
-        self.conn.commit()
-        return bid
-
     def link_record_to_bin(self, record_id: int, bin_id: int) -> None:
         self.cursor.execute(
             "INSERT OR IGNORE INTO ReminderLinks(reminder_id, bin_id) VALUES (?, ?)",
@@ -4034,75 +4164,66 @@ class DatabaseManager:
                 return []
         return list(tokens_obj)
 
-    def _extract_tag_and_bin_names(self, item) -> tuple[list[str], list[str]]:
-        """
-        Read '@t <name>' and '@b <name>' from item.tokens.
-        tokens are dicts; we rely on keys: t='@', k in {'t','b'}, token='@t blue'
-        """
-        tokens = self._tokens_list(getattr(item, "tokens", []))
-        tags: list[str] = []
-        bins: list[str] = []
-        for t in tokens:
-            if t.get("t") != "@":
-                continue
-            k = t.get("k")
-            raw = t.get("token", "")
-            value = ""
-            if isinstance(raw, str) and " " in raw:
-                value = raw.split(" ", 1)[1].strip()
-            if not value:
-                continue
-            if k == "t":
-                tags.append(value)
-            elif k == "b":
-                bins.append(value)
-        return tags, bins
+    # def _extract_tag_and_bin_names(self, item) -> tuple[list[str], list[str]]:
+    #     """
+    #     Read '@t <name>' and '@b <name>' from item.tokens.
+    #     tokens are dicts; we rely on keys: t='@', k in {'t','b'}, token='@t blue'
+    #     """
+    #     tokens = self._tokens_list(getattr(item, "tokens", []))
+    #     tags: list[str] = []
+    #     bins: list[str] = []
+    #     for t in tokens:
+    #         if t.get("t") != "@":
+    #             continue
+    #         k = t.get("k")
+    #         raw = t.get("token", "")
+    #         value = ""
+    #         if isinstance(raw, str) and " " in raw:
+    #             value = raw.split(" ", 1)[1].strip()
+    #         if not value:
+    #             continue
+    #         if k == "t":
+    #             tags.append(value)
+    #         elif k == "b":
+    #             bins.append(value)
+    #     return tags, bins
 
-    def relink_bins_and_tags_for_record(
+    def relink_bins_for_record(
         self, record_id: int, item, *, default_parent_name: str = "unlinked"
     ) -> None:
         """
-        Rebuild ReminderLinks from item:
-        - Tags: use existing @t handling
-        - Bins: prefer item.bin_paths (list[list[str]]); fallback to simple '@b <leaf>' tokens
+        Rebuild ReminderLinks for bins only.
+
+        Behavior:
+        - Always unlinks all existing bin links for this record.
+        - Preferred input: item.bin_paths (list[list[str]]).
+        - Fallback: simple '@b <leaf>' tokens via item.simple_bins (list[str]).
+        - No tag handling — hashtags are now stored in Hashtags table separately.
         """
-        # Ensure parents we depend on exist (tags + default parent)
-        defaults = self.ensure_root_children(["tags", default_parent_name])
+
+        # Ensure required default parent exists (usually "unlinked").
+        defaults = self.ensure_root_children([default_parent_name])
         default_parent_id = defaults[default_parent_name]
 
-        # ---- 1) Unlink everything for a deterministic rebuild ----
-        self.unlink_record_from_bins(record_id, only_tag_bins=None)
+        # -------- 1) Clear all existing bin links --------
+        self.unlink_record_from_bins(record_id)
 
-        # ---- 2) Tags (unchanged) ----
-        tags, simple_bins = self._extract_tag_and_bin_names(
-            item
-        )  # your existing helper
-        print(f"{tags = }, {simple_bins =}")
-        tags = list(tags)
-        for name in tags:
-            bid = self.get_or_create_tag_bin(name)
-            self.link_record_to_bin(record_id, bid)
-
-        # ---- 3) Bins via paths (preferred) ----
+        # -------- 2) Preferred: hierarchical bin paths --------
         bin_paths: list[list[str]] = getattr(item, "bin_paths", []) or []
         if bin_paths:
-            # Uses BinPathProcessor to ensure/repair hierarchy and link the record to each leaf
+            # BinPathProcessor handles creation, normalization, parent fixes, linking.
             _norm_tokens, _log, _leaf_ids = self.binproc.assign_record_many(
                 record_id, bin_paths
             )
-            # Optional: surface _log lines somewhere (stdout/UI)
-            # for line in _log: print(f"[bins] {line}")
-            return  # we're done; paths fully handled
+            return  # fully handled
 
-        # ---- 4) Fallback (back-compat): simple '@b <leaf>' tokens ----
-        # Keep existing behavior: ensure leaf under 'unlinked' and link record.
+        # -------- 3) Fallback: simple '@b <leaf>' tokens --------
+        simple_bins: list[str] = getattr(item, "simple_bins", []) or []
         for name in simple_bins:
-            nm = (name or "").strip()
+            nm = name.strip()
             if not nm:
                 continue
-            bid = self.ensure_bin(
-                nm, parent_id=default_parent_id
-            )  # puts leaf under 'unlinked' if new
+            bid = self.ensure_bin(nm, parent_id=default_parent_id)
             self.link_record_to_bin(record_id, bid)
 
     ###VVV new for tagged bin treated

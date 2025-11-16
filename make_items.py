@@ -280,14 +280,14 @@ items = [
     f"~ all day tomorrow @d all day event @p 2 @s {tomorrow_date}",
     f"* zero extent naive @s {tomorrow_date} 10h @z none",
     f"* zero extent naive from z @s {tomorrow_date} 10h z none",
-    "* daily with US/Pacific from z @s 3pm z US/Pacific @d whatever @c wherever @r d &i 3 &c 10",
-    "* daily datetime US/Pacific @s 1pm @z US/Pacific @d whatever @c wherever @r d &i 3 &c 10",
-    f"~ every other day @s {today_date} 10p @r d &i 2",
-    f"* starting in 5 days repeating for 3 days @s {in_five_days()} 8:30a @e 4h @r d &c 3 @n 1w",
-    f"~ repeating and rdates @s {today_date} 1:30p @r d @+ 2:30p, 3:30p",
-    f"~ repeating, rdates and finish  @s {today_date} 1:30p @r d &c 3 @+ 10:30a, 3:30p @f 8:15a",
-    f"* repeating until  @s {today_date} 7:30p @e 1h @r d &u {in_two_weeks()}",
-    f"~ due, tags, description, priority one @p 1 @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country. @t red @t white @t blue",
+    "* daily with US/Pacific from z @s 3pm z US/Pacific @d whatever @c wherever @r d &i 3 &c 10 @b tags/repeating",
+    "* daily datetime US/Pacific @s 1pm @z US/Pacific @d whatever @c wherever @r d &i 3 &c 10 @b tags/repeating",
+    f"~ every other day @s {today_date} 10p @r d &i 2 @b tags/repeating",
+    f"* starting in 5 days repeating for 3 days @s {in_five_days()} 8:30a @e 4h @r d &c 3 @n 1w @b tags/repeating",
+    f"~ repeating and rdates @s {today_date} 1:30p @r d @+ 2:30p, 3:30p @b tags/repeating",
+    f"~ repeating, rdates and finish  @s {today_date} 1:30p @r d &c 3 @+ 10:30a, 3:30p @f 8:15a @b tags/repeating",
+    f"* repeating until  @s {today_date} 7:30p @e 1h @r d &u {in_two_weeks()} @b tags/repeating",
+    f"~ due, tags, description, priority one @p 1 @s {tomorrow_date} @d This item has a description. Now is the time for all good men to come to the aid of their country #red #white #blue",
     f"* three datetimes @s {in_ten_minutes()} @e 45m  @+ {in_one_hour()}, {in_one_day()}",
     f"""% long formatted description @s {yesterday_date}
     @d Title
@@ -313,20 +313,20 @@ items = [
     f"~ one date with priority three @s {yesterday_date} @p 3",
     "~ three datetimes @s 9am @+ 10am, 11am",
     "* event spread over multiple days @s 3p fri @e 2d2h30m",
-    "* daily datetime @s 3p @e 30m @r d",
-    "* gour Tiki Roundtable Meeting @s 1/1 14:00 z UTC @e 1h30m @r m &w +3TH &c 10",
+    "* daily datetime @s 3p @e 30m @r d @b tags/repeating",
+    "* gour Tiki Roundtable Meeting @s 1/1 14:00 z UTC @e 1h30m @r m &w +3TH &c 10 @b tags/repeating",
     "* timezone test for noon CET @s 12p z CET @e 1h",
     "* timezone test for noon naive @s 12p z none @e 1h",
     f"~ wind grandfather clock @s {five_days_ago()}  @o 4d",
-    f"~ fill birdfeeders @s {five_days_ago()}  @o 4d",
+    f"~ fill birdfeeders @s {five_days_ago()}  @o ~4d",
 ]
 
 bins = [
     "% Journal entry for October @b 2025:10/2025/journal @s 2p @d Test bin entries",
     "% Churchill - Give me a pig @b Churchill/quotations/library @d Dogs look up at you.\nCats look down at you.\nGive me a pig. They look you in the eye and treat you as an equal.",
-    "* Ellen's French adventure @s mon @r d &c 7 @b travel/activities @b Lille/France/places",
+    "* Ellen's French adventure @s mon @r d &c 7 @b travel/activities @b Lille/France/places @b tags/repeating",
     "% Charles and Bonnie Smith @b SmithCB/people:S/people @d details about Charles and Bonnie @b Athens/Greece/places",
-    "% itenerary  @b Athens-Istanbul/travel/activities @b Istanbul/Turkey/places",
+    "% itenerary  @b Athens-Istanbul/travel/activities @s 2025-10-23 @b Istanbul/Turkey/places @b 2025:10/2025/journal @g whatever",
 ]
 
 alerts = [

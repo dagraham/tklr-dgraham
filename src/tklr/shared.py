@@ -20,6 +20,8 @@ HRS_MINS = "12" if AMPM else "24"
 
 ELLIPSIS_CHAR = "…"
 
+REPEATING = "↻"  # Flag for @r and/or @+ reminders
+OFFFSET = "⌁"  # Flag for offset task
 
 CORNSILK = "#FFF8DC"
 DARK_GRAY = "#A9A9A9"
@@ -88,6 +90,34 @@ TYPE_TO_COLOR = {
     "b": BIN_COLOR,
     "B": ACTIVE_BIN,
 }
+
+# class datetimeChar:
+#     VSEP = "⏐"  # U+23D0  this will be a de-emphasized color
+#     FREE = "─"  # U+2500  this will be a de-emphasized color
+#     HSEP = "┈"  #
+#     BUSY = "■"  # U+25A0 this will be busy (event) color
+#     CONF = "▦"  # U+25A6 this will be conflict color
+#     TASK = "▩"  # U+25A9 this will be busy (task) color
+#     ADAY = "━"  # U+2501 for all day events ━
+#     RSKIP = "▶"  # U+25E6 for used time
+#     LSKIP = "◀"  # U+25E6 for used time
+#     USED = "◦"  # U+25E6 for used time
+#     REPS = "↻"  # Flag for repeating items
+#     FINISHED_CHAR = "✓"
+#     SKIPPED_CHAR = "✗"
+#     SLOW_CHAR = "∾"
+#     LATE_CHAR = "∿"
+#     INACTIVE_CHAR = "≁"
+#     # INACTIVE_CHAR='∽'
+#     ENDED_CHAR = "≀"
+#     UPDATE_CHAR = "𝕦"
+#     INBASKET_CHAR = "𝕚"
+#     KONNECT_CHAR = "k"
+#     LINK_CHAR = "g"
+#     PIN_CHAR = "p"
+#     ELLIPSIS_CHAR = "…"
+#     LINEDOT = " · "  # ܁ U+00B7 (middle dot),
+#     ELECTRIC = "⌁"
 
 
 def get_anchor(aware: bool) -> datetime:
