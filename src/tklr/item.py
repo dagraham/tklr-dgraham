@@ -27,6 +27,9 @@ from dataclasses import dataclass
 from dateutil.parser import parse as parse_dt
 
 # from tklr.model import dt_to_dtstr
+from pathlib import Path
+from urllib.parse import urlparse
+
 
 from .shared import (
     log_msg,
@@ -2151,6 +2154,59 @@ from: * (event), ~ (task), ^ (project), % (note),
         token.pop("_b_resolved", None)
         token["_b_new"] = True
         return True, pretty, []
+
+    def _looks_like_url(self, s: str) -> bool:
+        """Heuristic: valid scheme and netloc."""
+        try:
+            parsed = urlparse(s)
+            return bool(parsed.scheme and parsed.netloc)
+        except Exception:
+            return False
+
+    def _looks_like_path(self, s: str) -> bool:
+        """
+        Heuristic for 'valid' path.
+        Here we allow non-existent paths (so you can create them later),
+        but you could tighten this to Path(...).exists() if you prefer.
+        """
+        s = (s or "").strip()
+        if not s:
+            return False
+        # Absolute or relative path-ish
+        p = Path(s).expanduser()
+        # Very loose: must have at least one path component
+        return bool(p.parts)
+
+    def do_g(self, token: dict) -> tuple[bool, str, list]:
+        """
+        @g: goto – must be a URL or file path.
+
+        Returns:
+          (True,  "OpenWithDefault", [])
+          (False, "<error message>", [])
+        """
+        raw = (token.get("token") or "").strip()
+
+        # Strip the '@g' prefix if it's there
+        # e.g. "@g /path/to/file" or "@ghttps://example.com"
+        if raw.startswith("@g"):
+            value = raw[2:].strip()
+        else:
+            # Fallback: take everything after the first space
+            parts = raw.split(None, 1)
+            value = parts[1].strip() if len(parts) > 1 else ""
+
+        if not value:
+            return False, "@g expects a URL or file path, but none was given.", []
+
+        if not (self._looks_like_url(value) or self._looks_like_path(value)):
+            return False, f"@g expects a URL or file path, got {value!r}.", []
+
+        # Optional: stash the parsed value for later convenience
+        token["goto"] = value
+
+        # On success, your design: return special command name
+        return True, "OpenWithDefault", []
 
     def do_job(self, token):
         # Process journal token

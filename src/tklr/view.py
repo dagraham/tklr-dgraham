@@ -55,6 +55,7 @@ from .versioning import get_version
 from pathlib import Path
 
 from dataclasses import dataclass
+import json
 
 from .shared import (
     TYPE_TO_COLOR,
@@ -2576,6 +2577,9 @@ class DynamicViewApp(App):
                     yrwk = week_provider() if week_provider else None
                     ctrl.reschedule(record_id, when=dt, context=view_name, yrwk=yrwk)
 
+            elif key == "comma,g":
+                self.action_open_with_default(record_id)
+
             elif key == "comma,t":
                 ctrl.touch_item(record_id)
 
@@ -3056,6 +3060,9 @@ class DynamicViewApp(App):
     def action_detail_finish(self):
         self._dispatch_detail_key("/f")
 
+    def action_detail_goto(self):
+        self._dispatch_detail_key("/g")
+
     def action_detail_pin(self):
         self._dispatch_detail_key("/p")
 
@@ -3091,6 +3098,61 @@ class DynamicViewApp(App):
     def action_show_bins(self, start_bin_id: int | None = None):
         root_id = start_bin_id or self.controller.get_root_bin_id()
         self.push_screen(TaggedHierarchyScreen(self.controller, root_id))
+
+    def action_open_with_default(self, record_id: int) -> None:
+        """
+        Open the @g target for this record using the OS default handler.
+        """
+        # Get the record row + tokens JSON
+        row = self.controller.db_manager.get_record_as_dictionary(record_id)
+        if not row:
+            self.notify(f"Record {record_id} not found.", severity="warning")
+            return
+
+        tokens_json = row.get("tokens")
+        if not tokens_json:
+            self.notify("This record has no tokens (no @g).", severity="warning")
+            return
+
+        try:
+            tokens = json.loads(tokens_json) or []
+        except Exception as e:
+            self.notify(
+                f"Cannot parse tokens for record {record_id}: {e}", severity="warning"
+            )
+            return
+
+        goto_value: str | None = None
+
+        for tok in tokens:
+            if tok.get("t") != "@":
+                continue
+            if tok.get("k") != "g":
+                continue
+
+            # Prefer the parsed value if do_g stored it
+            if "goto" in tok:
+                goto_value = tok["goto"]
+            else:
+                raw = (tok.get("token") or "").strip()
+                if raw.startswith("@g"):
+                    goto_value = raw[2:].strip()
+                else:
+                    parts = raw.split(None, 1)
+                    goto_value = parts[1].strip() if len(parts) > 1 else ""
+
+            if goto_value:
+                break
+
+        if not goto_value:
+            self.notify("This record has no @g link.", severity="warning")
+            return
+
+        # Finally, delegate to your OS opener
+        try:
+            open_with_default(goto_value)
+        except Exception as e:
+            self.notify(f"Failed to open {goto_value!r}: {e}", severity="error")
 
 
 if __name__ == "__main__":
