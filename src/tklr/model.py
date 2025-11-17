@@ -1680,12 +1680,14 @@ class DatabaseManager:
         self.conn.commit()
 
         # Dependent tables
+        log_msg(f"save record for {record_id = }, {item.itemtype = }")
         self.relink_bins_for_record(record_id, item)
         self.generate_datetimes_for_record(record_id)
         self.populate_alerts_for_record(record_id)
         if item.notice:
             self.populate_notice_for_record(record_id)
         if item.itemtype in ["~", "^"]:
+            log_msg("calling populate_urgency_from_record")
             self.populate_urgency_from_record(record_id)
 
         # Hashtags: based on subject + description
@@ -2992,6 +2994,31 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
+    # def get_urgency(self):
+    #     """
+    #     Return tasks for the Agenda view, with pinned-first ordering.
+    #
+    #     Rows:
+    #     (record_id, job_id, subject, urgency, color, status, weights, pinned_int)
+    #     """
+    #     self.cursor.execute(
+    #         """
+    #         SELECT
+    #         u.record_id,
+    #         u.job_id,
+    #         u.subject,
+    #         u.urgency,
+    #         u.color,
+    #         u.status,
+    #         u.weights,
+    #         CASE WHEN p.record_id IS NULL THEN 0 ELSE 1 END AS pinned
+    #         FROM Urgency AS u
+    #         LEFT JOIN Pinned AS p ON p.record_id = u.record_id
+    #         ORDER BY pinned DESC, u.urgency DESC, u.id ASC
+    #         """
+    #     )
+    #     return self.cursor.fetchall()
+
     def get_urgency(self):
         """
         Return tasks for the Agenda view, with pinned-first ordering.
@@ -3002,16 +3029,18 @@ class DatabaseManager:
         self.cursor.execute(
             """
             SELECT
-            u.record_id,
-            u.job_id,
-            u.subject,
-            u.urgency,
-            u.color,
-            u.status,
-            u.weights,
-            CASE WHEN p.record_id IS NULL THEN 0 ELSE 1 END AS pinned
+                u.record_id,
+                u.job_id,
+                u.subject,
+                u.urgency,
+                u.color,
+                u.status,
+                u.weights,
+                CASE WHEN p.record_id IS NULL THEN 0 ELSE 1 END AS pinned
             FROM Urgency AS u
+            JOIN Records AS r ON r.id = u.record_id
             LEFT JOIN Pinned AS p ON p.record_id = u.record_id
+            WHERE r.itemtype != 'x'
             ORDER BY pinned DESC, u.urgency DESC, u.id ASC
             """
         )
@@ -3346,7 +3375,7 @@ class DatabaseManager:
 
     def populate_urgency_from_record(self, record_id: int):
         record = self.get_record_as_dictionary(record_id)
-        log_msg(f"{record_id = }, {record = }")
+        log_msg(f"updating urgency for {record_id = }, {record = }")
 
         record_id = record["id"]
         itemtype = record["itemtype"]

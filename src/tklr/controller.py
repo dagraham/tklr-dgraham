@@ -1040,6 +1040,7 @@ class Controller:
 
         _dts = self.db_manager.get_next_start_datetimes_for_record(record_id)
         first, second = (_dts + [None, None])[:2]
+        log_msg(f"setting meta {first = }, {second = }")
 
         title = f"[bold]{subject:^{self.width}}[/bold]"
 
@@ -1056,6 +1057,7 @@ class Controller:
             "record": self.db_manager.get_record(record_id),
         }
         self._last_details_meta = meta
+        log_msg(f"{meta = }")
 
         # return [title, ""] + fields
         return title, fields, meta
