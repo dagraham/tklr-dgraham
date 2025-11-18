@@ -41,3 +41,6 @@ include-package-data = true  # <- important
 
 [tool.setuptools.package-data]
 "tklr" = ["*.css", "sounds/*.aiff", "sounds/*.wav", "sounds/*.mp3"]
+
+[tool.pyright]
+typeCheckingMode = "off" # or "basic"

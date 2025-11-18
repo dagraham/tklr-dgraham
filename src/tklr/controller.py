@@ -188,40 +188,6 @@ def _ensure_tokens_list(value):
 RE_BIN = re.compile(r"@b\s+([^\s].*?)\s*(?=$|[@&+%-])", re.IGNORECASE)
 
 
-# def sort_children_for_bin(
-#     root_name: str,
-#     children: list[dict],
-#     bin_orders: dict[str, list[str]],
-# ) -> list[dict]:
-#     """
-#     Return children sorted according to custom order list for root_name,
-#     if present; otherwise fall back to alphabetical by name.
-#     Children not included in the custom order list will come after the listed ones,
-#     in alphabetical order.
-#     :param root_name: name of the container bin whose children these are
-#     :param children: list of dicts, each with at least a "name" key
-#     :param bin_orders: dict mapping root bin name -> list of child names in desired order
-#     :return: sorted list of children dicts
-#     """
-#     if root_name in bin_orders:
-#         order_list = bin_orders[root_name]
-#
-#         def sort_key(ch: dict):
-#             name = ch["name"]
-#             try:
-#                 idx = order_list.index(name)
-#                 return (0, idx)
-#             except ValueError:
-#                 return (
-#                     1,
-#                     name.lower(),
-#                 )  # fallback: non-listed come after, alphabetical
-#
-#         return sorted(children, key=sort_key)
-#     else:
-#         return sorted(children, key=lambda ch: ch["name"].lower())
-
-
 def extract_bin_slashpath(line: str) -> str | None:
     """
     Example:
@@ -629,15 +595,89 @@ def set_anniversary(subject: str, start: date, instance: date, freq: str) -> str
 Page = Tuple[List[str], Dict[str, Tuple[str, object]]]
 
 
+# def page_tagger(
+#     items: List[dict], page_size: int = 26
+# ) -> List[Tuple[List[str], Dict[str, Tuple[int, int | None]]]]:
+#     """
+#     Split 'items' into pages. Each item is a dict:
+#         { "record_id": int | None, "job_id": int | None, "text": str }
+#
+#     Returns a list of pages. Each page is a tuple:
+#         (page_rows: list[str], page_tag_map: dict[str -> (record_id, job_id|None)])
+#
+#     Rules:
+#       - Only record rows (record_id != None) receive single-letter tags 'a'..'z'.
+#       - Exactly `page_size` records are tagged per page (except the last page).
+#       - Headers (record_id is None) are kept in order.
+#       - If a header's block of records spans pages, the header is duplicated at the
+#         start of the next page with " (continued)" appended.
+#     """
+#     pages: List[Tuple[List[str], Dict[str, Tuple[int, int | None]]]] = []
+#
+#     page_rows: List[str] = []
+#     tag_map: Dict[str, Tuple[int, int | None]] = {}
+#     tag_counter = 0  # number of record-tags on current page
+#     last_header_text = None  # text of the most recent header seen (if any)
+#
+#     def finalize_page(new_page_rows=None):
+#         """Close out the current page and start a fresh one optionally seeded with
+#         new_page_rows (e.g., duplicated header)."""
+#         nonlocal page_rows, tag_map, tag_counter
+#         pages.append((page_rows, tag_map))
+#         page_rows = new_page_rows[:] if new_page_rows else []
+#         tag_map = {}
+#         tag_counter = 0
+#
+#     for item in items:
+#         # header row
+#         if not isinstance(item, dict):
+#             log_msg(f"error: {item} is not a dict")
+#             continue
+#         if item.get("record_id") is None:
+#             hdr_text = item.get("text", "")
+#             last_header_text = hdr_text
+#             page_rows.append(hdr_text)
+#             # continue; headers do not affect tag_counter
+#             continue
+#
+#         # record row (taggable)
+#         # If current page is already full (page_size tags), start a new page.
+#         # IMPORTANT: when we create the new page, we want to preseed it with a
+#         # duplicated header (if one exists) and mark it as "(continued)".
+#         if tag_counter >= page_size:
+#             # If we have a last_header_text, duplicate it at top of next page with continued.
+#             if last_header_text:
+#                 continued_header = f"{last_header_text} (continued)"
+#                 finalize_page(new_page_rows=[continued_header])
+#             else:
+#                 finalize_page()
+#
+#         # assign next tag on current page
+#         tag = chr(ord("a") + tag_counter)
+#         tag_map[tag] = (item["record_id"], item.get("job_id", None))
+#         # Use small/dim tag formatting to match your UI style; adapt if needed
+#         page_rows.append(f" [dim]{tag}[/dim]  {item.get('text', '')}")
+#         tag_counter += 1
+#
+#     # At end, still need to push the last page if it has any rows
+#     if page_rows or tag_map:
+#         pages.append((page_rows, tag_map))
+#
+#     return pages
+
+
 def page_tagger(
     items: List[dict], page_size: int = 26
-) -> List[Tuple[List[str], Dict[str, Tuple[int, int | None]]]]:
+) -> List[Tuple[List[str], Dict[str, Tuple[int, int | None, int | None]]]]:
     """
     Split 'items' into pages. Each item is a dict:
-        { "record_id": int | None, "job_id": int | None, "text": str }
+        { "record_id": int | None, "job_id": int | None, "text": str, ... }
 
     Returns a list of pages. Each page is a tuple:
-        (page_rows: list[str], page_tag_map: dict[str -> (record_id, job_id|None)])
+        (
+            page_rows: list[str],
+            page_tag_map: dict[str -> (record_id, job_id|None, datetime_id|None)]
+        )
 
     Rules:
       - Only record rows (record_id != None) receive single-letter tags 'a'..'z'.
@@ -646,10 +686,10 @@ def page_tagger(
       - If a header's block of records spans pages, the header is duplicated at the
         start of the next page with " (continued)" appended.
     """
-    pages: List[Tuple[List[str], Dict[str, Tuple[int, int | None]]]] = []
+    pages: List[Tuple[List[str], Dict[str, Tuple[int, int | None, int | None]]]] = []
 
     page_rows: List[str] = []
-    tag_map: Dict[str, Tuple[int, int | None]] = {}
+    tag_map: Dict[str, Tuple[int, int | None, int | None]] = {}
     tag_counter = 0  # number of record-tags on current page
     last_header_text = None  # text of the most recent header seen (if any)
 
@@ -663,21 +703,19 @@ def page_tagger(
         tag_counter = 0
 
     for item in items:
-        # header row
         if not isinstance(item, dict):
             log_msg(f"error: {item} is not a dict")
             continue
+
+        # header row
         if item.get("record_id") is None:
             hdr_text = item.get("text", "")
             last_header_text = hdr_text
             page_rows.append(hdr_text)
-            # continue; headers do not affect tag_counter
+            # headers do not affect tag_counter
             continue
 
         # record row (taggable)
-        # If current page is already full (page_size tags), start a new page.
-        # IMPORTANT: when we create the new page, we want to preseed it with a
-        # duplicated header (if one exists) and mark it as "(continued)".
         if tag_counter >= page_size:
             # If we have a last_header_text, duplicate it at top of next page with continued.
             if last_header_text:
@@ -686,14 +724,21 @@ def page_tagger(
             else:
                 finalize_page()
 
-        # assign next tag on current page
         tag = chr(ord("a") + tag_counter)
-        tag_map[tag] = (item["record_id"], item.get("job_id", None))
-        # Use small/dim tag formatting to match your UI style; adapt if needed
+
+        # NEW: include datetime_id (or None) in the tag map
+        record_id = item["record_id"]
+        job_id = item.get("job_id", None)
+        datetime_id = item.get("datetime_id", None)
+        instance_ts = item.get("instance_ts", None)
+
+        tag_map[tag] = (record_id, job_id, datetime_id, instance_ts)
+        log_msg(f"{tag_map = }")
+
+        # Display text unchanged
         page_rows.append(f" [dim]{tag}[/dim]  {item.get('text', '')}")
         tag_counter += 1
 
-    # At end, still need to push the last page if it has any rows
     if page_rows or tag_map:
         pages.append((page_rows, tag_map))
 
@@ -918,7 +963,7 @@ class Controller:
         log_msg(f"{record_id = }, {self.db_manager.is_pinned(record_id) = }")
         return self.db_manager.is_pinned(record_id)
 
-    def get_entry(self, record_id, job_id=None):
+    def get_entry(self, record_id, job_id=None, instance=None):
         lines = []
         result = self.db_manager.get_tokens(record_id)
         # log_msg(f"{result = }")
@@ -931,6 +976,9 @@ class Controller:
         log_msg(f"{rruleset = }")
         # rruleset = f"\n{11 * ' '}".join(rruleset.splitlines())
 
+        instance_line = (
+            f"[{label_color}]instance:[/{label_color}] {instance}" if instance else ""
+        )
         rr_line = ""
         if rruleset:
             formatted_rr = format_rruleset_for_details(
@@ -947,6 +995,7 @@ class Controller:
             [
                 entry,
                 " ",
+                instance_line,
                 rr_line,
                 f"[{label_color}]id/cr/md:[/{label_color}] {record_id}{job} / {created} / {modified}",
             ]
@@ -1006,6 +1055,8 @@ class Controller:
         self,
         record_id: int,
         job_id: int | None = None,
+        datetime_id: int | None = None,
+        instance_ts: str | None = None,
     ):
         """
         Return list: [title, '', ... lines ...] same as process_tag would.
@@ -1017,6 +1068,12 @@ class Controller:
         itemtype = core.get("itemtype") or ""
         rruleset = core.get("rruleset") or ""
         all_prereqs = core.get("all_prereqs") or ""
+
+        instance_line = (
+            f"\n[{label_color}]instance:[/{label_color}] {instance_ts}"
+            if instance_ts
+            else ""
+        )
 
         subject = core.get("subject") or "(untitled)"
         if job_id is not None:
@@ -1036,7 +1093,7 @@ class Controller:
 
         fields = [
             "",
-        ] + self.get_entry(record_id, job_id)
+        ] + self.get_entry(record_id, job_id, instance_ts)
 
         _dts = self.db_manager.get_next_start_datetimes_for_record(record_id)
         first, second = (_dts + [None, None])[:2]
@@ -1052,6 +1109,8 @@ class Controller:
             "rruleset": rruleset,
             "first": first,
             "second": second,
+            "datetime_id": datetime_id,
+            "instance_ts": instance_ts,
             "all_prereqs": all_prereqs,
             "pinned": bool(pinned_now),
             "record": self.db_manager.get_record(record_id),
@@ -1201,105 +1260,6 @@ class Controller:
         log_msg(f"{header = }\n{rows = }\n{pages = }")
         return pages, header
 
-    def process_tag(self, tag: str, view: str, selected_week: tuple[int, int]):
-        job_id = None
-        if view == "week":
-            payload = None
-            tags_for_week = self.week_tag_to_id.get(selected_week, None)
-            payload = tags_for_week.get(tag, None) if tags_for_week else None
-            if payload is None:
-                return [f"There is no item corresponding to tag '{tag}'."]
-            if isinstance(payload, dict):
-                record_id = payload.get("record_id")
-                job_id = payload.get("job_id")
-            else:
-                record_id, job_id = payload, None
-
-        elif view in [
-            "next",
-            "last",
-            "find",
-            "events",
-            "tasks",
-            "agenda-events",
-            "agenda-tasks",
-            "alerts",
-        ]:
-            payload = self.list_tag_to_id.get(view, {}).get(tag)
-            if payload is None:
-                return [f"There is no item corresponding to tag '{tag}'."]
-            if isinstance(payload, dict):
-                record_id = payload.get("record_id")
-                job_id = payload.get("job_id")
-            else:
-                record_id, job_id = payload, None
-        else:
-            return ["Invalid view."]
-
-        core = self.get_record_core(record_id) or {}
-        itemtype = core.get("itemtype") or ""
-        rruleset = core.get("rruleset") or ""
-        all_prereqs = core.get("all_prereqs") or ""
-
-        # ----- subject selection -----
-        # default to record subject
-        subject = core.get("subject") or "(untitled)"
-        # if we're in week view and this tag points to a job, prefer the job's display_subject
-        # if view == "week" and job_id is not None:
-        if job_id is not None:
-            log_msg(f"setting subject for {record_id = }, {job_id = }")
-            try:
-                js = self.db_manager.get_job_display_subject(record_id, job_id)
-                if js:  # only override if present/non-empty
-                    subject = js
-            except Exception as e:
-                # fail-safe: keep the record subject
-                log_msg(f"Error: {e}. Failed for {record_id = }, {job_id = }")
-        # -----------------------------
-
-        try:
-            pinned_now = (
-                self.db_manager.is_task_pinned(record_id) if itemtype == "~" else False
-            )
-        except Exception:
-            pinned_now = False
-
-        fields = [
-            "",
-        ] + self.get_entry(record_id, job_id)
-
-        _dts = self.db_manager.get_next_start_datetimes_for_record(record_id, job_id)
-        first, second = (_dts + [None, None])[:2]
-        log_msg(f"{record_id = }, {job_id = }, {_dts = }, {first = }, {second = }")
-
-        # job_suffix = (
-        #     f" [{label_color}]job_id:[/{label_color}] [bold]{job_id}[/bold]"
-        #     if job_id is not None
-        #     else ""
-        # )
-        # title = f"[{label_color}]details:[/{label_color}] [bold]{subject}[/bold]"
-        title = f"[bold]{subject:^{self.width}}[/bold]"
-        # ids = f"[{label_color}]id:[/{label_color}] [bold]{record_id}[/bold]{job_suffix}"
-
-        # side-channel meta for detail actions
-        self._last_details_meta = {
-            "record_id": record_id,
-            "job_id": job_id,
-            "itemtype": itemtype,
-            "subject": subject,
-            "rruleset": rruleset,
-            "first": first,
-            "second": second,
-            "all_prereqs": all_prereqs,
-            "pinned": bool(pinned_now),
-            "record": self.db_manager.get_record(record_id),
-        }
-
-        return [
-            title,
-            " ",
-        ] + fields
-
     def get_table_and_list(self, start_date: datetime, selected_week: tuple[int, int]):
         year, week = selected_week
 
@@ -1324,32 +1284,6 @@ class Controller:
 
         title = format_iso_week(start_dt)
         return title, busy_bar, details
-
-    # def get_table_and_list(self, start_date: datetime, selected_week: tuple[int, int]):
-    #     """
-    #     Return the header title, busy bar (as text), and event list details
-    #     for the given ISO week.
-    #
-    #     Returns: (title, busy_bar_str, details_list)
-    #     """
-    #     year, week = selected_week
-    #     year_week = f"{year:04d}-{week:02d}"
-    #
-    #     # --- 1. Busy bits from BusyWeeks table
-    #     busy_bits = self.db_manager.get_busy_bits_for_week(year_week)
-    #     busy_bar = self._format_busy_bar(busy_bits)
-    #
-    #     # --- 2. Week events using your existing method
-    #     start_dt = datetime.strptime(f"{year} {week} 1", "%G %V %u")
-    #     end_dt = start_dt + timedelta(weeks=1)
-    #     details = self.get_week_details(selected_week)
-    #
-    #     # title = f"{format_date_range(start_dt, end_dt)} #{start_dt.isocalendar().week}"
-    #     title = format_iso_week(start_dt)
-    #     # --- 3. Title for the week header
-    #     # title = f"Week {week} — {start_dt.strftime('%b %d')} to {(end_dt - timedelta(days=1)).strftime('%b %d')}"
-    #
-    #     return title, busy_bar, details
 
     def _format_busy_bar(
         self,
@@ -1438,6 +1372,8 @@ class Controller:
                 {
                     "record_id": None,
                     "job_id": None,
+                    "datetime_id": None,
+                    "instance_ts": yr_wk[0],
                     "text": f" [{HEADER_COLOR}]Nothing scheduled for this week[/{HEADER_COLOR}]",
                 }
             )
@@ -1449,8 +1385,9 @@ class Controller:
             this_day = (start_datetime + timedelta(days=i)).date()
             weekday_to_events[this_day] = []
 
-        for start_ts, end_ts, itemtype, subject, id, job_id in events:
-            log_msg(f"{itemtype = }, {subject = }, {id = }, {job_id = }")
+        # for start_ts, end_ts, itemtype, subject, id, job_id in events:
+        for dt_id, start_ts, end_ts, itemtype, subject, id, job_id in events:
+            log_msg(f"{itemtype = }, {subject = }, {dt_id = }, {id = }, {job_id = }")
             start_dt = datetime_from_timestamp(start_ts)
             end_dt = datetime_from_timestamp(end_ts)
             if itemtype == "*":  # event
@@ -1494,6 +1431,8 @@ class Controller:
             row = {
                 "record_id": id,
                 "job_id": job_id,
+                "datetime_id": dt_id,
+                "instance_ts": start_ts,
                 "text": f"[{type_color}]{itemtype} {escaped_start_end}{subject}[/{type_color}]",
             }
             weekday_to_events.setdefault(start_dt.date(), []).append(row)
@@ -1518,6 +1457,8 @@ class Controller:
                     {
                         "record_id": None,
                         "job_id": None,
+                        "datetime_id": dt_id,
+                        "instance_ts": start_ts,
                         "text": f"[bold][{HEADER_COLOR}]{day.strftime('%a, %b %-d')}{flag}[/{HEADER_COLOR}][/bold]",
                     }
                 )
@@ -1546,7 +1487,7 @@ class Controller:
 
         year_to_events = {}
 
-        for id, job_id, subject, description, itemtype, start_ts in events:
+        for dt_id, id, job_id, subject, description, itemtype, start_ts in events:
             start_dt = datetime_from_timestamp(start_ts)
             subject = self.apply_anniversary_if_needed(id, subject, start_dt)
             if job_id is not None:
@@ -1570,6 +1511,8 @@ class Controller:
             item = {
                 "record_id": id,
                 "job_id": job_id,
+                "datetime_id": dt_id,
+                "instance_ts": start_ts,
                 "text": f"[{type_color}]{itemtype} {escaped_start_end} {subject}[/{type_color}]",
             }
             # yr_mnth_to_events.setdefault(start_dt.strftime("%B %Y"), []).append(row)
@@ -1589,8 +1532,11 @@ class Controller:
             if events:
                 rows.append(
                     {
+                        "dt_id": None,
                         "record_id": None,
                         "job_id": None,
+                        "datetime_id": None,
+                        "instance_ts": None,
                         "text": f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]",
                     }
                 )
@@ -1616,7 +1562,7 @@ class Controller:
         # use a, ..., z if len(events) <= 26 else use aa, ..., zz
         year_to_events = {}
 
-        for id, job_id, subject, description, itemtype, start_ts in events:
+        for dt_id, id, job_id, subject, description, itemtype, start_ts in events:
             start_dt = datetime_from_timestamp(start_ts)
             subject = self.apply_anniversary_if_needed(id, subject, start_dt)
             # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
@@ -1639,8 +1585,10 @@ class Controller:
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = f"[not bold]{start_end}[/not bold]"
             item = {
+                "dt_id": dt_id,
                 "record_id": id,
                 "job_id": job_id,
+                "instance_ts": start_ts,
                 "text": f"[{type_color}]{itemtype} {escaped_start_end} {subject}[/{type_color}]",
             }
             year_to_events.setdefault(start_dt.strftime("%b %Y"), []).append(item)
@@ -1725,14 +1673,14 @@ class Controller:
         """
         grouped = defaultdict(list)
 
-        for start_ts, end_ts, itemtype, subject, record_id, job_id in events:
+        for dt_id, start_ts, end_ts, itemtype, subject, record_id, job_id in events:
             # log_msg(f"{start_ts = }, {end_ts = }, {subject = }")
             if itemtype != "*":
                 continue  # Only events
 
             start_dt = datetime_from_timestamp(start_ts)
             grouped[start_dt.date()].append(
-                (start_dt.time(), (start_ts, end_ts, subject, record_id, job_id))
+                (start_dt.time(), (dt_id, start_ts, end_ts, subject, record_id, job_id))
             )
 
         # Sort each day's events by time
@@ -1925,7 +1873,7 @@ class Controller:
 
         for d in allowed_dates:
             entries = grouped_by_date.get(d, [])
-            for _, (start_ts, end_ts, subject, record_id, job_id) in entries:
+            for _, (dt_id, start_ts, end_ts, subject, record_id, job_id) in entries:
                 subject = self.apply_flags(record_id, subject)
                 end_ts = end_ts or start_ts
                 label = format_time_range(start_ts, end_ts, self.AMPM).strip()
@@ -1942,6 +1890,8 @@ class Controller:
                     {
                         "record_id": record_id,
                         "job_id": None,
+                        "datetime_id": dt_id,
+                        "instance_ts": start_ts,
                         "text": f"[{color}]{label_fmt}{subject}[/{color}]",
                     }
                 )
@@ -1955,6 +1905,8 @@ class Controller:
                         {
                             "record_id": record_id,
                             "job_id": None,
+                            "datetime_id": dt_id,
+                            "instance_ts": start_ts,
                             "text": f"[{NOTICE_COLOR}]+{days_remaining}d {subject} [/{NOTICE_COLOR}]",
                         }
                     )
@@ -1964,6 +1916,8 @@ class Controller:
                         {
                             "record_id": record_id,
                             "job_id": None,
+                            "datetime_id": None,
+                            "instance_ts": None,
                             "text": f"[{DRAFT_COLOR}] ? {subject}[/{DRAFT_COLOR}]",
                         }
                     )
@@ -1985,6 +1939,8 @@ class Controller:
                     {
                         "record_id": None,
                         "job_id": None,
+                        "datetime_id": None,
+                        "instance_ts": None,
                         "text": f"[not bold][{HEADER_COLOR}]{d.strftime('%a %b %-d')}[/{HEADER_COLOR}][/not bold]",
                     }
                 )
@@ -1993,27 +1949,84 @@ class Controller:
 
         return rows
 
+    # def get_agenda_tasks(self):
+    #     """
+    #     Returns list of (urgency_str_or_pin, color, tag_fmt, colored_subject)
+    #     Suitable for the Agenda Tasks pane.
+    #     """
+    #     tasks_by_urgency = []
+    #
+    #     # Use the JOIN with Pinned so pins persist across restarts
+    #     urgency_records = self.db_manager.get_urgency()
+    #     # rows: (record_id, job_id, subject, urgency, color, status, weights, pinned_int)
+    #
+    #     # self.set_afill(urgency_records, "tasks")
+    #     # log_msg(f"urgency_records {self.afill_by_view = }, {len(urgency_records) = }")
+    #     # indx = 0
+    #     # self.list_tag_to_id.setdefault("tasks", {})
+    #
+    #     # Agenda tasks (has job_id)
+    #     header = f"Tasks ({len(urgency_records)})"
+    #     rows = [
+    #         {"record_id": None, "job_id": None, "text": header},
+    #     ]
+    #     for (
+    #         record_id,
+    #         job_id,
+    #         subject,
+    #         urgency,
+    #         color,
+    #         status,
+    #         weights,
+    #         pinned,
+    #     ) in urgency_records:
+    #         # log_msg(f"collecting tasks {record_id = }, {job_id = }, {subject = }")
+    #         # tag_fmt, indx = self.add_tag("tasks", indx, record_id, job_id=job_id)
+    #         urgency_str = (
+    #             "📌" if pinned else f"[{color}]{int(round(urgency * 100)):>2}[/{color}]"
+    #         )
+    #         rows.append(
+    #             {
+    #                 "record_id": record_id,
+    #                 "job_id": job_id,
+    #                 "text": f"[{TASK_COLOR}]{urgency_str} {self.apply_flags(record_id, subject)}[/{TASK_COLOR}]",
+    #             }
+    #         )
+    #
+    #     return rows
+
     def get_agenda_tasks(self):
         """
-        Returns list of (urgency_str_or_pin, color, tag_fmt, colored_subject)
-        Suitable for the Agenda Tasks pane.
+        Returns rows suitable for the Agenda Tasks pane.
+
+        Each row is a dict:
+        {
+            "record_id": int | None,
+            "job_id": int | None,
+            "datetime_id": int | None,
+            "instance_ts": str | None,
+            "text": str,
+        }
         """
         tasks_by_urgency = []
 
         # Use the JOIN with Pinned so pins persist across restarts
         urgency_records = self.db_manager.get_urgency()
-        # rows: (record_id, job_id, subject, urgency, color, status, weights, pinned_int)
+        # rows now:
+        # (record_id, job_id, subject, urgency, color, status, weights,
+        #  pinned_int, datetime_id, instance_ts)
 
-        # self.set_afill(urgency_records, "tasks")
-        # log_msg(f"urgency_records {self.afill_by_view = }, {len(urgency_records) = }")
-        # indx = 0
-        # self.list_tag_to_id.setdefault("tasks", {})
-
-        # Agenda tasks (has job_id)
         header = f"Tasks ({len(urgency_records)})"
         rows = [
-            {"record_id": None, "job_id": None, "text": header},
+            {
+                "record_id": None,
+                "job_id": None,
+                "datetime_id": None,
+                "instance_ts": None,
+                "text": header,
+            },
         ]
+
         for (
             record_id,
             job_id,
@@ -2023,16 +2036,19 @@ class Controller:
             status,
             weights,
             pinned,
+            datetime_id,
+            instance_ts,
         ) in urgency_records:
-            # log_msg(f"collecting tasks {record_id = }, {job_id = }, {subject = }")
-            # tag_fmt, indx = self.add_tag("tasks", indx, record_id, job_id=job_id)
             urgency_str = (
                 "📌" if pinned else f"[{color}]{int(round(urgency * 100)):>2}[/{color}]"
             )
+
             rows.append(
                 {
                     "record_id": record_id,
                     "job_id": job_id,
+                    "datetime_id": datetime_id,  # 👈 earliest DateTimes.id, or None
+                    "instance_ts": instance_ts,  # 👈 earliest start_datetime TEXT, or None
                     "text": f"[{TASK_COLOR}]{urgency_str} {self.apply_flags(record_id, subject)}[/{TASK_COLOR}]",
                 }
             )

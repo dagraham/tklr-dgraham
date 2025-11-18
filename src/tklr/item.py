@@ -2722,11 +2722,56 @@ from: * (event), ~ (task), ^ (project), % (note),
         self.relative_tokens = new_tokens
         self.rruleset = ""  # remove compiled schedule string
 
-    def do_rdate(self, token: str):
+    # def do_rdate(self, token: str):
+    #     """
+    #     Process an RDATE token, e.g., "@+ 2024-07-03 14:00, 2024-08-05 09:00".
+    #     Uses the global timezone (set via @z) for all entries, and serializes
+    #     them using TZID (even for UTC).
+    #     """
+    #     log_msg(f"processing rdate {token = }")
+    #     try:
+    #         # Remove the "@+" prefix and extra whitespace
+    #         token_body = token["token"][2:].strip()
+    #
+    #         # Split on commas to get individual date strings
+    #         dt_strs = [s.strip() for s in token_body.split(",") if s.strip()]
+    #
+    #         # Process each entry
+    #         rdates = []
+    #         udates = []
+    #         for dt_str in dt_strs:
+    #             if self.s_kind == "aware":
+    #                 dt = parse(dt_str, self.s_tz)
+    #                 dt_fmt = _fmt_utc_Z(dt)
+    #             elif self.s_kind == "naive":
+    #                 dt = parse(dt_str)
+    #                 dt_fmt = _fmt_naive(dt)
+    #             else:
+    #                 dt = parse(dt_str)
+    #                 dt_fmt = _fmt_date(dt)
+    #
+    #             if dt_fmt not in rdates:
+    #                 # print(f"added {dt_fmt = } to rdates")
+    #                 rdates.append(dt_fmt)
+    #                 udates.append(self.fmt_user(dt))
+    #
+    #         self.rdstart_str = f"{self.rdstart_str},{','.join(rdates)}"
+    #         self.rdates = rdates
+    #         self.token_map["+"] = ", ".join(udates)
+    #         # Prepend RDATE in finalize_rruleset after possible insertion of DTSTART
+    #         log_msg(f"{rdates = }, {self.rdstart_str = }")
+    #         return True, rdates, []
+    #     except Exception as e:
+    #         return False, f"Invalid @+ value: {e}", []
+
+    def do_rdate(self, token: dict):
         """
         Process an RDATE token, e.g., "@+ 2024-07-03 14:00, 2024-08-05 09:00".
-        Uses the global timezone (set via @z) for all entries, and serializes
-        them using TZID (even for UTC).
+
+        Also accepts relative-like input (e.g. "11a tue") which is parsed
+        relative to the current anchor, but when self.final is True we
+        rewrite the token to store the *expanded* canonical forms so that
+        future parses are stable.
         """
         log_msg(f"processing rdate {token = }")
         try:
@@ -2737,8 +2782,9 @@ from: * (event), ~ (task), ^ (project), % (note),
             dt_strs = [s.strip() for s in token_body.split(",") if s.strip()]
 
             # Process each entry
-            rdates = []
-            udates = []
+            rdates: list[str] = []
+            udates: list[str] = []
+
             for dt_str in dt_strs:
                 if self.s_kind == "aware":
                     dt = parse(dt_str, self.s_tz)
@@ -2751,24 +2797,76 @@ from: * (event), ~ (task), ^ (project), % (note),
                     dt_fmt = _fmt_date(dt)
 
                 if dt_fmt not in rdates:
-                    # print(f"added {dt_fmt = } to rdates")
                     rdates.append(dt_fmt)
                     udates.append(self.fmt_user(dt))
 
-            self.rdstart_str = f"{self.rdstart_str},{','.join(rdates)}"
+            # Append to any existing RDATE start string
+            if self.rdstart_str:
+                self.rdstart_str = f"{self.rdstart_str},{','.join(rdates)}"
+            else:
+                self.rdstart_str = ",".join(rdates)
+
             self.rdates = rdates
             self.token_map["+"] = ", ".join(udates)
-            # Prepend RDATE in finalize_rruleset after possible insertion of DTSTART
             log_msg(f"{rdates = }, {self.rdstart_str = }")
+
+            # 🔸 CRITICAL: when final, freeze the token to the canonical absolute forms
+            if getattr(self, "final", False) and rdates:
+                token["token"] = f"@+ {', '.join(rdates)}"
+                log_msg(f"finalized @+ token to {token['token'] = }")
+
+            # Prepend RDATE in finalize_rruleset after possible insertion of DTSTART
             return True, rdates, []
         except Exception as e:
             return False, f"Invalid @+ value: {e}", []
+
+    # def do_exdate(self, token: dict):
+    #     """
+    #     @- … : explicit exclusion dates
+    #     - Maintain a de-duplicated list of compact dates in self.exdates.
+    #     - finalize_rruleset() will emit EXDATE using this list in either path.
+    #     """
+    #     try:
+    #         token_body = token["token"][2:].strip()
+    #         dt_strs = [s.strip() for s in token_body.split(",") if s.strip()]
+    #
+    #         if not hasattr(self, "exdates") or self.exdates is None:
+    #             self.exdates = []
+    #
+    #         new_ex = []
+    #         udates = []
+    #         for dt_str in dt_strs:
+    #             if self.s_kind == "aware":
+    #                 dt = parse(dt_str, self.s_tz)
+    #                 dt_fmt = _fmt_utc_Z(dt)
+    #             elif self.s_kind == "naive":
+    #                 dt = parse(dt_str)
+    #                 dt_fmt = _fmt_naive(dt)
+    #             else:
+    #                 dt = parse(dt_str)
+    #                 dt_fmt = _fmt_date(dt)
+    #
+    #             if dt_fmt not in self.exdates and dt_fmt not in new_ex:
+    #                 new_ex.append(dt_fmt)
+    #                 udates.append(self.fmt_user(dt))
+    #
+    #         self.exdates.extend(new_ex)
+    #         self.token_map["-"] = ", ".join(udates)
+    #         # convenience string if you ever need it
+    #         self.exdate_str = ",".join(self.exdates) if self.exdates else ""
+    #
+    #         return True, new_ex, []
+    #     except Exception as e:
+    #         return False, f"Invalid @- value: {e}", []
 
     def do_exdate(self, token: dict):
         """
         @- … : explicit exclusion dates
         - Maintain a de-duplicated list of compact dates in self.exdates.
         - finalize_rruleset() will emit EXDATE using this list in either path.
+
+        When self.final is True, the token text is rewritten to use the
+        expanded canonical forms so that future parses are stable.
         """
         try:
             token_body = token["token"][2:].strip()
@@ -2777,8 +2875,9 @@ from: * (event), ~ (task), ^ (project), % (note),
             if not hasattr(self, "exdates") or self.exdates is None:
                 self.exdates = []
 
-            new_ex = []
-            udates = []
+            new_ex: list[str] = []
+            udates: list[str] = []
+
             for dt_str in dt_strs:
                 if self.s_kind == "aware":
                     dt = parse(dt_str, self.s_tz)
@@ -2798,6 +2897,11 @@ from: * (event), ~ (task), ^ (project), % (note),
             self.token_map["-"] = ", ".join(udates)
             # convenience string if you ever need it
             self.exdate_str = ",".join(self.exdates) if self.exdates else ""
+
+            # 🔸 CRITICAL: when final, freeze the token to the canonical absolute forms
+            if getattr(self, "final", False) and new_ex:
+                token["token"] = f"@- {', '.join(new_ex)}"
+                log_msg(f"finalized @- token to {token['token'] = }")
 
             return True, new_ex, []
         except Exception as e:

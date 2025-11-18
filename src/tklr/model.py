@@ -11,8 +11,9 @@ from typing import List, Tuple, Optional, Dict, Any, Set, Iterable
 from rich import print
 from tklr.tklr_env import TklrEnvironment
 from dateutil import tz
-from dateutil.tz import gettz
-import math
+
+# from dateutil.tz import gettz
+# import math
 import numpy as np
 from pathlib import Path
 from dataclasses import dataclass, field
@@ -1104,8 +1105,19 @@ class DatabaseManager:
         """)
 
         # ---------------- DateTimes ----------------
+        # self.cursor.execute("""
+        #     CREATE TABLE IF NOT EXISTS DateTimes (
+        #         record_id      INTEGER NOT NULL,
+        #         job_id         INTEGER,          -- nullable; link to specific job if any
+        #         start_datetime TEXT NOT NULL,    -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
+        #         end_datetime   TEXT,             -- NULL if instantaneous; same formats as start
+        #         FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+        #     );
+        # """)
+
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS DateTimes (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
                 record_id      INTEGER NOT NULL,
                 job_id         INTEGER,          -- nullable; link to specific job if any
                 start_datetime TEXT NOT NULL,    -- 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive)
@@ -1113,6 +1125,7 @@ class DatabaseManager:
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
             );
         """)
+
         # enforce uniqueness across (record_id, job_id, start, end)
         self.cursor.execute("""
             CREATE UNIQUE INDEX IF NOT EXISTS idx_datetimes_unique
@@ -2911,6 +2924,7 @@ class DatabaseManager:
 
         sql = """
         SELECT
+            dt.id,
             dt.start_datetime,
             dt.end_datetime,
             r.itemtype,
@@ -3004,16 +3018,18 @@ class DatabaseManager:
     #     self.cursor.execute(
     #         """
     #         SELECT
-    #         u.record_id,
-    #         u.job_id,
-    #         u.subject,
-    #         u.urgency,
-    #         u.color,
-    #         u.status,
-    #         u.weights,
-    #         CASE WHEN p.record_id IS NULL THEN 0 ELSE 1 END AS pinned
+    #             u.record_id,
+    #             u.job_id,
+    #             u.subject,
+    #             u.urgency,
+    #             u.color,
+    #             u.status,
+    #             u.weights,
+    #             CASE WHEN p.record_id IS NULL THEN 0 ELSE 1 END AS pinned
     #         FROM Urgency AS u
+    #         JOIN Records AS r ON r.id = u.record_id
     #         LEFT JOIN Pinned AS p ON p.record_id = u.record_id
+    #         WHERE r.itemtype != 'x'
     #         ORDER BY pinned DESC, u.urgency DESC, u.id ASC
     #         """
     #     )
@@ -3024,10 +3040,52 @@ class DatabaseManager:
         Return tasks for the Agenda view, with pinned-first ordering.
 
         Rows:
-        (record_id, job_id, subject, urgency, color, status, weights, pinned_int)
+        (
+            record_id,
+            job_id,
+            subject,
+            urgency,
+            color,
+            status,
+            weights,
+            pinned_int,
+            datetime_id,   -- may be NULL
+            instance_ts    -- TEXT start_datetime or NULL
+        )
         """
         self.cursor.execute(
             """
+            WITH first_per_job AS (
+                SELECT
+                    record_id,
+                    job_id,
+                    -- normalized start for correct ordering of date-only vs datetime
+                    MIN(
+                        CASE
+                            WHEN LENGTH(start_datetime) = 8
+                                THEN start_datetime || 'T000000'
+                            ELSE start_datetime
+                        END
+                    ) AS first_norm_start
+                FROM DateTimes
+                GROUP BY record_id, job_id
+            ),
+            first_dt AS (
+                SELECT
+                    d.id,
+                    d.record_id,
+                    d.job_id,
+                    d.start_datetime
+                FROM DateTimes d
+                JOIN first_per_job fp
+                ON d.record_id = fp.record_id
+                AND COALESCE(d.job_id, -1) = COALESCE(fp.job_id, -1)
+                AND CASE
+                        WHEN LENGTH(d.start_datetime) = 8
+                            THEN d.start_datetime || 'T000000'
+                        ELSE d.start_datetime
+                    END = fp.first_norm_start
+            )
             SELECT
                 u.record_id,
                 u.job_id,
@@ -3036,10 +3094,17 @@ class DatabaseManager:
                 u.color,
                 u.status,
                 u.weights,
-                CASE WHEN p.record_id IS NULL THEN 0 ELSE 1 END AS pinned
+                CASE WHEN p.record_id IS NULL THEN 0 ELSE 1 END AS pinned,
+                fd.id           AS datetime_id,
+                fd.start_datetime AS instance_ts
             FROM Urgency AS u
-            JOIN Records AS r ON r.id = u.record_id
-            LEFT JOIN Pinned AS p ON p.record_id = u.record_id
+            JOIN Records AS r
+            ON r.id = u.record_id
+            LEFT JOIN Pinned AS p
+            ON p.record_id = u.record_id
+            LEFT JOIN first_dt AS fd
+            ON fd.record_id = u.record_id
+            AND COALESCE(fd.job_id, -1) = COALESCE(u.job_id, -1)
             WHERE r.itemtype != 'x'
             ORDER BY pinned DESC, u.urgency DESC, u.id ASC
             """
@@ -3057,16 +3122,14 @@ class DatabaseManager:
         Returns:
             Dict[int, Dict[int, Dict[int, List[Tuple]]]]: Nested dictionary grouped by year, week, and weekday.
         """
-        from collections import defaultdict
-        from datetime import datetime, timedelta
-        from dateutil.tz import gettz
 
         # Retrieve all events for the specified period
         events = self.get_events_for_period(start_date, end_date)
         # Group events by ISO year, week, and weekday
         grouped_events = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
-        for start_ts, end_ts, itemtype, subject, id, job_id in events:
+        # for start_ts, end_ts, itemtype, subject, id, job_id in events:
+        for dt_id, start_ts, end_ts, itemtype, subject, id, job_id in events:
             start_dt = (
                 datetime_from_timestamp(start_ts)
                 # .replace(tzinfo=gettz("UTC"))
@@ -3188,61 +3251,165 @@ class DatabaseManager:
         self.conn.commit()
         print(f"✅ BusyWeeksFromDateTimes populated ({total_inserted} week-records).")
 
+    # def get_last_instances(
+    #     self,
+    # ) -> List[Tuple[int, int | None, str, str, str, str]]:
+    #     """
+    #     Retrieve the last instances of each record/job falling before today.
+    #
+    #     Returns:
+    #         List of tuples:
+    #             (record_id, job_id, subject, description, itemtype, last_datetime)
+    #     """
+    #     today = datetime.now().strftime("%Y%m%dT%H%M")
+    #     self.cursor.execute(
+    #         """
+    #         SELECT
+    #             r.id,
+    #             d.job_id,
+    #             r.subject,
+    #             r.description,
+    #             r.itemtype,
+    #             MAX(d.start_datetime) AS last_datetime
+    #         FROM Records r
+    #         JOIN DateTimes d ON r.id = d.record_id
+    #         WHERE d.start_datetime < ?
+    #         GROUP BY r.id, d.job_id
+    #         ORDER BY last_datetime DESC
+    #         """,
+    #         (today,),
+    #     )
+    #     return self.cursor.fetchall()
+
     def get_last_instances(
         self,
-    ) -> List[Tuple[int, int | None, str, str, str, str]]:
+    ) -> List[Tuple[int, int, int | None, str, str, str, str]]:
         """
         Retrieve the last instances of each record/job falling before today.
 
         Returns:
             List of tuples:
-                (record_id, job_id, subject, description, itemtype, last_datetime)
+                (
+                    datetime_id,    # DateTimes.id
+                    record_id,
+                    job_id,         # may be None
+                    subject,
+                    description,
+                    itemtype,
+                    instance_ts     # TEXT 'YYYYMMDD' or 'YYYYMMDDTHHMMSS'
+                )
         """
         today = datetime.now().strftime("%Y%m%dT%H%M")
+
         self.cursor.execute(
             """
+            WITH last_per_job AS (
+                SELECT
+                    record_id,
+                    job_id,
+                    MAX(start_datetime) AS last_datetime
+                FROM DateTimes
+                WHERE start_datetime < ?
+                GROUP BY record_id, job_id
+            )
             SELECT
-                r.id,
-                d.job_id,
+                d.id          AS datetime_id,
+                r.id          AS record_id,
+                d.job_id      AS job_id,
                 r.subject,
                 r.description,
                 r.itemtype,
-                MAX(d.start_datetime) AS last_datetime
-            FROM Records r
-            JOIN DateTimes d ON r.id = d.record_id
-            WHERE d.start_datetime < ?
-            GROUP BY r.id, d.job_id
-            ORDER BY last_datetime DESC
+                d.start_datetime AS instance_ts
+            FROM last_per_job lp
+            JOIN DateTimes d
+            ON d.record_id = lp.record_id
+            AND d.start_datetime = lp.last_datetime
+            AND COALESCE(d.job_id, -1) = COALESCE(lp.job_id, -1)
+            JOIN Records r
+            ON r.id = d.record_id
+            ORDER BY d.start_datetime DESC
             """,
             (today,),
         )
         return self.cursor.fetchall()
 
+    # def get_next_instances(
+    #     self,
+    # ) -> List[Tuple[int, int | None, str, str, str, str]]:
+    #     """
+    #     Retrieve the next instances of each record/job falling on or after today.
+    #
+    #     Returns:
+    #         List of tuples:
+    #             (record_id, job_id, subject, description, itemtype, last_datetime)
+    #     """
+    #     today = datetime.now().strftime("%Y%m%dT%H%M")
+    #     self.cursor.execute(
+    #         """
+    #         SELECT
+    #             r.id,
+    #             d.job_id,
+    #             r.subject,
+    #             r.description,
+    #             r.itemtype,
+    #             MIN(d.start_datetime) AS next_datetime
+    #         FROM Records r
+    #         JOIN DateTimes d ON r.id = d.record_id
+    #         WHERE d.start_datetime >= ?
+    #         GROUP BY r.id, d.job_id
+    #         ORDER BY next_datetime ASC
+    #         """,
+    #         (today,),
+    #     )
+    #     return self.cursor.fetchall()
+
     def get_next_instances(
         self,
-    ) -> List[Tuple[int, int | None, str, str, str, str]]:
+    ) -> List[Tuple[int, int, int | None, str, str, str, str]]:
         """
         Retrieve the next instances of each record/job falling on or after today.
 
         Returns:
             List of tuples:
-                (record_id, job_id, subject, description, itemtype, last_datetime)
+                (
+                    datetime_id,    # DateTimes.id
+                    record_id,
+                    job_id,         # may be None
+                    subject,
+                    description,
+                    itemtype,
+                    instance_ts     # TEXT 'YYYYMMDD' or 'YYYYMMDDTHHMMSS'
+                )
         """
         today = datetime.now().strftime("%Y%m%dT%H%M")
+
         self.cursor.execute(
             """
+            WITH next_per_job AS (
+                SELECT
+                    record_id,
+                    job_id,
+                    MIN(start_datetime) AS next_datetime
+                FROM DateTimes
+                WHERE start_datetime >= ?
+                GROUP BY record_id, job_id
+            )
             SELECT
-                r.id,
-                d.job_id,
+                d.id          AS datetime_id,
+                r.id          AS record_id,
+                d.job_id      AS job_id,
                 r.subject,
                 r.description,
                 r.itemtype,
-                MIN(d.start_datetime) AS next_datetime
-            FROM Records r
-            JOIN DateTimes d ON r.id = d.record_id
-            WHERE d.start_datetime >= ?
-            GROUP BY r.id, d.job_id
-            ORDER BY next_datetime ASC
+                d.start_datetime AS instance_ts
+            FROM next_per_job np
+            JOIN DateTimes d
+            ON d.record_id = np.record_id
+            AND d.start_datetime = np.next_datetime
+            AND COALESCE(d.job_id, -1) = COALESCE(np.job_id, -1)
+            JOIN Records r
+            ON r.id = d.record_id
+            ORDER BY d.start_datetime ASC
             """,
             (today,),
         )
