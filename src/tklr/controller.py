@@ -45,6 +45,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from dateutil.rrule import rrulestr
+from dateutil import tz
 
 # import sqlite3
 from .shared import (
@@ -779,6 +781,36 @@ class Controller:
         self.width = shutil.get_terminal_size()[0] - 2
         self.afill = 1
         self._agenda_dirty = False
+        self.ampm = False
+        self.timefmt = "%H:%M"
+        self.dayfirst = False
+        self.yearfirst = True
+        self.datefmt = "%Y-%m-%d"
+        if self.env:
+            self.ampm = self.env.config.ui.ampm
+            self.timefmt = "%-I:%M%p" if self.ampm else "%H:%M"
+            self.dayfirst = self.env.config.ui.dayfirst
+            self.yearfirst = self.env.config.ui.yearfirst
+            self.history_weight = self.env.config.ui.history_weight
+            _yr = "%Y"
+            _dm = "%d-%m" if self.dayfirst else "%m-%d"
+            self.datefmt = f"{_yr}-{_dm}" if self.yearfirst else f"{_dm}-{_yr}"
+        self.datetimefmt = f"{self.datefmt} {self.timefmt}"
+
+    def fmt_user(self, dt: date | datetime) -> str:
+        """
+        User friendly formatting for dates and datetimes using env settings
+        for ampm, yearfirst, dayfirst and two_digit year.
+        """
+        # Simple user-facing formatter; tweak to match your prefs
+        if isinstance(dt, datetime):
+            d = dt
+            if d.tzinfo == tz.UTC and not getattr(self, "final", False):
+                d = d.astimezone()
+            return d.strftime(self.datetimefmt)
+        if isinstance(dt, date):
+            return dt.strftime(self.datefmt)
+        raise ValueError(f"Error: {dt} must either be a date or datetime")
 
     @property
     def root_id(self) -> int:
@@ -817,6 +849,607 @@ class Controller:
             self.db_manager.add_completion(record_id, completion)
 
         return record_id
+
+    # def apply_textual_edit(
+    #     self,
+    #     record_id: int,
+    #     job_id: int | None,
+    #     edit_fn: callable,
+    # ) -> bool:
+    #     """
+    #     Load the current entry text for (record_id, job_id), apply a pure text
+    #     edit (edit_fn), then reparse/finalize/save it exactly like EditorScreen
+    #     does on successful Ctrl-S.
+    #
+    #     Returns:
+    #         True if the change was successfully saved, False on parse failure.
+    #     """
+    #     # 1. Fetch the text the same way EditorScreen does
+    #     seed_text = self.get_entry_from_record(record_id)
+    #     if seed_text is None:
+    #         return False
+    #
+    #     # 2. Apply user's transformation
+    #     new_text = edit_fn(seed_text)
+    #
+    #     # 3. Run the Item finalize pipeline
+    #     from tklr.item import Item
+    #
+    #     item = Item(new_text, controller=self)
+    #     item.final = True
+    #     item.parse_input(new_text)
+    #     item.finalize_record()
+    #
+    #     if not item.parse_ok:
+    #         # You may prefer raising or notifying the UI here.
+    #         log_msg(f"❌ apply_textual_edit failed for {record_id}: {item.messages}")
+    #         return False
+    #
+    #     # 4. Save
+    #     self.db_manager.save_record(item, record_id=record_id)
+    #     log_msg(f"✔ apply_textual_edit saved record {record_id}")
+    #     return True
+
+    def apply_textual_edit(
+        self,
+        record_id: int,
+        edit_fn: Callable[[str], str],
+    ) -> bool:
+        """
+        Load the entry text for record_id, apply edit_fn(text) -> new_text,
+        reparse/finalize, and save back to the same record.
+
+        Returns True on success, False if parsing/finalizing fails.
+        """
+        # 1) Get current entry text for the whole record
+        raw = self.get_entry_from_record(record_id)
+        if not raw:
+            return False
+
+        new_raw = edit_fn(raw)
+        if not new_raw or new_raw.strip() == raw.strip():
+            # Nothing changed; treat as no-op
+            return False
+
+        from tklr.item import Item  # or your actual import
+
+        # 2) Parse as a final Item
+        item = Item(new_raw, controller=self)
+        item.final = True
+        item.parse_input(new_raw)
+
+        if not getattr(item, "parse_ok", False):
+            # You might want a log_msg here
+            return False
+
+        # 3) Finalize (jobs, rrules, etc.)
+        item.finalize_record()
+
+        if not getattr(item, "parse_ok", False):
+            return False
+
+        # 4) Save back into the same record (and regen DateTimes, Alerts, etc.)
+        self.db_manager.save_record(item, record_id=record_id)
+        return True
+
+    def _instance_to_rdate_key(self, instance) -> str:
+        """
+        Convert an instance (string or datetime) into the canonical UTC-Z key
+        used in @+ / @- tokens and RDATE/EXDATE, e.g. '20251119T133000Z'.
+        """
+        # If you already have a datetime, use it; otherwise parse your TEXT form.
+        if isinstance(instance, datetime):
+            dt = instance
+        else:
+            # Your existing helper that knows how to parse DateTimes table TEXT
+            dt = parse(instance)
+
+        # Make sure it’s timezone-aware; assume local zone if naive.
+        if dt.tzinfo is None:
+            dt = dt.astimezone()
+
+        # dt_utc = dt.astimezone(tz.UTC)
+        # return dt_utc.strftime("%Y%m%dT%H%MZ")
+        return fmt_utc_z(dt)
+
+    def apply_token_edit(
+        self,
+        record_id: int,
+        edit_tokens_fn: Callable[[list[dict]], bool],
+    ) -> bool:
+        """
+        Load tokens from Records.tokens for `record_id`, let `edit_tokens_fn`
+        mutate them in place, then rebuild the entry string, re-parse/finalize
+        via Item, and save back to the same record.
+
+        Returns True if a change was applied and saved, False otherwise.
+        """
+        rec = self.db_manager.get_record_as_dictionary(record_id)
+        if not rec:
+            return False
+
+        tokens_json = rec.get("tokens") or "[]"
+        try:
+            tokens: list[dict] = json.loads(tokens_json)
+        except Exception as e:
+            log_msg(f"apply_token_edit: bad tokens JSON for {record_id=}: {e}")
+            return False
+
+        # Let the caller mutate `tokens`; it should return True iff something changed.
+        changed = edit_tokens_fn(tokens)
+        if not changed:
+            return False
+
+        # Rebuild entry text from tokens.
+        entry = " ".join(t.get("token", "").strip() for t in tokens if t.get("token"))
+        if not entry.strip():
+            # Don’t blow away the record with an empty line by accident.
+            return False
+
+        # Re-parse + finalize using Item so rruleset / jobs / flags / etc. stay consistent.
+        item = Item(entry, controller=self)
+        item.final = True
+        item.parse_input(entry)
+        if not getattr(item, "parse_ok", False):
+            log_msg(f"apply_token_edit: parse failed for {record_id=}")
+            return False
+
+        item.finalize_record()
+        if not getattr(item, "parse_ok", False):
+            log_msg(f"apply_token_edit: finalize failed for {record_id=}")
+            return False
+
+        # This will also rebuild the tokens column from the new Item state.
+        self.db_manager.save_record(item, record_id=record_id)
+        return True
+
+    def _dt_local_naive(self, dt: datetime) -> datetime:
+        """Ensure a local-naive datetime for comparison."""
+        if dt.tzinfo is None:
+            return dt
+        return dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
+
+    def _instance_local_from_text(self, text: str) -> datetime:
+        """
+        Convert a DateTimes TEXT (like 'YYYYMMDD', 'YYYYMMDDTHHMMSS', etc.)
+        into a local-naive datetime using your existing parse helper.
+        """
+        dt = parse(text)  # you already have this
+        return self._dt_local_naive(dt)
+
+    def _is_s_plus_no_r(self, tokens: list[dict]) -> bool:
+        has_s = any(t.get("t") == "@" and t.get("k") == "s" for t in tokens)
+        has_plus = any(t.get("t") == "@" and t.get("k") == "+" for t in tokens)
+        has_r = any(t.get("t") == "@" and t.get("k") == "r" for t in tokens)
+        return has_s and has_plus and not has_r
+
+    def _adjust_s_plus_from_rruleset(
+        self,
+        tokens: list[dict],
+        rruleset: str,
+        instance_text: str,
+        mode: str,  # "one" or "this_and_future"
+    ) -> bool:
+        """
+        Special-case handler for the pattern: @s + @+ but no @r.
+
+        - rruleset: the record's rruleset string (RDATE-only in this pattern)
+        - instance_text: the DateTimes.start_datetime TEXT of the chosen instance
+        - mode:
+            "one"             -> delete just this instance
+            "this_and_future" -> delete this and all subsequent instances
+
+        Returns True if tokens were modified.
+        """
+        if not rruleset:
+            return False
+
+        try:
+            rule = rrulestr(rruleset)
+        except Exception:
+            return False
+
+        occs = list(rule)
+        if not occs:
+            return False
+
+        # Canonical local-naive for all instances
+        from dateutil import tz
+
+        def to_local_naive(dt: datetime) -> datetime:
+            if dt.tzinfo is None:
+                return dt
+            return dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
+
+        instances_local = [to_local_naive(d) for d in occs]
+
+        inst_local = self._instance_local_from_text(instance_text)
+
+        if mode == "one":
+            survivors = [d for d in instances_local if d != inst_local]
+        elif mode == "this_and_future":
+            survivors = [d for d in instances_local if d < inst_local]
+        else:
+            return False
+
+        # If nothing left, clear @s/@+ schedule from tokens
+        if not survivors:
+            tokens[:] = [
+                t
+                for t in tokens
+                if not (t.get("t") == "@" and t.get("k") in {"s", "+"})
+            ]
+            return True
+
+        survivors.sort()
+        new_s = survivors[0]
+        plus_list = survivors[1:]
+
+        # Drop existing @s/@+ tokens
+        base = [
+            t for t in tokens if not (t.get("t") == "@" and t.get("k") in {"s", "+"})
+        ]
+
+        # New @s
+        base.append(
+            {
+                "token": f"@s {self.fmt_user(new_s)}",
+                "t": "@",
+                "k": "s",
+            }
+        )
+
+        # New @+ if extras exist
+        if plus_list:
+            plus_str = ", ".join(self.fmt_user(d) for d in plus_list)
+            base.append(
+                {
+                    "token": f"@+ {plus_str}",
+                    "t": "@",
+                    "k": "+",
+                }
+            )
+
+        tokens[:] = base
+        return True
+
+    def _instance_to_rdate_key(self, instance_text: str) -> str:
+        """
+        Normalize a DateTimes TEXT value into the key format used in RDATE/EXDATE.
+
+        - Date-only -> 'YYYYMMDD'
+        - Datetime  -> 'YYYYMMDDTHHMM'  (local-naive, no 'Z')
+        """
+        s = (instance_text or "").strip()
+        if not s:
+            raise ValueError("empty instance_text")
+
+        # Fast path: already compact date-only 'YYYYMMDD'
+        if len(s) == 8 and s.isdigit():
+            return s
+
+        # Use your custom parse() helper (respects yearfirst/dayfirst)
+        dt = parse(s)  # from your helpers module
+
+        if isinstance(dt, date) and not isinstance(dt, datetime):
+            # Pure date -> 'YYYYMMDD'
+            return dt.strftime("%Y%m%d")
+
+        if isinstance(dt, datetime):
+            # Drop seconds if present, match your RDATE minute granularity
+            return dt.strftime("%Y%m%dT%H%M")
+
+        # Fallback (shouldn't normally happen)
+        raise ValueError(f"Cannot normalize instance_text {instance_text!r}")
+
+    def _remove_instance_from_plus_tokens(
+        self, tokens: list[dict], instance_text: str
+    ) -> bool:
+        """
+        Remove the given instance from any @+ tokens by matching the UTC-Z key.
+        Returns True if something was removed.
+        """
+        target = self._instance_to_rdate_key(instance_text)
+
+        removed = False
+        new_tokens: list[dict] = []
+
+        for tok in tokens:
+            if tok.get("t") == "@" and tok.get("k") == "+":
+                raw = tok.get("token", "")
+                body = raw[2:].strip() if raw.startswith("@+") else raw.strip()
+                parts = [p.strip() for p in body.split(",") if p.strip()]
+                if not parts:
+                    continue
+
+                filtered = [p for p in parts if p != target]
+                if len(filtered) != len(parts):
+                    removed = True
+
+                if filtered:
+                    new_tok = dict(tok)
+                    new_tok["token"] = "@+ " + ", ".join(filtered)
+                    new_tokens.append(new_tok)
+                else:
+                    # @+ now empty → drop the token entirely
+                    continue
+            else:
+                new_tokens.append(tok)
+
+        tokens[:] = new_tokens
+        return removed
+
+    # def finish_task(self, record_id: int, job_id: int | None, when: datetime) -> bool:
+    #     stamp = self.fmt_user(when)
+    #
+    #     if job_id is None:
+    #         # Simple case — whole task
+    #         def edit(text: str) -> str:
+    #             return text.rstrip() + f" @f {stamp}"
+    #     else:
+    #         # Add &f to the specific job spec
+    #         def edit(text: str) -> str:
+    #             return self._add_finish_to_job(text, job_id, stamp)
+    #
+    #     return self.apply_textual_edit(record_id, edit)
+
+    # def finish_task(self, record_id: int, job_id: int | None, when: datetime) -> bool:
+    #     """
+    #     Mark a task (or a specific job) as finished at `when`.
+    #
+    #     - For a project job (job_id is not None): add an &f to that job spec.
+    #     - For a non-repeating task: just append `@f <when>`.
+    #     - For a repeating task with no job_id:
+    #         * Find the *next* scheduled instance (the first upcoming one),
+    #         * Remove that instance from the recurrence (like delete_instance),
+    #         * Then append `@f <when>` to the reminder text.
+    #     """
+    #     stamp = self.fmt_user(when)
+    #
+    #     # ---- Case 1: project job ----
+    #     if job_id is not None:
+    #
+    #         def edit_job(text: str) -> str:
+    #             # your existing helper that injects &f into the right job
+    #             return self._add_finish_to_job(text, job_id, stamp)
+    #
+    #         return self.apply_textual_edit(record_id, edit_job)
+    #
+    #     # ---- Case 2: plain task (no job_id) ----
+    #     rec = self.db_manager.get_record_as_dictionary(record_id)
+    #     if not rec:
+    #         return False
+    #
+    #     rruleset = (rec.get("rruleset") or "").strip()
+    #
+    #     # Heuristic: treat as repeating if it has an RRULE or an RDATE block
+    #     is_repeating = bool(rruleset) and (
+    #         "RRULE" in rruleset or rruleset.startswith("RDATE:")
+    #     )
+    #
+    #     if is_repeating:
+    #         # 1) Find the *next* instance from DateTimes
+    #         #    (this is your "first" = earliest upcoming occurrence)
+    #         upcoming = self.db_manager.get_next_start_datetimes_for_record(record_id)
+    #         if upcoming:
+    #             instance_text = upcoming[0]  # e.g. "20251119T0740" or "20251119"
+    #             # 2) Use your existing instance-delete helper to consume that one
+    #             #    We don't care about job_id here, so pass None.
+    #             self.delete_instance(record_id, instance_text)
+    #
+    #     # 3) In all non-job cases, append @f <finished-when> to the entry
+    #     def edit_task(text: str) -> str:
+    #         return text.rstrip() + f" @f {stamp}"
+    #
+    #     return self.apply_textual_edit(record_id, edit_task)
+
+    def finish_task(self, record_id: int, job_id: int | None, when: datetime) -> bool:
+        """
+        Mark a task (or job) as finished at `when`.
+
+        Semantics:
+        - Job (job_id not None):
+            add &f <stamp> to that job spec (unchanged from before).
+        - Plain task (no job_id):
+            look at upcoming instances from DateTimes:
+
+            * 0 upcoming:
+                - no schedule → just append @f <stamp>.
+            * 1 upcoming:
+                - consume that last instance (like delete_instance),
+                  then append @f <stamp> to mark the reminder finished.
+            * 2+ upcoming:
+                - consume only the *next* instance (like delete_instance),
+                  and DO NOT add @f yet (reminder still has future instances).
+        """
+        stamp = self.fmt_user(when)
+
+        # ---- Case 1: project job ----
+        if job_id is not None:
+
+            def edit_job(text: str) -> str:
+                # your existing helper that injects &f into the given job
+                return self._add_finish_to_job(text, job_id, stamp)
+
+            return self.apply_textual_edit(record_id, edit_job)
+
+        # ---- Case 2: plain task (no job_id) ----
+        upcoming = self.db_manager.get_next_start_datetimes_for_record(record_id) or []
+
+        # 0 upcoming instances: no schedule -> simple one-shot finish
+        if not upcoming:
+
+            def edit_no_schedule(text: str) -> str:
+                return text.rstrip() + f" @f {stamp}"
+
+            return self.apply_textual_edit(record_id, edit_no_schedule)
+
+        # 1 upcoming instance: finishing this consumes the last instance AND the reminder
+        if len(upcoming) == 1:
+            instance_text = upcoming[0]
+
+            # consume that final instance (RDATE/@s/@+ housekeeping)
+            self.delete_instance(record_id, instance_text)
+
+            # now mark the reminder as finished with @f
+            def edit_last(text: str) -> str:
+                return text.rstrip() + f" @f {stamp}"
+
+            return self.apply_textual_edit(record_id, edit_last)
+
+        # 2+ upcoming instances: repeating → consume ONLY the next instance
+        instance_text = upcoming[0]
+        return self.delete_instance(record_id, instance_text)
+
+    def schedule_new(self, record_id: int, job_id: int | None, when: datetime) -> bool:
+        stamp = self.fmt_user(when)
+
+        def edit(text: str) -> str:
+            return text.rstrip() + f" @+ {stamp}"
+
+        return self.apply_textual_edit(record_id, edit)
+
+    def reschedule_instance(
+        self,
+        record_id: int,
+        old_instance_text: str,
+        new_when: datetime,
+    ) -> bool:
+        new_stamp = self.fmt_user(new_when)
+
+        def edit(text: str) -> str:
+            # Add @- old_instance and @+ new_instance
+            return text.rstrip() + f" @- {old_instance_text} @+ {new_stamp}"
+
+        return self.apply_textual_edit(record_id, edit)
+
+    def delete_instance(
+        self,
+        record_id: int,
+        instance_text: str,
+    ) -> bool:
+        """
+        For a single instance:
+
+        Special case:
+        - If the record uses @s + @+ with no @r, we:
+            * Compute the full instance list from rruleset.
+            * Drop just this instance.
+            * Rebuild @s and @+ from the survivors.
+
+        General case:
+        - If the instance appears in an @+ list, remove it from that list.
+        - Otherwise, append an @- <instance_text> exclusion token (in entry format).
+        """
+
+        rec = self.db_manager.get_record_as_dictionary(record_id)
+        if not rec:
+            return False
+
+        rruleset = rec.get("rruleset") or ""
+
+        def edit_tokens(tokens: list[dict]) -> bool:
+            # 1) Special case: @s + @+ but no @r
+            if self._is_s_plus_no_r(tokens) and rruleset:
+                changed = self._adjust_s_plus_from_rruleset(
+                    tokens,
+                    rruleset=rruleset,
+                    instance_text=instance_text,
+                    mode="one",
+                )
+                if changed:
+                    return True
+                # fall through to general path if nothing changed for some reason
+
+            changed = False
+
+            # 2) General path: try to remove from @+ using UTC-Z
+            removed = self._remove_instance_from_plus_tokens(tokens, instance_text)
+            changed = changed or removed
+
+            # 3) If not present in @+, fall back to @- <entry-style-datetime>
+            if not removed:
+                inst_dt = parse(instance_text)
+                entry_style = self.fmt_user(inst_dt)
+                tokens.append(
+                    {
+                        "token": f"@- {entry_style}",
+                        "t": "@",
+                        "k": "-",
+                    }
+                )
+                changed = True
+
+            return changed
+
+        return self.apply_token_edit(record_id, edit_tokens)
+
+    def delete_this_and_future(
+        self,
+        record_id: int,
+        instance_text: str,
+    ) -> bool:
+        """
+        instance_text is the TEXT of the selected instance's start_datetime.
+
+        Special case (@s + @+ with no @r):
+        - Use rruleset to get the full instance list.
+        - Remove this instance and all subsequent ones.
+        - Rebuild @s and @+ from survivors (or clear schedule if none).
+
+        General case:
+        - Remove this instance from @+ if present.
+        - Append &u <cutoff_stamp> where cutoff_stamp is (instance_dt - 1s)
+            in entry format.
+        """
+
+        rec = self.db_manager.get_record_as_dictionary(record_id)
+        if not rec:
+            return False
+
+        rruleset = rec.get("rruleset") or ""
+
+        inst_dt = parse(instance_text)
+        cutoff = inst_dt - timedelta(seconds=1)
+        cutoff_stamp = self.fmt_user(cutoff)
+
+        def edit_tokens(tokens: list[dict]) -> bool:
+            # 1) Special case: @s + @+ but no @r
+            if self._is_s_plus_no_r(tokens) and rruleset:
+                changed = self._adjust_s_plus_from_rruleset(
+                    tokens,
+                    rruleset=rruleset,
+                    instance_text=instance_text,
+                    mode="this_and_future",
+                )
+                if changed:
+                    return True
+                # fall through to general path if nothing changed
+
+            changed = False
+
+            # 2) General path: clean explicit @+ for this instance (UTC-Z)
+            removed = self._remove_instance_from_plus_tokens(tokens, instance_text)
+            changed = changed or removed
+
+            # 3) Always append &u cutoff for this-and-future semantics
+            tokens.append(
+                {
+                    "token": f"&u {cutoff_stamp}",
+                    "t": "&",
+                    "k": "u",
+                }
+            )
+            changed = True
+
+            return changed
+
+        return self.apply_token_edit(record_id, edit_tokens)
+
+    def delete_record(self, record_id: int) -> None:
+        # For jobs you may eventually allow “delete just this job”
+        # but right now delete whole reminder:
+        self.db_manager.delete_item(record_id)
 
     def apply_anniversary_if_needed(
         self, record_id: int, subject: str, instance: datetime
@@ -1227,7 +1860,7 @@ class Controller:
         start_width = 7 if self.AMPM else 6
         alert_width = trigger_width + 3
         name_width = width - 35
-        header = f"[bold][dim]{'tag':^3}[/dim] {'alert':^{alert_width}}   {'@s':^{start_width}}    {'subject':<{name_width}}[/bold]"
+        header = f"[bold][dim]{'tag':^3}[/dim] {'alert':^{alert_width}}   {'for':^{start_width}}    {'subject':<{name_width}}[/bold]"
 
         rows = []
         log_msg(f"processing {len(alerts)} alerts")

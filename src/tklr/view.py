@@ -33,6 +33,7 @@ from textual.widgets import Label
 from textual.widgets import Markdown, Static, Footer, Button, Header, Tree
 from textual.widgets import Placeholder
 from textual.widgets import TextArea
+from textual.widgets import OptionList
 from textual import on
 import string
 import shutil
@@ -63,6 +64,7 @@ import json
 from .shared import (
     TYPE_TO_COLOR,
 )
+
 
 tklr_version = get_version()
 
@@ -600,6 +602,300 @@ class HelpModal(ModalScreen[None]):
         self.app.pop_screen()
 
 
+# class ChoicePrompt(ModalScreen[str | None]):
+#     """
+#     Simple multi-choice prompt.
+#
+#     Shows a message + numbered options, user types 1/2/3... and presses Enter.
+#     Returns the chosen *value* (from choices list), or None on ESC/invalid.
+#     """
+#
+#     def __init__(self, message: str, choices: list[str]):
+#         super().__init__()
+#         self.title_text = " Choose an option"
+#         self.message = message.strip()
+#         self.choices = choices
+#         self.input: Input | None = None
+#         self.feedback: Static | None = None
+#         self.instructions: Static | None = None
+#
+#     def compose(self) -> "ComposeResult":
+#         from rich.text import Text  # if you like; or just use strings
+#
+#         with Vertical(id="choice_prompt"):
+#             self.instructions = Static(
+#                 "Type the number of your choice, then press "
+#                 "[bold yellow]ENTER[/bold yellow]. "
+#                 "Press [bold yellow]ESC[/bold yellow] to cancel.",
+#                 id="choice_instructions",
+#             )
+#
+#             # Build a numbered list of options
+#             lines = []
+#             for i, choice in enumerate(self.choices, start=1):
+#                 lines.append(f"{i}) {choice}")
+#             choices_text = "\n".join(lines)
+#
+#             self.feedback = Static("", id="choice_feedback")
+#             self.input = Input(id="choice_entry")
+#
+#             yield Static(self.title_text, classes="title-class", id="choice_title")
+#
+#             if self.message:
+#                 yield Static(self.message.strip(), id="choice_message")
+#
+#             yield self.instructions
+#             yield Static(choices_text, id="choice_options")
+#             yield self.input
+#             yield self.feedback
+#
+#     def on_mount(self) -> None:
+#         self.query_one("#choice_entry", Input).focus()
+#         self.feedback.update("")
+#
+#     def on_key(self, event) -> None:
+#         if event.key == "escape":
+#             self.dismiss(None)
+#         elif event.key == "enter":
+#             value = (self.input.value or "").strip()
+#             try:
+#                 idx = int(value)
+#             except ValueError:
+#                 self.feedback.update("[red]Invalid choice[/red]")
+#                 return
+#
+#             if 1 <= idx <= len(self.choices):
+#                 self.dismiss(self.choices[idx - 1])
+#             else:
+#                 self.feedback.update("[red]Invalid choice[/red]")
+
+
+class OptionPrompt(ModalScreen[Optional[str]]):
+    """
+    Modal screen offering a message + choice list using OptionList.
+
+    Returns the chosen option label (string) or None on cancel (ESC).
+    """
+
+    def __init__(self, message: str, options: List[str]):
+        super().__init__()
+        self.message = message.strip()
+        self.options = options
+        self._olist: OptionList | None = None
+
+    def compose(self):
+        with Vertical(id="option_prompt"):
+            yield Static(" Select an option ", classes="title-class", id="option_title")
+
+            if self.message:
+                yield Static(self.message, id="option_message")
+
+            yield Static(
+                "Use ↑/↓ to move, [bold yellow]Enter[/bold yellow] to select, "
+                "[bold yellow]ESC[/bold yellow] to cancel.",
+                id="option_instructions",
+            )
+
+            self._olist = OptionList(*self.options, id="option_list")
+            yield self._olist
+
+    def on_mount(self) -> None:
+        # Make sure the list actually has focus
+        self._olist = self.query_one("#option_list", OptionList)
+        self._olist.focus()
+
+    @on(OptionList.OptionSelected)
+    def _on_option_selected(self, event: OptionList.OptionSelected) -> None:
+        """Called when the user hits Enter on an option."""
+        # event.option.prompt is the label we passed in
+        label = str(event.option.prompt)
+        # You can log here to prove it fires:
+        log_msg(f"OptionPrompt: selected {label!r}")
+        self.dismiss(label)
+        event.stop()
+
+    def on_key(self, event: events.Key) -> None:
+        """Only handle ESC here; OptionList handles Enter itself."""
+        if event.key == "escape":
+            event.stop()
+            self.dismiss(None)
+
+
+class ChoicePrompt(ModalScreen[Optional[str]]):
+    """
+    Simple multi-choice prompt.
+
+    Shows a message + numbered options.
+    User presses 1/2/3... to select, or ESC to cancel.
+
+    Returns the chosen *string* from `choices`, or None.
+    """
+
+    def __init__(self, message: str, choices: List[str]):
+        super().__init__()
+        self.title_text = " Choose an option"
+        self.message = message.strip()
+        self.choices = choices
+
+    def compose(self) -> "ComposeResult":
+        with Vertical(id="choice_prompt"):
+            yield Static(self.title_text, classes="title-class", id="choice_title")
+
+            if self.message:
+                yield Static(self.message, id="choice_message")
+
+            # Build numbered list of options
+            lines = []
+            for i, choice in enumerate(self.choices, start=1):
+                lines.append(f"{i}) {choice}")
+            choices_text = "\n".join(lines)
+
+            yield Static(
+                "Press the number of your choice, or ESC to cancel.",
+                id="choice_instructions",
+            )
+            # yield Static(choices_text, id="choice_options")
+
+    def on_key(self, event) -> None:
+        key = event.key
+
+        if key == "escape":
+            self.dismiss(None)
+            return
+
+        # Numeric keys '1', '2', ... map directly to choices
+        if key.isdigit():
+            idx = int(key)
+            if 1 <= idx <= len(self.choices):
+                self.dismiss(self.choices[idx - 1])
+
+
+class ConfirmPrompt(ModalScreen[Optional[bool]]):
+    """
+    Simple yes/no/escape confirm dialog.
+
+    Returns:
+        True  -> user confirmed ("yes")
+        False -> user explicitly said "no"
+        None  -> user cancelled with ESC
+    """
+
+    def __init__(self, message: str):
+        super().__init__()
+        self.title_text = " Confirm"
+        self.message = message.strip()
+
+    def compose(self) -> "ComposeResult":
+        with Vertical(id="confirm_prompt"):
+            yield Static(self.title_text, classes="title-class", id="confirm_title")
+
+            if self.message:
+                yield Static(self.message, id="confirm_message")
+
+            yield Static(
+                "Press [bold yellow]Y[/bold yellow] for yes, "
+                "[bold yellow]N[/bold yellow] for no, or [bold yellow]ESC[/bold yellow] to cancel.",
+                id="confirm_instructions",
+            )
+
+    def on_key(self, event) -> None:
+        key = event.key.lower()
+
+        if key == "escape":
+            self.dismiss(None)
+        elif key == "y":
+            self.dismiss(True)
+        elif key == "n":
+            self.dismiss(False)
+
+
+# class DatetimePrompt(ModalScreen[datetime | None]):
+#     """
+#     Prompt for a datetime, live-parsed with dateutil.parser.parse.
+#     """
+#
+#     def __init__(
+#         self,
+#         message: str,  # top custom lines before fixed footer
+#         subject: str | None = None,
+#         due: str | None = None,
+#         default: datetime | None = None,
+#     ):
+#         super().__init__()
+#         self.title_text = " Datetime Entry"
+#         self.message = message.strip()
+#         # self.subject = subject
+#         # self.due = due
+#         self.default = default or datetime.now()
+#
+#         # assigned later
+#         self.input: Input | None = None
+#         self.feedback: Static | None = None
+#         self.instructions: Static | None = None
+#
+#     def compose(self) -> ComposeResult:
+#         """Build prompt layout."""
+#         # ARROW = "↳"
+#         default_str = self.default.strftime("%Y-%m-%d %H:%M")
+#
+#         def rule():
+#             return Static("─" * 60, classes="dim-rule")
+#
+#         with Vertical(id="dt_prompt"):
+#             instructions = [
+#                 "Modify the datetime belew if necessary, then press",
+#                 "[bold yellow]ENTER[/bold yellow] to submit or [bold yellow]ESC[/bold yellow] to cancel.",
+#             ]
+#             self.instructions = Static("\n".join(instructions), id="dt_instructions")
+#             self.feedback = Static(f"️↳ {default_str}", id="dt_feedback")
+#             self.input = Input(value=default_str, id="dt_entry")
+#             #
+#             # Title
+#             yield Static(self.title_text, classes="title-class", id="dt_title")
+#             # yield rule()
+#
+#             # Message (custom, may include subject/due or other contextual info)
+#             if self.message:
+#                 yield Static(self.message.strip(), id="dt_message")
+#                 # yield rule()
+#
+#             yield self.instructions
+#
+#             yield self.input
+#
+#             yield self.feedback
+#
+#             # yield rule()
+#
+#     def on_mount(self) -> None:
+#         """Focus the input and show feedback for the initial value."""
+#         self.query_one("#dt_entry", Input).focus()
+#         self._update_feedback(self.input.value)
+#
+#     def _update_feedback(self, text: str) -> None:
+#         try:
+#             parsed = parse(text)
+#             if isinstance(parsed, date) and not isinstance(parsed, datetime):
+#                 self.feedback.update(f"datetime: {parsed.strftime('%Y-%m-%d')}")
+#             else:
+#                 self.feedback.update(f"datetime: {parsed.strftime('%Y-%m-%d %H:%M')}")
+#         except Exception:
+#             _t = f": {text} " if text else ""
+#             self.feedback.update(f"[{ORANGE_RED}] invalid{_t}[/{ORANGE_RED}] ")
+#
+#     def on_key(self, event) -> None:
+#         """Handle Enter and Escape."""
+#         if event.key == "escape":
+#             self.dismiss(None)
+#         elif event.key == "enter":
+#             try:
+#                 value = self.input.value.strip()
+#                 parsed = parse(value) if value else self.default
+#                 self.dismiss(parsed)
+#             except Exception:
+#                 self.dismiss(None)
+
+
 class DatetimePrompt(ModalScreen[datetime | None]):
     """
     Prompt for a datetime, live-parsed with dateutil.parser.parse.
@@ -607,7 +903,7 @@ class DatetimePrompt(ModalScreen[datetime | None]):
 
     def __init__(
         self,
-        message: str,  # top custom lines before fixed footer
+        message: str,
         subject: str | None = None,
         due: str | None = None,
         default: datetime | None = None,
@@ -615,57 +911,37 @@ class DatetimePrompt(ModalScreen[datetime | None]):
         super().__init__()
         self.title_text = " Datetime Entry"
         self.message = message.strip()
-        # self.subject = subject
-        # self.due = due
         self.default = default or datetime.now()
 
-        # assigned later
         self.input: Input | None = None
         self.feedback: Static | None = None
         self.instructions: Static | None = None
 
     def compose(self) -> ComposeResult:
-        """Build prompt layout."""
-        # ARROW = "↳"
         default_str = self.default.strftime("%Y-%m-%d %H:%M")
-
-        def rule():
-            return Static("─" * 60, classes="dim-rule")
 
         with Vertical(id="dt_prompt"):
             instructions = [
-                "Modify the datetime belew if necessary, then press",
+                "Modify the datetime below if necessary, then press",
                 "[bold yellow]ENTER[/bold yellow] to submit or [bold yellow]ESC[/bold yellow] to cancel.",
             ]
             self.instructions = Static("\n".join(instructions), id="dt_instructions")
             self.feedback = Static(f"️↳ {default_str}", id="dt_feedback")
             self.input = Input(value=default_str, id="dt_entry")
-            #
-            # Title
-            yield Static(self.title_text, classes="title-class", id="dt_title")
-            # yield rule()
 
-            # Message (custom, may include subject/due or other contextual info)
+            yield Static(self.title_text, classes="title-class", id="dt_title")
+
             if self.message:
                 yield Static(self.message.strip(), id="dt_message")
-                # yield rule()
 
             yield self.instructions
-
             yield self.input
-
             yield self.feedback
-
-            # yield rule()
 
     def on_mount(self) -> None:
         """Focus the input and show feedback for the initial value."""
         self.query_one("#dt_entry", Input).focus()
         self._update_feedback(self.input.value)
-
-    # def on_input_changed(self, event: Input.Changed) -> None:
-    #     """Live update feedback as user types."""
-    #     self._update_feedback(event.value)
 
     def _update_feedback(self, text: str) -> None:
         try:
@@ -678,10 +954,29 @@ class DatetimePrompt(ModalScreen[datetime | None]):
             _t = f": {text} " if text else ""
             self.feedback.update(f"[{ORANGE_RED}] invalid{_t}[/{ORANGE_RED}] ")
 
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Live-parse as the user types."""
+        if event.input.id == "dt_entry":
+            self._update_feedback(event.value)
+
+    # def on_key(self, event) -> None:
+    #     """Handle Enter and Escape."""
+    #     if event.key == "escape":
+    #         self.dismiss(None)
+    #     elif event.key == "enter":
+    #         try:
+    #             value = self.input.value.strip()
+    #             parsed = parse(value) if value else self.default
+    #             log_msg(f"returning {parsed =} from submitted {value = }")
+    #             self.dismiss(parsed)
+    #         except Exception:
+    #             self.dismiss(None)
+
     def on_key(self, event) -> None:
         """Handle Enter and Escape."""
         if event.key == "escape":
             self.dismiss(None)
+            event.stop()
         elif event.key == "enter":
             try:
                 value = self.input.value.strip()
@@ -689,6 +984,8 @@ class DatetimePrompt(ModalScreen[datetime | None]):
                 self.dismiss(parsed)
             except Exception:
                 self.dismiss(None)
+            finally:
+                event.stop()
 
 
 ORANGE_RED = "red3"
@@ -1030,20 +1327,20 @@ class EditorScreen(Screen):
 
 
 class DetailsScreen(ModalScreen[None]):
-    BINDINGS = [
-        ("escape", "close", "Back"),
-        ("?", "show_help", "Help"),
-        ("ctrl+q", "quit", "Quit"),
-        ("alt+e", "edit_item", "Edit"),
-        ("alt+c", "copy_item", "Copy"),
-        ("alt+d", "delete_item", "Delete"),
-        ("alt+f", "finish_task", "Finish"),  # tasks only
-        ("alt+p", "toggle_pinned", "Pin/Unpin"),  # tasks only
-        ("alt+n", "schedule_new", "Schedule"),
-        ("alt+r", "reschedule", "Reschedule"),
-        ("alt+t", "touch_item", "Touch"),
-        ("ctrl+r", "show_repetitions", "Show Repetitions"),
-    ]
+    # BINDINGS = [
+    #     ("escape", "close", "Back"),
+    #     ("?", "show_help", "Help"),
+    #     ("ctrl+q", "quit", "Quit"),
+    #     ("alt+e", "edit_item", "Edit"),
+    #     ("alt+c", "copy_item", "Copy"),
+    #     ("alt+d", "delete_item", "Delete"),
+    #     ("alt+f", "finish_task", "Finish"),  # tasks only
+    #     ("alt+p", "toggle_pinned", "Pin/Unpin"),  # tasks only
+    #     ("alt+n", "schedule_new", "Schedule"),
+    #     ("alt+r", "reschedule", "Reschedule"),
+    #     ("alt+t", "touch_item", "Touch"),
+    #     ("ctrl+r", "show_repetitions", "Show Repetitions"),
+    # ]
 
     # Actions mapped to bindings
     def action_edit_item(self) -> None:
@@ -2366,6 +2663,7 @@ class DynamicViewApp(App):
 
     def _screen_show_details(self, title: str, lines: list[str]) -> None:
         screen = self.screen
+        log_msg("showing details")
         if hasattr(screen, "show_details"):
             # DetailsPaneMixin: show inline at bottom
             screen.show_details(title, lines)
@@ -2374,97 +2672,475 @@ class DynamicViewApp(App):
 
             self.push_screen(DetailsScreen([title] + lines))
 
+    # def make_detail_key_handler(self, *, view_name: str, week_provider=None):
+    #     ctrl = self.controller
+    #     app = self
+    #
+    #     async def handler(key: str, meta: dict) -> None:  # chord-aware
+    #         log_msg(f"in handler with {key = }, {meta = }")
+    #         record_id = meta.get("record_id")
+    #         job_id = meta.get("job_id")
+    #         first = meta.get("first")
+    #         second = meta.get("second")
+    #         itemtype = meta.get("itemtype")
+    #         subject = meta.get("subject")
+    #
+    #         if not record_id:
+    #             return
+    #
+    #         # chord-based actions
+    #         if key == "comma,f" and itemtype in "~^":
+    #             log_msg(f"{record_id = }, {job_id = }, {first = }")
+    #             job = f" {job_id}" if job_id else ""
+    #             id = f"({record_id}{job})"
+    #             due = (
+    #                 f"\nDue: [{LIGHT_SKY_BLUE}]{fmt_user(first)}[/{LIGHT_SKY_BLUE}]"
+    #                 if first
+    #                 else ""
+    #             )
+    #             msg = f"Finished datetime\nFor: [{LIGHT_SKY_BLUE}]{subject} {id}[/{LIGHT_SKY_BLUE}]{due}"
+    #
+    #             dt = await app.prompt_datetime(msg)
+    #             if dt:
+    #                 ctrl.finish_task(record_id, job_id=job_id, when=dt)
+    #
+    #         # elif key == "comma,e":
+    #         #     seed_text = ctrl.get_entry_from_record(record_id)
+    #         #     log_msg(f"{seed_text = }")
+    #         #     app.push_screen(EditorScreen(ctrl, record_id, seed_text=seed_text))
+    #
+    #         elif key == "comma,e":
+    #             # 1) Get editable text for this record
+    #             seed_text = ctrl.get_entry_from_record(record_id)
+    #             log_msg(f"{seed_text = }")
+    #
+    #             # 2) Close/hide details before opening the editor to avoid stale view
+    #             try:
+    #                 scr = app.screen
+    #                 if (
+    #                     hasattr(scr, "list_with_details")
+    #                     and scr.list_with_details.has_details_open()
+    #                 ):
+    #                     # adjust this to your actual API; many people have hide_details()
+    #                     if hasattr(scr.list_with_details, "hide_details"):
+    #                         scr.list_with_details.hide_details()
+    #             except Exception as e:
+    #                 log_msg(f"Error while hiding details before edit: {e}")
+    #
+    #             # 3) Define callback to refresh after editor closes
+    #
+    #             # 4) Push editor with callback
+    #             app.push_screen(
+    #                 EditorScreen(ctrl, record_id, seed_text=seed_text),
+    #                 callback=self._after_edit,
+    #             )
+    #
+    #         elif key == "comma,c":
+    #             row = ctrl.db_manager.get_record(record_id)
+    #             seed_text = row[2] or ""
+    #             app.push_screen(EditorScreen(ctrl, None, seed_text=seed_text))
+    #
+    #         elif key == "comma,d":
+    #             app.confirm(
+    #                 f"Delete item {record_id}? This cannot be undone.",
+    #                 lambda: ctrl.delete_item(record_id, job_id=job_id),
+    #             )
+    #
+    #         elif key == "comma,s":
+    #             dt = await app.prompt_datetime("Schedule when?")
+    #             if dt:
+    #                 ctrl.schedule_new(record_id, when=dt)
+    #
+    #         elif key == "comma,r":
+    #             dt = await app.prompt_datetime("Reschedule to?")
+    #             if dt:
+    #                 yrwk = week_provider() if week_provider else None
+    #                 ctrl.reschedule(record_id, when=dt, context=view_name, yrwk=yrwk)
+    #
+    #         elif key == "comma,g":
+    #             self.action_open_with_default(record_id)
+    #
+    #         elif key == "comma,t":
+    #             ctrl.touch_item(record_id)
+    #
+    #         elif key == "comma,p" and itemtype == "~":
+    #             ctrl.toggle_pinned(record_id)
+    #             if hasattr(app, "_reopen_details"):
+    #                 app._reopen_details(tag_meta=meta)
+    #
+    #         # keep ctrl+r for repetitions
+    #         elif key == "ctrl+r" and itemtype == "~":
+    #             ctrl.show_repetitions(record_id)
+    #
+    #     return handler
+
+    def open_delete_prompt(
+        self,
+        *,
+        record_id: int,
+        job_id: int | None,
+        subject: str,
+        itemtype: str,
+        instance_ts: str | None,
+        is_repeating: bool,
+    ) -> None:
+        """Open an OptionPrompt to choose how/what to delete for a record."""
+        ctrl = self.controller
+
+        # Build options + message depending on whether this is a repeating item
+        if is_repeating and instance_ts and itemtype in "~*":
+            options = [
+                "Just this instance",
+                "This and all subsequent instances",
+                "The reminder itself",
+                "Cancel",
+            ]
+            msg = (
+                f"Delete [{LIGHT_SKY_BLUE}]{subject}[/{LIGHT_SKY_BLUE}]?\n\n"
+                "Choose what to delete:"
+            )
+        else:
+            options = ["Delete record", "Cancel"]
+            msg = (
+                f"Delete [{LIGHT_SKY_BLUE}]{subject}[/{LIGHT_SKY_BLUE}]?\n\n"
+                "This cannot be undone."
+            )
+
+        def _after_choice(choice: str | None) -> None:
+            log_msg(f"delete prompt returned {choice = }")
+
+            if not choice or choice == "Cancel":
+                return
+
+            changed = False
+
+            if choice == "Delete record":
+                # Entire reminder (and all jobs, if any)
+                ctrl.delete_record(record_id)
+                changed = True
+
+            elif choice == "Just this instance":
+                if instance_ts:
+                    ctrl.delete_instance(
+                        record_id,
+                        instance_text=instance_ts,
+                    )
+                    changed = True
+
+            elif choice == "This and all subsequent instances":
+                if instance_ts:
+                    ctrl.delete_this_and_future(
+                        record_id,
+                        instance_text=instance_ts,
+                    )
+                    changed = True
+
+            elif choice == "The reminder itself":
+                ctrl.delete_record(record_id)
+                changed = True
+
+            if changed:
+                # 1) Close details so there’s no stale panel
+                if hasattr(self, "_close_details_if_open"):
+                    self._close_details_if_open()
+
+                # 2) Refresh the current view (weeks/agenda/next/etc.)
+                if hasattr(self, "refresh_view"):
+                    self.refresh_view()
+
+        # Push the modal with a callback; no async/await here
+        self.push_screen(OptionPrompt(msg, options), callback=_after_choice)
+
+    # def make_detail_key_handler(self, *, view_name: str, week_provider=None):
+    #     ctrl = self.controller
+    #     app = self
+    #     log_msg(f"{ctrl = }, {app = }")
+    #
+    #     async def handler(key: str, meta: dict) -> None:  # chord-aware
+    #         record_id = meta.get("record_id")
+    #         log_msg(f"in handler with {key = }, {meta = }, {record_id = }")
+    #         job_id = meta.get("job_id")
+    #         first = meta.get("first")
+    #         second = meta.get("second")
+    #         itemtype = meta.get("itemtype")
+    #         subject = meta.get("subject")
+    #         # new: instance-aware info
+    #         instance_ts = meta.get("instance_ts")
+    #         datetime_id = meta.get("datetime_id")
+    #
+    #         if not record_id:
+    #             return
+    #
+    #         # ---------- ,f : FINISH ----------
+    #         if key == "comma,f" and itemtype in "~^":
+    #             log_msg(f"{record_id = }, {job_id = }, {first = }")
+    #             job = f" {job_id}" if job_id else ""
+    #             id_part = f"({record_id}{job})"
+    #             due = (
+    #                 f"\nDue: [{LIGHT_SKY_BLUE}]{fmt_user(first)}[/{LIGHT_SKY_BLUE}]"
+    #                 if first
+    #                 else ""
+    #             )
+    #             msg = f"Finished datetime\nFor: [{LIGHT_SKY_BLUE}]{subject} {id_part}[/{LIGHT_SKY_BLUE}]{due}"
+    #
+    #             dt = await app.prompt_datetime(msg)
+    #             log_msg(f"got {dt = }")
+    #             if dt:
+    #                 ctrl.finish_task(record_id, job_id=job_id, when=dt)
+    #                 # optional: refresh view/details
+    #                 if hasattr(app, "refresh_view"):
+    #                     app.refresh_view()
+    #
+    #         # ---------- ,e : EDIT ----------
+    #         elif key == "comma,e":
+    #             log_msg("got comma,e")
+    #             # 1) Get editable text for this record
+    #             seed_text = ctrl.get_entry_from_record(record_id)
+    #             log_msg(f"{seed_text = }")
+    #
+    #             # 2) Close/hide details before opening the editor to avoid stale view
+    #             try:
+    #                 scr = app.screen
+    #                 if (
+    #                     hasattr(scr, "list_with_details")
+    #                     and scr.list_with_details.has_details_open()
+    #                 ):
+    #                     if hasattr(scr.list_with_details, "hide_details"):
+    #                         scr.list_with_details.hide_details()
+    #             except Exception as e:
+    #                 log_msg(f"Error while hiding details before edit: {e}")
+    #
+    #             # 3) Push editor with callback to refresh view
+    #             app.push_screen(
+    #                 EditorScreen(ctrl, record_id, seed_text=seed_text),
+    #                 callback=self._after_edit,
+    #             )
+    #
+    #         # ---------- ,c : CLONE ----------
+    #         elif key == "comma,c":
+    #             seed_text = ctrl.get_entry_from_record(record_id)
+    #             # row = ctrl.db_manager.get_record(record_id)
+    #             # seed_text = row[2] or ""
+    #             app.push_screen(
+    #                 EditorScreen(ctrl, None, seed_text=seed_text),
+    #                 callback=self._after_edit,
+    #             )
+    #
+    #         # ---------- ,d : DELETE ----------
+    #         elif key == "comma,d":
+    #             log_msg(f"in delete {second = }, {instance_ts = }, {itemtype = }")
+    #
+    #             is_repeating = second is not None
+    #             # delegate to the app helper; no await here
+    #             app.open_delete_prompt(
+    #                 record_id=record_id,
+    #                 job_id=job_id,
+    #                 subject=subject,
+    #                 itemtype=itemtype,
+    #                 instance_ts=instance_ts,
+    #                 is_repeating=is_repeating,
+    #             )
+    #
+    #         # ---------- ,s : SCHEDULE NEW INSTANCE ----------
+    #         elif key == "comma,n":
+    #             dt = await app.prompt_datetime("Schedule when?")
+    #             if dt:
+    #                 ctrl.schedule_new(record_id, job_id=job_id, when=dt)
+    #                 if hasattr(app, "refresh_view"):
+    #                     app.refresh_view()
+    #
+    #         # ---------- ,r : RESCHEDULE INSTANCE ----------
+    #         elif key == "comma,r":
+    #             # Prefer instance-aware reschedule if we know which instance
+    #             if instance_ts:
+    #                 msg = (
+    #                     f"Reschedule instance for "
+    #                     f"[{LIGHT_SKY_BLUE}]{subject}[/{LIGHT_SKY_BLUE}] "
+    #                     f"from {instance_ts} to?"
+    #                 )
+    #                 dt = await app.prompt_datetime(msg)
+    #                 if dt:
+    #                     ctrl.reschedule_instance(
+    #                         record_id,
+    #                         job_id=job_id,
+    #                         old_instance_text=instance_ts,
+    #                         new_when=dt,
+    #                     )
+    #                     if hasattr(app, "refresh_view"):
+    #                         app.refresh_view()
+    #             else:
+    #                 # Fallback: old behavior (coarser reschedule)
+    #                 dt = await app.prompt_datetime("Reschedule to?")
+    #                 if dt:
+    #                     yrwk = week_provider() if week_provider else None
+    #                     ctrl.reschedule(
+    #                         record_id, when=dt, context=view_name, yrwk=yrwk
+    #                     )
+    #
+    #         # ---------- ,g : GOTO (open_with_default) ----------
+    #         elif key == "comma,g":
+    #             self.action_open_with_default(record_id)
+    #
+    #         # ---------- ,t : TOUCH ----------
+    #         elif key == "comma,t":
+    #             ctrl.touch_item(record_id)
+    #
+    #         # ---------- ,p : PIN / UNPIN ----------
+    #         elif key == "comma,p" and itemtype == "~":
+    #             ctrl.toggle_pinned(record_id)
+    #             if hasattr(app, "_reopen_details"):
+    #                 app._reopen_details(tag_meta=meta)
+    #
+    #         # keep ctrl+r for repetitions
+    #         elif key == "ctrl+r" and itemtype == "~":
+    #             ctrl.show_repetitions(record_id)
+    #
+    #     return handler
+
     def make_detail_key_handler(self, *, view_name: str, week_provider=None):
         ctrl = self.controller
         app = self
+        log_msg(f"{ctrl = }, {app = }")
 
-        async def handler(key: str, meta: dict) -> None:  # chord-aware
-            log_msg(f"in handler with {key = }, {meta = }")
+        def handler(key: str, meta: dict) -> None:  # chord-aware, sync
             record_id = meta.get("record_id")
+            log_msg(f"in handler with {key = }, {meta = }, {record_id = }")
             job_id = meta.get("job_id")
             first = meta.get("first")
             second = meta.get("second")
             itemtype = meta.get("itemtype")
             subject = meta.get("subject")
+            # instance-aware info
+            instance_ts = meta.get("instance_ts")
+            datetime_id = meta.get("datetime_id")
 
             if not record_id:
                 return
 
-            # chord-based actions
+            # ---------- ,f : FINISH ----------
             if key == "comma,f" and itemtype in "~^":
                 log_msg(f"{record_id = }, {job_id = }, {first = }")
                 job = f" {job_id}" if job_id else ""
-                id = f"({record_id}{job})"
+                id_part = f"({record_id}{job})"
                 due = (
                     f"\nDue: [{LIGHT_SKY_BLUE}]{fmt_user(first)}[/{LIGHT_SKY_BLUE}]"
                     if first
                     else ""
                 )
-                msg = f"Finished datetime\nFor: [{LIGHT_SKY_BLUE}]{subject} {id}[/{LIGHT_SKY_BLUE}]{due}"
+                msg = (
+                    f"Finished datetime\n"
+                    f"For: [{LIGHT_SKY_BLUE}]{subject} {id_part}[/{LIGHT_SKY_BLUE}]{due}"
+                )
 
-                dt = await app.prompt_datetime(msg)
-                if dt:
-                    ctrl.finish_task(record_id, job_id=job_id, when=dt)
+                def _after_dt(dt: datetime | None) -> None:
+                    log_msg(f"finish, got {dt = }")
+                    if dt:
+                        ctrl.finish_task(record_id, job_id=job_id, when=dt)
+                        if hasattr(app, "refresh_view"):
+                            app.refresh_view()
 
-            # elif key == "comma,e":
-            #     seed_text = ctrl.get_entry_from_record(record_id)
-            #     log_msg(f"{seed_text = }")
-            #     app.push_screen(EditorScreen(ctrl, record_id, seed_text=seed_text))
+                app.prompt_datetime_with_callback(msg, _after_dt)
 
+            # ---------- ,e : EDIT ----------
             elif key == "comma,e":
-                # 1) Get editable text for this record
+                log_msg("got comma,e")
                 seed_text = ctrl.get_entry_from_record(record_id)
                 log_msg(f"{seed_text = }")
 
-                # 2) Close/hide details before opening the editor to avoid stale view
+                # Close/hide details before opening the editor
                 try:
                     scr = app.screen
                     if (
                         hasattr(scr, "list_with_details")
                         and scr.list_with_details.has_details_open()
                     ):
-                        # adjust this to your actual API; many people have hide_details()
                         if hasattr(scr.list_with_details, "hide_details"):
                             scr.list_with_details.hide_details()
                 except Exception as e:
                     log_msg(f"Error while hiding details before edit: {e}")
 
-                # 3) Define callback to refresh after editor closes
-
-                # 4) Push editor with callback
                 app.push_screen(
                     EditorScreen(ctrl, record_id, seed_text=seed_text),
                     callback=self._after_edit,
                 )
 
+            # ---------- ,c : CLONE ----------
             elif key == "comma,c":
-                row = ctrl.db_manager.get_record(record_id)
-                seed_text = row[2] or ""
-                app.push_screen(EditorScreen(ctrl, None, seed_text=seed_text))
-
-            elif key == "comma,d":
-                app.confirm(
-                    f"Delete item {record_id}? This cannot be undone.",
-                    lambda: ctrl.delete_item(record_id, job_id=job_id),
+                seed_text = ctrl.get_entry_from_record(record_id)
+                app.push_screen(
+                    EditorScreen(ctrl, None, seed_text=seed_text),
+                    callback=self._after_edit,
                 )
 
-            elif key == "comma,s":
-                dt = await app.prompt_datetime("Schedule when?")
-                if dt:
-                    ctrl.schedule_new(record_id, when=dt)
+            # ---------- ,d : DELETE ----------
+            elif key == "comma,d":
+                log_msg(f"in delete {second = }, {instance_ts = }, {itemtype = }")
+                is_repeating = second is not None
+                app.open_delete_prompt(
+                    record_id=record_id,
+                    job_id=job_id,
+                    subject=subject,
+                    itemtype=itemtype,
+                    instance_ts=instance_ts,
+                    is_repeating=is_repeating,
+                )
 
+            # ---------- ,n : SCHEDULE NEW INSTANCE ----------
+            elif key == "comma,n":
+
+                def _after_dt(dt: datetime | None) -> None:
+                    log_msg(f"schedule_new, got {dt = }")
+                    if dt:
+                        ctrl.schedule_new(record_id, job_id=job_id, when=dt)
+                        if hasattr(app, "refresh_view"):
+                            app.refresh_view()
+
+                app.prompt_datetime_with_callback("Schedule when?", _after_dt)
+
+            # ---------- ,r : RESCHEDULE INSTANCE ----------
             elif key == "comma,r":
-                dt = await app.prompt_datetime("Reschedule to?")
-                if dt:
-                    yrwk = week_provider() if week_provider else None
-                    ctrl.reschedule(record_id, when=dt, context=view_name, yrwk=yrwk)
+                if instance_ts:
+                    msg = (
+                        f"Reschedule instance for "
+                        f"[{LIGHT_SKY_BLUE}]{subject}[/{LIGHT_SKY_BLUE}] "
+                        f"from {instance_ts} to?"
+                    )
 
+                    def _after_dt(dt: datetime | None) -> None:
+                        log_msg(f"reschedule instance, got {dt = }")
+                        if dt:
+                            ctrl.reschedule_instance(
+                                record_id,
+                                job_id=job_id,
+                                old_instance_text=instance_ts,
+                                new_when=dt,
+                            )
+                            if hasattr(app, "refresh_view"):
+                                app.refresh_view()
+
+                    app.prompt_datetime_with_callback(msg, _after_dt)
+
+                else:
+                    # fallback: older coarse reschedule
+                    def _after_dt(dt: datetime | None) -> None:
+                        log_msg(f"reschedule coarse, got {dt = }")
+                        if dt:
+                            yrwk = week_provider() if week_provider else None
+                            ctrl.reschedule(
+                                record_id, when=dt, context=view_name, yrwk=yrwk
+                            )
+
+                    app.prompt_datetime_with_callback("Reschedule to?", _after_dt)
+
+            # ---------- ,g : GOTO (open_with_default) ----------
             elif key == "comma,g":
                 self.action_open_with_default(record_id)
 
+            # ---------- ,t : TOUCH ----------
             elif key == "comma,t":
                 ctrl.touch_item(record_id)
 
+            # ---------- ,p : PIN / UNPIN ----------
             elif key == "comma,p" and itemtype == "~":
                 ctrl.toggle_pinned(record_id)
                 if hasattr(app, "_reopen_details"):
@@ -2578,8 +3254,9 @@ class DynamicViewApp(App):
             handler = getattr(self, "detail_handler", None)
             log_msg(f"got {event.key = }, {handler = }")
             if handler:
-                log_msg(f"creating task for {event.key = }, {meta = }")
-                create_task(handler(f"comma,{event.key}", meta))
+                log_msg(f"dispatching detail handler for {event.key = }, {meta = }")
+                # 🔹 handler is now sync; just call it
+                handler(f"comma,{event.key}", meta)
             return
 
         # inside DynamicViewApp.on_key, after handling leader/escape etc.
@@ -2688,6 +3365,7 @@ class DynamicViewApp(App):
 
     def action_show_weeks(self):
         self.view = "weeks"
+        log_msg(f"{self.selected_week = }")
         title, table, details = self.controller.get_table_and_list(
             self.current_start_date, self.selected_week
         )
@@ -2763,25 +3441,11 @@ class DynamicViewApp(App):
         except Exception:
             pass
 
-    # def _after_edit(self, result: dict | None) -> None:
-    #     if not result:
-    #         return
-    #     if result.get("changed"):
-    #         rid = result.get("record_id")
-    #         self.refresh_view()
-    #         # Optionally re-open/show details for the updated/created record:
-    #         if rid is not None and hasattr(self, "open_details"):
-    #             self.open_details(rid)
-
     def _after_edit(self, result: dict | None) -> None:
         if not result or not result.get("changed"):
             return
-        rid = result.get("record_id")
 
         self.refresh_view()
-
-        if rid is not None and hasattr(self, "open_details"):
-            self.open_details(rid)
 
     def open_editor_for(
         self, *, record_id: int | None = None, seed_text: str = ""
@@ -2969,13 +3633,53 @@ class DynamicViewApp(App):
         ):
             meta = self.controller.get_last_details_meta() or {}
             handler = self.make_detail_key_handler(view_name=self.view)
+            log_msg(f"got {self.view = }, {key = }, {meta = }, {handler = }")
             handler(key, meta)
 
-    async def prompt_datetime(
-        self, message: str, default: datetime | None = None
-    ) -> datetime | None:
-        """Show DatetimePrompt and return parsed datetime or None."""
-        return await self.push_screen_wait(DatetimePrompt(message, default))
+    # async def prompt_datetime(
+    #     self, message: str, default: datetime | None = None
+    # ) -> datetime | None:
+    #     """Show DatetimePrompt and return parsed datetime or None."""
+    #     return await self.push_screen_wait(DatetimePrompt(message, default))
+
+    def prompt_datetime_with_callback(
+        self,
+        message: str,
+        callback: Callable[[Optional[datetime]], None],
+        default: datetime | None = None,
+    ) -> None:
+        """
+        Show DatetimePrompt and call `callback(parsed_dt_or_None)` when done.
+        No async/await required in the caller.
+        """
+
+        def _after(result: datetime | None) -> None:
+            # `result` is whatever DatetimePrompt.dismiss(...) gave us
+            callback(result)
+
+        self.push_screen(
+            DatetimePrompt(message=message, default=default),
+            callback=_after,
+        )
+
+    async def prompt_options(self, message: str, options: list[str]) -> str | None:
+        """Show OptionPrompt and return the chosen label, or None."""
+        return await self.push_screen_wait(OptionPrompt(message, options))
+
+    async def prompt_choice(self, message: str, choices: list[str]) -> str | None:
+        """Show ChoicePrompt and return one of `choices` or None."""
+        return await self.push_screen_wait(ChoicePrompt(message, choices))
+
+    async def prompt_confirm(self, message: str) -> bool | None:
+        """
+        Show a Yes/No/Esc confirm dialog.
+
+        Returns:
+            True  -> Yes
+            False -> No
+            None  -> Esc/cancel
+        """
+        return await self.push_screen_wait(ConfirmPrompt(message))
 
     def action_show_bins(self, start_bin_id: int | None = None):
         root_id = start_bin_id or self.controller.get_root_bin_id()

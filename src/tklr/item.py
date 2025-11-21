@@ -923,7 +923,6 @@ class Item:
         self.ampm = False
         self.yearfirst = True
         self.dayfirst = False
-        self.two_digit_year = True
         self.history_weight = 3
         if self.env:
             self.ampm = self.env.config.ui.ampm
@@ -931,13 +930,9 @@ class Item:
             self.dayfirst = self.env.config.ui.dayfirst
             self.yearfirst = self.env.config.ui.yearfirst
             self.history_weight = self.env.config.ui.history_weight
-            # _yr = "%y" if self.two_digit_year else "%Y"
             _yr = "%Y"
-            # _dm = "%d-%m" if self.dayfirst else "%m-%d"
-            _dm = "%m-%d"
-            # self.datefmt = f"{_yr}-{_dm}" if self.yearfirst else f"{_dm}-{_yr}"
-            self.datefmt = f"{_yr}-{_dm}"
-            self.two_digit_year = self.env.config.ui.two_digit_year
+            _dm = "%d-%m" if self.dayfirst else "%m-%d"
+            self.datefmt = f"{_yr}-{_dm}" if self.yearfirst else f"{_dm}-{_yr}"
         self.datetimefmt = f"{self.datefmt} {self.timefmt}"
 
         # print(f"{self.ampm = }, {self.yearfirst = }, {self.dayfirst = }")
@@ -2594,10 +2589,30 @@ from: * (event), ~ (task), ^ (project), % (note),
     #     self.over = f"{prefix}{td_str}"
 
     def _smooth_interval(self, old: timedelta, new: timedelta) -> timedelta:
-        # (w*old + new)/(w+1)
+        """
+        (w*old + new)/(w+1), then:
+        - if averaged interval > 1 day → round to whole hours (days+hours effectively)
+        - else → round to whole minutes
+        """
+        hour_seconds = 60 * 60
+        day_seconds = 24 * hour_seconds
+        week_seconds = 7 * day_seconds
+
+        # weighted average as seconds
         total = old * self.history_weight + new
         secs = total.total_seconds() / (self.history_weight + 1)
-        return timedelta(seconds=secs)
+
+        if secs > week_seconds:
+            # round to integer hours (in seconds)
+            rounded = round(secs / day_seconds) * day_seconds
+        elif secs > day_seconds:
+            # round to integer hours (in seconds)
+            rounded = round(secs / hour_seconds) * hour_seconds
+        else:
+            # round to integer minutes (in seconds)
+            rounded = round(secs / 60) * 60
+
+        return timedelta(seconds=rounded)
 
     def _is_rdate_only(self) -> bool:
         """True if rruleset is only RDATE(+optional EXDATE), i.e. no RRULE."""

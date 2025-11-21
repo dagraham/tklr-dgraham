@@ -15,7 +15,7 @@
 - [ ] Modify view action_do_finish to add the @f entry and let item do the rest
 - [ ] Modify view action_do_schedule_new to add the @+ entry and let item do the rest
 - [ ] Modify view action_do_skip_instance to add the @+ entry and let item do the rest
-- [ ] Modify view action_do_reschedule_new to a ,dd the @+ entry and let item do the rest
+- [ ] Modify view action_do_reschedule_new to a ,dd the @+ entry ,and let item do the rest
 
 ## Notes on Tests
 
@@ -31,3 +31,5 @@
   - @s selected and changed in Weeks, refreshed in Weeks AND Agenda
   - @+ selected and added in Agenda, refreshed in both
   - Changed task subject in Weeks, refreshed in both
+
+No @r, @s, @+. Delete instance. Instance in @+, remove it. Instance = @s, @s = @+.pop(0)

@@ -88,6 +88,13 @@ def five_days_ago():
     return next.strftime("%Y-%m-%d %H:%M")
 
 
+def ten_days_ago():
+    now = datetime.now().replace(second=0, microsecond=0)
+    delta_minutes = 60 + (15 - now.minute % 15)
+    next = now - timedelta(days=10, minutes=delta_minutes)
+    return next.strftime("%Y-%m-%d %H:%M")
+
+
 def in_two_weeks():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
@@ -307,8 +314,8 @@ items = [
     "~ no due date and #priority five @p 5",
     f"~ finished one hour ago @s {in_one_hour()} @f {one_hour_ago()}",
     f"^ no prerequisites @s {today_date} @n 1w @~ this &r 1 &f {today_date}  @~ that &r 2",
-    f"~ do over with finish @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o 4d",
-    f"~ do over learn with finish  @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o ~4d",
+    f"~ offset with finish @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o 4d",
+    f"~ offset learn with finish  @s {ten_days_ago()} 12:00pm  @f {today_date} 10:00am @o ~8d",
     "? draft reminder - no checks",
     f"~ one date with priority three @s {yesterday_date} @p 3",
     "~ three datetimes @s 9am @+ 10am, 11am",
@@ -318,7 +325,7 @@ items = [
     "* timezone test for noon CET @s 12p z CET @e 1h",
     "* timezone test for noon naive @s 12p z none @e 1h",
     f"~ wind grandfather clock @s {five_days_ago()}  @o 4d",
-    f"~ fill birdfeeders @s {five_days_ago()}  @o ~4d",
+    f"~ fill birdfeeders @s {ten_days_ago()}  @o ~4d",
 ]
 
 bins = [
@@ -373,8 +380,8 @@ for entry in items + bins + alerts:
         record_id = ctrl.add_item(item)  # .to_dict()
         if count % 20 == 0:
             print(f"---\n{count} {entry = }")
-    except:
-        print(f"\n{item.entry}\n")
+    except Exception as e:
+        print(f"error: {e = }\n{item.entry = }\n")
         print(f"{record_id = }, {item.tokens = }; {item.rruleset = }")
 
 try:

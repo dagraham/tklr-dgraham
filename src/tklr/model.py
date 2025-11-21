@@ -1996,7 +1996,7 @@ class DatabaseManager:
         record_location,
     ):
         if command_name == "n":
-            alert_command = "{name} {when} at {start}"
+            alert_command = "{name} {when} ({start})"
         else:
             alert_command = self.ALERTS.get(command_name, "")
         if not alert_command:
