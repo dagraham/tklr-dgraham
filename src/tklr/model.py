@@ -2328,7 +2328,7 @@ class DatabaseManager:
                         )
 
         self.conn.commit()
-        print("✅ Alerts table updated with today's relevant alerts.")
+        log_msg("✅ Alerts table updated with today's relevant alerts.")
 
     # def populate_alerts_for_record(self, record_id: int):
     #     """Regenerate alerts for a specific record, but only if any are scheduled for today."""
@@ -3286,7 +3286,7 @@ class DatabaseManager:
                 total_inserted += 1
 
         self.conn.commit()
-        print(f"✅ BusyWeeksFromDateTimes populated ({total_inserted} week-records).")
+        log_msg(f"✅ BusyWeeksFromDateTimes populated ({total_inserted} week-records).")
 
     # def get_last_instances(
     #     self,
@@ -3819,7 +3819,7 @@ class DatabaseManager:
             print("⚠️ No data to aggregate.")
             return
 
-        print(f"Aggregating {len(weeks)} week(s)...")
+        log_msg(f"Aggregating {len(weeks)} week(s)...")
 
         for yw in weeks:
             # --- Gather all event arrays for this week
@@ -3867,7 +3867,7 @@ class DatabaseManager:
             )
 
         self.conn.commit()
-        print("✅ BusyWeeks aggregation complete.")
+        log_msg("✅ BusyWeeks aggregation complete.")
 
     def show_busy_week(self, year_week: str):
         """

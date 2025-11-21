@@ -66,7 +66,7 @@ from .shared import (
     fmt_local_compact,
     parse_local_compact,
     fmt_utc_z,
-    fmt_user,
+    # fmt_user,
     parse_utc_z,
 )
 from tklr.tklr_env import TklrEnvironment

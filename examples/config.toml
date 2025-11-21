@@ -7,7 +7,7 @@ theme = "dark"
 
 # ampm: bool = true | false
 # Use 12 hour AM/PM when true else 24 hour
-ampm = false
+ampm = true
 
 # history_weight: int 
 # Apply this weight to the prior history when computing
@@ -40,7 +40,7 @@ yearfirst = true
 # two_digit_year: bool = true | false 
 # If true, years are displayed using the last two digits, e.g.,
 # 25 instead of 2025. 
-two_digit_year = true 
+two_digit_year = false 
 
 [alerts]
 # dict[str, str]: character -> command_str.
