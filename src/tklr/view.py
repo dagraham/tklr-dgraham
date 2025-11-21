@@ -270,11 +270,11 @@ HelpText = f"""\
 [bold][{TITLE_COLOR}]TKLR {VERSION}[/{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
 [bold]^Q[/bold]        Quit           [bold]^S[/bold]    Screenshot
-[bold][{HEADER_COLOR}]View[/{HEADER_COLOR}][/bold]
- [bold]A[/bold]        Agenda          [bold]R[/bold]    Remaining Alerts 
- [bold]B[/bold]        Bins            [bold]F[/bold]    Find 
- [bold]L[/bold]        Last            [bold]N[/bold]    Next  
- [bold]W[/bold]        Weeks           [bold]U[/bold]    Upcoming 
+[bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
+ [bold]A[/bold]        Agenda          [bold]F[/bold]    Find 
+ [bold]B[/bold]        Bins            [bold]L[/bold]    Last 
+ [bold]C[/bold]        Completed       [bold]N[/bold]    Next  
+ [bold]W[/bold]        Weeks           [bold]R[/bold]    Remaining Alerts  
 [bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
  [bold]/[/bold]        Set search      empty search clears
  [bold]>[/bold]        Next match      [bold]<[/bold]    Previous match
@@ -283,15 +283,18 @@ HelpText = f"""\
  [bold]Right[/bold]    next week       [bold]Down[/bold] down in the list
  [bold]S+Left[/bold]   4 weeks back    [bold]" "[/bold]  current week 
  [bold]S+Right[/bold]  4 weeks forward [bold]"J"[/bold]  ?jump to date? 
-[bold][{HEADER_COLOR}]Agenda Navigation[/{HEADER_COLOR}][/bold]
- [bold]tab[/bold]      switch between events and tasks 
 [bold][{HEADER_COLOR}]Tags and Item Details[/{HEADER_COLOR}][/bold] 
-Each of the views listed above displays a list 
-of items. In these listings, each item begins 
-with a tag sequentially generated from 'a', 'b',
-..., 'z', 'ba', 'bb' and so forth. Press the 
-keys of the tag on your keyboard to see the
-details of the item and access related commands. 
+ Each of the views listed above displays a list 
+ of items. In these listings, each item begins 
+ with a tag sequentially generated from 'a', 'b',
+ ..., 'z'. When more than 26 tags are required, 
+ additional pages are appended with left and right
+ cursor keys used to move between pages. Press the 
+ key of the tag on your keyboard to see the
+ details of the item and access related commands 
+ to edit, reschedule, finish and so forth. To see 
+ the complete list of available commands press ?
+ when the details pane is open.
 """.splitlines()
 #
 # tklr/clipboard.py
