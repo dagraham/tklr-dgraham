@@ -28,6 +28,7 @@ from rich.text import Text
 from .shared import (
     HRS_MINS,
     log_msg,
+    parse,
     format_datetime,
     datetime_from_timestamp,
     duration_in_words,
@@ -36,6 +37,7 @@ from .shared import (
     parse_local_compact,
     fmt_utc_z,
     parse_utc_z,
+    fmt_user,
     get_anchor,
 )
 
@@ -350,7 +352,8 @@ def fine_busy_bits_for_event(
     # --- handle end rules ---
     end = parse(end_str) if end_str else None
 
-    if end is None and (start.hour != 0 or start.minute != 0):
+    # if end is None and (start.hour != 0 or start.minute != 0):
+    if end is None or not isinstance(start, datetime):
         # zero-extent event: contributes nothing
         return {}
 
@@ -1789,8 +1792,42 @@ class DatabaseManager:
                 subj,
                 desc,
                 itype,
-                parse_utc(due) if due else None,
-                parse_utc(comp),
+                parse_utc_z(due) if due else None,
+                parse_utc_z(comp),
+            )
+            for (rid, subj, desc, itype, due, comp) in rows
+        ]
+
+    def get_all_completions(self):
+        """
+        Return all completions across all records, newest first.
+
+        Rows:
+            [(record_id, subject, description, itemtype, due_dt, completed_dt)]
+        """
+        self.cursor.execute(
+            """
+            SELECT
+                r.id,
+                r.subject,
+                r.description,
+                r.itemtype,
+                c.due,
+                c.completed
+            FROM Completions c
+            JOIN Records r ON c.record_id = r.id
+            ORDER BY c.completed DESC
+            """
+        )
+        rows = self.cursor.fetchall()
+        return [
+            (
+                rid,
+                subj,
+                desc,
+                itype,
+                parse_utc_z(due) if due else None,
+                parse_utc_z(comp),
             )
             for (rid, subj, desc, itype, due, comp) in rows
         ]

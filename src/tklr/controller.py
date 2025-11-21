@@ -66,6 +66,7 @@ from .shared import (
     fmt_local_compact,
     parse_local_compact,
     fmt_utc_z,
+    fmt_user,
     parse_utc_z,
 )
 from tklr.tklr_env import TklrEnvironment
@@ -850,46 +851,6 @@ class Controller:
 
         return record_id
 
-    # def apply_textual_edit(
-    #     self,
-    #     record_id: int,
-    #     job_id: int | None,
-    #     edit_fn: callable,
-    # ) -> bool:
-    #     """
-    #     Load the current entry text for (record_id, job_id), apply a pure text
-    #     edit (edit_fn), then reparse/finalize/save it exactly like EditorScreen
-    #     does on successful Ctrl-S.
-    #
-    #     Returns:
-    #         True if the change was successfully saved, False on parse failure.
-    #     """
-    #     # 1. Fetch the text the same way EditorScreen does
-    #     seed_text = self.get_entry_from_record(record_id)
-    #     if seed_text is None:
-    #         return False
-    #
-    #     # 2. Apply user's transformation
-    #     new_text = edit_fn(seed_text)
-    #
-    #     # 3. Run the Item finalize pipeline
-    #     from tklr.item import Item
-    #
-    #     item = Item(new_text, controller=self)
-    #     item.final = True
-    #     item.parse_input(new_text)
-    #     item.finalize_record()
-    #
-    #     if not item.parse_ok:
-    #         # You may prefer raising or notifying the UI here.
-    #         log_msg(f"❌ apply_textual_edit failed for {record_id}: {item.messages}")
-    #         return False
-    #
-    #     # 4. Save
-    #     self.db_manager.save_record(item, record_id=record_id)
-    #     log_msg(f"✔ apply_textual_edit saved record {record_id}")
-    #     return True
-
     def apply_textual_edit(
         self,
         record_id: int,
@@ -930,6 +891,11 @@ class Controller:
 
         # 4) Save back into the same record (and regen DateTimes, Alerts, etc.)
         self.db_manager.save_record(item, record_id=record_id)
+        # 🔁 NEW: record completion if one was produced
+        completion = getattr(item, "completion", None)
+        if completion:
+            self.db_manager.add_completion(record_id, completion)
+
         return True
 
     def _instance_to_rdate_key(self, instance) -> str:
@@ -1001,6 +967,12 @@ class Controller:
 
         # This will also rebuild the tokens column from the new Item state.
         self.db_manager.save_record(item, record_id=record_id)
+
+        # 🔁 NEW: record completion if one was produced
+        completion = getattr(item, "completion", None)
+        if completion:
+            self.db_manager.add_completion(record_id, completion)
+
         return True
 
     def _dt_local_naive(self, dt: datetime) -> datetime:
@@ -1065,6 +1037,9 @@ class Controller:
 
         inst_local = self._instance_local_from_text(instance_text)
 
+        log_msg(
+            f"{inst_local = }, {instances_local = }, {inst_local in instances_local = }"
+        )
         if mode == "one":
             survivors = [d for d in instances_local if d != inst_local]
         elif mode == "this_and_future":
@@ -1180,29 +1155,23 @@ class Controller:
         return removed
 
     # def finish_task(self, record_id: int, job_id: int | None, when: datetime) -> bool:
-    #     stamp = self.fmt_user(when)
-    #
-    #     if job_id is None:
-    #         # Simple case — whole task
-    #         def edit(text: str) -> str:
-    #             return text.rstrip() + f" @f {stamp}"
-    #     else:
-    #         # Add &f to the specific job spec
-    #         def edit(text: str) -> str:
-    #             return self._add_finish_to_job(text, job_id, stamp)
-    #
-    #     return self.apply_textual_edit(record_id, edit)
-
-    # def finish_task(self, record_id: int, job_id: int | None, when: datetime) -> bool:
     #     """
-    #     Mark a task (or a specific job) as finished at `when`.
+    #     Mark a task (or job) as finished at `when`.
     #
-    #     - For a project job (job_id is not None): add an &f to that job spec.
-    #     - For a non-repeating task: just append `@f <when>`.
-    #     - For a repeating task with no job_id:
-    #         * Find the *next* scheduled instance (the first upcoming one),
-    #         * Remove that instance from the recurrence (like delete_instance),
-    #         * Then append `@f <when>` to the reminder text.
+    #     Semantics:
+    #     - Job (job_id not None):
+    #         add &f <stamp> to that job spec (unchanged from before).
+    #     - Plain task (no job_id):
+    #         look at upcoming instances from DateTimes:
+    #
+    #         * 0 upcoming:
+    #             - no schedule → just append @f <stamp>.
+    #         * 1 upcoming:
+    #             - consume that last instance (like delete_instance),
+    #               then append @f <stamp> to mark the reminder finished.
+    #         * 2+ upcoming:
+    #             - consume only the *next* instance (like delete_instance),
+    #               and DO NOT add @f yet (reminder still has future instances).
     #     """
     #     stamp = self.fmt_user(when)
     #
@@ -1210,73 +1179,106 @@ class Controller:
     #     if job_id is not None:
     #
     #         def edit_job(text: str) -> str:
-    #             # your existing helper that injects &f into the right job
+    #             # your existing helper that injects &f into the given job
     #             return self._add_finish_to_job(text, job_id, stamp)
     #
     #         return self.apply_textual_edit(record_id, edit_job)
     #
     #     # ---- Case 2: plain task (no job_id) ----
-    #     rec = self.db_manager.get_record_as_dictionary(record_id)
-    #     if not rec:
-    #         return False
+    #     upcoming = self.db_manager.get_next_start_datetimes_for_record(record_id) or []
     #
-    #     rruleset = (rec.get("rruleset") or "").strip()
+    #     # 0 upcoming instances: no schedule -> simple one-shot finish
+    #     if not upcoming:
     #
-    #     # Heuristic: treat as repeating if it has an RRULE or an RDATE block
-    #     is_repeating = bool(rruleset) and (
-    #         "RRULE" in rruleset or rruleset.startswith("RDATE:")
-    #     )
+    #         def edit_no_schedule(text: str) -> str:
+    #             return text.rstrip() + f" @f {stamp}"
     #
-    #     if is_repeating:
-    #         # 1) Find the *next* instance from DateTimes
-    #         #    (this is your "first" = earliest upcoming occurrence)
-    #         upcoming = self.db_manager.get_next_start_datetimes_for_record(record_id)
-    #         if upcoming:
-    #             instance_text = upcoming[0]  # e.g. "20251119T0740" or "20251119"
-    #             # 2) Use your existing instance-delete helper to consume that one
-    #             #    We don't care about job_id here, so pass None.
-    #             self.delete_instance(record_id, instance_text)
+    #         return self.apply_textual_edit(record_id, edit_no_schedule)
     #
-    #     # 3) In all non-job cases, append @f <finished-when> to the entry
-    #     def edit_task(text: str) -> str:
-    #         return text.rstrip() + f" @f {stamp}"
+    #     # 1 upcoming instance: finishing this consumes the last instance AND the reminder
+    #     if len(upcoming) == 1:
+    #         instance_text = upcoming[0]
     #
-    #     return self.apply_textual_edit(record_id, edit_task)
+    #         # consume that final instance (RDATE/@s/@+ housekeeping)
+    #         self.delete_instance(record_id, instance_text)
+    #
+    #         # now mark the reminder as finished with @f
+    #         def edit_last(text: str) -> str:
+    #             return text.rstrip() + f" @f {stamp}"
+    #
+    #         return self.apply_textual_edit(record_id, edit_last)
+    #
+    #     # 2+ upcoming instances: repeating → consume ONLY the next instance
+    #     instance_text = upcoming[0]
+    #     return self.delete_instance(record_id, instance_text)
+
+    def _add_finish_to_job(self, record_id: int, job_id: int, stamp: str) -> bool:
+        """
+        Insert or update an &f token for the given job_id on a project record.
+
+        - job_id is 1-based index of @~ tokens in the token list.
+        - We locate the N-th @~ token, then:
+          * if that job already has an &f token in its &-cluster, we replace it
+          * otherwise we append a new &f <stamp> at the end of that cluster
+
+        Returns True if any change was made; False if job_id not found.
+        """
+
+        def edit_tokens(tokens: List[Dict]) -> bool:
+            job_index = 0
+
+            i = 0
+            while i < len(tokens):
+                tok = tokens[i]
+
+                # Look for @~ job tokens
+                if tok.get("t") == "@" and tok.get("k") == "~":
+                    job_index += 1
+
+                    if job_index == job_id:
+                        # We are at the job_id-th job's @~ token.
+                        # Walk forward through its &-cluster.
+                        j = i + 1
+                        f_index = None
+
+                        while j < len(tokens) and tokens[j].get("t") == "&":
+                            if tokens[j].get("k") == "f":
+                                f_index = j
+                            j += 1
+
+                        if f_index is not None:
+                            # Update existing &f
+                            tokens[f_index]["token"] = f"&f {stamp}"
+                        else:
+                            # Insert new &f at the end of the job's &-cluster
+                            tokens.insert(
+                                j,
+                                {
+                                    "token": f"&f {stamp}",
+                                    "t": "&",
+                                    "k": "f",
+                                },
+                            )
+
+                        return True  # we made a change
+
+                i += 1
+
+            # job_id > number of jobs: nothing changed
+            return False
+
+        return self.apply_token_edit(record_id, edit_tokens)
 
     def finish_task(self, record_id: int, job_id: int | None, when: datetime) -> bool:
-        """
-        Mark a task (or job) as finished at `when`.
-
-        Semantics:
-        - Job (job_id not None):
-            add &f <stamp> to that job spec (unchanged from before).
-        - Plain task (no job_id):
-            look at upcoming instances from DateTimes:
-
-            * 0 upcoming:
-                - no schedule → just append @f <stamp>.
-            * 1 upcoming:
-                - consume that last instance (like delete_instance),
-                  then append @f <stamp> to mark the reminder finished.
-            * 2+ upcoming:
-                - consume only the *next* instance (like delete_instance),
-                  and DO NOT add @f yet (reminder still has future instances).
-        """
         stamp = self.fmt_user(when)
 
         # ---- Case 1: project job ----
         if job_id is not None:
-
-            def edit_job(text: str) -> str:
-                # your existing helper that injects &f into the given job
-                return self._add_finish_to_job(text, job_id, stamp)
-
-            return self.apply_textual_edit(record_id, edit_job)
+            return self._add_finish_to_job(record_id, job_id, stamp)
 
         # ---- Case 2: plain task (no job_id) ----
         upcoming = self.db_manager.get_next_start_datetimes_for_record(record_id) or []
 
-        # 0 upcoming instances: no schedule -> simple one-shot finish
         if not upcoming:
 
             def edit_no_schedule(text: str) -> str:
@@ -1284,20 +1286,15 @@ class Controller:
 
             return self.apply_textual_edit(record_id, edit_no_schedule)
 
-        # 1 upcoming instance: finishing this consumes the last instance AND the reminder
         if len(upcoming) == 1:
             instance_text = upcoming[0]
-
-            # consume that final instance (RDATE/@s/@+ housekeeping)
             self.delete_instance(record_id, instance_text)
 
-            # now mark the reminder as finished with @f
             def edit_last(text: str) -> str:
                 return text.rstrip() + f" @f {stamp}"
 
             return self.apply_textual_edit(record_id, edit_last)
 
-        # 2+ upcoming instances: repeating → consume ONLY the next instance
         instance_text = upcoming[0]
         return self.delete_instance(record_id, instance_text)
 
@@ -2137,7 +2134,7 @@ class Controller:
             # 👉 NEW: append flags from Records.flags
             subject = self.apply_flags(id, subject)
 
-            monthday = start_dt.strftime("%-d")
+            monthday = start_dt.strftime("%-m-%d")
             start_end = f"{monthday:>2} {format_hours_mins(start_dt, HRS_MINS)}"
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = f"[not bold]{start_end}[/not bold]"
@@ -2213,7 +2210,7 @@ class Controller:
             # 👉 NEW: append flags from Records.flags
             subject = self.apply_flags(id, subject)
 
-            monthday = start_dt.strftime("%-d")
+            monthday = start_dt.strftime("%-m-%d")
             start_end = f"{monthday:>2} {format_hours_mins(start_dt, HRS_MINS)}"
             type_color = TYPE_TO_COLOR[itemtype]
             escaped_start_end = f"[not bold]{start_end}[/not bold]"
@@ -2322,55 +2319,75 @@ class Controller:
 
         return dict(grouped)
 
-    def get_completions_view(self):
+    def get_completions(self):
         """
-        Fetch and format description for all completions, grouped by year.
+        Fetch and format recent completions for a Completions view.
+
+        Returns:
+            pages, header
+
+        pages has the same shape as get_next:
+            [ (page_rows: list[str], page_tag_map: dict[str, (record_id, job_id)]) ]
         """
-        events = self.db_manager.get_all_completions()
-        header = f"Completions ({len(events)})"
-        display = [header]
+        records = self.db_manager.get_all_completions()
+        header = f"Completions ({len(records)})"
 
-        if not events:
-            display.append(f" [{HEADER_COLOR}]Nothing found[/{HEADER_COLOR}]")
-            return display
+        if not records:
+            return [], header
 
-        year_to_events = {}
-        for record_id, subject, description, itemtype, due_ts, completed_ts in events:
-            completed_dt = datetime_from_timestamp(completed_ts)
-            due_dt = datetime_from_timestamp(due_ts) if due_ts else None
+        # Group by month-year of completion (e.g. "Nov 2025")
+        year_to_events: dict[str, list[dict]] = defaultdict(list)
 
-            # Format display string
-            monthday = completed_dt.strftime("%m-%d")
-            completed_str = f"{monthday}{format_hours_mins(completed_dt, HRS_MINS):>8}"
-            type_color = TYPE_TO_COLOR[itemtype]
-            escaped_completed = f"[not bold]{completed_str}[/not bold]"
+        for (
+            record_id,
+            subject,
+            description,
+            itemtype,
+            due_dt,  # may be None
+            completed_dt,  # datetime
+        ) in records:
+            # apply flags 𝕣/𝕠/𝕒/𝕘 (from Records.flags)
+            subject = self.apply_flags(record_id, subject or "(untitled)")
+            completed_dt = completed_dt.astimezone()
+            due_dt = due_dt.astimezone() if due_dt else None
 
-            extra = f" (due {due_dt.strftime('%m-%d')})" if due_dt else ""
-            row = [
-                record_id,
-                None,  # no job_id for completions
-                f"[{type_color}]{itemtype} {escaped_completed:<12}  {subject}{extra}[/{type_color}]",
-            ]
+            # display: " 5 14:30" style like get_next
+            monthday = completed_dt.strftime("%-m-%d")
+            time_part = format_hours_mins(completed_dt, HRS_MINS)
+            when_str = f"{monthday:>2} {time_part}"
 
-            year_to_events.setdefault(completed_dt.strftime("%Y"), []).append(row)
+            type_color = TYPE_TO_COLOR.get(itemtype, "white")
+            when_frag = f"[not bold]{when_str}[/not bold]"
 
-        self.set_afill(events, "completions")
-        self.list_tag_to_id.setdefault("completions", {})
+            item = {
+                "record_id": record_id,
+                "job_id": None,  # no per-job completions yet
+                "datetime_id": None,  # keeping keys parallel with other views
+                "instance_ts": due_dt.strftime("%Y%m%dT%H%M") if due_dt else "none",
+                "text": f"[{type_color}]{itemtype} {when_frag} {subject}[/{type_color}]",
+            }
 
-        indx = 0
-        for year, events in year_to_events.items():
+            ym = completed_dt.strftime("%b %Y")
+            year_to_events[ym].append(item)
+
+        # Flatten to rows (month headers + items), then page-tagger
+        rows: list[dict] = []
+        for ym, events in year_to_events.items():
             if events:
-                display.append(
-                    f"[not bold][{HEADER_COLOR}]{year}[/{HEADER_COLOR}][/not bold]"
+                rows.append(
+                    {
+                        "dt_id": None,
+                        "record_id": None,
+                        "job_id": None,
+                        "datetime_id": None,
+                        "instance_ts": None,
+                        "text": f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]",
+                    }
                 )
-                for event in events:
-                    record_id, job_id, event_str = event
-                    tag_fmt, indx = self.add_tag(
-                        "completions", indx, record_id, job_id=job_id
-                    )
-                    display.append(f"{tag_fmt}{event_str}")
+                rows.extend(events)
 
-        return display
+        pages = page_tagger(rows)
+        return pages, header
 
     def get_record_completions(self, record_id: int, width: int = 70):
         """

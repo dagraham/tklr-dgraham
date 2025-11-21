@@ -1305,25 +1305,12 @@ class EditorScreen(Screen):
         else:
             panel.update(f"↳ {raw}{preview}")
 
-    # def _persist(self, item) -> None:
-    #     """Create or update the DB row using your model layer; only called when parse_ok is True."""
-    #     if self.record_id is None:
-    #         rid = self.controller.db_manager.add_item(item)  # uses full item fields
-    #         self.record_id = rid
-    #     else:
-    #         self.controller.db_manager.update_item(self.record_id, item)
-
     def _persist(self, item) -> None:
         rid = self.controller.db_manager.save_record(item, record_id=self.record_id)
         self.record_id = rid
-
-    # def _try_refresh_calling_view(self) -> None:
-    #     for scr in getattr(self.app, "screen_stack", []):
-    #         if hasattr(scr, "refresh_data"):
-    #             try:
-    #                 scr.refresh_data()
-    #             except Exception:
-    #                 pass
+        completion = getattr(item, "completion", None)
+        if completion:
+            self.controller.db_manager.add_completion(self.record_id, completion)
 
 
 class DetailsScreen(ModalScreen[None]):
@@ -2572,6 +2559,7 @@ class DynamicViewApp(App):
         ("R", "show_alerts", "Show Alerts"),
         ("A", "show_agenda", "Show Agenda"),
         ("B", "show_bins", "Bins"),
+        ("C", "show_completions", "Completions"),
         ("L", "show_last", "Show Last"),
         ("N", "show_next", "Show Next"),
         ("T", "show_tags", "Show Tags"),
@@ -2672,108 +2660,6 @@ class DynamicViewApp(App):
 
             self.push_screen(DetailsScreen([title] + lines))
 
-    # def make_detail_key_handler(self, *, view_name: str, week_provider=None):
-    #     ctrl = self.controller
-    #     app = self
-    #
-    #     async def handler(key: str, meta: dict) -> None:  # chord-aware
-    #         log_msg(f"in handler with {key = }, {meta = }")
-    #         record_id = meta.get("record_id")
-    #         job_id = meta.get("job_id")
-    #         first = meta.get("first")
-    #         second = meta.get("second")
-    #         itemtype = meta.get("itemtype")
-    #         subject = meta.get("subject")
-    #
-    #         if not record_id:
-    #             return
-    #
-    #         # chord-based actions
-    #         if key == "comma,f" and itemtype in "~^":
-    #             log_msg(f"{record_id = }, {job_id = }, {first = }")
-    #             job = f" {job_id}" if job_id else ""
-    #             id = f"({record_id}{job})"
-    #             due = (
-    #                 f"\nDue: [{LIGHT_SKY_BLUE}]{fmt_user(first)}[/{LIGHT_SKY_BLUE}]"
-    #                 if first
-    #                 else ""
-    #             )
-    #             msg = f"Finished datetime\nFor: [{LIGHT_SKY_BLUE}]{subject} {id}[/{LIGHT_SKY_BLUE}]{due}"
-    #
-    #             dt = await app.prompt_datetime(msg)
-    #             if dt:
-    #                 ctrl.finish_task(record_id, job_id=job_id, when=dt)
-    #
-    #         # elif key == "comma,e":
-    #         #     seed_text = ctrl.get_entry_from_record(record_id)
-    #         #     log_msg(f"{seed_text = }")
-    #         #     app.push_screen(EditorScreen(ctrl, record_id, seed_text=seed_text))
-    #
-    #         elif key == "comma,e":
-    #             # 1) Get editable text for this record
-    #             seed_text = ctrl.get_entry_from_record(record_id)
-    #             log_msg(f"{seed_text = }")
-    #
-    #             # 2) Close/hide details before opening the editor to avoid stale view
-    #             try:
-    #                 scr = app.screen
-    #                 if (
-    #                     hasattr(scr, "list_with_details")
-    #                     and scr.list_with_details.has_details_open()
-    #                 ):
-    #                     # adjust this to your actual API; many people have hide_details()
-    #                     if hasattr(scr.list_with_details, "hide_details"):
-    #                         scr.list_with_details.hide_details()
-    #             except Exception as e:
-    #                 log_msg(f"Error while hiding details before edit: {e}")
-    #
-    #             # 3) Define callback to refresh after editor closes
-    #
-    #             # 4) Push editor with callback
-    #             app.push_screen(
-    #                 EditorScreen(ctrl, record_id, seed_text=seed_text),
-    #                 callback=self._after_edit,
-    #             )
-    #
-    #         elif key == "comma,c":
-    #             row = ctrl.db_manager.get_record(record_id)
-    #             seed_text = row[2] or ""
-    #             app.push_screen(EditorScreen(ctrl, None, seed_text=seed_text))
-    #
-    #         elif key == "comma,d":
-    #             app.confirm(
-    #                 f"Delete item {record_id}? This cannot be undone.",
-    #                 lambda: ctrl.delete_item(record_id, job_id=job_id),
-    #             )
-    #
-    #         elif key == "comma,s":
-    #             dt = await app.prompt_datetime("Schedule when?")
-    #             if dt:
-    #                 ctrl.schedule_new(record_id, when=dt)
-    #
-    #         elif key == "comma,r":
-    #             dt = await app.prompt_datetime("Reschedule to?")
-    #             if dt:
-    #                 yrwk = week_provider() if week_provider else None
-    #                 ctrl.reschedule(record_id, when=dt, context=view_name, yrwk=yrwk)
-    #
-    #         elif key == "comma,g":
-    #             self.action_open_with_default(record_id)
-    #
-    #         elif key == "comma,t":
-    #             ctrl.touch_item(record_id)
-    #
-    #         elif key == "comma,p" and itemtype == "~":
-    #             ctrl.toggle_pinned(record_id)
-    #             if hasattr(app, "_reopen_details"):
-    #                 app._reopen_details(tag_meta=meta)
-    #
-    #         # keep ctrl+r for repetitions
-    #         elif key == "ctrl+r" and itemtype == "~":
-    #             ctrl.show_repetitions(record_id)
-    #
-    #     return handler
-
     def open_delete_prompt(
         self,
         *,
@@ -2850,152 +2736,6 @@ class DynamicViewApp(App):
 
         # Push the modal with a callback; no async/await here
         self.push_screen(OptionPrompt(msg, options), callback=_after_choice)
-
-    # def make_detail_key_handler(self, *, view_name: str, week_provider=None):
-    #     ctrl = self.controller
-    #     app = self
-    #     log_msg(f"{ctrl = }, {app = }")
-    #
-    #     async def handler(key: str, meta: dict) -> None:  # chord-aware
-    #         record_id = meta.get("record_id")
-    #         log_msg(f"in handler with {key = }, {meta = }, {record_id = }")
-    #         job_id = meta.get("job_id")
-    #         first = meta.get("first")
-    #         second = meta.get("second")
-    #         itemtype = meta.get("itemtype")
-    #         subject = meta.get("subject")
-    #         # new: instance-aware info
-    #         instance_ts = meta.get("instance_ts")
-    #         datetime_id = meta.get("datetime_id")
-    #
-    #         if not record_id:
-    #             return
-    #
-    #         # ---------- ,f : FINISH ----------
-    #         if key == "comma,f" and itemtype in "~^":
-    #             log_msg(f"{record_id = }, {job_id = }, {first = }")
-    #             job = f" {job_id}" if job_id else ""
-    #             id_part = f"({record_id}{job})"
-    #             due = (
-    #                 f"\nDue: [{LIGHT_SKY_BLUE}]{fmt_user(first)}[/{LIGHT_SKY_BLUE}]"
-    #                 if first
-    #                 else ""
-    #             )
-    #             msg = f"Finished datetime\nFor: [{LIGHT_SKY_BLUE}]{subject} {id_part}[/{LIGHT_SKY_BLUE}]{due}"
-    #
-    #             dt = await app.prompt_datetime(msg)
-    #             log_msg(f"got {dt = }")
-    #             if dt:
-    #                 ctrl.finish_task(record_id, job_id=job_id, when=dt)
-    #                 # optional: refresh view/details
-    #                 if hasattr(app, "refresh_view"):
-    #                     app.refresh_view()
-    #
-    #         # ---------- ,e : EDIT ----------
-    #         elif key == "comma,e":
-    #             log_msg("got comma,e")
-    #             # 1) Get editable text for this record
-    #             seed_text = ctrl.get_entry_from_record(record_id)
-    #             log_msg(f"{seed_text = }")
-    #
-    #             # 2) Close/hide details before opening the editor to avoid stale view
-    #             try:
-    #                 scr = app.screen
-    #                 if (
-    #                     hasattr(scr, "list_with_details")
-    #                     and scr.list_with_details.has_details_open()
-    #                 ):
-    #                     if hasattr(scr.list_with_details, "hide_details"):
-    #                         scr.list_with_details.hide_details()
-    #             except Exception as e:
-    #                 log_msg(f"Error while hiding details before edit: {e}")
-    #
-    #             # 3) Push editor with callback to refresh view
-    #             app.push_screen(
-    #                 EditorScreen(ctrl, record_id, seed_text=seed_text),
-    #                 callback=self._after_edit,
-    #             )
-    #
-    #         # ---------- ,c : CLONE ----------
-    #         elif key == "comma,c":
-    #             seed_text = ctrl.get_entry_from_record(record_id)
-    #             # row = ctrl.db_manager.get_record(record_id)
-    #             # seed_text = row[2] or ""
-    #             app.push_screen(
-    #                 EditorScreen(ctrl, None, seed_text=seed_text),
-    #                 callback=self._after_edit,
-    #             )
-    #
-    #         # ---------- ,d : DELETE ----------
-    #         elif key == "comma,d":
-    #             log_msg(f"in delete {second = }, {instance_ts = }, {itemtype = }")
-    #
-    #             is_repeating = second is not None
-    #             # delegate to the app helper; no await here
-    #             app.open_delete_prompt(
-    #                 record_id=record_id,
-    #                 job_id=job_id,
-    #                 subject=subject,
-    #                 itemtype=itemtype,
-    #                 instance_ts=instance_ts,
-    #                 is_repeating=is_repeating,
-    #             )
-    #
-    #         # ---------- ,s : SCHEDULE NEW INSTANCE ----------
-    #         elif key == "comma,n":
-    #             dt = await app.prompt_datetime("Schedule when?")
-    #             if dt:
-    #                 ctrl.schedule_new(record_id, job_id=job_id, when=dt)
-    #                 if hasattr(app, "refresh_view"):
-    #                     app.refresh_view()
-    #
-    #         # ---------- ,r : RESCHEDULE INSTANCE ----------
-    #         elif key == "comma,r":
-    #             # Prefer instance-aware reschedule if we know which instance
-    #             if instance_ts:
-    #                 msg = (
-    #                     f"Reschedule instance for "
-    #                     f"[{LIGHT_SKY_BLUE}]{subject}[/{LIGHT_SKY_BLUE}] "
-    #                     f"from {instance_ts} to?"
-    #                 )
-    #                 dt = await app.prompt_datetime(msg)
-    #                 if dt:
-    #                     ctrl.reschedule_instance(
-    #                         record_id,
-    #                         job_id=job_id,
-    #                         old_instance_text=instance_ts,
-    #                         new_when=dt,
-    #                     )
-    #                     if hasattr(app, "refresh_view"):
-    #                         app.refresh_view()
-    #             else:
-    #                 # Fallback: old behavior (coarser reschedule)
-    #                 dt = await app.prompt_datetime("Reschedule to?")
-    #                 if dt:
-    #                     yrwk = week_provider() if week_provider else None
-    #                     ctrl.reschedule(
-    #                         record_id, when=dt, context=view_name, yrwk=yrwk
-    #                     )
-    #
-    #         # ---------- ,g : GOTO (open_with_default) ----------
-    #         elif key == "comma,g":
-    #             self.action_open_with_default(record_id)
-    #
-    #         # ---------- ,t : TOUCH ----------
-    #         elif key == "comma,t":
-    #             ctrl.touch_item(record_id)
-    #
-    #         # ---------- ,p : PIN / UNPIN ----------
-    #         elif key == "comma,p" and itemtype == "~":
-    #             ctrl.toggle_pinned(record_id)
-    #             if hasattr(app, "_reopen_details"):
-    #                 app._reopen_details(tag_meta=meta)
-    #
-    #         # keep ctrl+r for repetitions
-    #         elif key == "ctrl+r" and itemtype == "~":
-    #             ctrl.show_repetitions(record_id)
-    #
-    #     return handler
 
     def make_detail_key_handler(self, *, view_name: str, week_provider=None):
         ctrl = self.controller
@@ -3417,6 +3157,13 @@ class DynamicViewApp(App):
         search_input = Input(placeholder="Enter search term...", id="find_input")
         self.mount(search_input)
         self.set_focus(search_input)
+
+    def action_show_completions(self):
+        self.view = "completions"
+        details, title = self.controller.get_completions()
+
+        footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
+        self.show_screen(FullScreenList(details, title, "", footer))
 
     def action_show_alerts(self):
         self.view = "alerts"
