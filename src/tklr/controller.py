@@ -53,6 +53,7 @@ from .shared import (
     TYPE_TO_COLOR,
     REPEATING,
     log_msg,
+    bug_msg,
     HRS_MINS,
     # ALERT_COMMANDS,
     dt_as_utc_timestamp,
@@ -329,7 +330,7 @@ def format_rruleset_for_details(
                 continue
         out.append(line)
     # prepend = " " * (len("rruleset: ")) + "\n"
-    log_msg(f"{out = }")
+    bug_msg(f"{out = }")
     return "\n          ".join(out)
 
 
@@ -565,7 +566,7 @@ def set_anniversary(subject: str, start: date, instance: date, freq: str) -> str
     freq ∈ {'y','m','w','d'}.
     """
     has_xxx = "{XXX}" in subject
-    log_msg(f"set_anniversary {subject = }, {has_xxx = }")
+    # bug_msg(f"set_anniversary {subject = }, {has_xxx = }")
     if not has_xxx:
         return subject
 
@@ -588,7 +589,7 @@ def set_anniversary(subject: str, start: date, instance: date, freq: str) -> str
     n = max(n, 0)  # treat first instance as "1st"
 
     new_subject = subject.replace("{XXX}", ordinal(n))
-    log_msg(f"{subject = }, {new_subject = }")
+    # log_msg(f"{subject = }, {new_subject = }")
     return new_subject
 
 
@@ -707,7 +708,7 @@ def page_tagger(
 
     for item in items:
         if not isinstance(item, dict):
-            log_msg(f"error: {item} is not a dict")
+            # bug_msg(f"error: {item} is not a dict")
             continue
 
         # header row
@@ -736,7 +737,7 @@ def page_tagger(
         instance_ts = item.get("instance_ts", None)
 
         tag_map[tag] = (record_id, job_id, datetime_id, instance_ts)
-        log_msg(f"{tag_map = }")
+        # bug_msg(f"{tag_map = }")
 
         # Display text unchanged
         page_rows.append(f" [dim]{tag}[/dim]  {item.get('text', '')}")
@@ -773,14 +774,14 @@ class Controller:
         self.env = env
         self.AMPM = env.config.ui.ampm
         self._last_details_meta = None
-        self.afill_by_view: dict[str, int] = {}  # e.g. {"events": 1, "tasks": 2}
-        self.afill_by_week: dict[Tuple[int, int], int] = {}
+        # self.afill_by_view: dict[str, int] = {}  # e.g. {"events": 1, "tasks": 2}
+        # self.afill_by_week: dict[Tuple[int, int], int] = {}
 
         for view in ["next", "last", "find", "events", "tasks", "alerts"]:
             self.list_tag_to_id.setdefault(view, {})
         self.week_tag_to_id: dict[Tuple[int, int], dict[str, object]] = {}
         self.width = shutil.get_terminal_size()[0] - 2
-        self.afill = 1
+        # self.afill = 1
         self._agenda_dirty = False
         self.ampm = False
         self.timefmt = "%H:%M"
@@ -836,7 +837,7 @@ class Controller:
 
     def add_item(self, item: Item) -> int:
         if item.itemtype in "~^x" and item.has_f:
-            log_msg(
+            bug_msg(
                 f"{item.itemtype = } {item.has_f = } {item.itemtype in '~^' and item.has_f = }"
             )
 
@@ -1037,9 +1038,9 @@ class Controller:
 
         inst_local = self._instance_local_from_text(instance_text)
 
-        log_msg(
-            f"{inst_local = }, {instances_local = }, {inst_local in instances_local = }"
-        )
+        # bug_msg(
+        #     f"{inst_local = }, {instances_local = }, {inst_local in instances_local = }"
+        # )
         if mode == "one":
             survivors = [d for d in instances_local if d != inst_local]
         elif mode == "this_and_future":
@@ -1278,6 +1279,7 @@ class Controller:
 
         # ---- Case 2: plain task (no job_id) ----
         upcoming = self.db_manager.get_next_start_datetimes_for_record(record_id) or []
+        bug_msg(f"{upcoming = }")
 
         if not upcoming:
 
@@ -1512,7 +1514,7 @@ class Controller:
             return subject
 
         flags = f" {row.get('flags')}" or ""
-        log_msg(f"{row = }, {flags = }")
+        # log_msg(f"{row = }, {flags = }")
         if not flags:
             return subject
 
@@ -1522,19 +1524,19 @@ class Controller:
         # leaf_lower -> "Leaf/Parent/.../Root"
         return self.db_manager.bin_cache.name_to_binpath()
 
-    def get_tag_iterator(self, view: str, count: int) -> Iterator[str]:
-        if view not in self.afill_by_view:
-            self.set_afill([None] * count, view)
-        fill = self.afill_by_view[view]
-        for i in range(count):
-            yield indx_to_tag(i, fill)
+    # def get_tag_iterator(self, view: str, count: int) -> Iterator[str]:
+    #     if view not in self.afill_by_view:
+    #         self.set_afill([None] * count, view)
+    #     fill = self.afill_by_view[view]
+    #     for i in range(count):
+    #         yield indx_to_tag(i, fill)
 
     # --- replace your set_afill with this per-view version ---
-    def set_afill(self, details: list, view: str):
-        n = len(details)
-        fill = 1 if n <= 26 else 2 if n <= 26 * 26 else 3
-        log_msg(f"{view = }, {n = }, {fill = }, {details = }")
-        self.afill_by_view[view] = fill
+    # def set_afill(self, details: list, view: str):
+    #     n = len(details)
+    #     fill = 1 if n <= 26 else 2 if n <= 26 * 26 else 3
+    #     log_msg(f"{view = }, {n = }, {fill = }, {details = }")
+    #     self.afill_by_view[view] = fill
 
     def add_tag(
         self, view: str, indx: int, record_id: int, *, job_id: int | None = None
@@ -1549,11 +1551,11 @@ class Controller:
         }
         return tag_fmt, indx + 1
 
-    def set_week_afill(self, details: list, yr_wk: Tuple[int, int]):
-        n = len(details)
-        fill = 1 if n <= 26 else 2 if n <= 26 * 26 else 3
-        log_msg(f"{yr_wk = }, {n = }, {fill = }")
-        self.afill_by_week[yr_wk] = fill
+    # def set_week_afill(self, details: list, yr_wk: Tuple[int, int]):
+    #     n = len(details)
+    #     fill = 1 if n <= 26 else 2 if n <= 26 * 26 else 3
+    #     log_msg(f"{yr_wk = }, {n = }, {fill = }")
+    #     # self.afill_by_week[yr_wk] = fill
 
     def add_week_tag(
         self,
@@ -1746,7 +1748,7 @@ class Controller:
             "record": self.db_manager.get_record(record_id),
         }
         self._last_details_meta = meta
-        log_msg(f"{meta = }")
+        bug_msg(f"{meta['first'] = }, {meta['second'] = }, {meta['instance_ts'] = }")
 
         # return [title, ""] + fields
         return title, fields, meta
@@ -1995,7 +1997,7 @@ class Controller:
         header = f"{this_week} #{yr_wk[1]} ({len(events)})"
         rows = []
 
-        self.set_week_afill(events, yr_wk)
+        # self.set_week_afill(events, yr_wk)
 
         if not events:
             rows.append(
@@ -2017,7 +2019,7 @@ class Controller:
 
         # for start_ts, end_ts, itemtype, subject, id, job_id in events:
         for dt_id, start_ts, end_ts, itemtype, subject, id, job_id in events:
-            log_msg(f"{itemtype = }, {subject = }, {dt_id = }, {id = }, {job_id = }")
+            # bug_msg(f"{itemtype = }, {subject = }, {dt_id = }, {id = }, {job_id = }")
             start_dt = datetime_from_timestamp(start_ts)
             end_dt = datetime_from_timestamp(end_ts)
             if itemtype == "*":  # event
@@ -2056,7 +2058,7 @@ class Controller:
             # 👉 NEW: append flags from Records.flags
             old_subject = subject
             subject = self.apply_flags(id, subject)
-            log_msg(f"{old_subject = }, {subject = }")
+            # bug_msg(f"{old_subject = }, {subject = }")
 
             row = {
                 "record_id": id,
@@ -2066,7 +2068,7 @@ class Controller:
                 "text": f"[{type_color}]{itemtype} {escaped_start_end}{subject}[/{type_color}]",
             }
             weekday_to_events.setdefault(start_dt.date(), []).append(row)
-            log_msg(f"job row: {row = }")
+            # bug_msg(f"job row: {row = }")
 
         for day, events in weekday_to_events.items():
             # TODO: today, tomorrow here
@@ -2175,7 +2177,7 @@ class Controller:
 
         # build 'rows' as a list of dicts with record_id and text
         pages = page_tagger(rows)
-        log_msg(f"{pages = }")
+        # bug_msg(f"{pages = }")
         return pages, header
 
     def get_last(self):
@@ -2201,10 +2203,10 @@ class Controller:
                     js = self.db_manager.get_job_display_subject(id, job_id)
                     if js:  # only override if present/non-empty
                         subject = js
-                    log_msg(f"{subject = }")
+                    # bug_msg(f"{subject = }")
                 except Exception as e:
                     # fail-safe: keep the record subject
-                    log_msg(f"{e = }")
+                    # bug_msg(f"{e = }")
                     pass
 
             # 👉 NEW: append flags from Records.flags
@@ -2236,7 +2238,7 @@ class Controller:
                 for event in events:
                     rows.append(event)
         pages = page_tagger(rows)
-        log_msg(f"{pages = }")
+        # bug_msg(f"{pages = }")
         return pages, header
 
     def find_records(self, search_str: str):
@@ -2286,7 +2288,7 @@ class Controller:
                 }
             )
         pages = page_tagger(rows)
-        log_msg(f"{pages = }")
+        # bug_msg(f"{pages = }")
         return pages, header
 
     def group_events_by_date_and_time(self, events):
@@ -2413,7 +2415,7 @@ class Controller:
             f"{'subject':<{name_width}}[/bold]"
         )
 
-        self.set_afill(completions, "record_completions")
+        # self.set_afill(completions, "record_completions")
         self.list_tag_to_id.setdefault("record_completions", {})
         indx = 0
 
@@ -2459,7 +2461,7 @@ class Controller:
         tasks_by_urgency = self.get_agenda_tasks()
         events_and_tasks = events_by_date + divider + tasks_by_urgency
         pages = page_tagger(events_and_tasks)
-        log_msg(f"{pages = }")
+        # bug_msg(f"{pages = }")
         return pages, header
 
     def get_agenda_events(self, now: datetime = datetime.now()):

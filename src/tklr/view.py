@@ -6,7 +6,7 @@ import time
 
 from asyncio import create_task
 
-from .shared import log_msg, display_messages, parse
+from .shared import log_msg, bug_msg, display_messages, parse
 from datetime import datetime, timedelta, date
 
 # from logging import log
@@ -138,7 +138,7 @@ def indx_to_tag(indx: int, fill: int = 1):
 
 
 def build_details_help(meta: dict) -> list[str]:
-    log_msg(f"{meta = }")
+    # bug_msg(f"{meta = }")
     is_task = meta.get("itemtype") == "~"
     is_event = meta.get("itemtype") == "*"
     is_goal = meta.get("itemtype") == "+"
@@ -171,6 +171,16 @@ def build_details_help(meta: dict) -> list[str]:
     for l, r in zip(left, rght):
         lines.append(f"{l}   {r}" if r else l)
     return lines
+
+
+def meta_times(meta: dict) -> dict:
+    return {x: meta.get(x, "") for x in ["subject", "first", "second", "instance_ts"]}
+    # return "\n".join(
+    #     [
+    #         f"{x}: {meta.get(x, '')}"
+    #         for x in ["subject", "first", "second", "instance_ts"]
+    #     ]
+    # )
 
 
 def _measure_rows(lines: list[str]) -> int:
@@ -274,7 +284,8 @@ HelpText = f"""\
  [bold]A[/bold]        Agenda          [bold]F[/bold]    Find 
  [bold]B[/bold]        Bins            [bold]L[/bold]    Last 
  [bold]C[/bold]        Completed       [bold]N[/bold]    Next  
- [bold]W[/bold]        Weeks           [bold]R[/bold]    Remaining Alerts  
+ [bold]W[/bold]        Weeks           [bold]T[/bold]    Tags  
+ [bold]R[/bold]        Reminders  
 [bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
  [bold]/[/bold]        Set search      empty search clears
  [bold]>[/bold]        Next match      [bold]<[/bold]    Previous match
@@ -434,16 +445,13 @@ class ListWithDetails(Container):
                     bg = w.styles.background
                 except Exception:
                     bg = "<no styles.background>"
-                log_msg(
-                    f"depth={depth} id={getattr(w, 'id', None)!r} cls={type(w).__name__} bg={bg}"
-                )
                 w = getattr(w, "parent", None)
                 depth += 1
 
         try:
             m = self.query_one("#main-list")
-            log_msg("=== debug: main-list styles ===")
-            log_msg(repr(m.styles))
+            # bug_msg("=== debug: main-list styles ===")
+            # bug_msg(repr(m.styles))
             _dump_chain(m)
         except Exception as e:
             log_msg(f"debug: couldn't find #main-list: {e}")
@@ -487,7 +495,8 @@ class ListWithDetails(Container):
     ) -> None:
         self.details_meta = meta or {}  # <- keep meta for key actions
         body = [title] + _make_rows(lines)
-        log_msg(f"{meta['instance_ts'] = }, {title = }, {lines = }")
+        bug_msg(f"{meta_times(self.details_meta)}")
+        # bug_msg(f"{meta['instance_ts'] = }, {title = }, {lines = }")
         self._details.update_list(body)
         self._details.remove_class("hidden")
         self._details_active = True
@@ -713,7 +722,7 @@ class OptionPrompt(ModalScreen[Optional[str]]):
         # event.option.prompt is the label we passed in
         label = str(event.option.prompt)
         # You can log here to prove it fires:
-        log_msg(f"OptionPrompt: selected {label!r}")
+        # bug_msg(f"OptionPrompt: selected {label!r}")
         self.dismiss(label)
         event.stop()
 
@@ -1229,23 +1238,23 @@ class EditorScreen(Screen):
             "w": "Weekday modifier",
         }
 
-        log_msg(f"{self.entry_text = }, {self._text.text = }")
+        # bug_msg(f"{self.entry_text = }, {self._text.text = }")
         panel = self.query_one("#ed_feedback", Static)  # <— direct, no fallback
 
         item = getattr(self, "item", None)
-        log_msg(f"{item = }")
+        # bug_msg(f"{item = }")
         if not item:
             panel.update("")
             return
 
         # 1) Show validate messages if any.
         if self.item.validate_messages:
-            log_msg(f"{self.item.validate_messages = }")
+            # log_msg(f"{self.item.validate_messages = }")
             panel.update("\n".join(self.item.validate_messages))
             return
 
         msgs = getattr(item, "messages", None) or []
-        log_msg(f"{msgs = }")
+        bug_msg(f"{msgs = }")
         if msgs:
             l = []
             if isinstance(msgs, list):
@@ -1256,13 +1265,13 @@ class EditorScreen(Screen):
                         l.append(msg)
 
             s = "\n".join(l)
-            log_msg(f"{s = }")
+            # log_msg(f"{s = }")
             # panel.update("\n".join(msgs))
             panel.update(s)
             return
 
         last = getattr(item, "last_result", None)
-        log_msg(f"{last = }")
+        # bug_msg(f"{last = }")
         if last and last[1]:
             panel.update(str(last[1]))
             # return
@@ -1270,7 +1279,7 @@ class EditorScreen(Screen):
         # 2) No errors: describe token at cursor (with normalized preview if available).
         idx = self._cursor_abs_index()
         tok = self._token_at(idx)
-        log_msg(f"{idx = } {tok = }")
+        # bug_msg(f"{idx = } {tok = }")
 
         if not tok:
             # panel.update("")
@@ -1278,12 +1287,12 @@ class EditorScreen(Screen):
 
         ttype = tok.get("t", "")
         raw = tok.get("token", "").strip()
-        log_msg(f"{raw = }")
+        # bug_msg(f"{raw = }")
         k = tok.get("k", "")
 
         preview = ""
         last = getattr(item, "last_result", None)
-        log_msg(f"{last = }")
+        # bug_msg(f"{last = }")
         # if isinstance(last, tuple) and len(last) >= 3 and last[0] is True:
         if isinstance(last, tuple) and len(last) >= 3:
             meta = last[2] or {}
@@ -1333,19 +1342,19 @@ class DetailsScreen(ModalScreen[None]):
     # ]
 
     # Actions mapped to bindings
-    def action_edit_item(self) -> None:
-        self._edit_item()
-
-    def action_copy_item(self) -> None:
-        self._copy_item()
-
-    def action_delete_item(self) -> None:
-        self._delete_item()
-
-    def action_finish_task(self) -> None:
-        if self.is_task:
-            self._finish_task()
-
+    # def action_edit_item(self) -> None:
+    #     self._edit_item()
+    #
+    # def action_copy_item(self) -> None:
+    #     self._copy_item()
+    #
+    # def action_delete_item(self) -> None:
+    #     self._delete_item()
+    #
+    # def action_finish_task(self) -> None:
+    #     if self.is_task:
+    #         self._finish_task()
+    #
     def action_toggle_pinned(self) -> None:
         if self.is_task:
             self._toggle_pinned()
@@ -1405,7 +1414,7 @@ class DetailsScreen(ModalScreen[None]):
     # ---------- lifecycle ----------
     def on_mount(self) -> None:
         meta = self.app.controller.get_last_details_meta() or {}
-        log_msg(f"{meta = }")
+        # bug_msg(f"{meta = }")
         self.set_focus(self)  # 👈 this makes sure the modal is active for bindings
         self.record_id = meta.get("record_id")
         self.itemtype = meta.get("itemtype") or ""
@@ -1437,17 +1446,17 @@ class DetailsScreen(ModalScreen[None]):
         self.app.push_screen(HelpScreen(lines))
 
     # ---------- wire these to your controller ----------
-    def _edit_item(self) -> None:
-        # e.g. self.app.controller.edit_record(self.record_id)
-        log_msg("edit_item")
-
-    def _copy_item(self) -> None:
-        # e.g. self.app.controller.copy_record(self.record_id)
-        log_msg("copy_item")
-
-    def _delete_item(self) -> None:
-        # e.g. self.app.controller.delete_record(self.record_id, scope=...)
-        log_msg("delete_item")
+    # def _edit_item(self) -> None:
+    #     # e.g. self.app.controller.edit_record(self.record_id)
+    #     log_msg("edit_item")
+    #
+    # def _copy_item(self) -> None:
+    #     # e.g. self.app.controller.copy_record(self.record_id)
+    #     log_msg("copy_item")
+    #
+    # def _delete_item(self) -> None:
+    #     # e.g. self.app.controller.delete_record(self.record_id, scope=...)
+    #     log_msg("delete_item")
 
     def _prompt_finish_datetime(self) -> datetime | None:
         """
@@ -1934,7 +1943,7 @@ class WeeksScreen(SearchableScreen, SafeScreen):
             if self.list_with_details.has_details_open():
                 self.list_with_details.hide_details()
             # ensure controller expects single-letter tags for weeks
-            self.app.controller.afill_by_view["weeks"] = 1
+            # self.app.controller.afill_by_view["weeks"] = 1
             # ensure title shows base title (no indicator)
             self.query_one("#table_title", Static).update(self.table_title)
             return
@@ -1972,7 +1981,7 @@ class WeeksScreen(SearchableScreen, SafeScreen):
         # update list contents
         self.list_with_details.update_list(rows)
         # reset controller afill for week -> single-letter tags (page_tagger guarantees this)
-        self.app.controller.afill_by_view["weeks"] = 1
+        # self.app.controller.afill_by_view["weeks"] = 1
 
         if self.list_with_details.has_details_open():
             # close stale details when page changes (optional)
@@ -2743,11 +2752,11 @@ class DynamicViewApp(App):
     def make_detail_key_handler(self, *, view_name: str, week_provider=None):
         ctrl = self.controller
         app = self
-        log_msg(f"{ctrl = }, {app = }")
+        # bug_msg(f"{ctrl = }, {app = }")
 
         def handler(key: str, meta: dict) -> None:  # chord-aware, sync
             record_id = meta.get("record_id")
-            log_msg(f"in handler with {key = }, {meta = }, {record_id = }")
+            # bug_msg(f"in handler with {key = }, {meta = }, {record_id = }")
             job_id = meta.get("job_id")
             first = meta.get("first")
             second = meta.get("second")
@@ -2762,7 +2771,7 @@ class DynamicViewApp(App):
 
             # ---------- ,f : FINISH ----------
             if key == "comma,f" and itemtype in "~^":
-                log_msg(f"{record_id = }, {job_id = }, {first = }")
+                # bug_msg(f"{record_id = }, {job_id = }, {first = }")
                 job = f" {job_id}" if job_id else ""
                 id_part = f"({record_id}{job})"
                 due = (
@@ -2776,7 +2785,7 @@ class DynamicViewApp(App):
                 )
 
                 def _after_dt(dt: datetime | None) -> None:
-                    log_msg(f"finish, got {dt = }")
+                    # bug_msg(f"finish, got {dt = }")
                     if dt:
                         ctrl.finish_task(record_id, job_id=job_id, when=dt)
                         if hasattr(app, "refresh_view"):
@@ -2786,9 +2795,9 @@ class DynamicViewApp(App):
 
             # ---------- ,e : EDIT ----------
             elif key == "comma,e":
-                log_msg("got comma,e")
+                # bug_msg("got comma,e")
                 seed_text = ctrl.get_entry_from_record(record_id)
-                log_msg(f"{seed_text = }")
+                # bug_msg(f"{seed_text = }")
 
                 # Close/hide details before opening the editor
                 try:
@@ -2817,7 +2826,7 @@ class DynamicViewApp(App):
 
             # ---------- ,d : DELETE ----------
             elif key == "comma,d":
-                log_msg(f"in delete {second = }, {instance_ts = }, {itemtype = }")
+                # bug_msg(f"in delete {second = }, {instance_ts = }, {itemtype = }")
                 is_repeating = second is not None
                 app.open_delete_prompt(
                     record_id=record_id,
@@ -2832,7 +2841,7 @@ class DynamicViewApp(App):
             elif key == "comma,n":
 
                 def _after_dt(dt: datetime | None) -> None:
-                    log_msg(f"schedule_new, got {dt = }")
+                    # bug_msg(f"schedule_new, got {dt = }")
                     if dt:
                         ctrl.schedule_new(record_id, job_id=job_id, when=dt)
                         if hasattr(app, "refresh_view"):
@@ -2850,7 +2859,7 @@ class DynamicViewApp(App):
                     )
 
                     def _after_dt(dt: datetime | None) -> None:
-                        log_msg(f"reschedule instance, got {dt = }")
+                        # bug_msg(f"reschedule instance, got {dt = }")
                         if dt:
                             ctrl.reschedule_instance(
                                 record_id,
@@ -2866,7 +2875,7 @@ class DynamicViewApp(App):
                 else:
                     # fallback: older coarse reschedule
                     def _after_dt(dt: datetime | None) -> None:
-                        log_msg(f"reschedule coarse, got {dt = }")
+                        # bug_msg(f"reschedule coarse, got {dt = }")
                         if dt:
                             yrwk = week_provider() if week_provider else None
                             ctrl.reschedule(
@@ -2897,10 +2906,10 @@ class DynamicViewApp(App):
 
     def on_key(self, event: events.Key) -> None:
         """Handle global key events (tags, escape, etc.)."""
-        log_msg(f"before: {event.key = }, {self.leader_mode = }")
+        # bug_msg(f"before: {event.key = }, {self.leader_mode = }")
 
         # --- View-specific setup ---
-        log_msg(f"{self.view = }")
+        # bug_msg(f"{self.view = }")
         # ------------------ improved left/right handling ------------------
         # if event.key == "ctrl+b":
         #     self.action_show_bins()
@@ -2949,19 +2958,19 @@ class DynamicViewApp(App):
                 # Prefer page navigation when page available; otherwise fallback to week nav.
                 if event.key == "left":
                     if has_prev_available and do_prev:
-                        log_msg("[LEFT/RIGHT] -> screen.previous_page()")
+                        # bug_msg("[LEFT/RIGHT] -> screen.previous_page()")
                         screen.previous_page()
                     else:
-                        log_msg("[LEFT/RIGHT] -> no prev page -> previous week")
+                        # bug_msg("[LEFT/RIGHT] -> no prev page -> previous week")
                         self.action_previous_week()
                     return
 
                 else:  # right
                     if has_next_available and do_next:
-                        log_msg("[LEFT/RIGHT] -> screen.next_page()")
+                        # bug_msg("[LEFT/RIGHT] -> screen.next_page()")
                         screen.next_page()
                     else:
-                        log_msg("[LEFT/RIGHT] -> no next page -> next week")
+                        # bug_msg("[LEFT/RIGHT] -> no next page -> next week")
                         self.action_next_week()
                     return
             # else: not week view -> let other code handle left/right
@@ -2988,16 +2997,16 @@ class DynamicViewApp(App):
         # --- Leader (comma) mode ---
         if event.key == "comma":
             self.leader_mode = True
-            log_msg(f"set {self.leader_mode = }")
+            # bug_msg(f"set {self.leader_mode = }")
             return
 
         if self.leader_mode:
             self.leader_mode = False
             meta = self.controller.get_last_details_meta() or {}
             handler = getattr(self, "detail_handler", None)
-            log_msg(f"got {event.key = }, {handler = }")
+            # bug_msg(f"got {event.key = }, {handler = }")
             if handler:
-                log_msg(f"dispatching detail handler for {event.key = }, {meta = }")
+                # bug_msg(f"dispatching detail handler for {event.key = }, {meta = }")
                 # 🔹 handler is now sync; just call it
                 handler(f"comma,{event.key}", meta)
             return
@@ -3034,7 +3043,7 @@ class DynamicViewApp(App):
     def action_take_screenshot(self):
         path = timestamped_screenshot_path(self.view)
         self.save_screenshot(str(path))
-        log_msg(f"Screenshot saved to: {path}")
+        self.notify(f"Screenshot saved to: {path}", severity="info", timeout=3)
 
     def run_daily_tasks(self):
         created, kept, removed = self.controller.rotate_daily_backups()
@@ -3175,9 +3184,7 @@ class DynamicViewApp(App):
 
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
 
-        self.push_screen(
-            FullScreenList(pages, "Active Alerts for Today", header, footer)
-        )
+        self.push_screen(FullScreenList(pages, "Reminders for Today", header, footer))
 
     def _close_details_if_open(self) -> None:
         # If your details is a modal screen, pop it; if it's a panel, hide it.
@@ -3331,7 +3338,7 @@ class DynamicViewApp(App):
 
     def action_show_help(self):
         scr = self.screen
-        log_msg(
+        bug_msg(
             f"{scr = }, {self.controller.get_last_details_meta() = }, {hasattr(scr, 'list_with_details') = }"
         )
         if (
@@ -3383,7 +3390,7 @@ class DynamicViewApp(App):
         ):
             meta = self.controller.get_last_details_meta() or {}
             handler = self.make_detail_key_handler(view_name=self.view)
-            log_msg(f"got {self.view = }, {key = }, {meta = }, {handler = }")
+            bug_msg(f"got {self.view = }, {key = }, {meta = }, {handler = }")
             handler(key, meta)
 
     # async def prompt_datetime(

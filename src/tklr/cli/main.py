@@ -340,7 +340,7 @@ def _wrap_or_truncate(text: str, width: int) -> str:
     if len(text) <= width:
         return text
     # leave room for an ellipsis
-    return text[: max(0, width - 1)] + "…"
+    return text[: max(0, width - 3)] + "…"
 
 
 def _group_instances_by_date_for_weeks(events) -> Dict[date, List[dict]]:
@@ -464,7 +464,8 @@ def weeks(ctx, start_opt, end_opt, width, rich):
     console = Console(
         force_terminal=rich and is_tty,
         no_color=not rich,
-        markup=rich,
+        markup=rich,  # still allow [bold] etc when --rich
+        highlight=False,  # 👈 disable auto syntax highlighting
     )
 
     today = datetime.now().date()
@@ -479,13 +480,18 @@ def weeks(ctx, start_opt, end_opt, width, rich):
             console.print()
         first_week = False
 
+        # week_label = format_iso_week(datetime.combine(week_start, time(0, 0)))
+        #
+        # if rich:
+        #     console.print(f"[not bold]{week_label}[/not bold]")
+        # else:
+        #     console.print(week_label)
         week_label = format_iso_week(datetime.combine(week_start, time(0, 0)))
 
         if rich:
-            console.print(f"[not bold]{week_label}[/not bold]")
+            console.print(f"[bold deep_sky_blue1]{week_label}[/bold deep_sky_blue1]")
         else:
             console.print(week_label)
-
         # Days within this week
         for i in range(7):
             d = week_start + timedelta(days=i)
@@ -495,7 +501,7 @@ def weeks(ctx, start_opt, end_opt, width, rich):
 
             # Day header
             flag = " (today)" if d == today else ""
-            day_header = f"  {d:%a, %b %-d}{flag}"
+            day_header = f" {d:%a, %b %-d}{flag}"
             console.print(day_header)
 
             # Day rows, max width
@@ -511,9 +517,9 @@ def weeks(ctx, start_opt, end_opt, width, rich):
                     )
 
                 if time_str:
-                    base = f"    {itemtype} {time_str} {subject}"
+                    base = f"  {itemtype} {time_str} {subject}"
                 else:
-                    base = f"    {itemtype} {subject}"
+                    base = f"  {itemtype} {subject}"
 
                 console.print(_wrap_or_truncate(base, width))
 

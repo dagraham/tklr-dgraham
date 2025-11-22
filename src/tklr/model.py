@@ -28,6 +28,7 @@ from rich.text import Text
 from .shared import (
     HRS_MINS,
     log_msg,
+    bug_msg,
     parse,
     format_datetime,
     datetime_from_timestamp,
@@ -290,7 +291,7 @@ def _parse_jobs_json(jobs_json: str | None) -> list[dict]:
     if isinstance(data, list):
         for j in data:
             if isinstance(j, dict):
-                log_msg(f"json jobs: {j = }")
+                # log_msg(f"json jobs: {j = }")
                 jobs.append(
                     {
                         "job_id": j.get("id"),
@@ -387,14 +388,14 @@ def fine_busy_bits_for_event(
 
             s_idx = (s.hour * 60 + s.minute) // slot_minutes
             e_idx = (e.hour * 60 + e.minute) // slot_minutes
-            log_msg(f"{s_idx = }, {e_idx = }, {e_idx - s_idx = } ")
+            # log_msg(f"{s_idx = }, {e_idx = }, {e_idx - s_idx = } ")
             weeks[yw][base + 1 + s_idx : base + 1 + e_idx + 1] = 1
             busy_count += np.count_nonzero(weeks[yw])
 
         if end is None or cur.date() >= end.date():
             break
         cur += timedelta(days=1)
-    log_msg(f"{start_str = }, {end_str = }, {busy_count = }")
+    # log_msg(f"{start_str = }, {end_str = }, {busy_count = }")
     return weeks
 
 
@@ -664,7 +665,7 @@ class BinCache:
             bid: _rev_path_for(bid, self.name, self.parent) for bid in self.name
         }
         self._rebuild_name_dict()
-        log_msg(f"{self.name_to_binpath() = }")
+        # log_msg(f"{self.name_to_binpath() = }")
 
     def _rebuild_name_dict(self) -> None:
         self._name_to_binpath = {
@@ -998,7 +999,7 @@ class DatabaseManager:
             ),
         )
         self.bin_cache = BinCache(self.conn)
-        log_msg(f"{self.bin_cache.name_to_binpath() = }")
+        # bug_msg(f"{self.bin_cache.name_to_binpath() = }")
         self.populate_dependent_tables()
 
     def format_datetime(self, fmt_dt: str) -> str:
@@ -1265,7 +1266,7 @@ class DatabaseManager:
         self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = [row[0] for row in self.cursor.fetchall()]
         tables.sort()
-        log_msg(f"Tables after setup_database in {tables = }")
+        # bug_msg(f"Tables after setup_database in {tables = }")
 
     def setup_busy_tables(self):
         """
@@ -1403,16 +1404,16 @@ class DatabaseManager:
 
     def populate_dependent_tables(self):
         """Populate all tables derived from current Records (Tags, DateTimes, Alerts, notice)."""
-        log_msg("populate dependent tables")
+        # log_msg("populate dependent tables")
         yr, wk = datetime.now().isocalendar()[:2]
-        log_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
+        # bug_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
         self.extend_datetimes_for_weeks(yr, wk, 12)
         # self.populate_tags()
-        log_msg("calling populate_alerts")
+        # bug_msg("calling populate_alerts")
         self.populate_alerts()
-        log_msg("calling populate_notice")
+        # bug_msg("calling populate_notice")
         self.populate_notice()
-        log_msg("calling populate_busy_from_datetimes")
+        # bug_msg("calling populate_busy_from_datetimes")
         self.populate_busy_from_datetimes()  # 👈 new step: source layer
         self.rebuild_busyweeks_from_source()  # 👈 add this line
         self.populate_all_urgency()
@@ -1468,8 +1469,8 @@ class DatabaseManager:
     ) -> None:
         text = (subject or "") + "\n" + (description or "")
         tags = set(TAG_RE.findall(text))
-        if "#" in text:
-            log_msg(f"has hash mark: {text = }, {tags = }")
+        # if "#" in text:
+        #     bug_msg(f"has hash mark: {text = }, {tags = }")
 
         self.cursor.execute("DELETE FROM Hashtags WHERE record_id = ?", (record_id,))
         for tag in tags:
@@ -1696,14 +1697,14 @@ class DatabaseManager:
         self.conn.commit()
 
         # Dependent tables
-        log_msg(f"save record for {record_id = }, {item.itemtype = }")
+        # bug_msg(f"save record for {record_id = }, {item.itemtype = }")
         self.relink_bins_for_record(record_id, item)
         self.generate_datetimes_for_record(record_id)
         self.populate_alerts_for_record(record_id)
         if item.notice:
             self.populate_notice_for_record(record_id)
         if item.itemtype in ["~", "^"]:
-            log_msg("calling populate_urgency_from_record")
+            # bug_msg("calling populate_urgency_from_record")
             self.populate_urgency_from_record(record_id)
 
         # Hashtags: based on subject + description
@@ -1892,7 +1893,7 @@ class DatabaseManager:
         )
 
         alerts = self.cursor.fetchall()
-        log_msg(f"{alerts = }")
+        # bug_msg(f"{alerts = }")
 
         if not alerts:
             return []
@@ -1954,7 +1955,7 @@ class DatabaseManager:
 
         jobs = _parse_jobs_json(row[0])
         for job in jobs:
-            log_msg(f"{job = }")
+            # bug_msg(f"{job = }")
             if job.get("job_id") == job_id:
                 return job.get("display_subject") or None
 
@@ -1966,7 +1967,7 @@ class DatabaseManager:
         Returns None if not found.
 
         """
-        log_msg(f"getting job_dict for {record_id = }, {job_id = }")
+        # bug_msg(f"getting job_dict for {record_id = }, {job_id = }")
         if job_id is None:
             return None
 
@@ -1976,12 +1977,12 @@ class DatabaseManager:
             return None
 
         jobs = _parse_jobs_json(row[0])
-        log_msg(f"{jobs = }")
+        # bug_msg(f"{jobs = }")
         for job in jobs:
             if job.get("job_id") == job_id:
                 return job  # Return the full dictionary
 
-        log_msg(f"returning None for {record_id = }, {job_id = }")
+        # bug_msg(f"returning None for {record_id = }, {job_id = }")
         return None
 
     def get_all_alerts(self):
@@ -2062,7 +2063,7 @@ class DatabaseManager:
             location=location,
             start=start,
         )
-        log_msg(f"formatted alert {alert_command = }")
+        # bug_msg(f"formatted alert {alert_command = }")
         return alert_command
 
     def create_alert(
@@ -2116,7 +2117,7 @@ class DatabaseManager:
             # Fallback: use a minimal template or use the raw template
             formatted = alert_command_template.format_map(SafeDict(field_values))
 
-        log_msg(f"formatted alert: {formatted!r}")
+        # bug_msg(f"formatted alert: {formatted!r}")
         return formatted
 
     def get_notice_for_today(self):
@@ -2456,7 +2457,7 @@ class DatabaseManager:
         )
         records = self.cursor.fetchall()
         if not records:
-            log_msg(f"🔕 No alerts to populate for record {record_id}")
+            # bug_msg(f"🔕 No alerts to populate for record {record_id}")
             return
 
         for (
@@ -2552,7 +2553,7 @@ class DatabaseManager:
                         )
 
         self.conn.commit()
-        log_msg(f"✅ Alerts updated for record {record_id}")
+        # bug_msg(f"✅ Alerts updated for record {record_id}")
 
     def get_generated_weeks_range(self) -> tuple[int, int, int, int] | None:
         row = self.cursor.execute(
@@ -2676,7 +2677,7 @@ class DatabaseManager:
         ) + timedelta(days=6)
 
         # Generate new datetimes for the extended range
-        log_msg(f"generating datetimes for {first_day = } {last_day = }")
+        # bug_msg(f"generating datetimes for {first_day = } {last_day = }")
         self.generate_datetimes_for_period(first_day, last_day)
 
         # Update the GeneratedWeeks table
@@ -2705,16 +2706,16 @@ class DatabaseManager:
             List[Tuple[datetime, datetime]]: A list of (start_dt, end_dt) tuples.
         """
 
-        log_msg(
-            f"getting datetimes for {rule_str} between {start_date = } and {end_date = }"
-        )
+        # bug_msg(
+        #     f"getting datetimes for {rule_str} between {start_date = } and {end_date = }"
+        # )
         rule = rrulestr(rule_str, dtstart=start_date)
         occurrences = list(rule.between(start_date, end_date, inc=True))
         print(f"{rule_str = }\n{occurrences = }")
         extent = td_str_to_td(extent) if isinstance(extent, str) else extent
-        log_msg(
-            f"Generating for {len(occurrences) = } between {start_date = } and {end_date = } with {extent = } for {rule_str = }."
-        )
+        # bug_msg(
+        #     f"Generating for {len(occurrences) = } between {start_date = } and {end_date = } with {extent = } for {rule_str = }."
+        # )
 
         # Create (start, end) pairs
         results = []
@@ -2832,7 +2833,7 @@ class DatabaseManager:
 
         # ---- PATH A: Projects with jobs -> generate job rows only ----
         if has_jobs:
-            log_msg(f"{record_id = } has jobs")
+            # bug_msg(f"{record_id = } has jobs")
             for parent_dt in _iter_parent_occurrences():
                 parent_local = _to_local_naive(
                     parent_dt
@@ -2840,7 +2841,7 @@ class DatabaseManager:
                     else datetime.combine(parent_dt, datetime.min.time())
                 )
                 for j in jobs:
-                    log_msg(f"job: {j = }")
+                    # bug_msg(f"job: {j = }")
                     if j.get("status") == "finished":
                         continue
                     job_id = j.get("job_id")
@@ -2864,14 +2865,14 @@ class DatabaseManager:
                                     if seg_end == seg_start
                                     else _fmt_naive(seg_end)
                                 )
-                                log_msg(
-                                    f"inserting job datetimes {s_txt = }, {e_txt = } for {record_id = }, {job_id = }"
-                                )
+                                # bug_msg(
+                                #     f"inserting job datetimes {s_txt = }, {e_txt = } for {record_id = }, {job_id = }"
+                                # )
                                 self.cursor.execute(
                                     "INSERT OR IGNORE INTO DateTimes (record_id, job_id, start_datetime, end_datetime) VALUES (?, ?, ?, ?)",
                                     (record_id, job_id, s_txt, e_txt),
                                 )
-                                log_msg("success")
+                                # bug_msg("success")
                         except NameError:
                             # fallback: single row
                             self.cursor.execute(
@@ -3579,7 +3580,7 @@ class DatabaseManager:
 
     def populate_urgency_from_record(self, record_id: int):
         record = self.get_record_as_dictionary(record_id)
-        log_msg(f"updating urgency for {record_id = }, {record = }")
+        # bug_msg(f"updating urgency for {record_id = }, {record = }")
 
         record_id = record["id"]
         itemtype = record["itemtype"]
@@ -3597,7 +3598,7 @@ class DatabaseManager:
         description = True if record.get("description", "") else False
 
         if itemtype not in ["^", "~"]:
-            log_msg(f"skipping urgency for {record = }")
+            # bug_msg(f"skipping urgency for {record = }")
             return
 
         now_seconds = utc_now_to_seconds()
@@ -3774,7 +3775,7 @@ class DatabaseManager:
         return cur.fetchone()
 
     def get_record_as_dictionary(self, record: int) -> dict | None:
-        log_msg(f"get_record_as_dictionary called with {record = } ({type(record)=})")
+        # bug_msg(f"get_record_as_dictionary called with {record = } ({type(record)=})")
         if isinstance(record, dict):
             return record
         cur = self.conn.cursor()
@@ -3819,7 +3820,7 @@ class DatabaseManager:
             print("⚠️ No data to aggregate.")
             return
 
-        log_msg(f"Aggregating {len(weeks)} week(s)...")
+        # bug_msg(f"Aggregating {len(weeks)} week(s)...")
 
         for yw in weeks:
             # --- Gather all event arrays for this week
@@ -3867,7 +3868,7 @@ class DatabaseManager:
             )
 
         self.conn.commit()
-        log_msg("✅ BusyWeeks aggregation complete.")
+        # bug_msg("✅ BusyWeeks aggregation complete.")
 
     def show_busy_week(self, year_week: str):
         """

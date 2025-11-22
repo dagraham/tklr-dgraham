@@ -281,7 +281,53 @@ def log_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = False)
 
     # Format the line header
     lines = [
-        f"- {datetime.now().strftime('%y-%m-%d %H:%M:%S')} ({caller_name}):  ",
+        f"- {datetime.now().strftime('%y-%m-%d %H:%M:%S')} log_msg ({caller_name}):  ",
+    ]
+    # Wrap the message text
+    lines.extend(
+        [
+            f"\n{x}"
+            for x in textwrap.wrap(
+                msg.strip(),
+                width=shutil.get_terminal_size()[0] - 6,
+                initial_indent="   ",
+                subsequent_indent="   ",
+            )
+        ]
+    )
+    lines.append("\n\n")
+
+    # Save the message to the file
+    with open(file_path, "a") as f:
+        f.writelines(lines)
+
+    # Optional console print
+    if print_output:
+        print("".join(lines))
+
+
+def bug_msg(msg: str, file_path: str = "bug_msg.md", print_output: bool = False):
+    """
+    A different name for log_msg for temp debugging usage - easier to find and remove.
+    By default writes to "bug_msg.md" instead of "log_msg.md"
+    """
+    frame = inspect.stack()[1].frame
+    func_name = frame.f_code.co_name
+
+    # Default: just function name
+    caller_name = func_name
+
+    # Detect instance/class/static context
+    if "self" in frame.f_locals:  # instance method
+        cls_name = frame.f_locals["self"].__class__.__name__
+        caller_name = f"{cls_name}.{func_name}"
+    elif "cls" in frame.f_locals:  # classmethod
+        cls_name = frame.f_locals["cls"].__name__
+        caller_name = f"{cls_name}.{func_name}"
+
+    # Format the line header
+    lines = [
+        f"- {datetime.now().strftime('%y-%m-%d %H:%M:%S')} bug_msg ({caller_name}):  ",
     ]
     # Wrap the message text
     lines.extend(
