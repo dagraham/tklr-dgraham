@@ -31,6 +31,7 @@ from .shared import (
     bug_msg,
     parse,
     format_datetime,
+    _to_local_naive,
     datetime_from_timestamp,
     duration_in_words,
     datetime_in_words,
@@ -113,14 +114,14 @@ def _fmt_utc(dt_aware_utc: datetime) -> str:
     return dt_aware_utc.astimezone(tz.UTC).strftime(DT_FMT) + "Z"
 
 
-def _to_local_naive(dt: datetime) -> datetime:
-    """
-    Convert aware -> local-naive; leave naive unchanged.
-    Assumes dt is datetime (not date).
-    """
-    if dt.tzinfo is not None:
-        dt = dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
-    return dt
+# def _to_local_naive(dt: datetime) -> datetime:
+#     """
+#     Convert aware -> local-naive; leave naive unchanged.
+#     Assumes dt is datetime (not date).
+#     """
+#     if dt.tzinfo is not None:
+#         dt = dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
+#     return dt
 
 
 def _to_key(dt: datetime) -> str:

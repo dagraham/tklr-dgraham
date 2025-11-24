@@ -159,6 +159,15 @@ def parse(s, yearfirst: bool = True, dayfirst: bool = False):
     return ""
 
 
+def _to_local_naive(dt: datetime) -> datetime:
+    """Convert aware dt to local naive; leave naive as is."""
+    if dt.tzinfo:
+        local = dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
+    else:
+        local = dt
+    return local
+
+
 def dt_as_utc_timestamp(dt: datetime) -> int:
     if not isinstance(dt, datetime):
         return 0

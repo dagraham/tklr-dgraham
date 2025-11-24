@@ -34,6 +34,7 @@ from urllib.parse import urlparse
 from .shared import (
     log_msg,
     bug_msg,
+    _to_local_naive,
     print_msg,
     fmt_local_compact,
     parse_local_compact,
@@ -1032,6 +1033,41 @@ class Item:
 
         if self.final:
             self.finalize_record()
+
+    def _remove_instance_from_plus_tokens(
+        self, tokens: list[dict], tok_local_str: str
+    ) -> bool:
+        """
+        Remove an entry matching tok_local_str (local format e.g. '20251122T1000')
+        from any @+ tokens in the list. If removal empties a @+ list,
+        remove that token entirely. Return True if removal happened.
+        """
+        changed = False
+        new_tokens = []
+        for tok in tokens:
+            if tok.get("k") == "+":
+                body = tok["token"][2:].strip()
+                parts = [p.strip() for p in body.split(",") if p.strip()]
+                # filter out the matching part
+                filtered = [
+                    p
+                    for p in parts
+                    if _to_local_naive(parse(p)).strftime("%Y%m%dT%H%M")
+                    != tok_local_str
+                ]
+                if len(filtered) < len(parts):
+                    changed = True
+                    if filtered:
+                        tok["token"] = "@+ " + ", ".join(filtered)
+                        new_tokens.append(tok)
+                    # else: drop this token entirely
+                else:
+                    new_tokens.append(tok)
+            else:
+                new_tokens.append(tok)
+        if changed:
+            tokens[:] = new_tokens
+        return changed
 
     def finalize_record(self):
         """
@@ -3625,62 +3661,190 @@ from: * (event), ~ (task), ^ (project), % (note),
         except Exception as e:
             return False, f"invalid @o interval: {e}", []
 
-    def finish(self) -> None:
-        f_tokens = [t for t in self.relative_tokens if t.get("k") == "f"]
-        if not f_tokens:
-            return
-        # bug_msg(f"{f_tokens = }, {self.relative_tokens = }")
+    # def finish(self) -> None:
+    #     f_tokens = [t for t in self.relative_tokens if t.get("k") == "f"]
+    #     if not f_tokens:
+    #         return
+    #     # bug_msg(f"{f_tokens = }, {self.relative_tokens = }")
+    #
+    #     # completed_dt = max(parse_dt(t["token"].split(maxsplit=1)[1]) for t in f_tokens)
+    #     completed_dt, was_due_dt = parse_f_token(f_tokens[0])
+    #     completed_dt = completed_dt.astimezone()
+    #
+    #     due_dt = None  # default
+    #
+    #     if offset_tok := next(
+    #         (t for t in self.relative_tokens if t.get("k") == "o"), None
+    #     ):
+    #         due_dt = self._get_start_dt()
+    #         # bug_msg(f"{completed_dt = }, {due_dt = }")
+    #         td = td_str_to_td(offset_tok["token"].split(maxsplit=1)[1])
+    #         offset_val = offset_tok["token"][3:]
+    #         bug_msg(
+    #             f"{offset_val = }, {due_dt = }, {td = }, {offset_val.startswith('~') = }"
+    #         )
+    #         if offset_val.startswith("~") and due_dt:
+    #             # bug_msg("learn mode")
+    #             actual = completed_dt - due_dt
+    #             td = self._smooth_interval(td, actual)
+    #             offset_tok["token"] = f"@o {td_to_td_str(td)}"
+    #             self._replace_or_add_token("o", td_to_td_str(td))
+    #             self._replace_or_add_token("s", self.fmt_user(completed_dt + td))
+    #             bug_msg(f"{actual = }, {td = }")
+    #         else:
+    #             self._replace_or_add_token("s", self.fmt_user(completed_dt + td))
+    #         bug_msg(f"after processing offset: {self.relative_tokens = }")
+    #
+    #     # elif self.rruleset:
+    #     #     first, second = self._get_first_two_occurrences()
+    #     #     bug_msg(f"{first = }, {second = }")
+    #     #     due_dt = first
+    #     #     if second:
+    #     #         self._replace_or_add_token("s", self.fmt_user(second))
+    #     #     else:
+    #     #         self._remove_tokens({"s", "r", "+", "-"})
+    #     #         self.itemtype = "x"
+    #
+    #     else:
+    #         # one-off
+    #         due_dt = None
+    #         self.itemtype = "x"
+    #
+    #     # ⬇️ single assignment here
+    #     self.completion = (completed_dt, due_dt)
+    #
+    #     self._remove_tokens({"f"})
+    #     bug_msg(f"after removing f: {self.relative_tokens = }")
+    #     self.reparse_finish_tokens()
+    #     bug_msg(f"after reparsing finish tokens: {self.relative_tokens = }")
 
-        # completed_dt = max(parse_dt(t["token"].split(maxsplit=1)[1]) for t in f_tokens)
-        completed_dt, was_due_dt = parse_f_token(f_tokens[0])
-        completed_dt = completed_dt.astimezone()
-
-        due_dt = None  # default
-
-        if offset_tok := next(
-            (t for t in self.relative_tokens if t.get("k") == "o"), None
-        ):
-            due_dt = self._get_start_dt()
-            # bug_msg(f"{completed_dt = }, {due_dt = }")
-            td = td_str_to_td(offset_tok["token"].split(maxsplit=1)[1])
-            offset_val = offset_tok["token"][3:]
-            bug_msg(
-                f"{offset_val = }, {due_dt = }, {td = }, {offset_val.startswith('~') = }"
-            )
-            if offset_val.startswith("~") and due_dt:
-                # bug_msg("learn mode")
-                actual = completed_dt - due_dt
-                td = self._smooth_interval(td, actual)
-                offset_tok["token"] = f"@o {td_to_td_str(td)}"
-                self._replace_or_add_token("o", td_to_td_str(td))
-                self._replace_or_add_token("s", self.fmt_user(completed_dt + td))
-                bug_msg(f"{actual = }, {td = }")
-            else:
-                self._replace_or_add_token("s", self.fmt_user(completed_dt + td))
-            bug_msg(f"after processing offset: {self.relative_tokens = }")
-
-        elif self.rruleset:
-            first, second = self._get_first_two_occurrences()
-            bug_msg(f"{first = }, {second = }")
-            due_dt = first
-            if second:
-                self._replace_or_add_token("s", self.fmt_user(second))
-            else:
-                self._remove_tokens({"s", "r", "+", "-"})
-                self.itemtype = "x"
-
+    def _instance_to_token_format_utc(self, dt: datetime) -> str:
+        """Convert a datetime to UTC ‘YYYYMMDDTHHMMZ’ format (for DTSTART in rruleset)."""
+        if dt.tzinfo is None:
+            local = dt.replace(tzinfo=tz.tzlocal())
         else:
-            # one-off
-            due_dt = None
+            local = dt
+        dt_utc = local.astimezone(tz.UTC)
+        return dt_utc.strftime("%Y%m%dT%H%MZ")
+
+    def _instance_to_token_format_local(self, dt: datetime | date) -> str:
+        """Format a date or datetime to local token string (no Z)."""
+        if isinstance(dt, datetime):
+            local = _to_local_naive(dt)
+            return local.strftime("%Y%m%dT%H%M")
+        else:
+            return dt.strftime("%Y%m%d")
+
+    def _is_first_from_rdate(self, first_dt: datetime) -> bool:
+        """
+        Returns True if the next occurrence (first_dt) matches an explicit @+ list date.
+        """
+        for tok in self.relative_tokens:
+            if tok.get("k") == "+":
+                token_body = tok["token"][2:].strip()
+                for part in token_body.split(","):
+                    part = part.strip()
+                    try:
+                        dt = parse(part)
+                    except Exception:
+                        continue
+                    if _to_local_naive(dt) == _to_local_naive(first_dt):
+                        return True
+        return False
+
+    def _is_in_plus_list(self, tokens: list[dict], dt: datetime) -> bool:
+        """
+        Return True if dt (local-naive) matches one of the entries in any @+ token.
+        """
+        local_dt = _to_local_naive(dt)
+        fmt_str = local_dt.strftime("%Y%m%dT%H%M")
+        for tok in tokens:
+            if tok.get("k") == "+":
+                body = tok["token"][2:].strip()
+                for part in body.split(","):
+                    part = part.strip()
+                    try:
+                        part_dt = parse(part)
+                    except Exception:
+                        continue
+                    if _to_local_naive(part_dt).strftime("%Y%m%dT%H%M") == fmt_str:
+                        return True
+        return False
+
+    def _get_min_plus_datetime_str(self) -> str:
+        """Find the earliest date in @+ tokens and return it as user-fmt string."""
+        plus_dates = []
+        for tok in self.relative_tokens:
+            if tok.get("k") == "+":
+                body = tok["token"][2:].strip()
+                for part in body.split(","):
+                    part = part.strip()
+                    try:
+                        dt = parse(part)
+                        plus_dates.append(_to_local_naive(dt))
+                    except Exception:
+                        continue
+        if not plus_dates:
+            return ""
+        next_local = min(plus_dates)
+        return self.fmt_user(next_local)
+
+    def finish(self) -> None:
+        """Process finishing of an item, especially handling repetition."""
+        first, second = self._get_first_two_occurrences()
+        bug_msg(f"{first = }, {second = }")
+
+        if first is None:
+            # No upcoming instance — mark done
             self.itemtype = "x"
+            return
 
-        # ⬇️ single assignment here
-        self.completion = (completed_dt, due_dt)
+        is_rrule = bool(self.rruleset and "RRULE" in self.rruleset)
+        has_plus = any(tok.get("k") == "+" for tok in self.relative_tokens)
+        is_rdate_only = (not is_rrule) and has_plus
 
-        self._remove_tokens({"f"})
-        bug_msg(f"after removing f: {self.relative_tokens = }")
-        self.reparse_finish_tokens()
-        bug_msg(f"after reparsing finish tokens: {self.relative_tokens = }")
+        if is_rrule:
+            if self._is_first_from_rdate(first):
+                # First instance came from explicit @+ date despite RRULE
+                tok_str = self._instance_to_token_format_local(first)
+                self._remove_instance_from_plus_tokens(self.relative_tokens, tok_str)
+            else:
+                # First from RRULE — advance @s to next
+                if second:
+                    local_next = _to_local_naive(second)
+                    self._replace_or_add_token("s", self.fmt_user(local_next))
+                    utc_next = self._instance_to_token_format_utc(second)
+                    self.rruleset = re.sub(
+                        r"(?m)^DTSTART:\d{8}T\d{6}Z",
+                        f"DTSTART:{utc_next}",
+                        self.rruleset,
+                        count=1,
+                    )
+                else:
+                    self._remove_tokens({"s", "r", "+", "-"})
+                    self.itemtype = "x"
+
+        elif is_rdate_only:
+            # RDATE-only case
+            tok_str = self._instance_to_token_format_local(first)
+            removed = self._remove_instance_from_plus_tokens(
+                self.relative_tokens, tok_str
+            )
+            if removed:
+                if not any(tok.get("k") == "+" for tok in self.relative_tokens):
+                    self._remove_tokens({"s", "-", "+", "r"})
+                    self.itemtype = "x"
+                else:
+                    next_part = self._get_min_plus_datetime_str()
+                    self._replace_or_add_token("s", next_part)
+            else:
+                self.relative_tokens.append(
+                    {"token": f"@- {tok_str}", "t": "@", "k": "-"}
+                )
+        else:
+            # one-shot or no repetition
+            self._remove_tokens({"s", "r", "+", "-"})
+            self.itemtype = "x"
 
     def _replace_or_add_token(self, key: str, dt: str) -> None:
         """Replace token with key `key` or add new one for dt."""

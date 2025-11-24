@@ -37,7 +37,7 @@ import json
 from typing import Literal
 from .item import Item
 from .model import DatabaseManager, UrgencyComputer
-from .model import _fmt_naive, _to_local_naive
+from .model import _fmt_naive
 from .list_colors import css_named_colors
 from .versioning import get_version
 
@@ -54,6 +54,7 @@ from .shared import (
     REPEATING,
     log_msg,
     bug_msg,
+    _to_local_naive,
     HRS_MINS,
     # ALERT_COMMANDS,
     dt_as_utc_timestamp,
@@ -1322,126 +1323,196 @@ class Controller:
 
         return self.apply_textual_edit(record_id, edit)
 
-    def delete_instance(
-        self,
-        record_id: int,
-        instance_text: str,
-    ) -> bool:
+    # def delete_instance(
+    #     self,
+    #     record_id: int,
+    #     instance_text: str,
+    # ) -> bool:
+    #     """
+    #     For a single instance:
+    #
+    #     Special case:
+    #     - If the record uses @s + @+ with no @r, we:
+    #         * Compute the full instance list from rruleset.
+    #         * Drop just this instance.
+    #         * Rebuild @s and @+ from the survivors.
+    #
+    #     General case:
+    #     - If the instance appears in an @+ list, remove it from that list.
+    #     - Otherwise, append an @- <instance_text> exclusion token (in entry format).
+    #     """
+    #
+    #     rec = self.db_manager.get_record_as_dictionary(record_id)
+    #     if not rec:
+    #         return False
+    #
+    #     rruleset = rec.get("rruleset") or ""
+    #
+    #     def edit_tokens(tokens: list[dict]) -> bool:
+    #         # 1) Special case: @s + @+ but no @r
+    #         if self._is_s_plus_no_r(tokens) and rruleset:
+    #             changed = self._adjust_s_plus_from_rruleset(
+    #                 tokens,
+    #                 rruleset=rruleset,
+    #                 instance_text=instance_text,
+    #                 mode="one",
+    #             )
+    #             if changed:
+    #                 return True
+    #             # fall through to general path if nothing changed for some reason
+    #
+    #         changed = False
+    #
+    #         # 2) General path: try to remove from @+ using UTC-Z
+    #         removed = self._remove_instance_from_plus_tokens(tokens, instance_text)
+    #         changed = changed or removed
+    #
+    #         # 3) If not present in @+, fall back to @- <entry-style-datetime>
+    #         if not removed:
+    #             inst_dt = parse(instance_text)
+    #             entry_style = self.fmt_user(inst_dt)
+    #             tokens.append(
+    #                 {
+    #                     "token": f"@- {entry_style}",
+    #                     "t": "@",
+    #                     "k": "-",
+    #                 }
+    #             )
+    #             changed = True
+    #
+    #         return changed
+    #
+    #     return self.apply_token_edit(record_id, edit_tokens)
+    #
+    # def delete_this_and_future(
+    #     self,
+    #     record_id: int,
+    #     instance_text: str,
+    # ) -> bool:
+    #     """
+    #     instance_text is the TEXT of the selected instance's start_datetime.
+    #
+    #     Special case (@s + @+ with no @r):
+    #     - Use rruleset to get the full instance list.
+    #     - Remove this instance and all subsequent ones.
+    #     - Rebuild @s and @+ from survivors (or clear schedule if none).
+    #
+    #     General case:
+    #     - Remove this instance from @+ if present.
+    #     - Append &u <cutoff_stamp> where cutoff_stamp is (instance_dt - 1s)
+    #         in entry format.
+    #     """
+    #
+    #     rec = self.db_manager.get_record_as_dictionary(record_id)
+    #     if not rec:
+    #         return False
+    #
+    #     rruleset = rec.get("rruleset") or ""
+    #
+    #     inst_dt = parse(instance_text)
+    #     cutoff = inst_dt - timedelta(seconds=1)
+    #     cutoff_stamp = self.fmt_user(cutoff)
+    #
+    #     def edit_tokens(tokens: list[dict]) -> bool:
+    #         # 1) Special case: @s + @+ but no @r
+    #         if self._is_s_plus_no_r(tokens) and rruleset:
+    #             changed = self._adjust_s_plus_from_rruleset(
+    #                 tokens,
+    #                 rruleset=rruleset,
+    #                 instance_text=instance_text,
+    #                 mode="this_and_future",
+    #             )
+    #             if changed:
+    #                 return True
+    #             # fall through to general path if nothing changed
+    #
+    #         changed = False
+    #
+    #         # 2) General path: clean explicit @+ for this instance (UTC-Z)
+    #         removed = self._remove_instance_from_plus_tokens(tokens, instance_text)
+    #         changed = changed or removed
+    #
+    #         # 3) Always append &u cutoff for this-and-future semantics
+    #         tokens.append(
+    #             {
+    #                 "token": f"&u {cutoff_stamp}",
+    #                 "t": "&",
+    #                 "k": "u",
+    #             }
+    #         )
+    #         changed = True
+    #
+    #         return changed
+    #
+    #     return self.apply_token_edit(record_id, edit_tokens)
+
+    def _is_in_plus_list(self, tokens: list[dict], dt: datetime) -> bool:
         """
-        For a single instance:
-
-        Special case:
-        - If the record uses @s + @+ with no @r, we:
-            * Compute the full instance list from rruleset.
-            * Drop just this instance.
-            * Rebuild @s and @+ from the survivors.
-
-        General case:
-        - If the instance appears in an @+ list, remove it from that list.
-        - Otherwise, append an @- <instance_text> exclusion token (in entry format).
+        Return True if dt (local-naive) matches one of the entries in any @+ token.
         """
+        local_dt = _to_local_naive(dt)
+        fmt_str = local_dt.strftime("%Y%m%dT%H%M")
+        for tok in tokens:
+            if tok.get("k") == "+":
+                body = tok["token"][2:].strip()
+                for part in body.split(","):
+                    part = part.strip()
+                    try:
+                        part_dt = parse(part)
+                    except Exception:
+                        continue
+                    if _to_local_naive(part_dt).strftime("%Y%m%dT%H%M") == fmt_str:
+                        return True
+        return False
 
-        rec = self.db_manager.get_record_as_dictionary(record_id)
-        if not rec:
-            return False
-
-        rruleset = rec.get("rruleset") or ""
+    def delete_instance(self, record_id: int, instance_text: str) -> bool:
+        """
+        Delete a specific instance:
+        - If instance comes from @+ list, remove it from that list.
+        - Otherwise append @- for that instance.
+        """
 
         def edit_tokens(tokens: list[dict]) -> bool:
-            # 1) Special case: @s + @+ but no @r
-            if self._is_s_plus_no_r(tokens) and rruleset:
-                changed = self._adjust_s_plus_from_rruleset(
-                    tokens,
-                    rruleset=rruleset,
-                    instance_text=instance_text,
-                    mode="one",
-                )
-                if changed:
-                    return True
-                # fall through to general path if nothing changed for some reason
-
-            changed = False
-
-            # 2) General path: try to remove from @+ using UTC-Z
-            removed = self._remove_instance_from_plus_tokens(tokens, instance_text)
-            changed = changed or removed
-
-            # 3) If not present in @+, fall back to @- <entry-style-datetime>
-            if not removed:
+            try:
                 inst_dt = parse(instance_text)
-                entry_style = self.fmt_user(inst_dt)
-                tokens.append(
-                    {
-                        "token": f"@- {entry_style}",
-                        "t": "@",
-                        "k": "-",
-                    }
-                )
-                changed = True
+            except Exception:
+                return False
+            inst_local = _to_local_naive(inst_dt)
 
-            return changed
+            if self._is_in_plus_list(tokens, inst_dt):
+                # remove from @+
+                tok_local_str = inst_local.strftime("%Y%m%dT%H%M")
+                return self._remove_instance_from_plus_tokens(tokens, tok_local_str)
+            else:
+                # append exclusion
+                tok_local_str = inst_local.strftime("%Y%m%dT%H%M")
+                tokens.append({"token": f"@- {tok_local_str}", "t": "@", "k": "-"})
+                return True
 
         return self.apply_token_edit(record_id, edit_tokens)
 
-    def delete_this_and_future(
-        self,
-        record_id: int,
-        instance_text: str,
-    ) -> bool:
+    def delete_this_and_future(self, record_id: int, instance_text: str) -> bool:
         """
-        instance_text is the TEXT of the selected instance's start_datetime.
-
-        Special case (@s + @+ with no @r):
-        - Use rruleset to get the full instance list.
-        - Remove this instance and all subsequent ones.
-        - Rebuild @s and @+ from survivors (or clear schedule if none).
-
-        General case:
-        - Remove this instance from @+ if present.
-        - Append &u <cutoff_stamp> where cutoff_stamp is (instance_dt - 1s)
-            in entry format.
+        Delete this instance and all subsequent ones:
+        - If the instance is in @+ list, remove it.
+        - Always append &u cutoff (instance minus 1 second).
         """
-
-        rec = self.db_manager.get_record_as_dictionary(record_id)
-        if not rec:
+        try:
+            dt = parse(instance_text)
+        except Exception:
             return False
-
-        rruleset = rec.get("rruleset") or ""
-
-        inst_dt = parse(instance_text)
-        cutoff = inst_dt - timedelta(seconds=1)
-        cutoff_stamp = self.fmt_user(cutoff)
+        inst_local = _to_local_naive(dt)
+        cutoff = inst_local - timedelta(seconds=1)
+        cutoff_stamp = cutoff.strftime("%Y%m%dT%H%M")
 
         def edit_tokens(tokens: list[dict]) -> bool:
-            # 1) Special case: @s + @+ but no @r
-            if self._is_s_plus_no_r(tokens) and rruleset:
-                changed = self._adjust_s_plus_from_rruleset(
-                    tokens,
-                    rruleset=rruleset,
-                    instance_text=instance_text,
-                    mode="this_and_future",
-                )
-                if changed:
-                    return True
-                # fall through to general path if nothing changed
-
             changed = False
-
-            # 2) General path: clean explicit @+ for this instance (UTC-Z)
-            removed = self._remove_instance_from_plus_tokens(tokens, instance_text)
-            changed = changed or removed
-
-            # 3) Always append &u cutoff for this-and-future semantics
-            tokens.append(
-                {
-                    "token": f"&u {cutoff_stamp}",
-                    "t": "&",
-                    "k": "u",
-                }
-            )
-            changed = True
-
-            return changed
+            if self._is_in_plus_list(tokens, dt):
+                tok_local_str = inst_local.strftime("%Y%m%dT%H%M")
+                removed = self._remove_instance_from_plus_tokens(tokens, tok_local_str)
+                changed = changed or removed
+            tokens.append({"token": f"&u {cutoff_stamp}", "t": "&", "k": "u"})
+            return True
 
         return self.apply_token_edit(record_id, edit_tokens)
 
