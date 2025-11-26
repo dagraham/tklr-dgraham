@@ -24,7 +24,7 @@ from rich import box
 from rich.text import Text
 from typing import List, Tuple, Optional, Dict, Any, Set
 from bisect import bisect_left, bisect_right
-from typing import Iterator
+from typing import Iterator, Callable
 
 import string
 import shutil
@@ -370,7 +370,16 @@ def format_date_range(start_dt: datetime, end_dt: datetime):
         return f"{start_dt.strftime('%b %-d, %Y')} - {end_dt.strftime('%b %-d, %Y')}"
 
 
-def format_is _week(monday_date: datetime):
+def format_iso_week(monday_date: datetime )->str:
+    """
+    Format an ISO week string, taking not to repeat the month subject unless the week spans two months.
+
+    Args:
+        monday_date (datetime): The date of the Monday of the week.
+
+    Returns:
+        str: Formatted string like 'Monday 17 - Sunday 23, 2023 #1'.
+    """
     start_dt = monday_date.date()
     end_dt = start_dt + timedelta(days=6)
     iso_yr, iso_wk, _ = start_dt.isocalendar()
@@ -2026,7 +2035,7 @@ class Controller:
             # need command to execute command with arguments
             self.db_manager.mark_alert_executed(alert_id)
 
-    def get_due_alerts(self, now: datetime) -> List[Alert]:
+    def get_due_alerts(self, now: datetime) -> List[str]:
         due = []
         records = self.db_manager.get_due_alerts()
         for record in records:
@@ -3400,8 +3409,7 @@ class Controller:
         created: Optional[Path] = None
         if self._should_snapshot(db_path, backups):
             target = bdir / f"{yesterday.isoformat()}.db"
-            if not dry_run:
-                self.db_manager.backup_to(target)
+            self.db_manager.backup_to(target)
             created = target
             backups = self._find_backups(bdir)  # refresh
 

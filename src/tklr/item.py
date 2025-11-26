@@ -3752,25 +3752,6 @@ from: * (event), ~ (task), ^ (project), % (note),
                         return True
         return False
 
-    def _is_in_plus_list(self, tokens: list[dict], dt: datetime) -> bool:
-        """
-        Return True if dt (local-naive) matches one of the entries in any @+ token.
-        """
-        local_dt = _to_local_naive(dt)
-        fmt_str = local_dt.strftime("%Y%m%dT%H%M")
-        for tok in tokens:
-            if tok.get("k") == "+":
-                body = tok["token"][2:].strip()
-                for part in body.split(","):
-                    part = part.strip()
-                    try:
-                        part_dt = parse(part)
-                    except Exception:
-                        continue
-                    if _to_local_naive(part_dt).strftime("%Y%m%dT%H%M") == fmt_str:
-                        return True
-        return False
-
     def _get_min_plus_datetime_str(self) -> str:
         """Find the earliest date in @+ tokens and return it as user-fmt string."""
         plus_dates = []
