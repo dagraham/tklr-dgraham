@@ -276,6 +276,13 @@ busy = [
     f"* 1-hour last, this and next week @s {one_week_ago} 4p @e 1h  @+ {today_date} 4p, {in_one_week} 4p",
 ]
 
+finish = [
+    f"~ repeating, rdates and finish  @s {today_date} 1:30p @r d &c 3 @+ 10:30a, 3:30p @f 8:15a @b repeating/tags",
+    f"~ finished one hour ago @s {in_one_hour()} @f {one_hour_ago()}",
+    f"~ offset with finish @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o 4d",
+    f"~ offset learn with finish  @s {ten_days_ago()} 12:00pm  @f {today_date} 10:00am @o ~8d",
+    f"""^ dog house @s {in_five_days()} @e 3h @n 2w @p 3 @~ create plan &s 1w &e 1h &r 1 &f {one_hour_ago()} @~ go to Lowes &s 1w &e 2h &r 2: 1 @~ buy lumber &s 1w &r 3: 2 @~ buy hardware &s 1w &r 4: 2 @~ buy paint &s 1w &r 5: 2 @~ cut pieces &s 6d &e 3h &r 6: 3 @~ assemble &s 4d &e 5h &r 7: 4, 6 @~ sand &s 3d &e 1h &r 8: 7 @~ paint &s 2d &e 2h &r 9: 8 """,
+]
 
 items = [
     f"* first of the month @d all day event @s {first_of_month}",
@@ -292,7 +299,6 @@ items = [
     f"~ daily @s {today_date} 10:00 @r d @b repeating/tags",
     f"* starting in 5 days repeating for 3 days @s {in_five_days()} 8:30a @e 4h @r d &c 3 @n 1w @b repeating/tags",
     f"~ repeating and rdates @s {today_date} 1:30p @r d @+ 2:30p, 3:30p @b repeating/tags",
-    f"~ repeating, rdates and finish  @s {today_date} 1:30p @r d &c 3 @+ 10:30a, 3:30p @f 8:15a @b repeating/tags",
     f"* repeating until  @s {today_date} 7:30p @e 1h @r d &u {in_two_weeks()} @b repeating/tags",
     f"~ due, tags, description, priority one @p 1 @s {tomorrow_date} @d This item has a #description. Now is the time for all good men to come to the aid of their country #red #white #blue",
     f"* three datetimes @s {in_ten_minutes()} @e 45m  @+ {in_one_hour()}, {in_one_day()}",
@@ -303,7 +309,6 @@ items = [
        ii. and this
     2. And finally this. 
     """,
-    f"""^ dog house @s {in_five_days()} @e 3h @n 2w @p 3 @~ create plan &s 1w &e 1h &r 1 &f {one_hour_ago()} @~ go to Lowes &s 1w &e 2h &r 2: 1 @~ buy lumber &s 1w &r 3: 2 @~ buy hardware &s 1w &r 4: 2 @~ buy paint &s 1w &r 5: 2 @~ cut pieces &s 6d &e 3h &r 6: 3 @~ assemble &s 4d &e 5h &r 7: 4, 6 @~ sand &s 3d &e 1h &r 8: 7 @~ paint &s 2d &e 2h &r 9: 8 """,
     "~ no due date or datetime and priority one @p 1",
     f"~ one due date and priority one @s {today_date} @p 1",
     f"~ one due datetime and priority one @s {in_one_hour()} @p 1",
@@ -312,10 +317,7 @@ items = [
     "~ no due date and #priority four @p 4",
     "~ no due date and no #priority",
     "~ no due date and #priority five @p 5",
-    f"~ finished one hour ago @s {in_one_hour()} @f {one_hour_ago()}",
     f"^ no prerequisites @s {today_date} @n 1w @~ this &r 1 &f {today_date}  @~ that &r 2",
-    f"~ offset with finish @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o 4d",
-    f"~ offset learn with finish  @s {ten_days_ago()} 12:00pm  @f {today_date} 10:00am @o ~8d",
     "? draft reminder - no checks",
     f"~ one date with priority three @s {yesterday_date} @p 3",
     "~ three datetimes @s 9am @+ 10am, 11am",
@@ -369,7 +371,7 @@ while len(items) < num_items:
 id = 0
 # for entry in items:  # + alerts:
 # for entry in busy + items:
-for entry in items + bins + alerts:
+for entry in items + bins + alerts + finish:
     count += 1
     id += 1
     try:

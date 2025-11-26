@@ -4,7 +4,7 @@ from importlib.metadata import version
 from functools import lru_cache
 
 # TODO: Keep the display part - the model part will be in model.py
-from datetime import datetime, timedelta, date, timezone
+from datetime import datetime, timedelta, date
 
 # from logging import log
 from sre_compile import dis
@@ -370,7 +370,7 @@ def format_date_range(start_dt: datetime, end_dt: datetime):
         return f"{start_dt.strftime('%b %-d, %Y')} - {end_dt.strftime('%b %-d, %Y')}"
 
 
-def format_is _week(monday_date: datetime):
+def format_iso_week(monday_date: datetime):
     start_dt = monday_date.date()
     end_dt = start_dt + timedelta(days=6)
     iso_yr, iso_wk, _ = start_dt.isocalendar()
@@ -1090,107 +1090,6 @@ class Controller:
         tokens[:] = base
         return True
 
-    def _instance_is_from_rdate(self, rruleset_str: str, instance_dt: datetime) -> bool:
-        """
-        Check if a given instance datetime comes from an RDATE in the rruleset.
-        
-        Args:
-            rruleset_str: The rruleset string from the database
-            instance_dt: The instance datetime (already parsed, in UTC if aware)
-        
-        Returns:
-            True if the instance is from an RDATE, False if from RRULE
-        """
-        if not rruleset_str:
-            return False
-        
-        # Parse rruleset to extract RDATEs
-        rdates = []
-        for line in rruleset_str.splitlines():
-            line = line.strip()
-            if line.startswith("RDATE"):
-                # Extract datetime values from RDATE line
-                # Format: RDATE:20251106T1900Z or RDATE:20251106T1900Z,20251113T0200Z
-                if ":" in line:
-                    dates_part = line.split(":", 1)[1]
-                    # Split by comma for multiple dates
-                    for dt_str in dates_part.split(","):
-                        dt_str = dt_str.strip()
-                        if dt_str:
-                            try:
-                                # Parse the UTC datetime
-                                if dt_str.endswith("Z"):
-                                    # Aware UTC: YYYYMMDDTHHMMZ
-                                    dt = datetime.strptime(dt_str[:-1], "%Y%m%dT%H%M")
-                                    dt = dt.replace(tzinfo=timezone.utc)
-                                elif "T" in dt_str:
-                                    # Naive datetime: YYYYMMDDTHHMM
-                                    dt = datetime.strptime(dt_str, "%Y%m%dT%H%M")
-                                else:
-                                    # Date only: YYYYMMDD
-                                    dt = datetime.strptime(dt_str, "%Y%m%d")
-                                rdates.append(dt)
-                            except Exception:
-                                continue
-        
-        # Convert instance_dt to UTC if aware, or leave naive
-        if instance_dt.tzinfo is not None:
-            instance_utc = instance_dt.astimezone(timezone.utc).replace(tzinfo=None)
-        else:
-            instance_utc = instance_dt.replace(tzinfo=None)
-        
-        # Check if instance matches any RDATE (compare without timezone for simplicity)
-        for rdate in rdates:
-            rdate_naive = rdate.replace(tzinfo=None) if rdate.tzinfo else rdate
-            # Compare with minute precision (ignore seconds)
-            if (instance_utc.year == rdate_naive.year and
-                instance_utc.month == rdate_naive.month and
-                instance_utc.day == rdate_naive.day and
-                instance_utc.hour == rdate_naive.hour and
-                instance_utc.minute == rdate_naive.minute):
-                return True
-        
-        return False
-
-    def _advance_s_to_next_rrule_instance(self, record_id: int, second_instance_text: str) -> bool:
-        """
-        Update @s to point to the second instance (advancing past the first RRULE instance).
-        
-        Args:
-            record_id: The record ID
-            second_instance_text: The compact local-naive datetime string of the second instance
-        
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            # Parse the second instance
-            second_dt = parse(second_instance_text)
-            
-            # Convert to local naive for user display
-            from dateutil import tz
-            if second_dt.tzinfo is not None:
-                second_local = second_dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
-            else:
-                second_local = second_dt
-            
-            # Format for user
-            new_s_stamp = self.fmt_user(second_local)
-            
-            def edit_tokens(tokens: list[dict]) -> bool:
-                # Find and update @s token
-                for tok in tokens:
-                    if tok.get("t") == "@" and tok.get("k") == "s":
-                        tok["token"] = f"@s {new_s_stamp}"
-                        return True
-                return False
-            
-            return self.apply_token_edit(record_id, edit_tokens)
-            
-        except Exception as e:
-            bug_msg(f"Error advancing @s: {e}")
-            return False
-
     def _instance_to_rdate_key(self, instance_text: str) -> str:
         """
         Normalize a DateTimes TEXT value into the key format used in RDATE/EXDATE.
@@ -1383,50 +1282,24 @@ class Controller:
         upcoming = self.db_manager.get_next_start_datetimes_for_record(record_id) or []
         bug_msg(f"{upcoming = }")
 
-        # Case 2a: No instances or only 1 instance → append @f
-        if len(upcoming) <= 1:
-            if upcoming:
-                instance_text = upcoming[0]
-                self.delete_instance(record_id, instance_text)
+        if not upcoming:
 
-            def edit_with_finish(text: str) -> str:
+            def edit_no_schedule(text: str) -> str:
                 return text.rstrip() + f" @f {stamp}"
 
-            return self.apply_textual_edit(record_id, edit_with_finish)
+            return self.apply_textual_edit(record_id, edit_no_schedule)
 
-        # Case 2b: 2+ instances → handle based on whether first is RDATE or RRULE
-        first_instance_text = upcoming[0]
-        second_instance_text = upcoming[1] if len(upcoming) > 1 else None
-        
-        # Get the record to access rruleset
-        rec = self.db_manager.get_record_as_dictionary(record_id)
-        if not rec:
-            return False
-        
-        rruleset_str = rec.get("rruleset") or ""
-        if not rruleset_str:
-            # No rruleset, just delete first instance
-            return self.delete_instance(record_id, first_instance_text)
-        
-        # Parse the first instance to get UTC datetime
-        try:
-            first_dt = parse(first_instance_text)
-        except Exception:
-            return False
-        
-        # Check if first instance comes from RDATE
-        is_from_rdate = self._instance_is_from_rdate(rruleset_str, first_dt)
-        
-        if is_from_rdate:
-            # First instance is from @+ (RDATE) → remove it from @+
-            return self.delete_instance(record_id, first_instance_text)
-        else:
-            # First instance is from @r (RRULE) → update @s to second instance
-            if not second_instance_text:
-                # Safety: shouldn't happen, but handle gracefully
-                return self.delete_instance(record_id, first_instance_text)
-            
-            return self._advance_s_to_next_rrule_instance(record_id, second_instance_text)
+        if len(upcoming) == 1:
+            instance_text = upcoming[0]
+            self.delete_instance(record_id, instance_text)
+
+            def edit_last(text: str) -> str:
+                return text.rstrip() + f" @f {stamp}"
+
+            return self.apply_textual_edit(record_id, edit_last)
+
+        instance_text = upcoming[0]
+        return self.delete_instance(record_id, instance_text)
 
     def schedule_new(self, record_id: int, job_id: int | None, when: datetime) -> bool:
         stamp = self.fmt_user(when)

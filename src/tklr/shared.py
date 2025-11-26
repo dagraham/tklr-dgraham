@@ -161,7 +161,7 @@ def parse(s, yearfirst: bool = True, dayfirst: bool = False):
 
 def _to_local_naive(dt: datetime) -> datetime:
     """Convert aware dt to local naive; leave naive as is."""
-    if dt.tzinfo:
+    if not isinstance(dt, date) and isinstance(dt, datetime) and dt.tzinfo:
         local = dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
     else:
         local = dt

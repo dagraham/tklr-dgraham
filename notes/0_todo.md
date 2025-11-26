@@ -20,7 +20,7 @@
 ## Notes on Tests
 
 - @f
-  - Weeks updated but not Agenda after task selected in Agenda view and @f added in editing
+  - [ ] Weeks updated but not Agenda after task selected in Agenda view and @f added in editing
   - Weeks updated but not Find or Agenda after task selected in Find view and @f added in editing
   - Multiple jobs selected in Weeks, edited and several jobs finished at once. Refreshed in Weeks AND Agenda
   - Do over, selected in Agenda, finished in edit. Refreshed in Agenda and Weeks
@@ -30,6 +30,5 @@
 - @s, @+
   - @s selected and changed in Weeks, refreshed in Weeks AND Agenda
   - @+ selected and added in Agenda, refreshed in both
-  - Changed task subject in Weeks, refreshed in both
 
 No @r, @s, @+. Delete instance. Instance in @+, remove it. Instance = @s, @s = @+.pop(0)
