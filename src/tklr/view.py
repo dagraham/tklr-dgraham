@@ -1321,6 +1321,7 @@ class EditorScreen(Screen):
         rid = self.controller.db_manager.save_record(item, record_id=self.record_id)
         self.record_id = rid
         completion = getattr(item, "completion", None)
+        bug_msg(f"{completion = }")
         if completion:
             self.controller.db_manager.add_completion(self.record_id, completion)
 

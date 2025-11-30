@@ -848,17 +848,21 @@ class Controller:
     def add_item(self, item: Item) -> int:
         if item.itemtype in "~^x" and item.has_f:
             bug_msg(
-                f"{item.itemtype = } {item.has_f = } {item.itemtype in '~^' and item.has_f = }"
+                f"{item.itemtype = } {item.has_f = } {item.itemtype in '~^x' and item.has_f = }"
             )
 
         record_id = self.db_manager.add_item(item)
 
-        if item.completion:
-            completed_dt, due_dt = item.completion
+        if item.completions:
+            for completion in item.completions:
+                # completed_ts = dt_as_utc_timestamp(completed_dt)
+                # due_ts = dt_as_utc_timestamp(due_dt) if due_dt else None
+                self.db_manager.add_completion(record_id, completion)
+            # completed_dt, due_dt = item.completion
             # completed_ts = dt_as_utc_timestamp(completed_dt)
             # due_ts = dt_as_utc_timestamp(due_dt) if due_dt else None
-            completion = (completed_dt, due_dt)
-            self.db_manager.add_completion(record_id, completion)
+            # completion = (completed_dt, due_dt)
+            # self.db_manager.add_completion(record_id, completion)
 
         return record_id
 

@@ -372,19 +372,22 @@ id = 0
 # for entry in items:  # + alerts:
 # for entry in busy + items:
 for entry in items + bins + alerts + finish:
-    count += 1
     id += 1
     try:
         item = Item(raw=entry, env=env, final=True, controller=ctrl)  # .to_dict()
         # new_entry = item.to_entry()
         # print(f">>>\n{new_entry = }")
         # continue
-        record_id = ctrl.add_item(item)  # .to_dict()
+        if item.parse_ok:
+            count += 1
+            record_id = ctrl.add_item(item)  # .to_dict()
+        else:
+            print(f"parse failed: {item.parse_message}")
         if count % 20 == 0:
             print(f"---\n{count} {entry = }")
     except Exception as e:
-        print(f"error: {e = }\n{item.entry = }\n")
-        print(f"{record_id = }, {item.tokens = }; {item.rruleset = }")
+        print(f"error: {e = }\n  from {entry = }\n")
+
 
 try:
     ctrl.db_manager.populate_dependent_tables()
