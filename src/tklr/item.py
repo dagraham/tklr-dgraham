@@ -944,8 +944,8 @@ class Item:
         self.token_group_anchors = {}
 
         # --- other flags / features ---
-        self.completion = None # for the completed datetime from @f entry
-        self.completions = [] # (completed, due) to update Completions table
+        self.completion = None # for the completed datetime from @f entry - not a tuple
+        self.completions = [] # (completed, due) to update Completions table - a (completed, due) tuple
         self.over = ""
         self.has_f = False  # True if there is an @f to process after parsing tokens
         self.has_s = False  # True if there is an @s to process after parsing tokens
@@ -3689,7 +3689,9 @@ x (finished) or ? (draft)
                 self._replace_or_add_token("s", self.fmt_user(completed_dt + td))
             utc_next = self._instance_to_token_format_utc(completed_dt + td)
             self.rruleset = f"RDATE:{utc_next}"
-            bug_msg(f"after processing offset: {self.relative_tokens = }")
+            self.rdstart_str = f"RDATE:{utc_next}"
+            self.dtstart = utc_next
+            bug_msg(f"after processing offset: {self.relative_tokens = }, {self.rruleset = }, {self.dtstart = }")
             
             return 
     

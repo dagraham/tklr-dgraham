@@ -16,7 +16,7 @@ from tklr.model import DatabaseManager
 from tklr.view import DynamicViewApp
 from tklr.tklr_env import TklrEnvironment
 
-from tklr.view_agenda import run_agenda_view
+# from tklr.view_agenda import run_agenda_view
 from tklr.versioning import get_version
 from tklr.shared import format_time_range
 

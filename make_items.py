@@ -379,8 +379,11 @@ for entry in items + bins + alerts + finish:
         # print(f">>>\n{new_entry = }")
         # continue
         if item.parse_ok:
-            count += 1
-            record_id = ctrl.add_item(item)  # .to_dict()
+            try:
+                record_id = ctrl.add_item(item)  # .to_dict()
+                count += 1
+            except Exception as e:
+                print(f"exception: {e = }\n  from {entry = }, {item.__dict__ = }\n")
         else:
             print(f"parse failed: {item.parse_message}")
         if count % 20 == 0:

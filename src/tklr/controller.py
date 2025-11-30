@@ -854,15 +854,8 @@ class Controller:
         record_id = self.db_manager.add_item(item)
 
         if item.completions:
-            for completion in item.completions:
-                # completed_ts = dt_as_utc_timestamp(completed_dt)
-                # due_ts = dt_as_utc_timestamp(due_dt) if due_dt else None
-                self.db_manager.add_completion(record_id, completion)
-            # completed_dt, due_dt = item.completion
-            # completed_ts = dt_as_utc_timestamp(completed_dt)
-            # due_ts = dt_as_utc_timestamp(due_dt) if due_dt else None
-            # completion = (completed_dt, due_dt)
-            # self.db_manager.add_completion(record_id, completion)
+            bug_msg(f"{item.completions = }")
+            self.db_manager.add_completion(record_id, item.completions)
 
         return record_id
 
@@ -907,7 +900,7 @@ class Controller:
         # 4) Save back into the same record (and regen DateTimes, Alerts, etc.)
         self.db_manager.save_record(item, record_id=record_id)
         # 🔁 NEW: record completion if one was produced
-        completion = getattr(item, "completion", None)
+        completion = getattr(item, "completions", None)
         if completion:
             self.db_manager.add_completion(record_id, completion)
 
