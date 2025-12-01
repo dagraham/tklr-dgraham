@@ -4,11 +4,13 @@ from rich.text import Text
 
 """
 - Actions:
-    - [bold]?[/bold]: Show this help screen
+    - [bold]?[/bold]: Display this help screen
     - [bold]/[/bold]: Search
     - [bold]^Q[/bold]: Quit
     - [bold]^S[/bold]: Screenshot
-- Views:
+    - [bold]a,b,...,z[/bold]: Display details for reminder with corresponding tag
+    - [bold]A,B,...[/bold]: Display corresponding view
+- Views: 
     - [bold]A[/bold]: Agenda 
     - [bold]B[/bold]: Bins 
     - [bold]C[/bold]: Completions
@@ -19,6 +21,40 @@ from rich.text import Text
     - [bold]R[/bold]: Remaining Alerts for Today
     - [bold]W[/bold]: Weeks
 """
+
+HELP_SCHEMA = {
+    "Actions": {
+        "bindings": {
+            "?": "Display this help screen",
+            "/": "Search",
+            "^Q": "Quit",
+            "^S": "Screenshot",
+            "a,b,...,z": "Display details for reminder with the corresponding tag",
+            "A,B,...": "Display corresponding view",
+        },
+    },
+    "Views": {
+        "A: Agenda": {
+            "description": "Shows the next 3 days of events + urgency-ranked tasks.",
+            "bindings": {
+                "→": "Next page",
+                "←": "Previous page",
+                "↑": scroll up,
+                "↓": scroll down
+            },
+        },
+        "B: Bins": {},
+        "C: Completions": {},
+        "F: Find": {},
+        "H: Hash Tags": {},
+        "L: Last Instances": {},
+        "N: Next Instances": {},
+        "R: Remaining Alerts for Today": {},
+        "W: Weeks": {},
+    },
+    
+}
+{   }
 
 # Hierarchical help schema for Tklr UI and CLI.
 HELP_SCHEMA = {
