@@ -1,0 +1,11 @@
+- [ ] @m mask
+- [ ] Tree view for Help?
+- [ ] comma,h to see a history of completions for a repeating task
+- [ ] Migration in main?
+- [ ] Bin management?
+- [ ] Instances:
+    - [ ] in find?
+    - [ ] in alerts?
+    - [ ] in completions?
+- [ ] Query view
+- [ ] 

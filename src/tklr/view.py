@@ -284,8 +284,8 @@ HelpText = f"""\
  [bold]A[/bold]        Agenda          [bold]F[/bold]    Find 
  [bold]B[/bold]        Bins            [bold]L[/bold]    Last 
  [bold]C[/bold]        Completed       [bold]N[/bold]    Next  
- [bold]W[/bold]        Weeks           [bold]T[/bold]    Tags  
- [bold]R[/bold]        Reminders  
+ [bold]W[/bold]        Weeks           [bold]H[/bold]    Hash Tags  
+ [bold]R[/bold]        Remaining Alerts  
 [bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
  [bold]/[/bold]        Set search      empty search clears
  [bold]>[/bold]        Next match      [bold]<[/bold]    Previous match
@@ -612,7 +612,6 @@ class HelpModal(ModalScreen[None]):
 
     def action_dismiss(self) -> None:
         self.app.pop_screen()
-
 
 
 class OptionPrompt(ModalScreen[Optional[str]]):
@@ -2508,7 +2507,7 @@ class DynamicViewApp(App):
         ("C", "show_completions", "Completions"),
         ("L", "show_last", "Show Last"),
         ("N", "show_next", "Show Next"),
-        ("T", "show_tags", "Show Tags"),
+        ("H", "show_tags", "Show Hash Tags"),
         ("F", "show_find", "Find"),
         ("W", "show_weeks", "Weeks"),
         ("?", "show_help", "Help"),
@@ -3118,7 +3117,9 @@ class DynamicViewApp(App):
 
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
 
-        self.push_screen(FullScreenList(pages, "Reminders for Today", header, footer))
+        self.push_screen(
+            FullScreenList(pages, "Remaining Alerts for Today", header, footer)
+        )
 
     def _close_details_if_open(self) -> None:
         # If your details is a modal screen, pop it; if it's a panel, hide it.

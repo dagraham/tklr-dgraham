@@ -370,7 +370,7 @@ def format_date_range(start_dt: datetime, end_dt: datetime):
         return f"{start_dt.strftime('%b %-d, %Y')} - {end_dt.strftime('%b %-d, %Y')}"
 
 
-def format_iso_week(monday_date: datetime )->str:
+def format_iso_week(monday_date: datetime) -> str:
     """
     Format an ISO week string, taking not to repeat the month subject unless the week spans two months.
 
@@ -1099,17 +1099,17 @@ class Controller:
     def _instance_is_from_rdate(self, rruleset_str: str, instance_dt: datetime) -> bool:
         """
         Check if a given instance datetime comes from an RDATE in the rruleset.
-        
+
         Args:
             rruleset_str: The rruleset string from the database
             instance_dt: The instance datetime (already parsed, in UTC if aware)
-        
+
         Returns:
             True if the instance is from an RDATE, False if from RRULE
         """
         if not rruleset_str:
             return False
-        
+
         # Parse rruleset to extract RDATEs
         rdates = []
         for line in rruleset_str.splitlines():
@@ -1138,51 +1138,56 @@ class Controller:
                                 rdates.append(dt)
                             except Exception:
                                 continue
-        
+
         # Convert instance_dt to UTC if aware, or leave naive
         if instance_dt.tzinfo is not None:
             instance_utc = instance_dt.astimezone(timezone.utc).replace(tzinfo=None)
         else:
             instance_utc = instance_dt.replace(tzinfo=None)
-        
+
         # Check if instance matches any RDATE (compare without timezone for simplicity)
         for rdate in rdates:
             rdate_naive = rdate.replace(tzinfo=None) if rdate.tzinfo else rdate
             # Compare with minute precision (ignore seconds)
-            if (instance_utc.year == rdate_naive.year and
-                instance_utc.month == rdate_naive.month and
-                instance_utc.day == rdate_naive.day and
-                instance_utc.hour == rdate_naive.hour and
-                instance_utc.minute == rdate_naive.minute):
+            if (
+                instance_utc.year == rdate_naive.year
+                and instance_utc.month == rdate_naive.month
+                and instance_utc.day == rdate_naive.day
+                and instance_utc.hour == rdate_naive.hour
+                and instance_utc.minute == rdate_naive.minute
+            ):
                 return True
-        
+
         return False
 
-    def _advance_s_to_next_rrule_instance(self, record_id: int, second_instance_text: str) -> bool:
+    def _advance_s_to_next_rrule_instance(
+        self, record_id: int, second_instance_text: str
+    ) -> bool:
         """
         Update @s to point to the second instance (advancing past the first RRULE instance).
-        
+
         Args:
             record_id: The record ID
             second_instance_text: The compact local-naive datetime string of the second instance
-        
+
         Returns:
             True if successful, False otherwise
         """
         try:
             # Parse the second instance
             second_dt = parse(second_instance_text)
-            
+
             # Convert to local naive for user display
             from dateutil import tz
+
             if second_dt.tzinfo is not None:
                 second_local = second_dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
             else:
                 second_local = second_dt
-            
+
             # Format for user
             new_s_stamp = self.fmt_user(second_local)
-            
+
             def edit_tokens(tokens: list[dict]) -> bool:
                 # Find and update @s token
                 for tok in tokens:
@@ -1190,9 +1195,9 @@ class Controller:
                         tok["token"] = f"@s {new_s_stamp}"
                         return True
                 return False
-            
+
             return self.apply_token_edit(record_id, edit_tokens)
-            
+
         except Exception as e:
             bug_msg(f"Error advancing @s: {e}")
             return False
@@ -1403,26 +1408,26 @@ class Controller:
         # Case 2b: 2+ instances → handle based on whether first is RDATE or RRULE
         first_instance_text = upcoming[0]
         second_instance_text = upcoming[1] if len(upcoming) > 1 else None
-        
+
         # Get the record to access rruleset
         rec = self.db_manager.get_record_as_dictionary(record_id)
         if not rec:
             return False
-        
+
         rruleset_str = rec.get("rruleset") or ""
         if not rruleset_str:
             # No rruleset, just delete first instance
             return self.delete_instance(record_id, first_instance_text)
-        
+
         # Parse the first instance to get UTC datetime
         try:
             first_dt = parse(first_instance_text)
         except Exception:
             return False
-        
+
         # Check if first instance comes from RDATE
         is_from_rdate = self._instance_is_from_rdate(rruleset_str, first_dt)
-        
+
         if is_from_rdate:
             # First instance is from @+ (RDATE) → remove it from @+
             return self.delete_instance(record_id, first_instance_text)
@@ -1431,8 +1436,10 @@ class Controller:
             if not second_instance_text:
                 # Safety: shouldn't happen, but handle gracefully
                 return self.delete_instance(record_id, first_instance_text)
-            
-            return self._advance_s_to_next_rrule_instance(record_id, second_instance_text)
+
+            return self._advance_s_to_next_rrule_instance(
+                record_id, second_instance_text
+            )
 
     def schedule_new(self, record_id: int, job_id: int | None, when: datetime) -> bool:
         stamp = self.fmt_user(when)
@@ -3598,7 +3605,7 @@ class Controller:
                 {
                     "record_id": None,
                     "job_id": None,
-                    "text": f"[bold][{HEADER_COLOR}]{tag}[/{HEADER_COLOR}][/bold]",
+                    "text": f"[bold][{HEADER_COLOR}]#{tag}[/{HEADER_COLOR}][/bold]",
                 }
             )
 
@@ -3619,17 +3626,20 @@ class Controller:
                 )
 
         if not rows:
-            header = "Tags (0)"
-            return page_tagger(
-                [
-                    {
-                        "record_id": None,
-                        "job_id": None,
-                        "text": f"[{HEADER_COLOR}]No tags found[/{HEADER_COLOR}]",
-                    }
-                ]
-            ), header
+            header = "Hash Tags (0)"
+            return (
+                page_tagger(
+                    [
+                        {
+                            "record_id": None,
+                            "job_id": None,
+                            "text": f"[{HEADER_COLOR}]No tags found[/{HEADER_COLOR}]",
+                        }
+                    ]
+                ),
+                header,
+            )
 
         pages = page_tagger(rows)
-        title = f"Tags ({len(tag_groups)})"
+        title = f"Hash Tags ({len(tag_groups)})"
         return pages, title

@@ -2,6 +2,23 @@ from __future__ import annotations
 from textual.widgets import Tree
 from rich.text import Text
 
+"""
+- Actions:
+    - [bold]?[/bold]: Show this help screen
+    - [bold]/[/bold]: Search
+    - [bold]^Q[/bold]: Quit
+    - [bold]^S[/bold]: Screenshot
+- Views:
+    - [bold]A[/bold]: Agenda 
+    - [bold]B[/bold]: Bins 
+    - [bold]C[/bold]: Completions
+    - [bold]F[/bold]: Find 
+    - [bold]H[/bold]: Hash Tags
+    - [bold]L[/bold]: Last Instances
+    - [bold]N[/bold]: Next Instances
+    - [bold]R[/bold]: Remaining Alerts for Today
+    - [bold]W[/bold]: Weeks
+"""
 
 # Hierarchical help schema for Tklr UI and CLI.
 HELP_SCHEMA = {
