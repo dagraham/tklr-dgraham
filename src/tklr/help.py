@@ -39,8 +39,8 @@ HELP_SCHEMA = {
             "bindings": {
                 "→": "Next page",
                 "←": "Previous page",
-                "↑": scroll up,
-                "↓": scroll down
+                "↑": "scroll up",
+                "↓": "scroll down",
             },
         },
         "B: Bins": {},
@@ -52,9 +52,8 @@ HELP_SCHEMA = {
         "R: Remaining Alerts for Today": {},
         "W: Weeks": {},
     },
-    
 }
-{   }
+{}
 
 # Hierarchical help schema for Tklr UI and CLI.
 HELP_SCHEMA = {
