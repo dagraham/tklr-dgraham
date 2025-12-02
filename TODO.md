@@ -6,6 +6,9 @@
 - [ ] Instances:
     - [ ] in find?
     - [ ] in alerts?
-    - [ ] in completions?
+    - [x] in completions?
 - [ ] Query view
-- [ ] 
+- [ ] Row_tagger for CLI
+- [ ] Hijack / search
+- [ ] Goal using @o 3/w = 2d8h
+ 

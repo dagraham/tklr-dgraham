@@ -385,6 +385,8 @@ def _group_instances_by_date_for_weeks(events) -> Dict[date, List[dict]]:
         )
 
     # sort each day by time (all-day items first)
+    # dict(grouped) as date keys with corresponding sorted list of reminders for that date
+
     for d in grouped:
         grouped[d].sort(key=lambda r: (r["time"] is not None, r["time"] or time.min))
 
@@ -526,3 +528,115 @@ def weeks(ctx, start_opt, end_opt, width, rich):
             # console.print()  # blank line between days
 
         week_start += timedelta(weeks=1)
+
+
+@cli.command()
+@click.option(
+    "--start",
+    "start_opt",
+    help="Start date (YYYY-MM-DD) or 'today'. Defaults to today.",
+)
+@click.option(
+    "--end",
+    "end_opt",
+    default="7",
+    help="Either an end date (YYYY-MM-DD) or a number of days (int). Default: 7.",
+)
+@click.option(
+    "--width",
+    type=click.IntRange(10, 200),
+    default=40,
+    help="Maximum line width (good for small screens).",
+)
+@click.option(
+    "--rich",
+    is_flag=True,
+    help="Use Rich colors/styling (default output is plain).",
+)
+@click.pass_context
+def days(ctx, start_opt, end_opt, width, rich):
+    """
+    days(start: date = today(), end: date|int = 7, width: int = 40)
+
+    Display reminders grouped by date without week grouping.
+
+    Examples:
+      tklr days
+      tklr days --start 2025-11-01 --end 14
+      tklr days --end 2025-12-31 --width 60
+      tklr days --rich
+    """
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+
+    controller = Controller(db_path, env)
+    dbm = controller.db_manager
+    verbose = ctx.obj["VERBOSE"]
+    if verbose:
+        print(f"tklr version: {get_version()}")
+        print(f"using home directory: {env.get_home()}")
+
+    # ---- 1) parse start / end into date range ----
+    if not start_opt or start_opt.lower() == "today":
+        start_date = datetime.now().date()
+    else:
+        start_date = datetime.strptime(start_opt, "%Y-%m-%d").date()
+
+    # end_opt can be int days or a date
+    try:
+        days_int = int(end_opt)
+        end_date = start_date + timedelta(days=days_int - 1)
+    except (ValueError, TypeError):
+        end_date = datetime.strptime(str(end_opt), "%Y-%m-%d").date()
+
+    start_dt = datetime.combine(start_date, time(0, 0))
+    end_dt = datetime.combine(end_date, time(23, 59))
+
+    # ---- 2) fetch instances and group by day ----
+    events = dbm.get_events_for_period(start_dt, end_dt)
+    by_date = _group_instances_by_date_for_weeks(events)
+
+    # ---- 3) console: plain by default; markup only if --rich ----
+    is_tty = sys.stdout.isatty()
+    console = Console(
+        force_terminal=rich and is_tty,
+        no_color=not rich,
+        markup=rich,
+        highlight=False,
+    )
+
+    today = datetime.now().date()
+    current_date = start_date
+
+    first_day = True
+    while current_date <= end_date:
+        day_events = by_date.get(current_date, [])
+        if day_events:  # only show days with events
+            if not first_day:
+                console.print()
+            first_day = False
+
+            # Day header with full date including year
+            flag = " (today)" if current_date == today else ""
+            day_header = f" {current_date:%a, %b %-d, %Y}{flag}"
+            console.print(day_header)
+
+            # Day rows, max width
+            for row in day_events:
+                itemtype = row["itemtype"]
+                subject = row["subject"]
+
+                time_str = ""
+                if row["start_text"]:
+                    time_str = _format_instance_time(
+                        row["start_text"], row["end_text"], controller
+                    )
+
+                if time_str:
+                    base = f"  {itemtype} {time_str} {subject}"
+                else:
+                    base = f"  {itemtype} {subject}"
+
+                console.print(_wrap_or_truncate(base, width))
+
+        current_date += timedelta(days=1)
