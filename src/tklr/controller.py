@@ -609,77 +609,6 @@ def set_anniversary(subject: str, start: date, instance: date, freq: str) -> str
 Page = Tuple[List[str], Dict[str, Tuple[str, object]]]
 
 
-# def page_tagger(
-#     items: List[dict], page_size: int = 26
-# ) -> List[Tuple[List[str], Dict[str, Tuple[int, int | None]]]]:
-#     """
-#     Split 'items' into pages. Each item is a dict:
-#         { "record_id": int | None, "job_id": int | None, "text": str }
-#
-#     Returns a list of pages. Each page is a tuple:
-#         (page_rows: list[str], page_tag_map: dict[str -> (record_id, job_id|None)])
-#
-#     Rules:
-#       - Only record rows (record_id != None) receive single-letter tags 'a'..'z'.
-#       - Exactly `page_size` records are tagged per page (except the last page).
-#       - Headers (record_id is None) are kept in order.
-#       - If a header's block of records spans pages, the header is duplicated at the
-#         start of the next page with " (continued)" appended.
-#     """
-#     pages: List[Tuple[List[str], Dict[str, Tuple[int, int | None]]]] = []
-#
-#     page_rows: List[str] = []
-#     tag_map: Dict[str, Tuple[int, int | None]] = {}
-#     tag_counter = 0  # number of record-tags on current page
-#     last_header_text = None  # text of the most recent header seen (if any)
-#
-#     def finalize_page(new_page_rows=None):
-#         """Close out the current page and start a fresh one optionally seeded with
-#         new_page_rows (e.g., duplicated header)."""
-#         nonlocal page_rows, tag_map, tag_counter
-#         pages.append((page_rows, tag_map))
-#         page_rows = new_page_rows[:] if new_page_rows else []
-#         tag_map = {}
-#         tag_counter = 0
-#
-#     for item in items:
-#         # header row
-#         if not isinstance(item, dict):
-#             log_msg(f"error: {item} is not a dict")
-#             continue
-#         if item.get("record_id") is None:
-#             hdr_text = item.get("text", "")
-#             last_header_text = hdr_text
-#             page_rows.append(hdr_text)
-#             # continue; headers do not affect tag_counter
-#             continue
-#
-#         # record row (taggable)
-#         # If current page is already full (page_size tags), start a new page.
-#         # IMPORTANT: when we create the new page, we want to preseed it with a
-#         # duplicated header (if one exists) and mark it as "(continued)".
-#         if tag_counter >= page_size:
-#             # If we have a last_header_text, duplicate it at top of next page with continued.
-#             if last_header_text:
-#                 continued_header = f"{last_header_text} (continued)"
-#                 finalize_page(new_page_rows=[continued_header])
-#             else:
-#                 finalize_page()
-#
-#         # assign next tag on current page
-#         tag = chr(ord("a") + tag_counter)
-#         tag_map[tag] = (item["record_id"], item.get("job_id", None))
-#         # Use small/dim tag formatting to match your UI style; adapt if needed
-#         page_rows.append(f" [dim]{tag}[/dim]  {item.get('text', '')}")
-#         tag_counter += 1
-#
-#     # At end, still need to push the last page if it has any rows
-#     if page_rows or tag_map:
-#         pages.append((page_rows, tag_map))
-#
-#     return pages
-
-
 def page_tagger(
     items: List[dict], page_size: int = 26
 ) -> List[Tuple[List[str], Dict[str, Tuple[int, int | None, int | None]]]]:
@@ -2662,7 +2591,7 @@ class Controller:
 
         return results
 
-    def get_agenda(self, now: datetime = datetime.now()):
+    def get_agenda(self, now: datetime = datetime.now(), yield_rows: bool = False):
         """ """
         header = "Agenda - Events and Tasks"
         divider = [
@@ -2671,8 +2600,10 @@ class Controller:
         events_by_date = self.get_agenda_events()
         tasks_by_urgency = self.get_agenda_tasks()
         events_and_tasks = events_by_date + divider + tasks_by_urgency
+        if yield_rows:
+            return events_and_tasks
+
         pages = page_tagger(events_and_tasks)
-        # bug_msg(f"{pages = }")
         return pages, header
 
     def get_agenda_events(self, now: datetime = datetime.now()):

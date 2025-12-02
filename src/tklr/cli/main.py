@@ -285,18 +285,85 @@ def check(ctx, entry):
 
 
 @cli.command()
+@click.option(
+    "--width",
+    type=click.IntRange(10, 200),
+    default=40,
+    help="Maximum line width (good for small screens).",
+)
+@click.option(
+    "--rich",
+    is_flag=True,
+    help="Use Rich colors/styling (default output is plain).",
+)
 @click.pass_context
-def agenda(ctx):
-    """Display the current agenda."""
+def agenda(ctx, width, rich):
+    """
+    Display the current agenda: events for the next 3 days with events and urgent tasks.
+
+    Examples:
+      tklr agenda
+      tklr agenda --width 60
+      tklr agenda --rich
+    """
     env = ctx.obj["ENV"]
     db = ctx.obj["DB"]
     verbose = ctx.obj["VERBOSE"]
 
-    if verbose:
-        print(f"[blue]Launching agenda view with database:[/blue] {db}")
-
     controller = Controller(db, env)
-    run_agenda_view(controller)
+    rows = controller.get_agenda(yield_rows=True)
+
+    if verbose:
+        print(f"[blue]Displaying agenda with {len(rows)} items[/blue]")
+
+    # ---- console: plain by default; markup only if --rich ----
+    is_tty = sys.stdout.isatty()
+    console = Console(
+        force_terminal=rich and is_tty,
+        no_color=not rich,
+        markup=rich,
+        highlight=False,
+    )
+
+    from rich.text import Text
+
+    for i, row in enumerate(rows):
+        text = row.get("text", "")
+        is_header = row.get("record_id") is None
+
+        # Parse the markup to get plain text
+        rendered = Text.from_markup(text)
+        plain_text = rendered.plain.strip()
+
+        # Skip empty/blank rows (dividers)
+        if not plain_text:
+            continue
+
+        # Add spacing only before the Tasks header
+        if is_header and "Tasks" in plain_text:
+            console.print()
+
+        # Items need to be indented like in days command
+        if not is_header:
+            text = f"  {text}"
+            plain_text = f"  {plain_text}"
+
+        # Determine what to print based on --rich flag and width
+        if rich:
+            # With --rich: use markup, truncate based on plain text length
+            if len(plain_text) > width:
+                # Truncate plain text and try to preserve some markup
+                truncated = plain_text[: max(0, width - 1)] + "…"
+                console.print(truncated, markup=False, highlight=False)
+            else:
+                console.print(text)
+        else:
+            # Without --rich: always use plain text (stripped markup)
+            if len(plain_text) > width:
+                truncated = plain_text[: max(0, width - 1)] + "…"
+                console.print(truncated, markup=False, highlight=False)
+            else:
+                console.print(plain_text, markup=False, highlight=False)
 
 
 def _parse_local_text_dt(s: str) -> datetime | date:
