@@ -41,93 +41,98 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
 ### examples
 
-- A _task_ (~), pick up milk.
+#### A _task_ (~), pick up milk
 
-        ~ pick up milk
+    ~ pick up milk
 
-- An _event_ (\*), lunch with Ed starting (@s) next Tuesday at 12pm with an extent (@e) of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
+#### An _event_ (\*), lunch with Ed 
 
-        * Lunch with Ed @s tue 12p @e 1h30m
+    * Lunch with Ed @s tue 12p @e 1h30m
 
-- A _note_ (%), a favorite Churchill quotation with the quote itself as the details (@d).
+- starting (@s) next Tuesday at 12pm 
+- with an extent (@e) of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
 
-        % Give me a pig - Churchill @d Dogs look up at
-          you. Cats look down at you. Give me a pig - they
-          look you in the eye and treat you as an equal.
+#### A _note_ (%), a favorite Churchill quotation
 
-    The _subject_, "Give me a pig - Churchill" in this example, follows the type character and is meant to be brief - analogous to the subject of an email. The optional _details_ follows the "@d" and is meant to be more expansive - analogous to the body of an email.
+    % Give me a pig - Churchill @d Dogs look up at
+      you. Cats look down at you. Give me a pig - they
+      look you in the eye and treat you as an equal.
 
-- A _project_ (^), build a dog house with component tasks (@~).
+The _subject_, "Give me a pig - Churchill" in this example, follows the type character and is meant to be brief - analogous to the subject of an email. The optional _details_ follows the "@d" and is meant to be more expansive - analogous to the body of an email.
 
-        ^ Build dog house
-          @~ pick up materials &r 1 &e 4h
-          @~ cut pieces &r 2: 1 &e 3h
-          @~ assemble &r 3: 2 &e 2h
-          @~ sand &r 4: 3 &e 1h
-          @~ paint &r 5: 4 &e 4h
+#### A _project_ (^), build a dog house with component tasks (@~)
 
-    The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e _extent_" entries give estimates of the times required to complete the various tasks.
+    ^ Build dog house
+      @~ pick up materials &r 1 &e 4h
+      @~ cut pieces &r 2: 1 &e 3h
+      @~ assemble &r 3: 2 &e 2h
+      @~ sand &r 4: 3 &e 1h
+      @~ paint &r 5: 4 &e 4h
 
-- A _goal_ (!), interval training 3 times each week starting on Monday, December 1, 2025.
+The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e _extent_" entries give estimates of the times required to complete the various tasks.
 
-        ! interval training @s 2025-12-01 @o 3/w
+#### A _goal_ (!), interval training 3 times each week 
 
-    At 8am on Wednesday, December 3 with 4d16h remaining in the week and 1 of the 3 instances completed, this goal would be displayed in Goal View as
-    ```
-      ! 1 2/3 4d16h interval training
-    ```
-    where "1" is the current *priority* of the goal, "2/3" is the fraction of the goal not yet completed and "4d16h" is the time remaining for completion. Goals are sorted in this view by their *priority*. 
+    ! interval training @s 2025-12-01 @o 3/w
 
-    How is *priority* determined? Suppose `i_g` is the number of instances specified in the goal and `t_g` is the period specified for their completion. In the example, `i_g = 3` and `t_g = 1w`. Further suppose that at a particular moment, `i_r` is the number of instances remaining unfinished and `t_r` is the time remaining in the period for their completion. Initially, the goal is `i_g/t_g`. At the moment being considered the goal for the remaining period is `i_r/t_r`. E.g., `i_g/t_g = 3/w = 1/2d8h` and at 8am Wednesday `i_r/tr = 2/4d16h = 1/2d8h`.
+Starting December 1, a Monday, and calling for 3 completions per week.
 
-        - `i_r/t_r > i_g/t_g`: 
-            the needed completion rate has increased  - behind schedule
-        - `i_r/t_r = i_g/t_g`: 
-            the needed completion rate is unchanged - on schedule
-        - `i_r/t_r < i_g/t_g`: 
-            the needed completion rate has decreased - ahead of schedule 
+At 8am on Wednesday, December 3 with 4d16h remaining in the week and 1 of the 3 instances completed, this goal would be displayed in Goal View as
+  
+    1 2/3 4d16h interval training
 
-    Equivalently, if we define `priority = (i_r * t_g) / (i_g * t_r)`, then these conditions become
+where "1" is the current *priority* of the goal, "2/3" is the fraction of the goal remaining to be completed and "4d16h" is the remaining time for completion. 
 
-        - `priority > 1`: 
-            the needed completion rate has increased  - behind schedule
-        - `priority = 1`: 
-            the needed completion rate is unchanged - on schedule
-        - `priority < 1`: 
-            the needed completion rate has decreased - ahead of schedule 
+Goals are sorted in this view by their *priority*. How is *priority* determined? Suppose `i_g` is the number of instances specified in the goal and `t_g` is the period specified for their completion. In the example, `i_g = 3` and `t_g = 1w`. Further suppose that at a particular moment, `i_r` is the number of instances remaining unfinished and `t_r` is the time remaining in the period for their completion. Initially, the goal is `i_g/t_g`. At the moment being considered the goal for the remaining period is `i_r/t_r`. E.g., `i_g/t_g = 3/w = 1/2d8h` and at 8am Wednesday `i_r/tr = 2/4d16h = 1/2d8h`.
 
-    In the example, the inital completion rate is `1/2d8h` and at 8am on Wednesday it is remains `1/2d4h` thus *priority* equals 1.
+- `i_r/t_r > i_g/t_g`: 
+    the needed completion rate has increased  - behind schedule
+- `i_r/t_r = i_g/t_g`: 
+    the needed completion rate is unchanged - on schedule
+- `i_r/t_r < i_g/t_g`: 
+    the needed completion rate has decreased - ahead of schedule 
 
-    A goal is automatically refreshed either when all instances are completed within the given period or when the period ends. In either case, the `@s` entry is reset to the original starting date plus the period specified for completion. E.g., for the example the new starting date would be `2025-12-01 + 1w = 2025-12-08`.
+Equivalently, if we define `priority = (i_r * t_g) / (i_g * t_r)`, then these conditions become
 
-    While a *goal* is somewhat like a *task*, it has these important differences:
+- `priority > 1`: 
+    the needed completion rate has increased  - behind schedule
+- `priority = 1`: 
+    the needed completion rate is unchanged - on schedule
+- `priority < 1`: 
+    the needed completion rate has decreased - ahead of schedule 
 
-    - Only the instances of a goal can be finished. The goal itself automatically refreshes forever unless it is deleted.
-    - A goal can never be past due, only *behind schedule* (priority > 1) and then at most for the remainder of the given period.
+In the example, the inital completion rate is `1/2d8h` and at 8am on Wednesday it is remains `1/2d4h` thus *priority* equals 1.
 
-- A _draft_, **?**: meet Alex for coffee Friday - time to be determined.
+A goal is automatically refreshed either when all instances are completed within the given period or when the period ends. In either case, the `@s` entry is reset to the original starting date plus the period specified for completion. E.g., for the example the new starting date would be `2025-12-01 + 1w = 2025-12-08`.
 
-        ? Coffee with Alex @s fri @e 1h
+While a *goal* is somewhat like a *task*, it has these important differences:
 
-    This can be changed to an event when the details are confirmed by replacing the **?** with an **\*** and adding the time to `@s`. This _draft_ will appear highlighted on the current day until you make the changes to complete it.
+- Only the instances of a goal for a given period can be finished. The goal itself automatically refreshes forever unless it is deleted.
+- A goal can never be past due, only *behind schedule* (priority > 1) and then at most for the remainder of the given period.
+
+#### A _draft_ (?), meet Alex for coffee Friday - time to be determined.
+
+    ? Coffee with Alex @s fri @e 1h
+
+This can be changed to an event when the details are confirmed by replacing the **?** with an **\*** and adding the time to `@s`. This _draft_ will appear highlighted on the current day until you make the changes to complete it.
 
 
 ### Simple repetition
 
 - An appointment (_event_) for a dental exam and cleaning at 2pm on Feb 5 and then again, **@+**, at 9am on Sep 3.
 
-        * dental exam and cleaning @s 2p feb 5 @e 45m @+ 9am Sep 3
+    * dental exam and cleaning @s 2p feb 5 @e 45m @+ 9am Sep 3
 
 - A reminder (_task_) to fill the bird feeders starting Friday of the current week and repeat after an _offset_ of 4 days from datetime of the previous completion.
 
-       ~ fill bird feeders @s fri @o 4d
+    ~ fill bird feeders @s fri @o 4d
 
 ### More complex repetition
 
-- The full flexibility of the superb Python _dateutil_ package is supported. Consider, for example, a reminder for Presidential election day which starts in November, 2020 and repeats every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
+The full flexibility of the superb Python _dateutil_ package is supported. Consider, for example, a reminder for Presidential election day which starts in November, 2020 and repeats every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
 
-         * Presidential election day @s nov 1 2020 @r y &i 4
-            &w TU &m 2, 3, 4, 5, 6, 7, 8 &M 11
+    * Presidential election day @s nov 1 2020 
+      @r y &i 4 &w TU &m 2, 3, 4, 5, 6, 7, 8 &M 11
 
 ## Views
 
