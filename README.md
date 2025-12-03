@@ -101,7 +101,7 @@ Equivalently, if we define `priority = (i_r * t_g) / (i_g * t_r)`, then these co
 - `priority < 1`: 
     the needed completion rate has decreased - ahead of schedule 
 
-In the example, the inital completion rate is `1/2d8h` and at 8am on Wednesday it is remains `1/2d4h` thus *priority* equals 1.
+In the example, the inital completion rate is `1/2d8h` and at 8am on Wednesday it is remains `1/2d8h` thus *priority* equals 1.
 
 A goal is automatically refreshed either when all instances are completed within the given period or when the period ends. In either case, the `@s` entry is reset to the original starting date plus the period specified for completion. E.g., for the example the new starting date would be `2025-12-01 + 1w = 2025-12-08`.
 
