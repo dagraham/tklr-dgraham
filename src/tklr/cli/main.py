@@ -299,7 +299,7 @@ def check(ctx, entry):
 @click.pass_context
 def agenda(ctx, width, rich):
     """
-    Display the current agenda: events for the next 3 days with events and urgent tasks.
+    Display the current agenda: events for the next 3 days with drafts and notices along with tasks ordered by urgency.
 
     Examples:
       tklr agenda

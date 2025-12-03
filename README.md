@@ -36,27 +36,28 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 | task    | ~    |
 | project | ^    |
 | note    | %    |
+| goal    | !    |
 | draft   | ?    |
 
 ### examples
 
-- A _task_ (~) reminder to pick up milk.
+- A _task_ (~), pick up milk.
 
         ~ pick up milk
 
-- An _event_ (\*) reminder to have lunch with Ed starting (@s) next Tuesday at 12pm with an extent (@e) of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
+- An _event_ (\*), lunch with Ed starting (@s) next Tuesday at 12pm with an extent (@e) of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
 
         * Lunch with Ed @s tue 12p @e 1h30m
 
-- A _note_ (%) reminder of a favorite Churchill quotation with the quote itself as the details (@d).
+- A _note_ (%), a favorite Churchill quotation with the quote itself as the details (@d).
 
         % Give me a pig - Churchill @d Dogs look up at
           you. Cats look down at you. Give me a pig - they
           look you in the eye and treat you as an equal.
 
-  The _subject_, "Give me a pig - Churchill" in this example, follows the type character and is meant to be brief - analogous to the subject of an email. The optional _details_ follows the "@d" and is meant to be more expansive - analogous to the body of an email.
+    The _subject_, "Give me a pig - Churchill" in this example, follows the type character and is meant to be brief - analogous to the subject of an email. The optional _details_ follows the "@d" and is meant to be more expansive - analogous to the body of an email.
 
-- A _project_ (^) reminder to build a dog house with component tasks (@~).
+- A _project_ (^), build a dog house with component tasks (@~).
 
         ^ Build dog house
           @~ pick up materials &r 1 &e 4h
@@ -65,9 +66,39 @@ The 4 types of reminders in _tklr_ with their associated type characters:
           @~ sand &r 4: 3 &e 1h
           @~ paint &r 5: 4 &e 4h
 
-  The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e _extent_" entries give estimates of the times required to complete the various tasks.
+    The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e _extent_" entries give estimates of the times required to complete the various tasks.
 
-- A _draft_ reminder, **?**: meet Alex for coffee Friday.
+- A _goal_ (!), interval training 3 times per week starting Monday.
+
+        ! interval training @s mon @o 3/w
+
+    At 8am on Wednesay with 4d16h remaining in the week and 1 of the 3 instances completed, this goal would be displayed in Goal View as
+    ```
+      ! 1 2/3 4d16h interval training
+    ```
+    where "1" is the current *priority* of the goal, "2/3" is the fraction of the goal not yet completed and "4d16h" is the time remaining for completion. Goals are sorted in this view by their *priority*. 
+
+    How is *priority* determined? Suppose `i_g` is the number of instances specified in the goal and `t_g` is the period specified for their completion. In the example, `i_g = 3` and `t_g = 1w`. Further suppose that at a particular moment, `i_r` is the number of instances remaining unfinished and `t_r` is the time remaining in the period for their completion. Initially, the goal is `i_g/t_g`. At the moment being considered the goal for the remaining period is `i_r/t_r`. E.g., `i_g/t_g = 3/w = 1/2d8h` and at 8am Wednesday `i_r/tr = 2/4d16h = 1/2d8h`.
+
+        - `i_r/t_r > i_g/t_g`: 
+            the needed completion rate has increased  - behind schedule
+        - `i_r/t_r = i_g/t_g`: 
+            the needed completion rate is unchanged - on schedule
+        - `i_r/t_r < i_g/t_g`: 
+            the needed completion rate has decreased - ahead of schedule 
+
+    Equivalently, if we define `priority = (i_r * t_g) / (i_g * t_r)`, then these conditions become
+
+        - `priority > 1`: 
+            the needed completion rate has increased  - behind schedule
+        - `priority = 1`: 
+            the needed completion rate is unchanged - on schedule
+        - `priority < 1`: 
+            the needed completion rate has decreased - ahead of schedule 
+
+    In the example, the inital completion rate is `1/2d8h` and at 8am on Wednesday it is remains `1/2d4h` thus *priority* equals 1.
+
+- A _draft_, **?**: meet Alex for coffee Friday - time to be determined.
 
         ? Coffee with Alex @s fri @e 1h
 

@@ -1032,7 +1032,7 @@ class DatabaseManager:
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Records (
                 id                INTEGER PRIMARY KEY AUTOINCREMENT,
-                itemtype          TEXT,                         -- '*','~','^','%','?','+','x'
+                itemtype          TEXT,                         -- '*','~','^','%','?','!','x'
                 subject           TEXT,
                 description       TEXT,
                 rruleset          TEXT,                         -- serialized ruleset
