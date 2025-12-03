@@ -68,11 +68,11 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
     The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e _extent_" entries give estimates of the times required to complete the various tasks.
 
-- A _goal_ (!), interval training 3 times per week starting Monday.
+- A _goal_ (!), interval training 3 times each week starting on Monday, December 1, 2025.
 
-        ! interval training @s mon @o 3/w
+        ! interval training @s 2025-12-01 @o 3/w
 
-    At 8am on Wednesay with 4d16h remaining in the week and 1 of the 3 instances completed, this goal would be displayed in Goal View as
+    At 8am on Wednesday, December 3 with 4d16h remaining in the week and 1 of the 3 instances completed, this goal would be displayed in Goal View as
     ```
       ! 1 2/3 4d16h interval training
     ```
@@ -98,11 +98,19 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
     In the example, the inital completion rate is `1/2d8h` and at 8am on Wednesday it is remains `1/2d4h` thus *priority* equals 1.
 
+    A goal is automatically refreshed either when all instances are completed within the given period or when the period ends. In either case, the `@s` entry is reset to the original starting date plus the period specified for completion. E.g., for the example the new starting date would be `2025-12-01 + 1w = 2025-12-08`.
+
+    While a *goal* is somewhat like a *task*, it has these important differences:
+
+    - Only the instances of a goal can be finished. The goal itself automatically refreshes forever unless it is deleted.
+    - A goal can never be past due, only *behind schedule* (priority > 1) and then at most for the remainder of the given period.
+
 - A _draft_, **?**: meet Alex for coffee Friday - time to be determined.
 
         ? Coffee with Alex @s fri @e 1h
 
-  This can be changed to an event when the details are confirmed by replacing the **?** with an **\*** and adding the time to `@s`. This _draft_ will appear highlighted on the current day until you make the changes to complete it.
+    This can be changed to an event when the details are confirmed by replacing the **?** with an **\*** and adding the time to `@s`. This _draft_ will appear highlighted on the current day until you make the changes to complete it.
+
 
 ### Simple repetition
 
