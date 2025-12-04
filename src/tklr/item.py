@@ -2084,14 +2084,17 @@ x (finished) or ? (draft). {self.entry = }
             verbosefmt = self.fmt_verbose(obj)
 
             if kind == "date":
+                bug_msg(f"parsed date {obj = }")
                 compact = self._serialize_date(obj)
                 self.s_kind = "date"
                 self.s_tz = None
             elif kind == "naive":
+                bug_msg(f"parsed naive {obj = }")
                 compact = self._serialize_naive_dt(obj)
                 self.s_kind = "naive"
                 self.s_tz = None
             else:  # aware
+                bug_msg(f"parsed aware {obj = }")
                 compact = self._serialize_aware_dt(obj, tz_used)
                 self.s_kind = "aware"
                 self.s_tz = tz_used  # '' == local
@@ -3292,9 +3295,12 @@ x (finished) or ? (draft). {self.entry = }
         val = tok["token"][2:].strip()  # strip "@s "
         dt = parse(val)
         if isinstance(dt, date):
+            bug_msg(f"date: {dt = }")
             return dt
         if isinstance(dt, datetime) and dt.tzinfo is None:
+            bug_msg(f"naive datetime: {dt = }")
             return dt
+        bug_msg(f"aware datetime: {dt = }")
         return dt.asttimezone(tz.UTC)
 
         # bug_msg(f"start_dt: {tok = }, {val = }, {dt = }")
