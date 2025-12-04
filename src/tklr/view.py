@@ -1149,7 +1149,7 @@ class EditorScreen(Screen):
             "p": "Priority 1 - 5 (low - high)",
             "r": "Repetition frequency",
             "s": "Scheduled datetime",
-            "t": "Tags",
+            "t": "Target number/period",
             "u": "URL",
             "w": "Wrap",
             "x": "Exclude dates",
@@ -1252,10 +1252,11 @@ class EditorScreen(Screen):
     def _persist(self, item) -> None:
         rid = self.controller.db_manager.save_record(item, record_id=self.record_id)
         self.record_id = rid
-        completion = getattr(item, "completion", None)
-        bug_msg(f"{completion = }")
-        if completion:
-            self.controller.db_manager.add_completion(self.record_id, completion)
+        if self.item.itemtype in ("~", "^"):
+            completion = getattr(item, "completion", None)
+            bug_msg(f"{completion = }")
+            if completion:
+                self.controller.db_manager.add_completion(self.record_id, completion)
 
 
 class DetailsScreen(ModalScreen[None]):
@@ -2703,7 +2704,7 @@ class DynamicViewApp(App):
                 return
 
             # ---------- ,f : FINISH ----------
-            if key == "comma,f" and itemtype in "~^":
+            if key == "comma,f" and itemtype in "~^!":
                 # bug_msg(f"{record_id = }, {job_id = }, {first = }")
                 job = f" {job_id}" if job_id else ""
                 id_part = f"({record_id}{job})"

@@ -6,7 +6,11 @@
 - [ ] Query view
 - [ ] Row_tagger for CLI
 - [ ] Hijack / search
-- [ ] Goal using @o 3/w = 2d8h
+- [ ] Work out logic for goal using @o NUM/PERIOD
+- [ ] Implement goal using @o NUM/PERIOD
+    - [ ] do_target
+    - [ ] have finish increment the count of completions 
+- [ ] Fix CLI weeks and days to use display_subject for projects
 
 
 ## Goal

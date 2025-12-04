@@ -284,11 +284,15 @@ finish = [
     f"""^ dog house @s {in_five_days()} @e 3h @n 2w @p 3 @~ create plan &s 1w &e 1h &r 1 &f {one_hour_ago()} @~ go to Lowes &s 1w &e 2h &r 2: 1 @~ buy lumber &s 1w &r 3: 2 @~ buy hardware &s 1w &r 4: 2 @~ buy paint &s 1w &r 5: 2 @~ cut pieces &s 6d &e 3h &r 6: 3 @~ assemble &s 4d &e 5h &r 7: 4, 6 @~ sand &s 3d &e 1h &r 8: 7 @~ paint &s 2d &e 2h &r 9: 8 """,
 ]
 
+goals = [
+    f"! fitness goal @s mon @t 3/1w",
+]
+
 items = [
     f"* first of the month @d all day event @s {first_of_month}",
-    f"* event in 2 days with 1d beginby @s {in_two_days()} @n 1d",
-    f"~ task in 5 days with 1w beginby @s {in_five_days()} @n 1w",
-    f"* event in 1 day with beginby @s {tomorrow_date} @n 1w",
+    f"* event in 2 days with 1d notice @s {in_two_days()} @n 1d",
+    f"~ task in 5 days with 1w notice @s {in_five_days()} @n 1w",
+    f"* event in 1 day with notice @s {tomorrow_date} @n 1w",
     f"~ all day yesterday @d all day task @p 2 @s {yesterday_date}",
     f"~ all day today @d all day task @p 2 @s {today_date}",
     f"~ all day tomorrow @d all day event @p 2 @s {tomorrow_date}",
@@ -371,7 +375,7 @@ while len(items) < num_items:
 id = 0
 # for entry in items:  # + alerts:
 # for entry in busy + items:
-for entry in items + bins + alerts + finish:
+for entry in items + bins + alerts + finish + goals:
     id += 1
     try:
         item = Item(raw=entry, env=env, final=True, controller=ctrl)  # .to_dict()

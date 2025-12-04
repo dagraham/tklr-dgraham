@@ -585,7 +585,7 @@ multiple_allowed = [
 
 wrap_methods = ["w"]
 
-required = {"*": ["s"], "~": [], "^": ["~"], "%": [], "?": [], "!": ["s", "o"], "x": []}
+required = {"*": ["s"], "~": [], "^": ["~"], "%": [], "?": [], "!": ["s", "t"], "x": []}
 
 all_keys = common_methods + datetime_methods + job_methods + repeating_methods
 
@@ -593,7 +593,7 @@ allowed = {
     "*": common_methods + datetime_methods + repeating_methods + wrap_methods,
     "x": common_methods + datetime_methods + task_methods + repeating_methods + ["~"],
     "~": common_methods + datetime_methods + task_methods + repeating_methods,
-    "+": common_methods + datetime_methods + task_methods,
+    "!": common_methods + ["s", "t", "f", "k"],
     "^": common_methods + datetime_methods + job_methods + repeating_methods,
     "%": common_methods + datetime_methods,
     "?": all_keys,
@@ -713,7 +713,7 @@ class Item:
     token_keys = {
         "itemtype": [
             "item type",
-            "character from * (event), ~ (task), ^ (project), % (note),  x (finished) or ? (draft)",
+            "character from * (event), ~ (task), ^ (project), % (note), ! (goal),  x (finished) or ? (draft)",
             "do_itemtype",
         ],
         "subject": [
@@ -724,6 +724,7 @@ class Item:
         "s": ["scheduled", "starting date or datetime", "do_s"],
         "r": ["recurrence", "recurrence rule", "do_rrule"],
         "o": ["offset", "offset rule", "do_offset"],
+        "t": ["target", "a goal target entry such as '3/w'", "do_target"],
         "~": ["job", "job entry", "do_job"],
         "+": ["rdate", "recurrence dates", "do_rdate"],
         "-": ["exdate", "exception dates", "do_exdate"],
@@ -1154,10 +1155,10 @@ class Item:
 
         if len(self.entry.strip()) < 1 or len(self.relative_tokens) < 1:
             # nothing to validate without itemtype and subject
-            return fmt_error("""\
+            return fmt_error(f"""\
 A reminder must begin with an itemtype character 
-from: * (event), ~ (task), ^ (project), % (note), 
-x (finished) or ? (draft)   
+from: * (event), ~ (task), ^ (project), % (note), ! (goal), 
+x (finished) or ? (draft). {self.entry = }  
 """)
 
         if len(self.relative_tokens) < 2:
@@ -1475,11 +1476,11 @@ x (finished) or ? (draft)
 
         # First: itemtype
         itemtype = entry[0]
-        if itemtype not in {"*", "~", "^", "%", "x", "?"}:
+        if itemtype not in {"*", "~", "^", "%", "!", "x", "?"}:
             self.messages.append(
                 (
                     False,
-                    f"Invalid itemtype '{itemtype}' (expected *, ~, ^, %, x or ?)",
+                    f"Invalid itemtype '{itemtype}' (expected *, ~, ^, %, !, x or ?)",
                     [],
                 )
             )
@@ -3272,7 +3273,10 @@ x (finished) or ? (draft)
         )
 
     def _get_start_dt(self) -> datetime | None:
-        # return self.dtstart
+        # start_dt = self.dtstart_str
+        # scheduled_datetime = parse(start_dt)  # if self.dtstart_str else None
+        # bug_msg("{self.dtstart = }, {start_dt =}, {scheduled_datetime = }")
+        # return scheduled_datetime
         bug_msg(f"{self.subject = }, {self.dtstart = }")
         # bug_msg(f"{self.relative_tokens = }")
         tok = next(
@@ -3286,14 +3290,18 @@ x (finished) or ? (draft)
         if not tok:
             return None
         val = tok["token"][2:].strip()  # strip "@s "
-        bug_msg(
-            f"start_dt: {tok = }, {val = }, {parse(val).astimezone() = }, {parse(val) = }"
-        )
-        try:
-            dt = parse(val).astimezone()
-            return dt.astimezone(tz.UTC)
-        except Exception:
-            return None
+        dt = parse(val)
+        if isinstance(dt, date):
+            return dt
+        if isinstance(dt, datetime) and dt.tzinfo is None:
+            return dt
+        return dt.asttimezone(tz.UTC)
+
+        # bug_msg(f"start_dt: {tok = }, {val = }, {dt = }")
+        # try:
+        #     return dt.astimezone(tz.UTC)
+        # except Exception:
+        #     return None
 
     def _set_start_dt(self, dt: datetime | None = None):
         """Replace or add an @s token; keep your formatting with trailing space."""
@@ -3582,6 +3590,29 @@ x (finished) or ? (draft)
 
     # --- drop-in replacement for do_over -----------------------------------
 
+    def do_target(self, token):
+        """
+        Normalize @t (target) token.
+        - Accepts '@t 3/1w', etc. taking the format 'num_completions: int' / 'time_period: seconds'.
+        Returns (ok, (int, int), messages)
+        """
+        try:
+            # token is a relative token dict, like {"token": "@o 3d", "t":"@", "k":"o"}
+            body = token["token"][2:].strip()  # remove '@t'
+            num, period = body.split("/")
+            num = int(num)
+            ok, sec = timedelta_str_to_seconds(period)
+            td = timedelta(seconds=sec)
+            # Normalize token text
+            normalized = f"@t {num}/{td_to_td_str(td)} "
+            bug_msg(f"{num = }, {period = }, {td = }, {normalized = }")
+            token["token"] = normalized
+            token["t"] = "@"
+            token["k"] = "t"
+            return True, (num, td), []
+        except Exception as e:
+            return False, f"invalid {token = }: {e}", []
+
     def do_offset(self, token):
         """
         Normalize @o (over/offset) token.
@@ -3672,7 +3703,7 @@ x (finished) or ? (draft)
             return None
 
     def finish(self) -> None:
-        """Process finishing of an item, especially handling repetition."""
+        """Process finishing of an item."""
         due_dt = None
         if offset_tok := next(
             (t for t in self.relative_tokens if t.get("k") == "o"), None
@@ -3704,7 +3735,58 @@ x (finished) or ? (draft)
 
             return
 
-        # if not offset, use rruleset for due
+        if target_tok := next(
+            (t for t in self.relative_tokens if t.get("k") == "t"), None
+        ):
+            """
+            Remove @f token.
+            If @k is missing, then add @k 1.
+            If @k is less than the number of num_completions, increment it by 1.
+            Else if @k is greater than or equal to the number of num_completions:
+                record a success
+                increment @s by the allowed period
+                reset @k to 0 or remove it.
+
+            PDocstring for finish
+            
+            :param self: Description
+            """
+            due_dt = self._get_start_dt()
+            completed_dt = self.completion
+            ok, (num_completions, period_td), message = self.do_target(target_tok)
+            if not ok:
+                bug_msg(f"error processing {target_tok = }: {message = }")
+                return
+            bug_msg(
+                f"processing target: {due_dt = }, {completed_dt = }, {num_completions = }, {period_td = }"
+            )
+            done = 0
+            if kompleted_tok := next(
+                (t for t in self.relative_tokens if t.get("k") == "k"), None
+            ):
+                bug_msg(f"found kompleted_tok: {kompleted_tok = }")
+                done = kompleted_tok["token"][2:].strip()  # remove '@k'
+                done = int(done)
+            if done + 1 < num_completions:
+                # increment @k
+                done += 1
+                self._replace_or_add_token("k", done)
+                bug_msg(f"incremented @k to {done = }")
+            else:
+                # mark success, increment @s by period_td, reset @k
+                done = 0
+                new_start = due_dt + period_td
+                self.dtstart = self.fmt_user(new_start)
+                self._replace_or_add_token("s", self.dtstart)
+                bug_msg(f"completed target, updated @s to {self.dtstart = }")
+                self.rdstart_str = f"RDATE:{self.dtstart}"
+                self.rruleset = f"RDATE:{self.dtstart}"
+                self.rruleset_dict["START_RDATES"] = self.rdstart_str
+            self._replace_or_add_token("k", str(done))
+            self._remove_tokens({"f"})
+            return
+
+        # if not offset or goal, use rruleset for due
         bug_msg(f"{self.rruleset = }, ")
         first, second = self._get_first_two_occurrences()
         bug_msg(f"{first = }, {second = }")
