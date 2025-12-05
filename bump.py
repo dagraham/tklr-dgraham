@@ -263,17 +263,17 @@ run(f"git commit -a -m '{tmsg}'")
 ok, version_info = read("git log --pretty=format:'%ai' -n 1")
 run(f"git tag -a -f '{new_version}' -m '{version_info}'")
 
-# Generate CHANGES.txt
-changes_text = f"Recent tagged changes as of {datetime.now()}:\n"
-ok, changelog = read(
-    "git log --pretty=format:'- %ar%d %an%n    %h %ai%n%w(70,4,4)%B' "
-    "--max-count=20 --no-walk --tags"
-)
-if ok:
-    with open("CHANGES.txt", "w") as f:
-        f.write(changes_text)
-        f.write(changelog)
-    print("CHANGES.txt generated (not committed).")
+# # Generate CHANGES.txt
+# changes_text = f"Recent tagged changes as of {datetime.now()}:\n"
+# ok, changelog = read(
+#     "git log --pretty=format:'- %ar%d %an%n    %h %ai%n%w(70,4,4)%B' "
+#     "--max-count=20 --no-walk --tags"
+# )
+# if ok:
+#     with open("CHANGES.txt", "w") as f:
+#         f.write(changes_text)
+#         f.write(changelog)
+#     print("CHANGES.txt generated (not committed).")
 
 # Merge to master and sync
 if input("Switch to master, merge working, and push? [yN] ").lower() == "y":
