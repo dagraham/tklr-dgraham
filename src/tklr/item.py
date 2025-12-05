@@ -918,7 +918,7 @@ class Item:
         self.token_store = None
         self.rrules = []
         self.jobs = []
-        self.bins = []
+        self.bin_paths = []
         self.jobset = []
         self.priority = None
         self.alerts = []
@@ -1050,12 +1050,11 @@ class Item:
         self._tokenize(entry)
         # NOTE: _tokenize sets self.itemtype and self.subject
 
-        message = self.validate()
-        if message:
+        self.parse_message = self.validate()
+        log_msg(f"validation message: {self.parse_message = }")
+        if self.parse_message:
             self.parse_ok = False
-            self.parse_message = message
-            print(f"parse failed: {message = }")
-            return
+            return f"parse failed: {self.parse_message = }"
 
         self.mark_grouped_tokens()
         self._parse_tokens(entry)
@@ -1151,9 +1150,9 @@ class Item:
         if len(self.entry.strip()) < 1 or len(self.relative_tokens) < 1:
             # nothing to validate without itemtype and subject
             return fmt_error(f"""\
-A reminder must begin with an itemtype character 
-from: * (event), ~ (task), ^ (project), % (note), ! (goal), 
-x (finished) or ? (draft). {self.entry = }  
+A reminder must begin with an itemtype character
+from: * (event), ~ (task), ^ (project), % (note), ! (goal),
+x (finished) or ? (draft). {self.entry = }
 """)
 
         if len(self.relative_tokens) < 2:
@@ -3765,7 +3764,7 @@ x (finished) or ? (draft). {self.entry = }
                 reset @k to 0 or remove it.
 
             PDocstring for finish
-            
+
             :param self: Description
             """
             due_dt = self._get_start_dt()

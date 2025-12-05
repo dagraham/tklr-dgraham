@@ -21,7 +21,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["lorem>=0.1.1"] # removed tomli-w
+dev = [
+  "lorem>=0.1.1",
+  "pre-commit>=3.6.0",
+] # removed tomli-w
+test = [
+  "pytest>=8.0.0",
+  "pytest-cov>=4.1.0",
+  "freezegun>=1.4.0",
+  "pytest-mock>=3.12.0",
+]
 
 [project.scripts]
 tklr = "tklr.cli.main:cli"
@@ -44,3 +53,22 @@ include-package-data = true  # <- important
 
 [tool.pyright]
 typeCheckingMode = "off" # or "basic"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "--cov=src/tklr",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]

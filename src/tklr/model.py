@@ -87,11 +87,11 @@ def regexp(pattern, value):
 
 def utc_now_string():
     """Return current UTC time as 'YYYYMMDDTHHMMSS'."""
-    return datetime.utcnow().strftime("%Y%m%dT%H%MZ")
+    return datetime.now(tz.UTC).strftime("%Y%m%dT%H%MZ")
 
 
 def utc_now_to_seconds():
-    return round(datetime.utcnow().timestamp())
+    return round(datetime.now(tz.UTC).timestamp())
 
 
 def is_date(obj):
@@ -113,6 +113,10 @@ def _fmt_naive(dt: datetime) -> str:
 
 
 def _fmt_utc(dt_aware_utc: datetime) -> str:
+    if isinstance(dt_aware_utc, date):
+        return _fmt_date(dt_aware_utc)
+    if isinstance(dt_aware_utc, datetime) and dt_aware_utc.tzinfo is None:
+        return _fmt_naive(dt_aware_utc)
     return dt_aware_utc.astimezone(tz.UTC).strftime(DT_FMT) + "Z"
 
 
@@ -1491,7 +1495,7 @@ class DatabaseManager:
                 """
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
-                    extent, alerts, notice, context, jobs, flags, priority, 
+                    extent, alerts, notice, context, jobs, flags, priority,
                     tokens, processed, created, modified
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,

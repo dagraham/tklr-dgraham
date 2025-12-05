@@ -7,7 +7,7 @@ from functools import lru_cache
 from datetime import datetime, timedelta, date, timezone
 
 # from logging import log
-from sre_compile import dis
+# from sre_compile import dis
 from rich.console import Console
 from rich.table import Table
 from rich.box import HEAVY_EDGE
