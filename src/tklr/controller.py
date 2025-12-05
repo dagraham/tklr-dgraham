@@ -829,9 +829,12 @@ class Controller:
         # 4) Save back into the same record (and regen DateTimes, Alerts, etc.)
         self.db_manager.save_record(item, record_id=record_id)
         # 🔁 NEW: record completion if one was produced
-        completion = getattr(item, "completions", None)
-        if completion:
-            self.db_manager.add_completion(record_id, completion)
+        # completion = getattr(item, "completions", None)
+        # if completion:
+        #     self.db_manager.add_completion(record_id, completion)
+        if item.completions:
+            bug_msg(f"{item.completions = }")
+            self.db_manager.add_completion(record_id, item.completions)
 
         return True
 

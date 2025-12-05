@@ -107,6 +107,8 @@ def _fmt_date(d: date) -> str:
 
 
 def _fmt_naive(dt: datetime) -> str:
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
     return dt.strftime(DT_FMT)
 
 
@@ -384,6 +386,7 @@ def fine_busy_bits_for_event(
         else:
             day_start = datetime.combine(cur.date(), datetime.min.time())
             day_end = datetime.combine(cur.date(), datetime.max.time())
+            # print(f"{start = }, {end = }")
             s = max(start, day_start)
             e = min(end, day_end)
 

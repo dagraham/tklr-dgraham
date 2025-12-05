@@ -73,7 +73,7 @@ The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y"
 
 #### A _goal_ (!), interval training 3 times each week 
 
-    ! interval training @s 2025-12-01 @o 3/w
+    ! interval training @s 2025-12-01 @o 3/1w
 
 Starting December 1, a Monday, and calling for 3 completions per week.
 

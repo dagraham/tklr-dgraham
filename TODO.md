@@ -8,8 +8,8 @@
 - [ ] Hijack / search
 - [ ] Work out logic for goal using @o NUM/PERIOD
 - [ ] Implement goal using @o NUM/PERIOD
-    - [ ] do_target
-    - [ ] have finish increment the count of completions 
+    - [x] do_target
+    - [x] have finish increment the count of completions
 - [ ] Fix CLI weeks and days to use display_subject for projects
 
 

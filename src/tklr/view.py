@@ -2797,7 +2797,7 @@ class DynamicViewApp(App):
                         if dt:
                             ctrl.reschedule_instance(
                                 record_id,
-                                job_id=job_id,
+                                # job_id=job_id,
                                 old_instance_text=instance_ts,
                                 new_when=dt,
                             )

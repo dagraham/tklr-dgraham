@@ -285,7 +285,7 @@ finish = [
 ]
 
 goals = [
-    f"! fitness goal @s mon @t 3/1w",
+    f"! fitness goal @s 2025/12/1 @t 3/1w",
 ]
 
 items = [
@@ -377,7 +377,7 @@ while len(items) < num_items:
 id = 0
 # for entry in items:  # + alerts:
 # for entry in busy + items:
-for entry in items + bins + alerts + finish + goals:
+for entry in items + bins + finish + goals:
     id += 1
     try:
         item = Item(raw=entry, env=env, final=True, controller=ctrl)  # .to_dict()

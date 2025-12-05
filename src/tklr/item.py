@@ -1105,12 +1105,13 @@ class Item:
         3) process @f entries (&f entries will have been done by finalize_jobs)
 
         """
+        bug_msg(f"1 finalizing record for {self.subject = }, {self.completions = }")
         if self.has_s:
             self._set_start_dt()
 
         if self.collect_grouped_tokens({"r"}):
             rruleset = self.finalize_rruleset()
-            bug_msg(f"got rruleset {rruleset = }")
+            bug_msg(f"2 got rruleset {rruleset = }")
             if rruleset:
                 self.rruleset = rruleset
         elif self.rdstart_str is not None:
@@ -1118,30 +1119,24 @@ class Item:
             self.rruleset = self.rdstart_str
 
         if self.itemtype == "^":
+            bug_msg(
+                f"3 finalizing jobs for {self.subject = }, {self.relative_tokens = }"
+            )
             jobset = self.build_jobs()
             success, finalized = self.finalize_jobs(jobset)
         # rruleset is needed to get the next two occurrences
-        bug_msg(f"{self.has_f = }, {self.completion = }, {self.has_s = }")
+        bug_msg(f"4 {self.has_f = }, {self.completions = }, {self.has_s = }")
 
         if self.has_f:
-            """
-            if has_o, get learn, td from do_offset, 
-            if learn, compute new td as weighted average of td and @f - @s 
-            change @s to @f + td
-            remove @f 
-            do not mark as finished, x, offsets are never finished
-            """
-            due, next = self._get_first_two_occurrences()
-            bug_msg(f"{self.subject = }, {self.completion = }, {due = }, {next = }")
-            # if self._has_o():
-            #     bug_msg(f"offset {self._get_o() = }")
-            bug_msg(f"old {self.rruleset = }, {self.rdstart_str = }")
+            bug_msg(f"5 {self.subject = }, {self.completions = }")
             self.finish()
-            self.has_f = False
-            bug_msg(f"new {self.rruleset = }, {self.rdstart_str = }")
+            # self.has_f = False
+            bug_msg(
+                f"new {self.rruleset = }, {self.rdstart_str = }, {self.completions = }"
+            )
 
         self.tokens = self._strip_positions(self.relative_tokens)
-        bug_msg(f"{self.tokens = }")
+        bug_msg(f"6 {self.tokens = }")
 
     def validate(self):
         self.validate_messages = []
@@ -3179,14 +3174,23 @@ x (finished) or ? (draft). {self.entry = }
 
             if completed_dts:
                 finished_dt = max(completed_dts)
-                tok = {
-                    "token": f"@f {self.fmt_user(finished_dt)}",
-                    "t": "@",
-                    "k": "f",
-                }
-                self.add_token(tok)
+                finished_str = self.fmt_user(finished_dt)
+                # tok = {
+                #     "token": f"@f {finished_str}",
+                #     "t": "@",
+                #     "k": "f",
+                # }
+                # self.add_token(tok)
+                self._replace_or_add_token("f", finished_str)
                 self.itemtype = "x"
                 self.has_f = True
+                # self.completion = finished_dt
+                first, second = self._get_first_two_occurrences()
+                bug_msg(f"in finalize_jobs {finished_dt = }, {first = }")
+                self.completions = (
+                    finished_dt,
+                    first,
+                )
 
             # strip per-job @f tokens after promoting to record-level @f
             for job in job_map.values():
@@ -3195,6 +3199,9 @@ x (finished) or ? (draft). {self.entry = }
         # --- finalize ---
         self.jobs = list(job_map.values())
         self.jobset = json.dumps(self.jobs, cls=CustomJSONEncoder)
+        bug_msg(
+            f"leaving finalize_jobs {self.completions = }, {self.relative_tokens = }"
+        )
         return True, self.jobs
 
     def do_f(self, token: dict | str, *, job_id: str | None = None):
@@ -3630,14 +3637,18 @@ x (finished) or ? (draft). {self.entry = }
             # token is a relative token dict, like {"token": "@o 3d", "t":"@", "k":"o"}
             body = token["token"][2:].strip()  # remove '@o'
             td, learn = _parse_o_body(body)
+            bug_msg(f"{td = }, {learn = }")
 
             # Normalize token text
-            normalized = f"@o {'~' if learn else ''}{td_to_td_str(td)} "
-            token["token"] = normalized
-            token["t"] = "@"
-            token["k"] = "o"
+            normalized = f"{'~' if learn else ''}{td_to_td_str(td)}"
+            # token["token"] = normalized
+            # token["t"] = "@"
+            # token["k"] = "o"
+            self._replace_or_add_token("o", normalized)
+            bug_msg(f"{normalized = }, {self.relative_tokens = }")
 
-            return True, int(td.total_seconds()), []
+            # return True, int(td.total_seconds()), []
+            return True, normalized, []
         except Exception as e:
             return False, f"invalid @o interval: {e}", []
 
@@ -3719,14 +3730,14 @@ x (finished) or ? (draft). {self.entry = }
             td = td_str_to_td(offset_tok["token"].split(maxsplit=1)[1])
             offset_val = offset_tok["token"][3:]
             bug_msg(
-                f"{offset_val = }, {due_dt = }, {td = }, {offset_val.startswith('~') = }"
+                f"{offset_tok = }, {td = }, {completed_dt = }, {offset_val = }, {due_dt = }, {td = }, {offset_val.startswith('~') = }"
             )
             if offset_val.startswith("~") and due_dt:
                 # bug_msg("learn mode")
                 actual = completed_dt - due_dt
                 td = self._smooth_interval(td, actual)
                 offset_tok["token"] = f"@o {td_to_td_str(td)}"
-                self._replace_or_add_token("o", td_to_td_str(td))
+                self._replace_or_add_token("o", f"~{td_to_td_str(td)}")
                 self._replace_or_add_token("s", self.fmt_user(completed_dt + td))
                 bug_msg(f"{actual = }, {td = }")
             else:
@@ -3775,9 +3786,10 @@ x (finished) or ? (draft). {self.entry = }
                 done = int(done)
             if done + 1 < num_completions:
                 # increment @k
+                old_done = done
                 done += 1
                 self._replace_or_add_token("k", done)
-                bug_msg(f"incremented @k to {done = }")
+                bug_msg(f"incremented @k frpm {old_done = } to {done = }")
             else:
                 # mark success, increment @s by period_td, reset @k
                 done = 0
@@ -3876,7 +3888,9 @@ x (finished) or ? (draft). {self.entry = }
             self.rruleset = f"RDATE:{self.dtstart}{new_plus_date_str}"
             self.rruleset_dict["START_RDATES"] = self.rdstart_str
 
-            bug_msg(f"{self.dtstart = }, {new_plus_date_str = }, {self.rruleset = }")
+            bug_msg(
+                f"{self.dtstart = }, {new_plus_date_str = }, {self.rruleset = }, {self.completions = }"
+            )
 
         else:
             # one-shot or no repetition
@@ -3884,8 +3898,11 @@ x (finished) or ? (draft). {self.entry = }
             self.itemtype = "x"
 
         self._remove_tokens({"f"})
-        bug_msg(f"after removing f: {self.relative_tokens = }")
-        self.completions = (self.completion, due)
+        bug_msg(
+            f"after removing f: {self.relative_tokens = }, {self.completions = }, {self.completion = }, {due = }"
+        )
+        if not self.completions:
+            self.completions = (self.completion, due)
         bug_msg(f"after reparsing finish tokens: {self.relative_tokens = }")
 
     def _replace_or_add_token(self, key: str, dt: str) -> None:
@@ -3911,7 +3928,7 @@ x (finished) or ? (draft). {self.entry = }
 
     def reparse_finish_tokens(self) -> None:
         """
-        Re-run only the token handlers that can be affected by finish():
+        Re-run only the token handlers that can be affected by finish:
         @s, @r, @+.
         Works directly from self.relative_tokens.
         """
