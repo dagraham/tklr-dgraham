@@ -233,7 +233,10 @@ def td_str_to_td(s: str) -> timedelta:
 
 def td_to_td_str(td: timedelta) -> str:
     """Turn a timedelta back into a compact string like '1w2d3h'."""
-    secs = int(td.total_seconds())
+    if isinstance(td, timedelta):
+        secs = int(td.total_seconds())
+    else:
+        secs = int(td)
     parts = []
     for label, size in (("w", 604800), ("d", 86400), ("h", 3600), ("m", 60), ("s", 1)):
         if secs >= size:
@@ -1065,6 +1068,7 @@ class Item:
 
         if self.final:
             self.finalize_record()
+        bug_msg(f"{self.messages = }, {self.parse_message = }")
 
     def _remove_instance_from_plus_tokens(
         self, tokens: list[dict], tok_str: str
@@ -1147,19 +1151,29 @@ class Item:
 
         errors = []
 
-        if len(self.entry.strip()) < 1 or len(self.relative_tokens) < 1:
+        if len(self.entry.strip()) < 1:
             # nothing to validate without itemtype and subject
             return fmt_error(f"""\
-A reminder must begin with an itemtype character
-from: * (event), ~ (task), ^ (project), % (note), ! (goal),
-x (finished) or ? (draft). {self.entry = }
+Reminders begin with an itemtype from:
+    * (event), ~ (task), ^ (project),
+    % (note),  ! (goal), ? (draft)
+followed by a space and the subject.
+Entry: {self.entry}
+""")
+
+        elif len(self.relative_tokens) < 1:
+            # nothing to validate without itemtype and subject
+            return fmt_error(f"""\
+Error: an itemtype from:
+    * (event), ~ (task), ^ (project),
+    % (note),  ! (goal), ? (draft)
+must be the first character.
+Entry: {self.entry}
 """)
 
         if len(self.relative_tokens) < 2:
             # nothing to validate without itemtype and subject
-            return fmt_error(
-                "A subject must be provided for the reminder after the itemtype."
-            )
+            return fmt_error("The subject of the reminder follows the itemtype.")
 
         self.itemtype = self.relative_tokens[0]["token"]
         if not self.itemtype:
@@ -1177,10 +1191,13 @@ x (finished) or ? (draft). {self.entry = }
         # print(f"{len(self.relative_tokens) = }")
         for token in self.relative_tokens:
             count += 1
+            bug_msg(f"validating token {count}: {token = }, {token.get("k", "?") = }")
             if token.get("incomplete", False):
                 type = token["t"]
                 need = (
-                    f"required: {', '.join(needed)}\n" if needed and type == "@" else ""
+                    f"  required: {', '.join(needed)}\n"
+                    if needed and type == "@"
+                    else ""
                 )
                 options = []
                 options = (
@@ -1188,13 +1205,21 @@ x (finished) or ? (draft). {self.entry = }
                     if type == "@"
                     else [x[-1] for x in allowed_fortype if len(x) == 2]
                 )
-                optional = f"optional: {', '.join(options)}" if options else ""
-                return fmt_error(f"{token['t']} incomplete\n{need}{optional}")
+                optional = f"  optional: {', '.join(options)}" if options else ""
+                if token.get("t", "") == "@" and token.get("k", "") == "":
+                    return fmt_error(
+                        f"{token['t']} available @-keys:\n{need}{optional}"
+                    )
             if token["t"] == "@":
+                bug_msg(
+                    # f"{token.get('t', '') = }, {self.token_keys[this_atkey][0]} - {self.token_keys[this_atkey][1]}"
+                    f"{token.get('t', '') = }, {token.get('k', '') = }"
+                )
                 # print(f"{token['token']}; {used_atkeys = }")
                 used_ampkeys = []
                 this_atkey = token["k"]
-                # bug_msg(f"{this_atkey = }")
+
+                bug_msg(f"{this_atkey = }")
                 if this_atkey not in all_keys:
                     return fmt_error(f"@{this_atkey}, Unrecognized @-key")
                 if this_atkey not in allowed_fortype:
@@ -1205,8 +1230,13 @@ x (finished) or ? (draft). {self.entry = }
                     return fmt_error(
                         f"@{current_atkey}, Multiple instances of this @-key are not allowed"
                     )
+
+                bug_msg(
+                    f"{self.token_keys[this_atkey][0]} {self.token_keys[this_atkey][1]}",
+                )
                 current_atkey = this_atkey
                 used_atkeys.append(current_atkey)
+
                 if this_atkey in ["r", "~"]:
                     used_atkeys.append(f"{current_atkey}{current_atkey}")
                     used_ampkeys = []
@@ -1452,8 +1482,6 @@ x (finished) or ? (draft). {self.entry = }
         self.tokens.append(token)
 
     def _tokenize(self, entry: str):
-        # bug_msg(f"_tokenize {entry = }")
-
         self.entry = entry
         self.errors = []
         self.tokens = []
@@ -1463,21 +1491,25 @@ x (finished) or ? (draft). {self.entry = }
             self.messages.append(
                 (False, ": ".join(Item.token_keys["itemtype"][:2]), [])
             )
-            return
+            # return
+        else:
+            self.relative_tokens = []
+            self.stored_tokens = []
 
-        self.relative_tokens = []
-        self.stored_tokens = []
-
-        # First: itemtype
-        itemtype = entry[0]
-        if itemtype not in {"*", "~", "^", "%", "!", "x", "?"}:
-            self.messages.append(
-                (
-                    False,
-                    f"Invalid itemtype '{itemtype}' (expected *, ~, ^, %, !, x or ?)",
-                    [],
+            # First: itemtype
+            itemtype = entry[0]
+            if itemtype not in {"*", "~", "^", "%", "!", "x", "?"}:
+                self.messages.append(
+                    (
+                        False,
+                        f"Invalid itemtype '{itemtype}' (expected *, ~, ^, %, !, x or ?)",
+                        [],
+                    )
                 )
-            )
+                # return
+
+        if len(self.messages) > 0:
+            bug_msg(f"_tokenize {entry = }, {self.messages = }")
             return
 
         self.relative_tokens.append(
@@ -1773,14 +1805,23 @@ x (finished) or ? (draft). {self.entry = }
             log_msg(f"failed to set self.notice: {notice = }, {notice_obj = }")
             return False, notice_obj, []
 
-    def do_extent(self, token):
+    def do_extent(self, token: dict):
         # Process datetime token
+        raw = token["token"][2:].strip()
+        if not raw:
+            return (
+                False,
+                f"{self.token_keys['e'][0]} {self.token_keys['e'][1]}",
+                [],
+            )
+            # return False, "Missing @s value", []
         extent = re.sub("^[@&]. ", "", token["token"].strip()).lower()
         ok, extent_obj = timedelta_str_to_seconds(extent)
         # bug_msg(f"{token = }, {ok = }, {extent_obj = }")
         if ok:
-            self.extent = extent
-            return True, extent_obj, []
+            self.extent = td_to_td_str(extent_obj)
+            return True, f"{self.token_keys['e'][0]} {self.extent}", []
+            # return True, extent_obj, []
         else:
             return False, extent_obj, []
 
@@ -2068,7 +2109,12 @@ x (finished) or ? (draft). {self.entry = }
         try:
             raw = token["token"][2:].strip()
             if not raw:
-                return False, "Missing @s value", []
+                return (
+                    False,
+                    f"{self.token_keys['s'][0]} {self.token_keys['s'][1]}",
+                    [],
+                )
+                # return False, "Missing @s value", []
 
             obj, kind, tz_used = self.parse_user_dt_for_s(raw)
             if kind == "error":

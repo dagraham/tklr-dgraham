@@ -280,30 +280,31 @@ HelpText = f"""\
 [bold][{TITLE_COLOR}]TKLR {VERSION}[/{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
 [bold]^Q[/bold]        Quit           [bold]^S[/bold]    Screenshot
+[bold] +[/bold]        New Reminder   [bold] ?[/bold]    Help
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
- [bold]A[/bold]        Agenda          [bold]F[/bold]    Find 
- [bold]B[/bold]        Bins            [bold]L[/bold]    Last 
- [bold]C[/bold]        Completed       [bold]N[/bold]    Next  
- [bold]W[/bold]        Weeks           [bold]H[/bold]    Hash Tags  
- [bold]R[/bold]        Remaining Alerts  
+ [bold]A[/bold]        Agenda          [bold]F[/bold]    Find
+ [bold]B[/bold]        Bins            [bold]L[/bold]    Last
+ [bold]C[/bold]        Completed       [bold]N[/bold]    Next
+ [bold]W[/bold]        Weeks           [bold]H[/bold]    Hash Tags
+ [bold]R[/bold]        Remaining Alerts
 [bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
  [bold]/[/bold]        Set search      empty search clears
  [bold]>[/bold]        Next match      [bold]<[/bold]    Previous match
 [bold][{HEADER_COLOR}]Weeks Navigation [/{HEADER_COLOR}][/bold]
  [bold]Left[/bold]     previous week   [bold]Up[/bold]   up in the list
  [bold]Right[/bold]    next week       [bold]Down[/bold] down in the list
- [bold]S+Left[/bold]   4 weeks back    [bold]" "[/bold]  current week 
- [bold]S+Right[/bold]  4 weeks forward [bold]"J"[/bold]  ?jump to date? 
-[bold][{HEADER_COLOR}]Tags and Item Details[/{HEADER_COLOR}][/bold] 
- Each of the views listed above displays a list 
- of items. In these listings, each item begins 
+ [bold]S+Left[/bold]   4 weeks back    [bold]" "[/bold]  current week
+ [bold]S+Right[/bold]  4 weeks forward [bold]"J"[/bold]  ?jump to date?
+[bold][{HEADER_COLOR}]Tags and Item Details[/{HEADER_COLOR}][/bold]
+ Each of the views listed above displays a list
+ of items. In these listings, each item begins
  with a tag sequentially generated from 'a', 'b',
- ..., 'z'. When more than 26 tags are required, 
+ ..., 'z'. When more than 26 tags are required,
  additional pages are appended with left and right
- cursor keys used to move between pages. Press the 
+ cursor keys used to move between pages. Press the
  key of the tag on your keyboard to see the
- details of the item and access related commands 
- to edit, reschedule, finish and so forth. To see 
+ details of the item and access related commands
+ to edit, reschedule, finish and so forth. To see
  the complete list of available commands press ?
  when the details pane is open.
 """.splitlines()
@@ -955,7 +956,6 @@ class EditorScreen(Screen):
     #     ("escape", "close", "Back"),
     # ]
     BINDINGS = [
-        ("ctrl+s", "save_and_close", "Save"),
         ("shift+enter", "save_and_close", "Commit"),
         ("escape", "close", "Back"),
     ]
@@ -992,7 +992,7 @@ class EditorScreen(Screen):
         with Vertical(id="ed_prompt"):
             instructions = [
                 "Edit the entry below as desired, then press",
-                f"[bold {FOOTER}]Ctrl+S[/bold {FOOTER}] to save or [bold {FOOTER}]Esc[/bold {FOOTER}] to cancel",
+                f"[bold {FOOTER}]Shift+Enter[/bold {FOOTER}] to save or [bold {FOOTER}]Esc[/bold {FOOTER}] to cancel",
             ]
             self._instructions = Static("\n".join(instructions), id="ed_instructions")
             self._feedback = Static("", id="ed_feedback")
@@ -1077,7 +1077,7 @@ class EditorScreen(Screen):
     # ---------- Internals ----------
     def _build_context(self) -> str:
         if self.record_id is None:
-            return "New item"
+            return "New reminder"
         row = self.controller.db_manager.get_record(self.record_id)
         # subj = row[2] or "(untitled)"
         return f"Editing Record {self.record_id}"
@@ -2514,6 +2514,7 @@ class DynamicViewApp(App):
         ("?", "show_help", "Help"),
         ("ctrl+q", "quit", "Quit"),
         ("ctrl+n", "new_reminder", "Add new reminder"),
+        ("+", "new_reminder", "Add new reminder"),
         ("ctrl+r", "detail_repetitions", "Show Repetitions"),
         ("/", "start_search", "Search"),
         (">", "next_match", "Next Match"),
