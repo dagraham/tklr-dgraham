@@ -3,7 +3,7 @@
     <td style="vertical-align: top; width: 75%;">
       <h1>tklr</h1>
       <p>
-        The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates the same purpose - managing what you need to know quickly and easily. It supports the entry format and projects of <strong>etm</strong>, the datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line (Click) and graphical user interfaces (Textual). 
+        The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates the same purpose - managing what you need to know quickly and easily. It supports the entry format and projects of <strong>etm</strong>, the datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line (Click) and graphical user interfaces (Textual).
       </p>
       <p>Make the most of your time!</p>
     </td>
@@ -45,11 +45,11 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
     ~ pick up milk
 
-#### An _event_ (\*), lunch with Ed 
+#### An _event_ (\*), lunch with Ed
 
     * Lunch with Ed @s tue 12p @e 1h30m
 
-- starting (@s) next Tuesday at 12pm 
+- starting (@s) next Tuesday at 12pm
 - with an extent (@e) of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
 
 #### A _note_ (%), a favorite Churchill quotation
@@ -71,35 +71,35 @@ The _subject_, "Give me a pig - Churchill" in this example, follows the type cha
 
 The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e _extent_" entries give estimates of the times required to complete the various tasks.
 
-#### A _goal_ (!), interval training 3 times each week 
+#### A _goal_ (!), interval training 3 times each week
 
     ! interval training @s 2025-12-01 @o 3/1w
 
 Starting December 1, a Monday, and calling for 3 completions per week.
 
 At 8am on Wednesday, December 3 with 4d16h remaining in the week and 1 of the 3 instances completed, this goal would be displayed in Goal View as
-  
+
     1 2/3 4d16h interval training
 
-where "1" is the current *priority* of the goal, "2/3" is the fraction of the goal remaining to be completed and "4d16h" is the remaining time for completion. 
+where "1" is the current *priority* of the goal, "2/3" is the fraction of the goal remaining to be completed and "4d16h" is the remaining time for completion.
 
 Goals are sorted in this view by their *priority*. How is *priority* determined? Suppose `i_g` is the number of instances specified in the goal and `t_g` is the period specified for their completion. In the example, `i_g = 3` and `t_g = 1w`. Further suppose that at a particular moment, `i_r` is the number of instances remaining unfinished and `t_r` is the time remaining in the period for their completion. Initially, the goal is `i_g/t_g`. At the moment being considered the goal for the remaining period is `i_r/t_r`. E.g., `i_g/t_g = 3/w = 1/2d8h` and at 8am Wednesday `i_r/tr = 2/4d16h = 1/2d8h`.
 
-- `i_r/t_r > i_g/t_g`: 
+- `i_r/t_r > i_g/t_g`:
     the needed completion rate has increased  - behind schedule
-- `i_r/t_r = i_g/t_g`: 
+- `i_r/t_r = i_g/t_g`:
     the needed completion rate is unchanged - on schedule
-- `i_r/t_r < i_g/t_g`: 
-    the needed completion rate has decreased - ahead of schedule 
+- `i_r/t_r < i_g/t_g`:
+    the needed completion rate has decreased - ahead of schedule
 
 Equivalently, if we define `priority = (i_r * t_g) / (i_g * t_r)`, then these conditions become
 
-- `priority > 1`: 
+- `priority > 1`:
     the needed completion rate has increased  - behind schedule
-- `priority = 1`: 
+- `priority = 1`:
     the needed completion rate is unchanged - on schedule
-- `priority < 1`: 
-    the needed completion rate has decreased - ahead of schedule 
+- `priority < 1`:
+    the needed completion rate has decreased - ahead of schedule
 
 In the example, the inital completion rate is `1/2d8h` and at 8am on Wednesday it is remains `1/2d8h` thus *priority* equals 1.
 
@@ -131,7 +131,7 @@ This can be changed to an event when the details are confirmed by replacing the 
 
 The full flexibility of the superb Python _dateutil_ package is supported. Consider, for example, a reminder for Presidential election day which starts in November, 2020 and repeats every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
 
-    * Presidential election day @s nov 1 2020 
+    * Presidential election day @s nov 1 2020
       @r y &i 4 &w TU &m 2, 3, 4, 5, 6, 7, 8 &M 11
 
 ## Views
@@ -288,9 +288,9 @@ You may think in the _journal_ branch the years _2025_, _2026_ and so forth may 
 As an illustration of the power of being able to place a reminder in many bins consider a note describing a visit to Lille, France on November 11, 2025 which involved meeting a dear friend, Mary Smith for lunch. Bins to which this might belong:
 
 - _travel_ (in _activities_)
-  _2025:11_ (in _journal_)
-- Smith,Mary (in _people_)
-- Lille (in _places_)
+- _2025:11_ (in _journal_)
+- _Smith,Mary_ (in _people_)
+- _Lille_ (in _places_)
 
 As with the other views, key presses corresponding to _tags_ control the action. Note that the children of _root_ are tagged. Pressing the tag for _journal_, _b_, makes it the active parent:
 

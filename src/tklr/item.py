@@ -713,6 +713,8 @@ class Paragraph:
 
 
 class Item:
+    GROUPABLE_ANCHOR_KEYS: frozenset[str] = frozenset({"r", "~"})
+
     token_keys = {
         "itemtype": [
             "item type",
@@ -722,20 +724,20 @@ class Item:
         "subject": [
             "subject",
             "item subject. Append an '@' to add an option.",
-            "do_summary",
+            "do_subject",
         ],
         "s": ["scheduled", "starting date or datetime", "do_s"],
-        "r": ["recurrence", "recurrence rule", "do_rrule"],
+        "r": ["recurrence", "recurrence rule", "do_r"],
         "o": ["offset", "offset rule", "do_offset"],
         "t": ["target", "a goal target entry such as '3/w'", "do_target"],
         "~": ["job", "job entry", "do_job"],
-        "+": ["rdate", "recurrence dates", "do_rdate"],
-        "-": ["exdate", "exception dates", "do_exdate"],
+        "+": ["rdate", "recurrence dates", "do_plus"],
+        "-": ["exdate", "exception dates", "do_minus"],
         "a": ["alerts", "list of alerts", "do_alert"],
         "n": ["notice", "timeperiod", "do_notice"],
         "c": ["context", "context", "do_string"],
-        "d": ["description", "item description", "do_description"],
-        "e": ["extent", "timeperiod", "do_extent"],
+        "d": ["details", "expanded notes", "do_d"],
+        "e": ["extent", "timeperiod", "do_e"],
         "w": ["wrap", "list of two timeperiods", "do_two_periods"],
         "f": ["finish", "completion done -> due", "do_f"],
         "g": ["goto", "url or filepath", "do_string"],
@@ -807,8 +809,8 @@ class Item:
         ],
         "~n": ["notice", " notice period", "do_notice"],
         "~c": ["context", " string", "do_string"],
-        "~d": ["description", " string", "do_description"],
-        "~e": ["extent", " timeperiod", "do_extent"],
+        "~d": ["description", " string", "do_d"],
+        "~e": ["extent", " timeperiod", "do_e"],
         "~f": ["finish", " completion done -> due", "do_f"],
         "~i": ["unique id", " integer or string", "do_string"],
         "~l": ["label", " string", "do_string"],
@@ -821,7 +823,7 @@ class Item:
         "~s": [
             "scheduled",
             "timeperiod after task scheduled when job is scheduled",
-            "do_duration",
+            "do_job_s",
         ],
         "~u": ["used time", "timeperiod: datetime", "do_usedtime"],
         "~?": ["job &-key", "enter &-key", "do_ampj"],
@@ -895,7 +897,6 @@ class Item:
 
         # --- core parse state ---
         self.entry = ""
-        self.previous_entry = ""
         self.itemtype = ""
         self.subject = ""
         self.context = ""
@@ -903,7 +904,6 @@ class Item:
         self.token_map = {}
         self.parse_ok = False
         self.parse_message = ""
-        self.previous_tokens = []
         self.relative_tokens = []
         self.last_result = ()
         self.bin_paths = []
@@ -1059,12 +1059,9 @@ class Item:
             self.parse_ok = False
             return f"parse failed: {self.parse_message = }"
 
-        self.mark_grouped_tokens()
         self._parse_tokens(entry)
 
         self.parse_ok = True
-        self.previous_entry = entry
-        self.previous_tokens = self.relative_tokens.copy()
 
         if self.final:
             self.finalize_record()
@@ -1161,7 +1158,7 @@ followed by a space and the subject.
 Entry: {self.entry}
 """)
 
-        elif len(self.relative_tokens) < 1:
+        if len(self.relative_tokens) < 1:
             # nothing to validate without itemtype and subject
             return fmt_error(f"""\
 Error: an itemtype from:
@@ -1179,7 +1176,10 @@ Entry: {self.entry}
         if not self.itemtype:
             return "no itemtype"
 
-        subject = self.relative_tokens[1]["token"]
+        self.subject = self.relative_tokens[1]["token"].strip()
+        bug_msg(f"{self.itemtype = }, {self.subject = }")
+        if not self.subject or self.subject.startswith("@"):
+            return fmt_error("Enter a subject for the reminder.")
         allowed_fortype = allowed[self.itemtype]
         # required_fortype = required[self.itemtype]
         needed = deepcopy(required[self.itemtype])
@@ -1191,31 +1191,32 @@ Entry: {self.entry}
         # print(f"{len(self.relative_tokens) = }")
         for token in self.relative_tokens:
             count += 1
-            bug_msg(f"validating token {count}: {token = }, {token.get("k", "?") = }")
+            bug_msg(f"validating token {count}: {token = }, {token.get('k', '') = }")
             if token.get("incomplete", False):
+                bug_msg(f"incomplete token found: {token = }")
                 type = token["t"]
-                need = (
-                    f"  required: {', '.join(needed)}\n"
-                    if needed and type == "@"
-                    else ""
-                )
-                options = []
-                options = (
-                    [x for x in allowed_fortype if len(x) == 1]
-                    if type == "@"
-                    else [x[-1] for x in allowed_fortype if len(x) == 2]
-                )
-                optional = f"  optional: {', '.join(options)}" if options else ""
                 if token.get("t", "") == "@" and token.get("k", "") == "":
+                    need = (
+                        f"  required: {', '.join(needed)}\n"
+                        if needed and type == "@"
+                        else ""
+                    )
+                    options = []
+                    options = (
+                        [x for x in allowed_fortype if len(x) == 1]
+                        if type == "@"
+                        else [x[-1] for x in allowed_fortype if len(x) == 2]
+                    )
+                    optional = f"  optional: {', '.join(options)}" if options else ""
                     return fmt_error(
                         f"{token['t']} available @-keys:\n{need}{optional}"
                     )
+
             if token["t"] == "@":
                 bug_msg(
                     # f"{token.get('t', '') = }, {self.token_keys[this_atkey][0]} - {self.token_keys[this_atkey][1]}"
                     f"{token.get('t', '') = }, {token.get('k', '') = }"
                 )
-                # print(f"{token['token']}; {used_atkeys = }")
                 used_ampkeys = []
                 this_atkey = token["k"]
 
@@ -1224,15 +1225,15 @@ Entry: {self.entry}
                     return fmt_error(f"@{this_atkey}, Unrecognized @-key")
                 if this_atkey not in allowed_fortype:
                     return fmt_error(
-                        f"@{this_atkey}, The use of this @-key is not supported in type '{self.itemtype}' reminders"
+                        f"The use of @{this_atkey} is not supported in type '{self.itemtype}' reminders"
                     )
                 if this_atkey in used_atkeys and this_atkey not in multiple_allowed:
                     return fmt_error(
-                        f"@{current_atkey}, Multiple instances of this @-key are not allowed"
+                        f"Multiple instances of this @{this_atkey} are not allowed"
                     )
 
                 bug_msg(
-                    f"{self.token_keys[this_atkey][0]} {self.token_keys[this_atkey][1]}",
+                    f"{self.token_keys[this_atkey][0] = } {self.token_keys[this_atkey][1] = }",
                 )
                 current_atkey = this_atkey
                 used_atkeys.append(current_atkey)
@@ -1246,6 +1247,11 @@ Entry: {self.entry}
                     for _key in requires[current_atkey]:
                         if _key not in used_atkeys and _key not in needed:
                             needed.append(_key)
+                bug_msg(f"{token = }")
+                if token.get("incomplete", False):
+                    # return the info for this key until the beginning of a value is entered
+                    return fmt_error(f"{' - '.join(self.token_keys[this_atkey][:2])}")
+
             elif token["t"] == "&":
                 this_ampkey = f"{current_atkey}{token['k']}"
                 # bug_msg(f"{current_atkey = }, {this_ampkey = }")
@@ -1381,26 +1387,12 @@ Entry: {self.entry}
             [ [anchor_tok, &tok, &tok, ...], ... ]
         """
         groups: list[list[dict]] = []
-        current_group: list[dict] = []
-        collecting = False
-
-        for token in self.relative_tokens:
-            if token.get("t") == "@" and token.get("k") in anchor_keys:
-                if current_group:
-                    groups.append(current_group)
-                current_group = [token]
-                collecting = True
-            elif collecting and token.get("t") == "&":
-                current_group.append(token)
-            elif collecting:
-                # hit a non-& token, close the current group
-                groups.append(current_group)
-                current_group = []
-                collecting = False
-
-        if current_group:
-            groups.append(current_group)
-
+        for group in self._build_group_metadata():
+            if not group:
+                continue
+            anchor = group[0]
+            if anchor.get("t") == "@" and anchor.get("k") in anchor_keys:
+                groups.append(list(group))
         bug_msg(f"{groups = }")
         return groups
 
@@ -1415,9 +1407,13 @@ Entry: {self.entry}
         self.skip_token_positions = set()
         self.token_group_anchors = {}
 
-        anchor_keys = {"r", "~"}
-
-        groups = self.collect_grouped_tokens(anchor_keys)
+        groups = [
+            group
+            for group in self._build_group_metadata()
+            if group
+            and group[0].get("t") == "@"
+            and group[0].get("k") in self.GROUPABLE_ANCHOR_KEYS
+        ]
 
         for group in groups:
             anchor = group[0]
@@ -1486,69 +1482,61 @@ Entry: {self.entry}
         self.errors = []
         self.tokens = []
         self.messages = []
+        self.relative_tokens = []
+        self.stored_tokens = []
+        self.subject = ""
 
         if not entry:
             self.messages.append(
                 (False, ": ".join(Item.token_keys["itemtype"][:2]), [])
             )
-            # return
-        else:
-            self.relative_tokens = []
-            self.stored_tokens = []
-
-            # First: itemtype
-            itemtype = entry[0]
-            if itemtype not in {"*", "~", "^", "%", "!", "x", "?"}:
-                self.messages.append(
-                    (
-                        False,
-                        f"Invalid itemtype '{itemtype}' (expected *, ~, ^, %, !, x or ?)",
-                        [],
-                    )
-                )
-                # return
-
-        if len(self.messages) > 0:
-            bug_msg(f"_tokenize {entry = }, {self.messages = }")
             return
-
+        bug_msg(f"tokenizing entry: {entry = } using {entry[0] = }")
+        if entry[0] not in {"*", "~", "^", "%", "!", "x", "?"}:
+            self.messages.append(
+                (
+                    False,
+                    f"Invalid itemtype '{entry[0]}' (expected *, ~, ^, %, !, x or ?)",
+                    [],
+                )
+            )
+            return
+        # we have an itemtype
+        itemtype = entry[0]
+        self.itemtype = itemtype
         self.relative_tokens.append(
             {"token": itemtype, "s": 0, "e": 1, "t": "itemtype"}
         )
-        self.itemtype = itemtype
 
-        rest = entry[1:].lstrip()
-        offset = 1 + len(entry[1:]) - len(rest)
+        # --- subject (everything until the next '@') ---
+        cursor = 1
+        n_chars = len(entry)
+        while cursor < n_chars and entry[cursor].isspace():
+            cursor += 1
+        subject_start = cursor
+        while cursor < n_chars and entry[cursor] != "@":
+            cursor += 1
+        subject_slice = entry[subject_start:cursor]
+        self.subject = subject_slice.strip()
+        self.relative_tokens.append(
+            {"token": subject_slice, "s": subject_start, "e": cursor, "t": "subject"}
+        )
 
-        # Find start of first @-key to get subject
-        at_pos = rest.find("@")
-        subject = rest[:at_pos].strip() if at_pos != -1 else rest
-        if subject:
-            start = offset
-            end = offset + len(subject) + 1  # trailing space
-            subject_token = subject + " "
-            self.relative_tokens.append(
-                {"token": subject_token, "s": start, "e": end, "t": "subject"}
-            )
-            self.subject = subject
-        else:
-            self.errors.append("Missing subject")
-
-        remainder = rest[len(subject) :]
-
+        # --- option tokens (@ / &) ---
+        remainder_start = cursor
+        remainder = entry[remainder_start:]
         pattern = (
             r"(?:(?<=^)|(?<=\s))(@[\w~+\-]+ [^@&]+)|(?:(?<=^)|(?<=\s))(&\w+ [^@&]+)"
         )
         for match in re.finditer(pattern, remainder):
-            token = match.group(0)
-            start_pos = match.start() + offset + len(subject)
-            end_pos = match.end() + offset + len(subject)
-
-            token_type = "@" if token.startswith("@") else "&"
-            key = token[1:3].strip()
+            token_text = match.group(0)
+            start_pos = remainder_start + match.start()
+            end_pos = remainder_start + match.end()
+            token_type = "@" if token_text.startswith("@") else "&"
+            key = token_text[1:3].strip()
             self.relative_tokens.append(
                 {
-                    "token": token,
+                    "token": token_text,
                     "s": start_pos,
                     "e": end_pos,
                     "t": token_type,
@@ -1556,88 +1544,105 @@ Entry: {self.entry}
                 }
             )
 
-        # Detect and append a potential partial token at the end
+        # --- partial token handling (user still typing) ---
         partial_token = None
-        if entry.endswith("@") or re.search(r"@([a-zA-Z])$", entry):
-            match = re.search(r"@([a-zA-Z]?)$", entry)
-            if match:
+        at_partial = re.search(r"@([A-Za-z]?)$", entry)
+        if at_partial and " " not in at_partial.group(0):
+            partial_token = {
+                "token": "@" + at_partial.group(1),
+                "s": len(entry) - len(at_partial.group(0)),
+                "e": len(entry),
+                "t": "@",
+                "k": at_partial.group(1),
+                "incomplete": True,
+            }
+        else:
+            at_space_partial = re.search(r"@([A-Za-z]+)\s*$", entry)
+            if at_space_partial:
                 partial_token = {
-                    "token": "@" + match.group(1),
-                    "s": len(entry) - len(match.group(0)),
+                    "token": entry[len(entry) - len(at_space_partial.group(0)) :],
+                    "s": len(entry) - len(at_space_partial.group(0)),
                     "e": len(entry),
                     "t": "@",
-                    "k": match.group(1),
+                    "k": at_space_partial.group(1),
                     "incomplete": True,
                 }
-
-        elif entry.endswith("&") or re.search(r"&([a-zA-Z]+)$", entry):
-            match = re.search(r"&([a-zA-Z]*)$", entry)
-            if match:
-                # Optionally find parent group (r or j)
-                parent = None
-                for tok in reversed(self.relative_tokens):
-                    if tok["t"] == "@" and tok["k"] in ["r", "~"]:
-                        parent = tok["k"]
-                        break
-                partial_token = {
-                    "token": "&" + match.group(1),
-                    "s": len(entry) - len(match.group(0)),
-                    "e": len(entry),
-                    "t": "&",
-                    "k": match.group(1),
-                    "parent": parent,
-                    "incomplete": True,
-                }
+            else:
+                amp_partial = re.search(r"&([A-Za-z]*)$", entry)
+                if amp_partial and " " not in amp_partial.group(0):
+                    parent = None
+                    for tok in reversed(self.relative_tokens):
+                        if tok["t"] == "@" and tok.get("k") in self.GROUPABLE_ANCHOR_KEYS:
+                            parent = tok["k"]
+                            break
+                    partial_token = {
+                        "token": "&" + amp_partial.group(1),
+                        "s": len(entry) - len(amp_partial.group(0)),
+                        "e": len(entry),
+                        "t": "&",
+                        "k": amp_partial.group(1),
+                        "parent": parent,
+                        "incomplete": True,
+                    }
 
         if partial_token:
             self.relative_tokens.append(partial_token)
 
-    def _parse_tokens(self, entry: str):
-        if not self.previous_entry:
-            self._parse_all_tokens()
-            return
+        self._build_group_metadata()
 
-        self.mark_grouped_tokens()
+    def _build_group_metadata(self) -> list[list[dict]]:
+        """
+        Precompute groupings for @-tokens that own &-tokens so downstream code
+        can skip rescanning the flat token list.
+        """
+        token_groups: list[list[dict]] = []
+        anchor_token: dict | None = None
+        current_group: list[dict] = []
 
-        changes = self._find_changes(self.previous_entry, entry)
-        affected_tokens = self._identify_affected_tokens(changes)
+        for token in self.relative_tokens:
+            token.pop("_children", None)
+            token.pop("parent", None)
+            token.pop("anchor_span", None)
 
-        dispatched_anchors = set()
-
-        for token in affected_tokens:
-            start_pos, end_pos = token["s"], token["e"]
-            # bug_msg(f"{start_pos = }, {end_pos = }, {len(entry) = },  {token = }")
-            if not self._token_has_changed(token):
-                continue
-
-            if (start_pos, end_pos) in self.skip_token_positions:
-                continue  # don't dispatch grouped & tokens alone
-
-            if (start_pos, end_pos) in self.token_group_anchors:
-                anchor_pos = self.token_group_anchors[(start_pos, end_pos)]
-                if anchor_pos in dispatched_anchors:
-                    continue
-                anchor_token_info = next(
-                    t for t in self.tokens if (t[1], t[2]) == anchor_pos
-                )
-                token_str, anchor_start, anchor_end = anchor_token_info
-                token_type = token["k"]
-
-                # bug_msg(
-                #     f"{anchor_start = }, {anchor_end = }, {len(entry) = },  {token_str = }"
-                # )
-                self._dispatch_token(token_str, anchor_start, anchor_end, token_type)
-                dispatched_anchors.add(anchor_pos)
-                continue
-
-            if start_pos == 0:
-                self._dispatch_token(token, start_pos, end_pos, "itemtype")
-            elif start_pos == 2:
-                self._dispatch_token(token, start_pos, end_pos, "subject")
+            if token.get("t") == "@":
+                key = token.get("k")
+                if key in self.GROUPABLE_ANCHOR_KEYS:
+                    if current_group:
+                        token_groups.append(current_group)
+                        current_group = []
+                    anchor_token = token
+                    token["_children"] = []
+                    current_group = [token]
+                else:
+                    if current_group:
+                        token_groups.append(current_group)
+                        current_group = []
+                    anchor_token = None
+            elif token.get("t") == "&":
+                if anchor_token is not None:
+                    token["parent"] = anchor_token.get("k")
+                    token["anchor_span"] = (anchor_token["s"], anchor_token["e"])
+                    anchor_token.setdefault("_children", []).append(token)
+                    current_group.append(token)
+                else:
+                    token["parent"] = None
             else:
-                # bug_msg(f"{end_pos = }, {len(entry) = }")
-                token_type = token["k"]
-                self._dispatch_token(token, start_pos, end_pos, token_type)
+                if current_group:
+                    token_groups.append(current_group)
+                    current_group = []
+                anchor_token = None
+
+        if current_group:
+            token_groups.append(current_group)
+
+        return token_groups
+
+    def _parse_tokens(self, entry: str):
+        """
+        Re-parse the entire entry every time input changes. Entries are short,
+        so a full pass is simpler and more reliable than diffing incremental edits.
+        """
+        self._parse_all_tokens()
 
     def _parse_all_tokens(self):
         self.mark_grouped_tokens()
@@ -1673,41 +1678,6 @@ Entry: {self.entry}
             elif "k" in token:
                 token_type = token["k"]
                 self._dispatch_token(token, start_pos, end_pos, token_type)
-
-    def _find_changes(self, previous: str, current: str):
-        # Find the range of changes between the previous and current strings
-        start = 0
-        while (
-            start < len(previous)
-            and start < len(current)
-            and previous[start] == current[start]
-        ):
-            start += 1
-
-        end_prev = len(previous)
-        end_curr = len(current)
-
-        while (
-            end_prev > start
-            and end_curr > start
-            and previous[end_prev - 1] == current[end_curr - 1]
-        ):
-            end_prev -= 1
-            end_curr -= 1
-
-        return start, end_curr
-
-    def _identify_affected_tokens(self, changes):
-        start, end = changes
-        affected_tokens = []
-        for token in self.relative_tokens:
-            start_pos, end_pos = token["s"], token["e"]
-            if start <= end_pos and end >= start_pos:
-                affected_tokens.append(token)
-        return affected_tokens
-
-    def _token_has_changed(self, token):
-        return token not in self.previous_tokens
 
     def _dispatch_token(self, token, start_pos, end_pos, token_type):
         # bug_msg(f"dispatch_token {token = }")
@@ -1761,7 +1731,7 @@ Entry: {self.entry}
             return False, "itemtype cannot be empty", []
 
     @classmethod
-    def do_summary(cls, token):
+    def do_subject(cls, token):
         # Process subject token
         if "t" in token and token["t"] == "subject":
             return True, token["token"].strip(), []
@@ -1769,7 +1739,7 @@ Entry: {self.entry}
             return False, "subject cannot be empty", []
 
     @classmethod
-    def do_duration(cls, arg: str):
+    def do_job_s(cls, arg: str):
         """ """
         if not arg:
             return False, f"time period {arg}"
@@ -1805,7 +1775,7 @@ Entry: {self.entry}
             log_msg(f"failed to set self.notice: {notice = }, {notice_obj = }")
             return False, notice_obj, []
 
-    def do_extent(self, token: dict):
+    def do_e(self, token: dict):
         # Process datetime token
         raw = token["token"][2:].strip()
         if not raw:
@@ -1934,17 +1904,16 @@ Entry: {self.entry}
 
         return True, primary, dependencies
 
-    def do_description(self, token):
-        description = re.sub("^@. ", "", token["token"])
-        # bug_msg(f"{token = }, {description = }")
-        if not description:
-            return False, "missing description", []
-        if description:
-            self.description = description
-            # print(f"{self.description = }")
-            return True, description, []
-        else:
-            return False, description, []
+    def do_d(self, token):
+        raw = token["token"][2:].strip()
+        if not raw:
+            return (
+                False,
+                f"{self.token_keys['d'][0]} {self.token_keys['d'][1]}",
+                [],
+            )
+        self.description = raw
+        return True, raw, []
 
     def do_nothing(self, token):
         return True, "passed", []
@@ -2032,22 +2001,23 @@ Entry: {self.entry}
             self.tz_str = ""
             return False, f"Invalid timezone: '{tz_str}'", []
 
-    def do_rrule(self, token):
+    def do_r(self, token):
         """
         Handle an @r ... group. `token` may be a token dict or the raw token string.
         This only validates / records RRULE components; RDATE/EXDATE are added later
         by finalize_rruleset().
         Returns (ok: bool, message: str, extras: list).
         """
-        # bug_msg(f"in do_rrule: {token = }")
+        # bug_msg(f"in do_r: {token = }")
 
         # Normalize input to raw text
         tok_text = token.get("token") if isinstance(token, dict) else str(token)
-        bug_msg(f"{tok_text = }")
+        # bug_msg(f"{tok_text = }")
 
         # Find the matching @r group (scan all groups first)
         group = None
         r_groups = list(self.collect_grouped_tokens({"r"}))
+        # bug_msg(f"{r_groups = }")
         for g in r_groups:
             if g and g[0].get("token") == tok_text:
                 group = g
@@ -2336,11 +2306,11 @@ Entry: {self.entry}
 
         return True, job_params, []
 
-    def do_at(self):
-        print("TODO: do_at() -> show available @ tokens")
+    # def do_at(self):
+    #     print("TODO: do_at() -> show available @ tokens")
 
-    def do_amp(self):
-        print("TODO: do_amp() -> show available & tokens")
+    # def do_amp(self):
+    #     print("TODO: do_amp() -> show available & tokens")
 
     @classmethod
     def do_weekdays(cls, wkd_str: str):
@@ -2860,7 +2830,7 @@ Entry: {self.entry}
         self.relative_tokens = new_tokens
         self.rruleset = ""  # remove compiled schedule string
 
-    def do_rdate(self, token: dict):
+    def do_plus(self, token: dict):
         """
         Process an RDATE token, e.g., "@+ 2024-07-03 14:00, 2024-08-05 09:00".
 
@@ -2919,7 +2889,7 @@ Entry: {self.entry}
         except Exception as e:
             return False, f"Invalid @+ value: {e}", []
 
-    def do_exdate(self, token: dict):
+    def do_minus(self, token: dict):
         """
         @- … : explicit exclusion dates
         - Maintain a de-duplicated list of compact dates in self.exdates.
