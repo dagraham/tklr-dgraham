@@ -18,11 +18,11 @@
 
 ❌ Preliminary and incomplete. This notice will be removed when the code is ready for general use.
 
-## Overview
+# Overview
 
 _tklr_ began life in 2013 as _etm-qt_ sporting a gui based on _Qt_. The intent was to provide an app supporting GTD (David Allen's Getting Things Done) and exploiting the power of python-dateutil. The name changed to _etmtk_ in 2014 when _Tk_ replaced _Qt_. Development of _etmtk_ continued until 2019 when name changed to _etm-dgraham_, to honor the PyPi naming convention, and the interface changed to a terminal based one based on _prompt_toolkit_. In 2025 the name changed to "tklr", the database to SQLite3 and the interface to Click (CLI) and Textual. Features have changed over the years but the text based interface and basic format of the reminders has changed very little. The goal has always been to be the Swiss Army Knife of tools for managing reminders.
 
-## Reminders
+# Reminders
 
 _tklr_ offers a simple way to manage your event, task and note reminders.
 
@@ -39,20 +39,20 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 | goal    | !    |
 | draft   | ?    |
 
-### examples
+## examples
 
-#### A _task_ (~), pick up milk
+### A _task_ (~), pick up milk
 
     ~ pick up milk
 
-#### An _event_ (\*), lunch with Ed
+### An _event_ (\*), lunch with Ed
 
     * Lunch with Ed @s tue 12p @e 1h30m
 
 - starting (@s) next Tuesday at 12pm
 - with an extent (@e) of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
 
-#### A _note_ (%), a favorite Churchill quotation
+### A _note_ (%), a favorite Churchill quotation
 
     % Give me a pig - Churchill @d Dogs look up at
       you. Cats look down at you. Give me a pig - they
@@ -60,7 +60,7 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
 The _subject_, "Give me a pig - Churchill" in this example, follows the type character and is meant to be brief - analogous to the subject of an email. The optional _details_ follows the "@d" and is meant to be more expansive - analogous to the body of an email.
 
-#### A _project_ (^), build a dog house with component tasks (@~)
+### A _project_ (^), build a dog house with component tasks (@~)
 
     ^ Build dog house
       @~ pick up materials &r 1 &e 4h
@@ -71,7 +71,7 @@ The _subject_, "Give me a pig - Churchill" in this example, follows the type cha
 
 The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e _extent_" entries give estimates of the times required to complete the various tasks.
 
-#### A _goal_ (!), interval training 3 times each week
+### A _goal_ (!), interval training 3 times each week
 
     ! interval training @s 2025-12-01 @o 3/1w
 
@@ -110,14 +110,14 @@ While a *goal* is somewhat like a *task*, it has these important differences:
 - Only the instances of a goal for a given period can be finished. The goal itself automatically refreshes forever unless it is deleted.
 - A goal can never be past due, only *behind schedule* (priority > 1) and then at most for the remainder of the given period.
 
-#### A _draft_ (?), meet Alex for coffee Friday - time to be determined.
+### A _draft_ (?), meet Alex for coffee Friday - time to be determined.
 
     ? Coffee with Alex @s fri @e 1h
 
 This can be changed to an event when the details are confirmed by replacing the **?** with an **\*** and adding the time to `@s`. This _draft_ will appear highlighted on the current day until you make the changes to complete it.
 
 
-### Simple repetition
+## Simple repetition
 
 - An appointment (_event_) for a dental exam and cleaning at 2pm on Feb 5 and then again, **@+**, at 9am on Sep 3.
 
@@ -127,14 +127,14 @@ This can be changed to an event when the details are confirmed by replacing the 
 
     ~ fill bird feeders @s fri @o 4d
 
-### More complex repetition
+## More complex repetition
 
 The full flexibility of the superb Python _dateutil_ package is supported. Consider, for example, a reminder for Presidential election day which starts in November, 2020 and repeats every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
 
     * Presidential election day @s nov 1 2020
       @r y &i 4 &w TU &m 2, 3, 4, 5, 6, 7, 8 &M 11
 
-## Views
+# Views
 
 Each of the views listed below can be opened by entering the first letter of the view's name, e.g., pressing `A` (`shift+a`) will open _Agenda View_.
 
@@ -144,7 +144,7 @@ On any page, pressing the key corresponding to a tag will open a display with al
 
 The point of using tags to select and display reminders in this way is to minimize key presses. Any reminder on a page can be selected and its details displayed with a single key press.
 
-### Weeks
+## Weeks
 
 Scheduled Reminders for the Week with busy times displayed by a leading _busy bar_.
 
@@ -175,7 +175,7 @@ Pressing _g_ displays the details for that reminder.
   <em>Weeks View: details for the reminder tagged g</em>
 </p>
 
-### Agenda
+## Agenda
 
 The next three days of _events_ with _notices_ and _drafts_ followed by tasks ordered by their urgency.
 
@@ -199,7 +199,7 @@ Since there are more than 26 reminders to be displayed and only 26 available low
   <em>Agenda View: The second and last page</em>
 </p>
 
-### Next
+## Next
 
 The first instance of every scheduled reminder occurring after the current moment listed in **ascending** order by date and time.
 
@@ -228,7 +228,7 @@ The reminders with case-insensitive matches will be highlighted:
   <em>Search: highlighted matches</em>
 </p>
 
-### Last
+## Last
 
 The last instance of every scheduled reminder occurring before the current moment listed in **descending** order by date and time.
 
@@ -239,7 +239,7 @@ The last instance of every scheduled reminder occurring before the current momen
   <em>Agenda View: The second and last page</em>
 </p>
 
-### Find
+## Find
 
 Reminders whose subject or detail entries contain a case-insensitive match for an entered expression.
 
@@ -261,7 +261,7 @@ When submitted, the matching reminders are listed:
   <em>Find: matching reminders</em>
 </p>
 
-### Bins
+## Bins
 
 Hierarchical display of bins and reminders.
 
@@ -321,9 +321,9 @@ Pressing _a_ again, now the tag for _2025:11_, makes this the active parent:
 
 Notice in the _bread crumb_ header that there are integer tags going backward for each of the ancestors and the active parent is, as usual, the last element of the path. But it is listed here not using the alias, _11_, but the actual bin name, _2025:11_.
 
-## Details
+# Details
 
-### Dates and times
+## Dates and times
 
 Intelligent parsing of the user's entry of a datetime is supported. Suppose it is Thursday, November 6 2025 in the US/Eastern timezone. When a datetime is entered it is interpreted _relative_ to the current date, time and timezone. When entering the scheduled datetime for a reminder using `@s`, the following table illustrates how various entries would be interpreted and the resulting user feedback.
 
@@ -347,7 +347,7 @@ When an `@s` scheduled entry specifies a date without a time, i.e., a date inste
 
 Note that times can only be specified, stored and displayed in hours and minutes - seconds and microseconds are not supported. Internally datetimes are interpreted as having seconds equal to 0.
 
-### Intervals
+## Intervals
 
 An interval is just a period of time and is entered in _tklr_ using expressions such as
 
@@ -363,13 +363,13 @@ Note that w (weeks), d (days), h (hours), m (minutes) and s (seconds) are the av
 
 An interval, `I`, can be added to a datetime, `T`, to get a datetime, `T + I`, that will be after `T` if `I > 0` and before `T` if `I < 0`. Similarly, one datetime, `A`, can be subtracted from another, `B`, to get an interval, `I = B - A`, with `I > 0` if `B` is after (greater than) `A` and `I < 0` if `B` is before (less than) `A`.
 
-### Scheduled datetimes and related intervals
+## Scheduled datetimes and related intervals
 
 For the discussion that follows, it will be assumed that the current date is `2025-10-01` and that the _scheduled datetime_ for the illustrative reminder is
 
     @s 2025-10-21 10:00am
 
-#### extent
+### extent
 
 The entry `@e 2h30m` would set the _extent_ for the reminder to two hours and 30 minutes.
 
@@ -379,7 +379,7 @@ For a task, this same entry would indicate that attention to completing the task
 
 For a project, this same entry would similarly indicate that attention to completing the project should begin no later than 10am and that two hours and 30 minutes is estimated for completion subject to additional times specified in the jobs. A job entry containing `&s 2d &e 3h`, for example, would set the scheduled time for this job to be two days _after_ the `@s` entry for the project and would add three hours to the estimate of total time required for the project.
 
-#### notice
+### notice
 
 The entry `@n I` where `I` is a _positive_ interval specifies that a notice for the reminder should begin on the date in which `scheduled - I` falls. For the example, adding `@b 1d12h` would set _notice_ to the date corresponding to
 
@@ -391,7 +391,7 @@ If the reminder is an event, then the agenda view would display an notice for th
 
 If the reminder is a task, then the task would _not_ appear in the agenda view until `25-10-19`, i.e., it would be hidden before that date.
 
-#### wrap
+### wrap
 
 The entry `@w BEFORE, AFTER`, where `BEFORE` and `AFTER` are _intervals_, can be used to wrap the _scheduled_ datetime of a reminder. Possible entries and the resulting values of BEFORE and AFTER are illustrated below:
 
@@ -403,7 +403,7 @@ The entry `@w BEFORE, AFTER`, where `BEFORE` and `AFTER` are _intervals_, can be
 
 Consider an event with `@s 2025-10-21 10am @e 2h30m`, which starts at 10am and ends at 12:30pm and suppose that it will take an hour to travel to the location of the event and 30 minutes to travel from the event to the next location. The entry `@w 1h, 30m` could be used to indicate these travel periods from 9am until 10am before the event begins and from 12:30pm until 1pm after the event ends.
 
-#### alert
+### alert
 
 An alert is specified using `@a <list of invervals> : <list of commands>`. An `@s <datetime>` is required and the result is to execute the commands in `<list of commands>` at the datetimes resulting from subtracting the intervals in `<list of intervals>` from `<datetime>`. E.g., with `@s 17:00 fri` and `@a 1h, -15m: c, d`, the commands `c` and `d` would each be executed at `17:00 - 1h = 16:00` and `17:00 + 15m = 17:15` on Friday.
 
@@ -421,9 +421,9 @@ A command such as `d` in the example must be specified in the user configuration
 # minutes before and again 15 minutes before the scheduled datetime.
 ```
 
-### Recurrence
+## Recurrence
 
-#### @r and, by requirement, @s are given
+### @r and, by requirement, @s are given
 
 When an item is specified with an `@r` entry, an `@s` entry is required and is used as the `DTSTART` entry in the recurrence rule. E.g.,
 
@@ -448,7 +448,7 @@ In the hands of the wonderful _python_ library _dateutil_, this _rruleset_ strin
 
 **Note**: The datetimes generated by the _rruleset_ correspond to datetimes matching the specification of `@r` which occur **on or after** the datetime specified by `@s`. The datetime corresponding to `@s` itself will only be generated if it matches the specification of `@r`.
 
-#### @s is given but not @r
+### @s is given but not @r
 
 On the other hand, if an `@s` entry is specified, but `@r` is not, then the `@s` entry would be stored as an `RDATE` in the recurrence rule. E.g.,
 
@@ -464,7 +464,7 @@ would be serialized (stored) as
 
 The datetime corresponding to `@s` itself is, of course, generated in this case.
 
-#### @+ is specified, with or without @r
+### @+ is specified, with or without @r
 
 When `@s` is specified, an `@+` entry can be used to specify one or more, comma separated datetimes. When `@r` is given, these datetimes are added to those generated by the `@r` specification. Otherwise, they are added to the datetime specified by `@s`. E.g., is a special case. It is used to specify a datetime that is relative to the current datetime. E.g.,
 
@@ -482,7 +482,7 @@ This option is particularly useful for irregular recurrences such as annual doct
 
 **Note**: Without `@r`, the `@s` datetime is included in the datetimes generated but with `@r`, it is only used to set the beginning of the recurrence and otherwise ignored.
 
-### Timezone considerations
+## Timezone considerations
 
 When a datetime is specified without an `z` component, the timezone is assumed to be aware and in the local timezone. The datetime is converted to UTC for storage in the database. When a datetime is displayed, it is displayed using the local timezone of the computer.
 
@@ -503,7 +503,7 @@ With this entry, the rruleset and datetimes generated show the effect of the tra
   Mon 2025-11-03 13:00 EST -0500
 ```
 
-### Urgency
+## Urgency
 
 Since urgency values are used ultimately to give an ordinal ranking of tasks, all that matters is the relative values used to compute the urgency scores. Accordingly, all urgency scores are constrained to fall within the interval from -1.0 to 1.0. The default urgency is 0.0 for a task with no urgency components.
 
@@ -563,13 +563,13 @@ Observations from the weighted average perspective and the fact that `Wn >= 1` a
 
 Thus positive contributions _always_ increase urgency and negative contributions _always_ decrease urgency. The fact that the urgency derived from contributions is always less than `1.0` means that _pinned_ tasks with `urgency = 1` will always be listed first.
 
-## Getting Started
+# Getting Started
 
-### Developer Install Guide
+## Developer Install Guide
 
 This guide walks you through setting up a development environment for `tklr` using [`uv`](https://github.com/astral-sh/uv) and a local virtual environment. Eventually the normal python installation procedures using pip or pipx will be available.
 
-### ✅ Step 1: Clone the repository
+## ✅ Step 1: Clone the repository
 
 This step will create a directory named _tklr-dgrham_ in your current working directory that contains a clone of the github repository for _tklr_.
 
@@ -578,13 +578,13 @@ git clone https://github.com/dagraham/tklr-dgraham.git
 cd tklr-dgraham
 ```
 
-### ✅ Step 2: Install uv (if needed)
+## ✅ Step 2: Install uv (if needed)
 
 ```bash
 which uv || curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### ✅ Step 3: Create a virtual environment with `uv`
+## ✅ Step 3: Create a virtual environment with `uv`
 
 This will create a `.venv/` directory inside your project to hold all the relevant imports.
 
@@ -592,17 +592,17 @@ This will create a `.venv/` directory inside your project to hold all the releva
 uv venv
 ```
 
-### ✅ Step 4: Install the project in editable mode
+## ✅ Step 4: Install the project in editable mode
 
 ```bash
 uv pip install -e .
 ```
 
-### ✅ Step 5: Use the CLI
+## ✅ Step 5: Use the CLI
 
 You have two options for activating the virtual environment for the CLI:
 
-#### ☑️ Option 1: Manual activation (every session)
+### ☑️ Option 1: Manual activation (every session)
 
 ```bash
 source .venv/bin/activate
@@ -622,16 +622,16 @@ To deactivate:
 deactivate
 ```
 
-#### ☑️ Option 2: Automatic activation with `direnv` (recommended)
+### ☑️ Option 2: Automatic activation with `direnv` (recommended)
 
-##### 1. Install `direnv`
+#### 1. Install `direnv`
 
 ```bash
 brew install direnv        # macOS
 sudo apt install direnv    # Ubuntu/Debian
 ```
 
-##### 2. Add the shell hook to your `~/.zshrc` or `~/.bashrc`
+#### 2. Add the shell hook to your `~/.zshrc` or `~/.bashrc`
 
 ```sh
 eval "$(direnv hook zsh)"   # or bash
@@ -639,13 +639,13 @@ eval "$(direnv hook zsh)"   # or bash
 
 Restart your shell or run `source ~/.zshrc`.
 
-##### 3. In the project directory, create a `.envrc` file
+#### 3. In the project directory, create a `.envrc` file
 
 ```bash
 echo 'export PATH="$PWD/.venv/bin:$PATH"' > .envrc
 ```
 
-##### 4. Allow it
+#### 4. Allow it
 
 ```bash
 direnv allow
@@ -661,7 +661,7 @@ tklr ui
 
 You're now ready to develop, test, and run `tklr` locally with full CLI and UI support.
 
-### ✅ Step 6: Updating your repository
+## ✅ Step 6: Updating your repository
 
 To update your local copy of **Tklr** to the latest version:
 
@@ -676,7 +676,7 @@ git pull origin master
 uv pip install -e .
 ```
 
-### Starting tklr for the first time
+## Starting tklr for the first time
 
 **Tklr** needs a _home_ directory to store its files - most importantly these two:
 
@@ -693,7 +693,7 @@ Any directory can be used for _home_. These are the options:
    - Else if the environmental variable `XDG_CONFIG_HOME` is set, and specifies a path to an existing directory which contains a directory named `tklr`, then that directory will be used.
    - Else the directory `~/.config/tklr` will be used.
 
-### Configuration
+## Configuration
 
 These are the default settings in _config.toml_:
 
@@ -804,7 +804,6 @@ max = 3.0
 
 "5" = 10.0
 
-
 # In the default settings, a priority of "1" is the only one that yields
 # a negative value, `-5`, and thus reduces the urgency of the task.
 
@@ -820,17 +819,3 @@ max = 3.0
 ```
 
 <!-- END CONFIG -->
-
-## Keyboard Shortcuts
-
-| Key       | Context         | Action                       |
-| --------- | --------------- | ---------------------------- |
-| `a` … `z` | Agenda/List     | Show details for tagged item |
-| `ctrl+e`  | Details         | Edit selected item           |
-| `ctrl+f`  | Details (task)  | Finish task / occurrence     |
-| `ctrl+n`  | Anywhere        | Create new item              |
-| `ctrl+r`  | Details (recur) | Show repetitions             |
-| `ctrl+p`  | Details (task)  | Toggle pin                   |
-| `ctrl+t`  | Details         | Touch (update modified time) |
-| `escape`  | Any             | Back / Close screen          |
-| `?`       | Any             | Show help                    |
