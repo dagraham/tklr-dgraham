@@ -277,11 +277,15 @@ busy = [
 ]
 
 finish = [
-    f"~ repeating, rdates and finish  @s {today_date} 1:30p @r d &c 3 @+ 10:30a, 3:30p @f 8:15a @b repeating/tags",
-    f"~ finished one hour ago @s {in_one_hour()} @f {one_hour_ago()}",
-    f"~ offset with finish @s {five_days_ago()} 12:00pm  @f {today_date} 10:00am @o 4d",
-    f"~ offset learn with finish  @s {ten_days_ago()} 12:00pm  @f {today_date} 10:00am @o ~8d",
-    f"""^ dog house @s {in_five_days()} @e 3h @n 2w @p 3 @~ create plan &s 1w &e 1h &r 1 &f {one_hour_ago()} @~ go to Lowes &s 1w &e 2h &r 2: 1 @~ buy lumber &s 1w &r 3: 2 @~ buy hardware &s 1w &r 4: 2 @~ buy paint &s 1w &r 5: 2 @~ cut pieces &s 6d &e 3h &r 6: 3 @~ assemble &s 4d &e 5h &r 7: 4, 6 @~ sand &s 3d &e 1h &r 8: 7 @~ paint &s 2d &e 2h &r 9: 8 """,
+    "~ test: repeating daily 1 @s 2025-12-04 3:30p @r d &c 2 @f 2025-12-09 10:00a @d instance on 5th should now be first",
+    "~ test: repeating daily @s 2025-12-04 3:30p @r d &c 2 @f 2025-12-09 10:00a @d instance on 5th should now be first",
+    "~ test: repeating daily 2 @s 2025-12-04 3:30p @r d &c 1 @f 2025-12-09 10:00a @d should be marked finished",
+    "~ test: rdates  @s 2025-12-08 1:30p @r d &c 3 @+ 2025-12-08 9:00a, 2025-12-08 5:00p @f 2025-12-09 10:00a @d instance at 9am is first and should be finished",
+    "~ test: not repeating @s 2025-12-08 1:30p @f 2025-12-08 10:00a @d should be marked finished",
+    "~ test: offset @s 2025-12-04 12:00p @o 4d @f 2025-12-08 9:00a ",
+    "~ test: offset learn @s 2025-12-04 12:00p @o ~4d @f 2025-12-08 9:00p ",
+    """^ test: project 1 @s 2025-12-08 1:30p @~ job 1 &s 1w &r 1 &f 2025-12-04 @~ job 2 &s 3w &r 2: 1 """,
+    """^ test: project 2 @s 2025-12-08 1:30p @~ job 1 &s 1w &r 1 &f 2025-12-04 9:00a @~ job 2 &s 3w &r 2: 1 &f 2025-12-10 4:00p """,
 ]
 
 goals = [
@@ -313,7 +317,7 @@ items = [
     1. This
        i. with part one
        ii. and this
-    2. And finally this. 
+    2. And finally this.
     """,
     "~ no due date or datetime and priority one @p 1",
     f"~ one due date and priority one @s {today_date} @p 1",

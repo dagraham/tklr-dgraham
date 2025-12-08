@@ -1077,12 +1077,32 @@ class Item:
         """
         changed = False
         new_tokens = []
+        target_dt = None
+        try:
+            target_dt = _to_local_naive(parse(tok_str))
+        except Exception:
+            target_dt = None
+            tok_str = tok_str.strip()
+
         for tok in tokens:
             if tok.get("k") == "+":
                 body = tok["token"][2:].strip()
                 parts = [p.strip() for p in body.split(",") if p.strip()]
-                # filter out the matching part
-                filtered = [p for p in parts if p != tok_str]
+                filtered = []
+                for part in parts:
+                    match = False
+                    if target_dt is not None:
+                        try:
+                            part_dt = _to_local_naive(parse(part))
+                            match = part_dt == target_dt
+                        except Exception:
+                            match = False
+                    if not match:
+                        match = part == tok_str
+                    if match:
+                        changed = True
+                    else:
+                        filtered.append(part)
                 if len(filtered) < len(parts):
                     changed = True
                     if filtered:
@@ -2761,21 +2781,26 @@ Entry: {self.entry}
         )
 
     def _advance_dtstart_and_decrement_count(self, new_dtstart: datetime) -> None:
-        # bump @s (or create)
+        """Advance @s to `new_dtstart` and decrement any &c COUNT token."""
+        formatted_start = self.fmt_user(new_dtstart)
         for tok in self.relative_tokens:
             if tok.get("t") == "@" and tok.get("k") == "s":
-                tok["token"] = f"@s {new_dtstart.strftime('%Y%m%dT%H%M')} "
+                tok["token"] = f"@s {formatted_start} "
                 break
         else:
             self.relative_tokens.append(
                 {
-                    "token": f"@s {new_dtstart.strftime('%Y%m%dT%H%M')} ",
+                    "token": f"@s {formatted_start} ",
                     "t": "@",
                     "k": "s",
                 }
             )
 
-        # decrement &c if present
+        self._decrement_count_token()
+        self._reparse_from_tokens()
+
+    def _decrement_count_token(self) -> None:
+        """Reduce the first &c token by one (removing it when it reaches zero)."""
         for tok in list(self.relative_tokens):
             if tok.get("t") == "&" and tok.get("k") == "c":
                 try:
@@ -2785,13 +2810,14 @@ Entry: {self.entry}
                         if cnt > 0:
                             tok["token"] = f"&c {cnt}"
                         else:
-                            self.relative_tokens.remove(tok)  # drop when it hits 0
+                            self.relative_tokens.remove(tok)
                 except Exception:
                     pass
                 break
 
-        # rebuild rruleset / derived fields from tokens
-        self._reparse_from_tokens()
+    def _reparse_from_tokens(self) -> None:
+        """Rebuild derived scheduling fields after direct token edits."""
+        self.rebuild_from_tokens(resolve_relative=True)
 
     def _clear_schedule(self) -> None:
         """
@@ -3197,7 +3223,7 @@ Entry: {self.entry}
                 # }
                 # self.add_token(tok)
                 self._replace_or_add_token("f", finished_str)
-                self.itemtype = "x"
+                self._set_itemtype_token("x")
                 self.has_f = True
                 # self.completion = finished_dt
                 first, second = self._get_first_two_occurrences()
@@ -3210,6 +3236,7 @@ Entry: {self.entry}
             # strip per-job @f tokens after promoting to record-level @f
             for job in job_map.values():
                 job.pop("f", None)
+            self._remove_job_finish_tokens()
 
         # --- finalize ---
         self.jobs = list(job_map.values())
@@ -3489,36 +3516,58 @@ Entry: {self.entry}
             return False
 
     def _remove_tokens(
-        self, t: str, k: str | None = None, *, max_count: int | None = None
+        self,
+        selector: str | set[str] | list[str] | tuple[str, ...],
+        key: str | None = None,
+        *,
+        max_count: int | None = None,
+        token_types: set[str] | None = None,
     ) -> int:
         """
-        Remove tokens from self.relative_tokens that match:
-        token["t"] == t and (k is None or token["k"] == k)
+        Remove tokens based on either (type, key) or a set of keys restricted
+        to specific token types.
 
         Args:
-            t: primary token type (e.g., "@", "&", "itemtype")
-            k: optional subtype (e.g., "f", "s", "r"). If None, match all with type t.
-            max_count: remove at most this many; None = remove all matches.
-
-        Returns:
-            int: number of tokens removed.
+            selector: either the token type (e.g., "@", "&") or a collection of
+                token keys (e.g., {"r", "+", "-"}).
+            key: optional subtype when `selector` is a token type.
+            max_count: only applies to the (type, key) form.
+            token_types: when `selector` is a collection of keys, limit removal
+                to these token types (defaults to all types).
         """
-        if not hasattr(self, "relative_tokens") or not self.relative_tokens:
+        if not getattr(self, "relative_tokens", None):
             return 0
 
+        using_key_set = isinstance(selector, (set, list, tuple))
+        keys = set(selector) if using_key_set else None
         removed = 0
+        removed_f = False
         new_tokens = []
+
         for tok in self.relative_tokens:
-            match = (tok.get("t") == t) and (k is None or tok.get("k") == k)
-            if match and (max_count is None or removed < max_count):
+            if using_key_set:
+                match = tok.get("k") in keys and (
+                    not token_types or tok.get("t") in token_types
+                )
+                should_skip = match
+            else:
+                match = tok.get("t") == selector and (key is None or tok.get("k") == key)
+                should_skip = match and (max_count is None or removed < max_count)
+
+            if should_skip:
                 removed += 1
+                if (
+                    (using_key_set and ("f" in keys) and (not token_types or "@" in token_types))
+                    or (not using_key_set and selector == "@" and (key is None or key == "f"))
+                ):
+                    removed_f = True
                 continue
+
             new_tokens.append(tok)
 
         self.relative_tokens = new_tokens
 
-        # Keep self.completions consistent if we removed @f tokens
-        if t == "@" and (k is None or k == "f"):  # TODO: check this
+        if removed_f:
             self._rebuild_completions_from_tokens()
 
         return removed
@@ -3742,28 +3791,31 @@ Entry: {self.entry}
         ):
             due_dt = self._get_start_dt()
             completed_dt = self.completion
-            td = td_str_to_td(offset_tok["token"].split(maxsplit=1)[1])
+            raw_offset = offset_tok["token"].split(maxsplit=1)[1]
+            td = td_str_to_td(raw_offset.lstrip("~"))
             offset_val = offset_tok["token"][3:]
             bug_msg(
                 f"{offset_tok = }, {td = }, {completed_dt = }, {offset_val = }, {due_dt = }, {td = }, {offset_val.startswith('~') = }"
             )
             if offset_val.startswith("~") and due_dt:
-                # bug_msg("learn mode")
                 actual = completed_dt - due_dt
                 td = self._smooth_interval(td, actual)
-                offset_tok["token"] = f"@o {td_to_td_str(td)}"
                 self._replace_or_add_token("o", f"~{td_to_td_str(td)}")
-                self._replace_or_add_token("s", self.fmt_user(completed_dt + td))
+                new_start = completed_dt + td
                 bug_msg(f"{actual = }, {td = }")
             else:
-                self._replace_or_add_token("s", self.fmt_user(completed_dt + td))
-            utc_next = self._instance_to_token_format_utc(completed_dt + td)
+                self._replace_or_add_token("o", td_to_td_str(td))
+                new_start = completed_dt
+            self._replace_or_add_token("s", self.fmt_user(new_start))
+            utc_next = self._instance_to_token_format_utc(new_start + td)
             self.rruleset = f"RDATE:{utc_next}"
             self.rdstart_str = f"RDATE:{utc_next}"
             self.dtstart = utc_next
             bug_msg(
                 f"after processing offset: {self.relative_tokens = }, {self.rruleset = }, {self.dtstart = }"
             )
+            self._remove_tokens({"f"}, token_types={"@"})
+            self._remove_job_finish_tokens()
 
             return
 
@@ -3816,7 +3868,7 @@ Entry: {self.entry}
                 self.rruleset = f"RDATE:{self.dtstart}"
                 self.rruleset_dict["START_RDATES"] = self.rdstart_str
             self._replace_or_add_token("k", str(done))
-            self._remove_tokens({"f"})
+            self._remove_tokens({"f"}, token_types={"@"})
             return
 
         # if not offset or goal, use rruleset for due
@@ -3826,7 +3878,7 @@ Entry: {self.entry}
         due = first
         if due is None:
             # No upcoming instance — mark done
-            self.itemtype = "x"
+            self._set_itemtype_token("x")
             self.completions = (self.completion, None)
             return
 
@@ -3841,29 +3893,30 @@ Entry: {self.entry}
                 removed = self._remove_instance_from_plus_tokens(
                     self.relative_tokens, tok_str
                 )
+                if not removed:
+                    tok_str_alt = fmt_utc_z(due)
+                    removed = self._remove_instance_from_plus_tokens(
+                        self.relative_tokens, tok_str_alt
+                    )
+                if removed:
+                    self._reparse_from_tokens()
                 bug_msg(
                     f"from rdate: {due = }, {tok_str = }, {self.relative_tokens = }"
                 )
 
             else:
-                # First from RRULE — advance @s to next
+                # First from RRULE — advance @s to next (and honor COUNT)
                 next_due = self.next_from_rrule()
                 if next_due:
                     local_next = _to_local_naive(next_due)
-                    self._replace_or_add_token("s", self.fmt_user(local_next))
-                    utc_next = self._instance_to_token_format_utc(next_due)
-                    self.rruleset = re.sub(
-                        r"(?m)^DTSTART:\d{8}T\d{4}Z",
-                        f"DTSTART:{utc_next}",
-                        self.rruleset,
-                        count=1,
-                    )
+                    self._advance_dtstart_and_decrement_count(local_next)
                     bug_msg(
-                        f"from rrule: {next_due = }, {utc_next = }, {self.rruleset = }"
+                        f"from rrule: {next_due = }, {local_next = }, {self.rruleset = }"
                     )
                 else:
-                    self._remove_tokens({"r", "+", "-"})
-                    self.itemtype = "x"
+                    self._decrement_count_token()
+                    self._remove_tokens({"r", "+", "-"}, token_types={"@"})
+                    self._set_itemtype_token("x")
 
         elif is_rdate_only:
             # RDATE-only case
@@ -3879,7 +3932,7 @@ Entry: {self.entry}
                 self._replace_or_add_token("+", new_plus)
             else:
                 # there are no more datetimes in @+
-                self._remove_tokens({"+"})
+                self._remove_tokens({"+"}, token_types={"@"})
             if tok_str == self.dtstart:
                 # the first instance is @s
                 if first_from_plus:
@@ -3889,7 +3942,7 @@ Entry: {self.entry}
                     self.dtstart = new_start
                 else:
                     # @s was the only instance
-                    self.itemtype = "x"
+                    self._set_itemtype_token("x")
             else:
                 # the first instance must be from @+, not @s which will remain unchanged
                 # since first_from_plus has already been removed from @+, nothing left to do
@@ -3909,10 +3962,10 @@ Entry: {self.entry}
 
         else:
             # one-shot or no repetition
-            self._remove_tokens({"r", "+", "-"})
-            self.itemtype = "x"
+            self._remove_tokens({"r", "+", "-"}, token_types={"@"})
+            self._set_itemtype_token("x")
 
-        self._remove_tokens({"f"})
+        self._remove_tokens({"f"}, token_types={"@"})
         bug_msg(
             f"after removing f: {self.relative_tokens = }, {self.completions = }, {self.completion = }, {due = }"
         )
@@ -3935,11 +3988,16 @@ Entry: {self.entry}
         bug_msg(f"appending {new_tok = }")
         self.relative_tokens.append(new_tok)
 
-    def _remove_tokens(self, keys: set[str]) -> None:
-        """Remove tokens with matching keys from self.tokens."""
-        self.relative_tokens = [
-            t for t in self.relative_tokens if t.get("k") not in keys
-        ]
+    def _remove_job_finish_tokens(self) -> None:
+        """Remove &f tokens attached to @~ job groups."""
+        job_groups = self.collect_grouped_tokens({"~"})
+        for group in job_groups:
+            for token in group[1:]:
+                if token.get("t") == "&" and token.get("k") == "f":
+                    try:
+                        self.relative_tokens.remove(token)
+                    except ValueError:
+                        pass
 
     def reparse_finish_tokens(self) -> None:
         """
@@ -4149,3 +4207,11 @@ Entry: {self.entry}
                 t2["token"] = t2["token"].strip()
             out.append(t2)
         return out
+
+    def _set_itemtype_token(self, new_itemtype: str) -> None:
+        """Update itemtype attribute and the leading token."""
+        self.itemtype = new_itemtype
+        for tok in self.relative_tokens:
+            if tok.get("t") == "itemtype":
+                tok["token"] = new_itemtype
+                break
