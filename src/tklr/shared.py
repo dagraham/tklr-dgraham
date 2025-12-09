@@ -250,7 +250,9 @@ def parse_utc_z(s: str) -> datetime:
     Accept seconds if present; normalize to tz-aware UTC object.
     """
     if not s.endswith("Z"):
-        raise ValueError(f"UTC-Z string must end with 'Z': {s!r}")
+        dt = dateutil_parse(s)
+        if dt.tzinfo is None:
+            return dt
     body = s[:-1]
     fmt = "%Y%m%dT%H%M"
     dt = datetime.strptime(body, fmt)
