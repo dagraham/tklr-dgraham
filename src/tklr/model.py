@@ -2175,6 +2175,18 @@ class DatabaseManager:
             ) in self.cursor.fetchall()
         ]
 
+    def get_goal_records(self) -> list[tuple[int, str, str]]:
+        """Return (record_id, subject, tokens_json) for goal reminders."""
+        self.cursor.execute(
+            """
+            SELECT id, subject, tokens
+            FROM Records
+            WHERE itemtype = '!'
+            ORDER BY id
+            """
+        )
+        return self.cursor.fetchall()
+
     def populate_alerts(self):
         """
         Populate the Alerts table for all records that have alerts defined.
@@ -2980,6 +2992,7 @@ class DatabaseManager:
         FROM DateTimes dt
         JOIN Records r ON dt.record_id = r.id
         WHERE
+            r.itemtype != '!' AND
             -- normalized end >= period start
             (
                 CASE

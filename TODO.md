@@ -12,6 +12,24 @@
     - [x] have finish increment the count of completions
 - [ ] Fix CLI weeks and days to use display_subject for projects
 
+## Goals View
+
+I need a "Goals View" to display reminders with itemtype "!".
+
+The details of a goal reminder are in README.md starting on line 74.
+
+Item class in item.py currently supports processing @f entries. E.g., with "@s 2025-12-08 @t 3/1w", the first finish during the period from 2025-12-08 00:00 until 2025-12-15 00:00 (2025-12-08 + 1w), adds "@k 1". The second increments to "@k 2" and the third resets to "@k 0" and sets @s to the beginning of the next period, "@s 2025-12-15".
+
+Goal view should provide a current tagged list sorted by priority for reminders with itemtype "!". Details about the computation of priority are in README.md - the basic idea is to compute the ratio of the current rate needed for completion in the time remaining relative to the initial rate needed at the beginning of the period. These priorities depend on the current datetime so would need to be refreshed when the view is requested.
+
+As suggested in README, the display would involve these fields for each goal:
+
+```
+ tag   priority   num_completed/num_required   time_remaining   subject
+```
+
+I imagine that page_tagger in controller.py would be involved in preparing the display for display using a method similar to action_show_next in DynamicViewApp (view.py).
+
 ## Tests
 
 ### Finish

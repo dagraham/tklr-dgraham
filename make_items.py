@@ -289,7 +289,11 @@ finish = [
 ]
 
 goals = [
-    f"! fitness goal @s 2025/12/1 @t 3/1w",
+    f"! goal 0 @s 2025/12/9 @t 3/1w",
+    f"! goal 1 @s 2025/12/9 @t 3/1w @k 1",
+    f"! goal 2 @s 2025/12/7 @t 3/1w",
+    f"! goal 3 @s 2025/12/5 @t 3/1w @k 1",
+    f"! goal 3 @s 2025/12/3 @t 3/1w @k 2",
 ]
 
 items = [

@@ -70,6 +70,7 @@ from .shared import (
     fmt_utc_z,
     # fmt_user,
     parse_utc_z,
+    timedelta_str_to_seconds,
 )
 from tklr.tklr_env import TklrEnvironment
 from tklr.view import ChildBinRow, ReminderRow
@@ -811,14 +812,11 @@ class Controller:
 
         from tklr.item import Item  # or your actual import
 
-        # 2) Parse as a final Item
+        # 2) Parse the entry (Item.__init__ already parses `new_raw`)
         item = Item(new_raw, controller=self)
-        item.final = True
-        item.parse_input(new_raw)
-
         if not getattr(item, "parse_ok", False):
-            # You might want a log_msg here
             return False
+        item.final = True
 
         # 3) Finalize (jobs, rrules, etc.)
         item.finalize_record()
@@ -2322,6 +2320,192 @@ class Controller:
         pages = page_tagger(rows)
         # bug_msg(f"{pages = }")
         return pages, header
+
+    def get_goals(self):
+        """
+        Build the data needed for Goals View: priority-sorted goals with progress.
+        """
+
+        def _get_at_value(tokens: list[dict], key: str) -> str:
+            for tok in tokens:
+                if tok.get("t") == "@" and tok.get("k") == key:
+                    token_text = tok.get("token") or ""
+                    parts = token_text.split(maxsplit=1)
+                    if len(parts) == 2:
+                        return parts[1].strip()
+            return ""
+
+        records = self.db_manager.get_goal_records()
+        header = (
+            f"[bold {HEADER_COLOR}]tag        done    left      subject"
+            f"[/bold {HEADER_COLOR}]"
+        )
+
+        if not records:
+            rows = [
+                {
+                    "record_id": None,
+                    "job_id": None,
+                    "datetime_id": None,
+                    "instance_ts": None,
+                    "text": f"[{HEADER_COLOR}]No goals available[/{HEADER_COLOR}]",
+                }
+            ]
+            return page_tagger(rows), "Goals (0)", header
+
+        now = datetime.now()
+        goals: list[dict[str, object]] = []
+
+        for record_id, subject, tokens_json in records:
+            tokens = _ensure_tokens_list(tokens_json)
+            if not tokens:
+                continue
+
+            start_raw = _get_at_value(tokens, "s")
+            k_raw = _get_at_value(tokens, "k")
+            target_raw = _get_at_value(tokens, "t")
+            if not start_raw or not target_raw or "/" not in target_raw:
+                continue
+
+            try:
+                start_dt = parse(
+                    start_raw,
+                    yearfirst=self.yearfirst,
+                    dayfirst=self.dayfirst,
+                )
+            except Exception:
+                continue
+
+            if isinstance(start_dt, date) and not isinstance(start_dt, datetime):
+                start_dt = datetime.combine(start_dt, datetime.min.time())
+            if isinstance(start_dt, datetime) and start_dt.tzinfo is not None:
+                start_dt = _to_local_naive(start_dt)
+
+            num_part, period_part = target_raw.split("/", 1)
+            try:
+                num_required = int(num_part.strip())
+            except Exception:
+                continue
+            if num_required <= 0:
+                continue
+
+            ok, seconds = timedelta_str_to_seconds(period_part.strip())
+            if not ok or not isinstance(seconds, int) or seconds <= 0:
+                continue
+            period_td = timedelta(seconds=seconds)
+
+            completed_raw = _get_at_value(tokens, "k")
+            try:
+                num_completed = int(completed_raw.strip())
+            except Exception:
+                num_completed = 0
+            num_completed = max(0, min(num_completed, num_required))
+
+            end_dt = start_dt + period_td
+            if now < start_dt or now >= end_dt:
+                continue
+
+            remaining_seconds_raw = int((end_dt - now).total_seconds())
+            remaining_display = "now"
+            if remaining_seconds_raw != 0:
+                pretty = (
+                    format_timedelta(abs(remaining_seconds_raw), short=True) or "now"
+                )
+                if remaining_seconds_raw < 0:
+                    remaining_display = f"-{pretty.lstrip('+').lstrip('-')}"
+                else:
+                    remaining_display = pretty.lstrip("+")
+
+            remaining_instances = max(num_required - num_completed, 0)
+            period_seconds = max(int(period_td.total_seconds()), 1)
+            time_for_priority = (
+                remaining_seconds_raw if remaining_seconds_raw > 0 else 1
+            )
+            if remaining_instances == 0:
+                priority = 0.0
+            else:
+                priority = (remaining_instances * period_seconds) / (
+                    num_required * time_for_priority
+                )
+
+            goals.append(
+                {
+                    "record_id": record_id,
+                    "priority": priority,
+                    "remaining_seconds": max(remaining_seconds_raw, 0),
+                    "remaining_instances": remaining_instances,
+                    "num_required": num_required,
+                    "num_completed": num_completed,
+                    "subject": self.apply_flags(record_id, subject or "(no subject)"),
+                    "time_display": remaining_display,
+                }
+            )
+
+        if not goals:
+            rows = [
+                {
+                    "record_id": None,
+                    "job_id": None,
+                    "datetime_id": None,
+                    "instance_ts": None,
+                    "text": f"[{HEADER_COLOR}]No goals available[/{HEADER_COLOR}]",
+                }
+            ]
+            return page_tagger(rows), "Goals (0)", header
+
+        def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+            hex_color = hex_color.lstrip("#")
+            return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
+
+        def _rgb_to_hex(rgb: tuple[int, int, int]) -> str:
+            return "#{:02x}{:02x}{:02x}".format(*rgb)
+
+        min_priority = 0.0
+        max_priority = 2.0
+        low_rgb = _hex_to_rgb(PALE_GREEN)
+        high_rgb = _hex_to_rgb(ORANGE_RED)
+
+        def _priority_color(value: float) -> str:
+            clamped = max(min_priority, min(max_priority, value))
+            span = max_priority - min_priority or 1.0
+            t = (clamped - min_priority) / span
+            rgb = tuple(
+                round(low + t * (high - low)) for low, high in zip(low_rgb, high_rgb)
+            )
+            return _rgb_to_hex(rgb)
+
+        goals.sort(
+            key=lambda g: (
+                -g["priority"],
+                g["remaining_seconds"],
+                g["subject"].lower(),
+            )
+        )
+
+        rows = []
+        for goal in goals:
+            priority_display = f"{goal['priority']:.2f}"
+            progress_display = f"{goal['num_completed']}/{goal['num_required']}"
+            time_display = goal["time_display"]
+            row_color = _priority_color(goal["priority"])
+            text = (
+                f"[{row_color}]{priority_display:>6}  "
+                f"{progress_display:<5}  {time_display:<6}  "
+                f"{goal['subject']}[/{row_color}]"
+            )
+            rows.append(
+                {
+                    "record_id": goal["record_id"],
+                    "job_id": None,
+                    "datetime_id": None,
+                    "instance_ts": None,
+                    "text": text,
+                }
+            )
+
+        pages = page_tagger(rows)
+        title = f"Goals ({len(goals)})"
+        return pages, title, header
 
     def get_last(self):
         """

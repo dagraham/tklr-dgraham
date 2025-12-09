@@ -141,7 +141,7 @@ def build_details_help(meta: dict) -> list[str]:
     # bug_msg(f"{meta = }")
     is_task = meta.get("itemtype") == "~"
     is_event = meta.get("itemtype") == "*"
-    is_goal = meta.get("itemtype") == "+"
+    is_goal = meta.get("itemtype") == "!"
     is_recurring = bool(meta.get("rruleset"))
     is_pinned = bool(meta.get("pinned")) if is_task else False
     subject = meta.get("subject")
@@ -282,11 +282,11 @@ HelpText = f"""\
 [bold]^Q[/bold]        Quit           [bold]^S[/bold]    Screenshot
 [bold] +[/bold]        New Reminder   [bold] ?[/bold]    Help
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
- [bold]A[/bold]        Agenda          [bold]F[/bold]    Find
- [bold]B[/bold]        Bins            [bold]L[/bold]    Last
- [bold]C[/bold]        Completed       [bold]N[/bold]    Next
- [bold]W[/bold]        Weeks           [bold]H[/bold]    Hash Tags
- [bold]R[/bold]        Remaining Alerts
+ [bold]A[/bold]    Agenda              [bold]H[/bold]    Hash Tags
+ [bold]B[/bold]    Bins                [bold]L[/bold]    Last
+ [bold]C[/bold]    Completed           [bold]N[/bold]    Next
+ [bold]F[/bold]    Find                [bold]R[/bold]    Remaining Alerts
+ [bold]G[/bold]    Goals               [bold]W[/bold]    Weeks
 [bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
  [bold]/[/bold]        Set search      empty search clears
  [bold]>[/bold]        Next match      [bold]<[/bold]    Previous match
@@ -308,8 +308,6 @@ HelpText = f"""\
  the complete list of available commands press ?
  when the details pane is open.
 """.splitlines()
-#
-# tklr/clipboard.py
 
 
 def timestamped_screenshot_path(
@@ -2487,6 +2485,7 @@ class DynamicViewApp(App):
     VIEW_REFRESHERS = {
         "weeks": "action_show_weeks",
         "agenda": "action_show_agenda",
+        "goals": "action_show_goals",
         # ...
     }
 
@@ -2495,15 +2494,16 @@ class DynamicViewApp(App):
     search_term = reactive("")
 
     BINDINGS = [
-        # global
-        # (".", "center_week", ""),
-        ("space", "current_period", ""),
-        ("shift+left", "previous_period", ""),
+        # glofitness bal
+        # (".fitness ", "center_week", ""),
+        ("spafitness ce", "current_period", ""),
+        ("shifitness ft+left", "previous_period", ""),
         ("shift+right", "next_period", ""),
         ("ctrl+s", "take_screenshot", "Take Screenshot"),
         ("escape", "close_details", "Close details"),
         ("R", "show_alerts", "Show Alerts"),
         ("A", "show_agenda", "Show Agenda"),
+        ("G", "show_goals", "Goals"),
         ("B", "show_bins", "Bins"),
         ("C", "show_completions", "Completions"),
         ("L", "show_last", "Show Last"),
@@ -3090,6 +3090,12 @@ class DynamicViewApp(App):
 
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         self.show_screen(FullScreenList(details, title, "", footer))
+
+    def action_show_goals(self):
+        self.view = "goals"
+        pages, title, header = self.controller.get_goals()
+        footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
+        self.show_screen(FullScreenList(pages, title, header, footer))
 
     def action_show_tags(self):
         self.view = "tags"

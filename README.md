@@ -159,6 +159,22 @@ The _left_ and _right_ cursor keys shift the display backward and forward one we
 
 There are 5 cells in the _busy bar_ for each week day. The first (furthest left) displays a yellow square if an _all day event_ such as a holiday is scheduled for that date. The remaining 4 cells correspond to the 6-hour periods during the day:
 
+## Goals
+
+Press `G` to open Goal View. It displays a prioritized, taggable list of every reminder whose itemtype is `!`:
+
+```
+ tag   priority   num_completed/num_required   time_remaining   subject
+```
+
+Priorities are recomputed whenever the view opens. For each goal, let `i_g` be the number of required completions in the period `t_g`, `i_r` the number of instances remaining this period, and `t_r` the time remaining before the period ends. The ratio `priority = (i_r * t_g) / (i_g * t_r)` indicates how far ahead or behind the schedule you are:
+
+- `priority > 1`: the goal is behind schedule, so it floats to the top of the view.
+- `priority = 1`: you are on schedule.
+- `priority < 1`: you are ahead of schedule.
+
+The time remaining column uses the current datetime, so refreshing the view immediately reflects newly completed instances.
+
 - 00:00-05:59 _night_
 - 06:00-11:59 _morning_
 - 12:00-17:59 _afternoon_
