@@ -3,11 +3,18 @@
 - [ ] comma,h to see a history of completions for a repeating task
 - [ ] Migration in main?
 - [ ] Bin management?
+    - [ ] Add new
+    - [ ] Move - change parent
+    - [ ] Change name
+    - [ ] Delete
 - [ ] Query view
-- [ ] Row_tagger for CLI
-- [ ] Hijack / search
-- [ ] Work out logic for goal using @o NUM/PERIOD
-- [ ] Implement goal using @o NUM/PERIOD
+    - [ ] Lists: any, all
+    - [ ] Exists:
+    - [ ] Str: in
+- [?] Row_tagger for CLI
+- [?] Hijack / search
+- [x] Work out logic for goal using @o NUM/PERIOD
+- [x] Implement goal using @o NUM/PERIOD
     - [x] do_target
     - [x] have finish increment the count of completions
 - [ ] Fix CLI weeks and days to use display_subject for projects
