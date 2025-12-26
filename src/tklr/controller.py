@@ -41,7 +41,7 @@ from .model import _fmt_naive
 from .list_colors import css_named_colors
 from .versioning import get_version
 
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -2660,27 +2660,47 @@ class Controller:
         """
         records = self.db_manager.get_all_completions()
         header = f"Completions ({len(records)})"
+        items = self._build_completion_items(records)
+        pages = page_tagger(items)
+        return pages, header
 
+    def _build_completion_items(
+        self,
+        records: list[tuple[int, str, str, str, datetime | None, datetime]],
+        *,
+        empty_message: str | None = None,
+    ) -> list[dict]:
+        """
+        Shared formatter that converts completion rows into renderable dicts.
+        """
         if not records:
-            return [], header
+            if not empty_message:
+                return []
+            return [
+                {
+                    "dt_id": None,
+                    "record_id": None,
+                    "job_id": None,
+                    "datetime_id": None,
+                    "instance_ts": None,
+                    "text": f"[{HEADER_COLOR}]{empty_message}[/{HEADER_COLOR}]",
+                }
+            ]
 
-        # Group by month-year of completion (e.g. "Nov 2025")
-        year_to_events: dict[str, list[dict]] = defaultdict(list)
+        year_to_events: OrderedDict[str, list[dict]] = OrderedDict()
 
         for (
             record_id,
             subject,
             description,
             itemtype,
-            due_dt,  # may be None
-            completed_dt,  # datetime
+            due_dt,
+            completed_dt,
         ) in records:
-            # apply flags 𝕣/𝕠/𝕒/𝕘 (from Records.flags)
             subject = self.apply_flags(record_id, subject or "(untitled)")
             completed_dt = completed_dt.astimezone()
             due_dt = due_dt.astimezone() if due_dt else None
 
-            # display: " 5 14:30" style like get_next
             monthday = completed_dt.strftime("%-m-%d")
             time_part = format_hours_mins(completed_dt, HRS_MINS)
             when_str = f"{monthday:>2} {time_part}"
@@ -2690,93 +2710,71 @@ class Controller:
 
             item = {
                 "record_id": record_id,
-                "job_id": None,  # no per-job completions yet
-                "datetime_id": None,  # keeping keys parallel with other views
+                "job_id": None,
+                "datetime_id": None,
                 "instance_ts": due_dt.strftime("%Y%m%dT%H%M") if due_dt else "none",
                 "text": f"[{type_color}]{itemtype} {when_frag} {subject}[/{type_color}]",
             }
 
             ym = completed_dt.strftime("%b %Y")
-            year_to_events[ym].append(item)
+            year_to_events.setdefault(ym, []).append(item)
 
-        # Flatten to rows (month headers + items), then page-tagger
         rows: list[dict] = []
         for ym, events in year_to_events.items():
-            if events:
-                rows.append(
-                    {
-                        "dt_id": None,
-                        "record_id": None,
-                        "job_id": None,
-                        "datetime_id": None,
-                        "instance_ts": None,
-                        "text": f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]",
-                    }
-                )
-                rows.extend(events)
+            if not events:
+                continue
+            rows.append(
+                {
+                    "dt_id": None,
+                    "record_id": None,
+                    "job_id": None,
+                    "datetime_id": None,
+                    "instance_ts": None,
+                    "text": f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]",
+                }
+            )
+            rows.extend(events)
 
-        pages = page_tagger(rows)
+        return rows
+
+    def get_record_completion_pages(self, record_id: int):
+        """
+        Build a Completions-style view limited to a single record.
+        """
+        records = self.db_manager.get_completions(record_id)
+        rec_dict = self.db_manager.get_record_as_dictionary(record_id) or {}
+        subject = rec_dict.get("subject") or "(untitled)"
+        header = f"Completions for {subject} ({len(records)})"
+        items = self._build_completion_items(
+            records,
+            empty_message=f"No completions recorded for {subject}",
+        )
+        pages = page_tagger(items)
         return pages, header
 
-    def get_record_completions(self, record_id: int, width: int = 70):
+    def get_record_completions(self, record_id: int):
         """
-        Fetch and format completion history for a given record.
+        Return (title, lines) describing completions for a specific record,
+        formatted like the global Completions view.
         """
-        completions = self.db_manager.get_completions(record_id)
-        header = "Completion history"
-        results = [header]
-
-        if not completions:
-            results.append(f" [{HEADER_COLOR}]no completions recorded[/{HEADER_COLOR}]")
-            return results
-
-        # Column widths similar to alerts
-        completed_width = 14  # space for "YYYY-MM-DD HH:MM"
-        due_width = 14
-        name_width = width - (3 + 3 + completed_width + due_width + 6)
-
-        results.append(
-            f"[bold][dim]{'tag':^3}[/dim]  "
-            f"{'completed':^{completed_width}}  "
-            f"{'due':^{due_width}}   "
-            f"{'subject':<{name_width}}[/bold]"
+        records = self.db_manager.get_completions(record_id)
+        rec_dict = self.db_manager.get_record_as_dictionary(record_id) or {}
+        subject = rec_dict.get("subject") or "(untitled)"
+        title = f"Completions for {subject}"
+        items = self._build_completion_items(
+            records,
+            empty_message=f"No completions recorded for {subject}",
         )
 
-        # self.set_afill(completions, "record_completions")
-        self.list_tag_to_id.setdefault("record_completions", {})
-        indx = 0
+        lines: list[str] = []
+        for item in items:
+            text = item.get("text", "")
+            if item.get("record_id") is None:
+                lines.append(text)
+            else:
+                lines.append(f"  {text}")
 
-        for (
-            record_id,
-            subject,
-            description,
-            itemtype,
-            due_ts,
-            completed_ts,
-        ) in completions:
-            completed_dt = datetime_from_timestamp(completed_ts)
-            completed_str = self.format_datetime(completed_dt, short=True)
-
-            due_str = (
-                self.format_datetime(datetime_from_timestamp(due_ts), short=True)
-                if due_ts
-                else "-"
-            )
-            subj_fmt = truncate_string(subject, name_width)
-
-            tag_fmt, indx = self.add_tag("record_completions", indx, record_id)
-
-            row = "  ".join(
-                [
-                    f"{tag_fmt}",
-                    f"[{SALMON}]{completed_str:<{completed_width}}[/{SALMON}]",
-                    f"[{PALE_GREEN}]{due_str:<{due_width}}[/{PALE_GREEN}]",
-                    f"[{AVAILABLE_COLOR}]{subj_fmt:<{name_width}}[/{AVAILABLE_COLOR}]",
-                ]
-            )
-            results.append(row)
-
-        return results
+        return title, lines
 
     def get_agenda(self, now: datetime = datetime.now(), yield_rows: bool = False):
         """ """

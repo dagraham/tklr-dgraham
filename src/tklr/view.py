@@ -156,6 +156,7 @@ def build_details_help(meta: dict) -> list[str]:
 
     if is_task:
         left.append("[bold],f[/bold] Finish           ")
+        left.append("[bold],h[/bold] completions History  ")
         rght.append("[bold],p[/bold] Toggle Pinned    ")
     if is_recurring:
         left.append("[bold]Ctrl+R[/bold] Show Repetitions ")
@@ -408,6 +409,8 @@ class ListWithDetails(Container):
         self._detail_key_handler: callable | None = None  # ← inject this
         self._details_active = False
         self.details_meta: dict = {}  # ← you already have this
+        self._details_history: list[tuple[str, list[str], dict | None]] = []
+        self._current_details: tuple[str, list[str], dict | None] | None = None
 
     def on_mount(self):
         # 1) Set the widget backgrounds (outer)
@@ -490,8 +493,19 @@ class ListWithDetails(Container):
     # ---- details control ----
 
     def show_details(
-        self, title: str, lines: list[str], meta: dict | None = None
+        self,
+        title: str,
+        lines: list[str],
+        meta: dict | None = None,
+        *,
+        push_history: bool = False,
     ) -> None:
+        if (
+            push_history
+            and self.has_details_open()
+            and self._current_details is not None
+        ):
+            self._details_history.append(self._current_details)
         self.details_meta = meta or {}  # <- keep meta for key actions
         body = [title] + _make_rows(lines)
         bug_msg(f"{meta_times(self.details_meta)}")
@@ -500,6 +514,7 @@ class ListWithDetails(Container):
         self._details.remove_class("hidden")
         self._details_active = True
         self._details.focus()
+        self._current_details = (title, lines, meta)
 
     def hide_details(self) -> None:
         self.details_meta = {}  # clear meta on close
@@ -507,6 +522,8 @@ class ListWithDetails(Container):
             self._details_active = False
             self._details.add_class("hidden")
             self._main.focus()
+        self._details_history.clear()
+        self._current_details = None
 
     def has_details_open(self) -> bool:
         return not self._details.has_class("hidden")
@@ -538,7 +555,10 @@ class ListWithDetails(Container):
 
         # 2) Close details with Escape (but not 'q')
         if k == "escape":
-            if self.has_details_open():
+            if self._details_history:
+                prev_title, prev_lines, prev_meta = self._details_history.pop()
+                self.show_details(prev_title, prev_lines, prev_meta, push_history=False)
+            elif self.has_details_open():
                 self.hide_details()
             event.stop()
             return
@@ -2496,8 +2516,8 @@ class DynamicViewApp(App):
     BINDINGS = [
         # glofitness bal
         # (".fitness ", "center_week", ""),
-        ("spafitness ce", "current_period", ""),
-        ("shifitness ft+left", "previous_period", ""),
+        ("space", "current_period", ""),
+        ("shift+left", "previous_period", ""),
         ("shift+right", "next_period", ""),
         ("ctrl+s", "take_screenshot", "Take Screenshot"),
         ("escape", "close_details", "Close details"),
@@ -2596,16 +2616,26 @@ class DynamicViewApp(App):
         if drawer and not drawer.has_class("hidden"):
             drawer.close()
 
-    def _screen_show_details(self, title: str, lines: list[str]) -> None:
+    def _screen_show_details(
+        self,
+        title: str,
+        lines: list[str],
+        meta: dict | None = None,
+        *,
+        push_history: bool = False,
+    ) -> None:
         screen = self.screen
         log_msg("showing details")
-        if hasattr(screen, "show_details"):
-            # DetailsPaneMixin: show inline at bottom
-            screen.show_details(title, lines)
-        else:
-            # from tklr.view import DetailsScreen
+        list_widget = getattr(screen, "list_with_details", None)
+        if list_widget:
+            list_widget.show_details(title, lines, meta, push_history=push_history)
+            return
 
-            self.push_screen(DetailsScreen([title] + lines))
+        if hasattr(screen, "show_details"):
+            screen.show_details(title, lines)
+            return
+
+        self.push_screen(DetailsScreen([title] + lines))
 
     def open_delete_prompt(
         self,
@@ -2832,6 +2862,11 @@ class DynamicViewApp(App):
                 ctrl.toggle_pinned(record_id)
                 if hasattr(app, "_reopen_details"):
                     app._reopen_details(tag_meta=meta)
+
+            elif key == "comma,h":
+                title, lines = ctrl.get_record_completions(record_id)
+                if hasattr(app, "_screen_show_details"):
+                    app._screen_show_details(title, lines, meta, push_history=True)
 
             # keep ctrl+r for repetitions
             elif key == "ctrl+r" and itemtype == "~":
