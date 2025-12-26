@@ -410,7 +410,11 @@ def _wrap_or_truncate(text: str, width: int) -> str:
     return text[: max(0, width - 3)] + "…"
 
 
-def _group_instances_by_date_for_weeks(events) -> Dict[date, List[dict]]:
+def _group_instances_by_date_for_weeks(
+    events,
+    db_manager: DatabaseManager | None = None,
+    controller: Controller | None = None,
+) -> Dict[date, List[dict]]:
     """
     events rows from get_events_for_period:
         (dt_id, start_text, end_text, itemtype, subject, record_id, job_id)
@@ -423,8 +427,13 @@ def _group_instances_by_date_for_weeks(events) -> Dict[date, List[dict]]:
                       'job_id': int|None,
                       'start_text': str,
                       'end_text': str|None } ] }
+    If db_manager is provided, project instances with a job_id will use
+    the job's display_subject (matching Controller.get_week_details behavior).
+    If controller is provided, event subjects will run through
+    apply_anniversary_if_needed to expand {XXX} placeholders.
     """
     grouped: Dict[date, List[dict]] = defaultdict(list)
+    job_subject_cache: dict[tuple[int, int], str | None] = {}
 
     for dt_id, start_text, end_text, itemtype, subject, record_id, job_id in events:
         try:
@@ -432,18 +441,48 @@ def _group_instances_by_date_for_weeks(events) -> Dict[date, List[dict]]:
         except Exception:
             continue  # skip malformed rows
 
+        display_subject = subject or ""
+        display_type = itemtype
+
+        if (
+            db_manager
+            and itemtype == "^"
+            and job_id is not None
+            and record_id is not None
+        ):
+            cache_key = (record_id, job_id)
+            if cache_key not in job_subject_cache:
+                job_subject_cache[cache_key] = db_manager.get_job_display_subject(
+                    record_id, job_id
+                )
+            job_subject = job_subject_cache[cache_key]
+            if job_subject:
+                display_subject = job_subject
+
         if isinstance(parsed, datetime):
             d = parsed.date()
             t = parsed.time()
+            instance_dt = parsed
         else:
             d = parsed  # a date
             t = None
+            instance_dt = datetime.combine(parsed, time.min)
+
+        if (
+            controller
+            and itemtype == "*"
+            and record_id is not None
+            and instance_dt is not None
+        ):
+            display_subject = controller.apply_anniversary_if_needed(
+                record_id, display_subject, instance_dt
+            )
 
         grouped[d].append(
             {
                 "time": t,
-                "itemtype": itemtype,
-                "subject": subject or "",
+                "itemtype": display_type,
+                "subject": display_subject,
                 "record_id": record_id,
                 "job_id": job_id,
                 "start_text": start_text,
@@ -526,7 +565,7 @@ def weeks(ctx, start_opt, end_opt, width, rich):
 
     # ---- 2) fetch instances and group by day ----
     events = dbm.get_events_for_period(start_dt, end_dt)
-    by_date = _group_instances_by_date_for_weeks(events)
+    by_date = _group_instances_by_date_for_weeks(events, dbm, controller)
 
     # ---- 3) console: plain by default; markup only if --rich ----
     is_tty = sys.stdout.isatty()
@@ -661,7 +700,7 @@ def days(ctx, start_opt, end_opt, width, rich):
 
     # ---- 2) fetch instances and group by day ----
     events = dbm.get_events_for_period(start_dt, end_dt)
-    by_date = _group_instances_by_date_for_weeks(events)
+    by_date = _group_instances_by_date_for_weeks(events, dbm, controller)
 
     # ---- 3) console: plain by default; markup only if --rich ----
     is_tty = sys.stdout.isatty()

@@ -2,12 +2,14 @@
 - [ ] Tree view for Help?
 - [ ] comma,h to see a history of completions for a repeating task
 - [ ] Migration in main?
+- [x] Use display_subject in cli weeks and days
+- [x] Use anniversary substitutions in weeks and days
 - [ ] Bin management?
     - [ ] Add new
     - [ ] Move - change parent
     - [ ] Change name
     - [ ] Delete
-- [ ] Query view
+- [ ] Query view:
     - [ ] Lists: any, all
     - [ ] Exists:
     - [ ] Str: in
@@ -112,3 +114,104 @@ Equivalently, if `priority = (i_r * t_g) / (i_g * t_r)`:
 At the beginning of the week, exactly 1 week remains to complete the 3 instances specified in the goal.
 
 This means that completing an instance every `w/3 = 2d8h` would result in completing all 3 instances precisely at the end of the week. Now suppose at a given moment in the week, `t_r` denotes the time remaining in the week and `i_r` denotes the number of incomplete instances remaining. At this moment, `i_r/t_r` represents the implied goal for the remaining period. If `t_r/i_r < w/3`, it would mean that progress toward the
+
+## Dotfiles with Chezmoi
+
+Could you outline the steps for adding another directory to dot_config for copy/paste?
+
+Absolutely — here’s a clean, copy-pasteable checklist you can reuse any time you want to add another directory under ~/.config (or elsewhere) to your chezmoi dotfiles and have it propagate to other machines.
+
+This assumes:
+
+the directory already exists and works on the source machine
+
+you want it managed as dot_config/<name>/…
+
+✅ Add a new ~/.config/<dir> to chezmoi (canonical steps)
+1️⃣ Verify the directory exists and is correct
+ls -la ~/.config/<dir>
+
+2️⃣ Add it to chezmoi
+chezmoi add ~/.config/<dir>
+
+
+This creates:
+
+~/.local/share/chezmoi/dot_config/<dir>/
+
+3️⃣ Sanity-check the source state
+chezmoi cd
+ls -la dot_config/<dir>
+git status -sb
+
+
+You should see new or modified files staged (or unstaged).
+
+4️⃣ Commit the change
+git add dot_config/<dir>
+git commit -m "Add <dir> config"
+
+5️⃣ Push to GitHub
+git push
+
+
+This is the step that’s easy to forget.
+
+6️⃣ On the other machine(s): pull + apply
+chezmoi update
+chezmoi apply
+
+7️⃣ Verify deployment
+ls -la ~/.config/<dir>
+
+
+Restart the app if needed.
+
+🧠 Optional but very useful checks
+See what chezmoi manages
+chezmoi managed | grep <dir>
+
+See what would change before applying
+chezmoi diff
+
+🛑 Common gotchas (future you will thank you)
+
+Committed ≠ pushed
+
+git status -sb
+
+
+If you see ahead N, you forgot to push.
+
+Wrong repo
+Always run chezmoi cd before git commands.
+
+Machine-specific files
+Some configs include cache/state; prune those before committing.
+
+🧩 Optional: machine-specific variants (later)
+
+If you ever need per-machine tweaks:
+
+dot_config/<dir>/file.tmpl
+
+
+with:
+
+{{ if eq .hostname "m4-mac" }}
+…
+{{ end }}
+
+
+(Not needed now, but good to know.)
+
+TL;DR (ultra-short)
+chezmoi add ~/.config/<dir>
+chezmoi cd
+git commit -am "Add <dir>"
+git push
+# on other machine
+chezmoi update && chezmoi apply
+
+
+If you want, tell me which next directory you’re thinking about (nvim, wezterm, etc.) and I’ll tell you exactly which files are safe to include and which to ignore.

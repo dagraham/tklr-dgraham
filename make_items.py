@@ -2,7 +2,7 @@
 # To test tklr
 import random
 
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 from rich import print
 from tklr.item import Item
 from tklr.controller import Controller
@@ -100,6 +100,11 @@ def in_two_weeks():
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now + timedelta(days=2 * 7, minutes=delta_minutes)
     return next.strftime("%Y-%m-%d %H:%M")
+
+
+def five_years_ago():
+    td = date.today()
+    return td.replace(year=td.year - 5).strftime("%Y-%m-%d")
 
 
 def local_dtstr_to_utc_str(local_dt_str: str) -> str:
@@ -297,6 +302,7 @@ goals = [
 ]
 
 items = [
+    f"* {{XXX}} anniversary @s {five_years_ago()} @r y",
     f"* first of the month @d all day event @s {first_of_month}",
     f"* event in 2 days with 1d notice @s {in_two_days()} @n 1d",
     f"~ task in 5 days with 1w notice @s {in_five_days()} @n 1w",
