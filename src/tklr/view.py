@@ -65,6 +65,7 @@ import json
 from .shared import (
     TYPE_TO_COLOR,
 )
+from .query import QueryMatch, QueryError
 
 
 tklr_version = get_version()
@@ -2812,6 +2813,237 @@ class TaggedHierarchyScreen(SearchableScreen):
             )
         return rows
 
+
+class QueryScreen(SearchableScreen, SafeScreen):
+    """Interactive query view with history and paged results."""
+
+    def __init__(self, controller):
+        super().__init__()
+        self.controller = controller
+        self.query_input: Input | None = None
+        self.status_label: Static | None = None
+        self.list_with_details: ListWithDetails | None = None
+        self.history: list[str] = []
+        self.history_index: int = 0
+        self.pages: list[tuple[list[str], dict[str, object]]] = []
+        self.current_page: int = 0
+        self.matches: list[QueryMatch] = []
+        self.footer_content = (
+            f"[bold {FOOTER}]Enter[/bold {FOOTER}] Run query "
+            f"[bold {FOOTER}]q[/bold {FOOTER}] Edit query "
+            f"[bold {FOOTER}]?[/bold {FOOTER}] Help"
+        )
+
+    def compose(self) -> ComposeResult:
+        yield Static("Query", id="query_title", classes="title-class")
+        self.query_input = Input(
+            placeholder="includes summary waldo",
+            id="query_input",
+        )
+        yield self.query_input
+        self.status_label = Static(
+            "Enter a query and press Enter.",
+            id="query_status",
+        )
+        yield self.status_label
+
+        self.list_with_details = ListWithDetails(id="query_results")
+        self.list_with_details.set_detail_key_handler(
+            self.app.make_detail_key_handler(view_name="query")
+        )
+        yield self.list_with_details
+
+        yield Static(self.footer_content, id="custom_footer")
+
+    def after_mount(self) -> None:
+        self._focus_query_input()
+        self._set_status("Awaiting query.", "info")
+        self._rebuild_pages([])
+
+    def show_details_for_tag(self, tag: str) -> None:
+        if not self.pages:
+            return
+        _, tag_map = self.pages[self.current_page]
+        meta = tag_map.get(tag)
+        if not meta:
+            return
+        record_id = meta.get("record_id")
+        if not record_id:
+            return
+        job_id = meta.get("job_id")
+        try:
+            title, lines, details_meta = self.controller.get_details_for_record(
+                record_id, job_id
+            )
+        except Exception as exc:
+            self._set_status(f"Failed to load record {record_id}: {exc}", "error")
+            return
+        if self.list_with_details:
+            self.list_with_details.show_details(title, lines, details_meta)
+        self._set_status(f"Showing record {record_id}.", "info")
+
+    def _focus_query_input(self) -> None:
+        if self.query_input:
+            self.query_input.focus()
+
+    def has_next_page(self) -> bool:
+        return self.current_page < len(self.pages) - 1
+
+    def has_prev_page(self) -> bool:
+        return self.current_page > 0
+
+    def next_page(self) -> None:
+        if self.has_next_page():
+            self.current_page += 1
+            self._refresh_page()
+
+    def previous_page(self) -> None:
+        if self.has_prev_page():
+            self.current_page -= 1
+            self._refresh_page()
+
+    def _refresh_page(self) -> None:
+        rows, tag_map = self.pages[self.current_page] if self.pages else ([], {})
+        if self.list_with_details:
+            self.list_with_details.update_list(rows)
+            self.list_with_details.set_meta_map(tag_map)
+            if self.list_with_details.has_details_open():
+                self.list_with_details.hide_details()
+        self.controller.list_tag_to_id.setdefault("query", {})
+        self.controller.list_tag_to_id["query"] = tag_map
+
+    def _rebuild_pages(self, matches: list[QueryMatch]) -> None:
+        self.matches = matches
+        pages: list[tuple[list[str], dict[str, object]]] = []
+        rows: list[str] = []
+        tag_map: dict[str, dict[str, object]] = {}
+
+        for idx, match in enumerate(matches):
+            if idx % len(TAGS) == 0 and rows:
+                pages.append((rows, tag_map))
+                rows = []
+                tag_map = {}
+            tag = TAGS[idx % len(TAGS)]
+            subject = match.summary or "(untitled)"
+            rows.append(
+                f" [dim]{tag}[/dim] {match.itemtype} {subject} (id {match.record_id})"
+            )
+            tag_map[tag] = {
+                "record_id": match.record_id,
+                "job_id": None,
+                "itemtype": match.itemtype,
+                "subject": subject,
+            }
+
+        if rows or tag_map:
+            pages.append((rows, tag_map))
+
+        if not pages:
+            pages = [([], {})]
+
+        self.pages = pages
+        self.current_page = 0
+        self._refresh_page()
+
+    def _set_status(self, message: str, severity: str = "info") -> None:
+        colors = {
+            "info": "white",
+            "warning": "yellow",
+            "error": "red",
+        }
+        color = colors.get(severity, "white")
+        if self.status_label:
+            self.status_label.update(f"[{color}]{message}[/]")
+
+    def _run_query(self, text: str) -> None:
+        query = (text or "").strip()
+        if not query:
+            self._set_status("Enter a query.", "warning")
+            return
+        try:
+            response = self.controller.run_query(query)
+        except QueryError as exc:
+            self._set_status(str(exc), "error")
+            return
+
+        if not self.history or self.history[-1] != query:
+            self.history.append(query)
+        self.history_index = len(self.history)
+
+        if response.info_id is not None:
+            try:
+                title, lines, meta = self.controller.get_details_for_record(
+                    response.info_id
+                )
+            except Exception:
+                self._set_status(
+                    f"No record found with id {response.info_id}.", "error"
+                )
+                return
+            if self.list_with_details:
+                self.list_with_details.show_details(title, lines, meta)
+            self._set_status(f"Opened record {response.info_id}.", "info")
+            return
+
+        matches = response.matches
+        if not matches:
+            self._set_status("No results.", "warning")
+        else:
+            suffix = "" if len(matches) == 1 else "s"
+            self._set_status(f"{len(matches)} result{suffix}.", "info")
+
+        self._rebuild_pages(matches)
+
+    @on(Input.Submitted)
+    def _handle_query_submit(self, event: Input.Submitted) -> None:
+        if event.input != self.query_input:
+            return
+        self._run_query(event.value or "")
+        event.stop()
+
+    def _history_previous(self) -> None:
+        if not self.history:
+            return
+        self.history_index = max(0, self.history_index - 1)
+        self._apply_history_value()
+
+    def _history_next(self) -> None:
+        if not self.history:
+            return
+        if self.history_index < len(self.history) - 1:
+            self.history_index += 1
+            self._apply_history_value()
+        else:
+            self.history_index = len(self.history)
+            if self.query_input:
+                self.query_input.value = ""
+
+    def _apply_history_value(self) -> None:
+        if self.query_input and self.history:
+            idx = min(self.history_index, len(self.history) - 1)
+            if 0 <= idx < len(self.history):
+                self.query_input.value = self.history[idx]
+
+    def on_key(self, event) -> None:
+        if event.key == "q":
+            self._focus_query_input()
+            event.stop()
+            return
+        if (
+            event.key in ("up", "down")
+            and self.query_input
+            and self.query_input.has_focus
+        ):
+            if event.key == "up":
+                self._history_previous()
+            else:
+                self._history_next()
+            event.stop()
+            return
+        parent = super()
+        if hasattr(parent, "on_key"):
+            return parent.on_key(event)
+        return None
     def _render_tree_rows(
         self,
         flat_nodes: list[tuple[int, str, int]],
@@ -2881,6 +3113,7 @@ class DynamicViewApp(App):
         "weeks": "action_show_weeks",
         "agenda": "action_show_agenda",
         "goals": "action_show_goals",
+        "query": "action_show_query",
         # ...
     }
 
@@ -2900,6 +3133,7 @@ class DynamicViewApp(App):
         ("A", "show_agenda", "Show Agenda"),
         ("G", "show_goals", "Goals"),
         ("B", "show_bins", "Bins"),
+        ("Q", "show_query", "Query"),
         ("C", "show_completions", "Completions"),
         ("L", "show_last", "Show Last"),
         ("N", "show_next", "Show Next"),
@@ -3589,6 +3823,10 @@ class DynamicViewApp(App):
         pages, title, header = self.controller.get_goals()
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         self.show_screen(FullScreenList(pages, title, header, footer))
+
+    def action_show_query(self):
+        self.view = "query"
+        self.show_screen(QueryScreen(controller=self.controller))
 
     def action_show_tags(self):
         self.view = "tags"

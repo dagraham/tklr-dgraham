@@ -41,6 +41,7 @@ from .model import _fmt_naive
 from .list_colors import css_named_colors
 from .versioning import get_version
 from .mask import reveal_mask_tokens
+from .query import QueryEngine, QueryError, QueryResponse
 
 from collections import defaultdict, OrderedDict
 from dataclasses import dataclass, field
@@ -721,7 +722,7 @@ class Controller:
         # self.afill_by_view: dict[str, int] = {}  # e.g. {"events": 1, "tasks": 2}
         # self.afill_by_week: dict[Tuple[int, int], int] = {}
 
-        for view in ["next", "last", "find", "events", "tasks", "alerts"]:
+        for view in ["next", "last", "find", "events", "tasks", "alerts", "query"]:
             self.list_tag_to_id.setdefault(view, {})
         self.week_tag_to_id: dict[Tuple[int, int], dict[str, object]] = {}
         self.width = shutil.get_terminal_size()[0] - 2
@@ -742,6 +743,7 @@ class Controller:
             _dm = "%d-%m" if self.dayfirst else "%m-%d"
             self.datefmt = f"{_yr}-{_dm}" if self.yearfirst else f"{_dm}-{_yr}"
         self.datetimefmt = f"{self.datefmt} {self.timefmt}"
+        self.query_engine = QueryEngine()
 
     def fmt_user(self, dt: date | datetime) -> str:
         """
@@ -1901,6 +1903,13 @@ class Controller:
 
     def get_record(self, record_id):
         return self.db_manager.get_record(record_id)
+
+    def run_query(self, query_text: str) -> QueryResponse:
+        """
+        Execute a query string and return the resulting QueryResponse.
+        """
+        records = self.db_manager.iter_records_for_query()
+        return self.query_engine.run(query_text, records)
 
     def get_all_records(self):
         return self.db_manager.get_all()

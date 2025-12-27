@@ -19,6 +19,7 @@ from tklr.tklr_env import TklrEnvironment
 # from tklr.view_agenda import run_agenda_view
 from tklr.versioning import get_version
 from tklr.shared import format_time_range
+from tklr.query import QueryError
 
 from datetime import date, datetime, timedelta, time
 
@@ -747,3 +748,63 @@ def days(ctx, start_opt, end_opt, width, rich):
                 console.print(_wrap_or_truncate(base, width))
 
         current_date += timedelta(days=1)
+
+
+@cli.command()
+@click.argument("query_parts", nargs=-1)
+@click.option(
+    "--limit",
+    type=click.IntRange(1, 500),
+    help="Maximum number of matches to display.",
+)
+@click.pass_context
+def query(ctx, query_parts, limit):
+    """Run an advanced query and list matching reminders."""
+    query_text = " ".join(query_parts).strip()
+    if not query_text:
+        print("Enter a query string.")
+        ctx.exit(1)
+
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+    controller = Controller(db_path, env)
+
+    try:
+        response = controller.run_query(query_text)
+    except QueryError as exc:
+        print(f"[red]Query error:[/red] {exc}")
+        ctx.exit(1)
+
+    if response.info_id is not None:
+        record_id = response.info_id
+        try:
+            title, lines, _ = controller.get_details_for_record(record_id)
+        except Exception:
+            print(f"No record found with id {record_id}.")
+            ctx.exit(1)
+        console = Console(highlight=False)
+        console.print(title)
+        for line in lines:
+            console.print(line)
+        return
+
+    matches = response.matches
+    total = len(matches)
+    if total == 0:
+        print("No results.")
+        return
+
+    if limit is not None and limit < total:
+        display_matches = matches[:limit]
+    else:
+        display_matches = matches
+
+    for match in display_matches:
+        subject = match.summary or "(untitled)"
+        print(f"{match.itemtype} {subject} (id {match.record_id})")
+
+    if limit is not None and limit < total:
+        print(f"Showing first {limit} of {total} matches.")
+    else:
+        suffix = "" if total == 1 else "es"
+        print(f"{total} match{suffix}.")

@@ -2189,6 +2189,21 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
+    def iter_records_for_query(self):
+        """
+        Yield dictionaries containing id, itemtype, subject, and decoded tokens for queries.
+        """
+        self.cursor.execute(
+            "SELECT id, itemtype, subject, tokens FROM Records ORDER BY id ASC"
+        )
+        for record_id, itemtype, subject, token_blob in self.cursor.fetchall():
+            yield {
+                "id": record_id,
+                "itemtype": itemtype or "",
+                "subject": subject or "",
+                "tokens": self._tokens_list(token_blob),
+            }
+
     def populate_alerts(self):
         """
         Populate the Alerts table for all records that have alerts defined.
