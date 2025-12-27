@@ -20,6 +20,81 @@
     - [x] do_target
     - [x] have finish increment the count of completions
 
+## mask
+
+I would like to provide support for a user being able to enter a element "@m my password" in a reminder and have "my password" displayed to the user when viewing the details of the reminder but have an encoded version of "my password" stored in the database. The "key" used for encoding the "clear" version of the string as "obfuscated" and decoding the "obfuscated" version of the string as "clear" would be stored as "secret" in the user configuration file. I.e.,
+```
+>>> m = do_m("my password")
+>>> print(m)
+my password
+>>> m.encoded
+'w6TDocKBw6TDhsOpw5jDqcOmw5rDhQ=='
+```
+
+would follow from this setup:
+
+```python
+# for processing @m masked elements
+import random
+import base64  # for do_mask
+
+def randomString(stringLength=10):
+    """
+    Generate a random string with the combination of lowercase and uppercase letters and digits
+    to provide a default "key" for encoding/decoding @m (masked) fields. E.g.,
+    >>> default_key = randomString(10)
+    """
+    letters = string.ascii_letters + 2 * '0123456789'
+    return ''.join(random.choice(letters) for i in range(stringLength))
+
+def encode(key, clear):
+    """
+    Return a masked version of "clear" for SQLite storage using "key" for encoding
+    """
+    enc = []
+    for i in range(len(clear)):
+        key_c = key[i % len(key)]
+        enc_c = chr((ord(clear[i]) + ord(key_c)) % 256)
+        enc.append(enc_c)
+    return base64.urlsafe_b64encode("".join(enc).encode()).decode()
+
+
+def decode(key, enc):
+    """
+    Return a clear version of "enc" using "key" for decoding
+    """
+    dec = []
+    enc = base64.urlsafe_b64decode(enc).decode()
+    for i in range(len(enc)):
+        key_c = key[i % len(key)]
+        dec_c = chr((256 + ord(enc[i]) - ord(key_c)) % 256)
+        dec.append(dec_c)
+    return "".join(dec)
+
+key = "whatever" # in use, key = self.env.config.secret
+class Mask:
+    """
+    Provide an encoded value with an "isinstance" test for serializaton
+    >>> mask = Mask('my dirty secret')
+    >>> isinstance(mask, Mask)
+    True
+    """
+
+    def __init__(self, message=""):
+        self.encoded = encode(key, message)
+
+    def __repr__(self):
+        return decode(key, self.encoded)
+
+def do_m(cls, arg: str):
+    """
+    """
+    obj = Mask(arg)
+    return True, obj, []
+
+```
+
+
 ## Goals View
 
 I need a "Goals View" to display reminders with itemtype "!".

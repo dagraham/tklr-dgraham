@@ -10,6 +10,7 @@ from dateutil.parser import parse
 from typing import List, Tuple, Optional, Dict, Any, Set, Iterable
 from rich import print
 from tklr.tklr_env import TklrEnvironment
+from tklr.mask import reveal_mask_tokens
 from dateutil import tz
 
 # from dateutil.tz import gettz
@@ -2159,21 +2160,16 @@ class DatabaseManager:
             "SELECT tokens, rruleset, created, modified FROM Records WHERE id = ?",
             (record_id,),
         )
-        return [
-            (
-                # " ".join([t["token"] for t in json.loads(tokens)]),
-                json.loads(tokens),
-                rruleset,
-                created,
-                modified,
-            )
-            for (
-                tokens,
-                rruleset,
-                created,
-                modified,
-            ) in self.cursor.fetchall()
-        ]
+        results = []
+        secret = getattr(self.env.config, "secret", "")
+        for tokens, rruleset, created, modified in self.cursor.fetchall():
+            try:
+                token_list = json.loads(tokens) if tokens else []
+            except Exception:
+                token_list = []
+            token_list = reveal_mask_tokens(token_list, secret)
+            results.append((token_list, rruleset, created, modified))
+        return results
 
     def get_goal_records(self) -> list[tuple[int, str, str]]:
         """Return (record_id, subject, tokens_json) for goal reminders."""
@@ -4414,16 +4410,19 @@ class DatabaseManager:
 
     def _tokens_list(self, tokens_obj) -> list[dict]:
         """Accept list or JSON string; normalize to list[dict]."""
+        secret = getattr(self.env.config, "secret", "")
         if tokens_obj is None:
             return []
         if isinstance(tokens_obj, str):
             try:
                 import json
 
-                return json.loads(tokens_obj) or []
+                tokens = json.loads(tokens_obj) or []
             except Exception:
-                return []
-        return list(tokens_obj)
+                tokens = []
+        else:
+            tokens = list(tokens_obj)
+        return reveal_mask_tokens(tokens, secret)
 
     # def _extract_tag_and_bin_names(self, item) -> tuple[list[str], list[str]]:
     #     """

@@ -43,6 +43,7 @@ from typing import Dict, Tuple
 import pyperclip
 from .item import Item
 from .use_system import open_with_default, play_alert_sound
+from .mask import reveal_mask_tokens
 
 import re
 
@@ -3442,6 +3443,7 @@ class DynamicViewApp(App):
                 f"Cannot parse tokens for record {record_id}: {e}", severity="warning"
             )
             return
+        tokens = reveal_mask_tokens(tokens, self.controller.mask_secret)
 
         goto_value: str | None = None
 

@@ -172,7 +172,7 @@ def add(ctx, entry, file, batch):
         exception = False
         msg = None
         try:
-            item = Item(raw=entry_str, final=True)
+            item = Item(env=env, raw=entry_str, final=True)
             if not item.parse_ok or not item.itemtype:
                 # pm = "\n".join(item.parse_message)
                 # tks = "\n".join(item.relative_tokens)
@@ -256,6 +256,7 @@ def ui(ctx):
 @click.pass_context
 def check(ctx, entry):
     """Check whether an entry is valid (parsing only)."""
+    env = ctx.obj["ENV"]
     verbose = ctx.obj["VERBOSE"]
 
     if not entry and not sys.stdin.isatty():
@@ -268,7 +269,7 @@ def check(ctx, entry):
         sys.exit(1)
 
     try:
-        item = Item(entry)
+        item = Item(env=env, raw=entry)
         if item.parse_ok:
             print("[green]✔ Entry is valid.[/green]")
             if verbose:

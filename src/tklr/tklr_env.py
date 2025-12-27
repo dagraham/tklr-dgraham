@@ -8,6 +8,8 @@ from jinja2 import Template
 
 from pydantic import RootModel
 
+from .mask import generate_secret
+
 
 class PriorityConfig(RootModel[dict[str, float]]):
     pass
@@ -100,6 +102,7 @@ class UrgencyConfig(BaseModel):
 
 class TklrConfig(BaseModel):
     title: str = "Tklr Configuration"
+    secret: str = Field(default_factory=generate_secret)
     ui: UIConfig = UIConfig()
     alerts: dict[str, str] = {}
     urgency: UrgencyConfig = UrgencyConfig()
@@ -110,6 +113,9 @@ CONFIG_TEMPLATE = """\
 # DO NOT EDIT TITLE
 title = "{{ title }}"
 
+# secret: used to encode/decode masked (@m) fields.
+secret = "{{ secret }}"
+
 [ui]
 # theme: str = 'dark' | 'light'
 theme = "{{ ui.theme }}"
@@ -118,15 +124,15 @@ theme = "{{ ui.theme }}"
 # Use 12 hour AM/PM when true else 24 hour
 ampm = {{ ui.ampm | lower }}
 
-# history_weight: int 
+# history_weight: int
 # Apply this weight to the prior history when computing
 # the next offset for a task
 history_weight = {{ ui.history_weight }}
 
 # dayfirst and yearfirst settings
 # These settings are used to resolve ambiguous date entries involving
-# 2-digit components. E.g., the interpretation of the date "12-10-11" 
-# with the various possible settings for dayfirst and yearfirst: 
+# 2-digit components. E.g., the interpretation of the date "12-10-11"
+# with the various possible settings for dayfirst and yearfirst:
 #
 # dayfirst  yearfirst    date     interpretation  standard
 # ========  =========  ========   ==============  ========
@@ -137,19 +143,19 @@ history_weight = {{ ui.history_weight }}
 #
 # The defaults:
 #   dayfirst = false
-#   yearfirst = true 
+#   yearfirst = true
 # correspond to the Y-M-D ISO 8601 standard.
 
-# dayfirst: bool = true | false 
+# dayfirst: bool = true | false
 dayfirst = {{ ui.dayfirst | lower }}
 
 # yearfirst: bool = true | false
 yearfirst = {{ ui.yearfirst | lower }}
 
-# two_digit_year: bool = true | false 
+# two_digit_year: bool = true | false
 # If true, years are displayed using the last two digits, e.g.,
-# 25 instead of 2025. 
-two_digit_year = {{ ui.two_digit_year | lower }} 
+# 25 instead of 2025.
+two_digit_year = {{ ui.two_digit_year | lower }}
 
 [alerts]
 # dict[str, str]: character -> command_str.
@@ -159,9 +165,9 @@ two_digit_year = {{ ui.two_digit_year | lower }}
 # of the reminder and when (the time remaining until the scheduled datetime).
 # The character "d" would be associated with this command so that, e.g.,
 # the alert entry "@a 30m, 15m: d" would trigger this command 30
-# minutes before and again 15 minutes before the scheduled datetime. 
+# minutes before and again 15 minutes before the scheduled datetime.
 # Additional keys: start (scheduled datetime), time (spoken version of
-# start), location, description.  
+# start), location, description.
 {% for key, value in alerts.items() %}
 {{ key }} = '{{ value }}'
 {% endfor %}
@@ -169,10 +175,10 @@ two_digit_year = {{ ui.two_digit_year | lower }}
 # ─── Urgency Configuration ─────────────────────────────────────
 
 [urgency.colors]
-# The hex color "min_hex_color" applies to urgencies in [-1.0, min_urgency]. 
-# Hex colors for the interval [min_urgency, 1.0] are broken into "steps" 
-# equal steps along the gradient from "min_hex_color" to "max_hex_color". 
-# These colors are used for tasks in the urgency listing. 
+# The hex color "min_hex_color" applies to urgencies in [-1.0, min_urgency].
+# Hex colors for the interval [min_urgency, 1.0] are broken into "steps"
+# equal steps along the gradient from "min_hex_color" to "max_hex_color".
+# These colors are used for tasks in the urgency listing.
 min_hex_color = "{{ urgency.colors.min_hex_color }}"
 max_hex_color = "{{ urgency.colors.max_hex_color }}"
 min_urgency = {{ urgency.colors.min_urgency }}

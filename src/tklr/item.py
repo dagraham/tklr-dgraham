@@ -44,6 +44,8 @@ from .shared import (
 )
 from tzlocal import get_localzone_name
 
+from .mask import obfuscate_mask_tokens, reveal_mask_tokens
+
 local_timezone = get_localzone_name()  # e.g., "America/New_York"
 
 JOB_PATTERN = re.compile(r"^@~ ( *)([^&]*)(?:(&.*))?")
@@ -893,7 +895,8 @@ class Item:
         self.timefmt = "%H:%M"
 
         # --- environment / config ---
-        self.env = env
+        resolved_env = env or getattr(self.controller, "env", None)
+        self.env = resolved_env
 
         # --- core parse state ---
         self.entry = ""
@@ -1155,7 +1158,8 @@ class Item:
                 f"new {self.rruleset = }, {self.rdstart_str = }, {self.completions = }"
             )
 
-        self.tokens = self._strip_positions(self.relative_tokens)
+        stripped_tokens = self._strip_positions(self.relative_tokens)
+        self.tokens = self._encode_mask_tokens(stripped_tokens)
         bug_msg(f"6 {self.tokens = }")
 
     def validate(self):
@@ -2524,9 +2528,16 @@ Entry: {self.entry}
     def do_two_periods(cls, arg: List[str]) -> str:
         return True, "not implemented", []
 
-    @classmethod
-    def do_mask(cls, arg: str) -> str:
-        return True, "not implemented", []
+    def do_mask(self, token: dict) -> tuple[bool, str, list]:
+        """
+        Handle @m / ~m tokens. Validation ensures a value is provided;
+        actual encoding happens during finalize_record().
+        """
+        token_text = token.get("token") or ""
+        parts = token_text.split(maxsplit=1)
+        if len(parts) < 2 or not parts[1].strip():
+            return False, "@m requires a value", []
+        return True, parts[1].strip(), []
 
     def integer(cls, arg, min, max, zero, typ=None):
         """
@@ -4207,6 +4218,15 @@ Entry: {self.entry}
                 t2["token"] = t2["token"].strip()
             out.append(t2)
         return out
+
+    def _mask_secret(self) -> str:
+        if self.env and getattr(self.env, "config", None):
+            return getattr(self.env.config, "secret", "") or ""
+        return ""
+
+    def _encode_mask_tokens(self, tokens: list[dict]) -> list[dict]:
+        secret = self._mask_secret()
+        return obfuscate_mask_tokens(tokens, secret)
 
     def _set_itemtype_token(self, new_itemtype: str) -> None:
         """Update itemtype attribute and the leading token."""

@@ -40,6 +40,7 @@ from .model import DatabaseManager, UrgencyComputer
 from .model import _fmt_naive
 from .list_colors import css_named_colors
 from .versioning import get_version
+from .mask import reveal_mask_tokens
 
 from collections import defaultdict, OrderedDict
 from dataclasses import dataclass, field
@@ -712,6 +713,9 @@ class Controller:
         self.start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
         self.env = env
+        self.mask_secret = (
+            getattr(self.env.config, "secret", "") if self.env else ""
+        )
         self.AMPM = env.config.ui.ampm
         self._last_details_meta = None
         # self.afill_by_view: dict[str, int] = {}  # e.g. {"events": 1, "tasks": 2}
@@ -773,7 +777,7 @@ class Controller:
         return datetime_in_words(fmt_dt, self.AMPM)
 
     def make_item(self, entry_str: str, final: bool = False) -> "Item":
-        return Item(entry_str, final=final)  # or config=self.env.load_config()
+        return Item(self.env, entry_str, final=final)
 
     def add_item(self, item: Item) -> int:
         if item.itemtype in "~^x" and item.has_f:
@@ -878,6 +882,7 @@ class Controller:
         except Exception as e:
             log_msg(f"apply_token_edit: bad tokens JSON for {record_id=}: {e}")
             return False
+        tokens = reveal_mask_tokens(tokens, self.mask_secret)
 
         # Let the caller mutate `tokens`; it should return True iff something changed.
         changed = edit_tokens_fn(tokens)
@@ -2358,6 +2363,7 @@ class Controller:
 
         for record_id, subject, tokens_json in records:
             tokens = _ensure_tokens_list(tokens_json)
+            tokens = reveal_mask_tokens(tokens, self.mask_secret)
             if not tokens:
                 continue
 
@@ -3087,6 +3093,7 @@ class Controller:
                 pass
         if not isinstance(tokens, list):
             raise ValueError("Structured tokens not available/invalid for this record.")
+        tokens = reveal_mask_tokens(tokens, self.mask_secret)
 
         entry_str = "".join(tok.get("token", "") for tok in tokens).strip()
 
