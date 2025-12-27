@@ -412,6 +412,9 @@ class ListWithDetails(Container):
         self.details_meta: dict = {}  # ← you already have this
         self._details_history: list[tuple[str, list[str], dict | None]] = []
         self._current_details: tuple[str, list[str], dict | None] | None = None
+        self._details_visibility_callback: Callable[[bool], None] | None = None
+        self._footer_hint_active = False
+        self._footer_saved_text: str | None = None
 
     def on_mount(self):
         # 1) Set the widget backgrounds (outer)
@@ -516,6 +519,9 @@ class ListWithDetails(Container):
         self._details_active = True
         self._details.focus()
         self._current_details = (title, lines, meta)
+        if self._details_visibility_callback:
+            self._details_visibility_callback(True)
+        self._set_footer_hint(True)
 
     def hide_details(self) -> None:
         self.details_meta = {}  # clear meta on close
@@ -525,6 +531,9 @@ class ListWithDetails(Container):
             self._main.focus()
         self._details_history.clear()
         self._current_details = None
+        if self._details_visibility_callback:
+            self._details_visibility_callback(False)
+        self._set_footer_hint(False)
 
     def has_details_open(self) -> bool:
         return not self._details.has_class("hidden")
@@ -542,12 +551,23 @@ class ListWithDetails(Container):
         """handler(key: str, meta: dict) -> None"""
         self._detail_key_handler = handler
 
+    def set_details_visibility_callback(
+        self, callback: Callable[[bool], None]
+    ) -> None:
+        self._details_visibility_callback = callback
+
     def on_key(self, event) -> None:
         """Only handle detail commands; let lowercase tag keys bubble up."""
         if not self.has_details_open():
             return
 
         k = event.key or ""
+
+        if k == "enter":
+            if self._detail_key_handler:
+                self._detail_key_handler("ENTER", self.details_meta or {})
+                event.stop()
+            return
 
         # 1) Let lowercase a–z pass through (tag selection)
         if len(k) == 1 and "a" <= k <= "z":
@@ -583,6 +603,40 @@ class ListWithDetails(Container):
                 self._detail_key_handler(cmd, self.details_meta or {})
             finally:
                 event.stop()
+
+    def _set_footer_hint(self, active: bool) -> None:
+        app = getattr(self, "app", None)
+        screen = getattr(app, "screen", None) if app else None
+        if not screen:
+            return
+        try:
+            footer = screen.query_one("#custom_footer", Static)
+        except Exception:
+            return
+
+        hint = f"  [bold {FOOTER}]Enter[/bold {FOOTER}] Actions menu"
+
+        if active:
+            if self._footer_hint_active:
+                return
+            base_text = getattr(screen, "footer_content", None)
+            if not base_text:
+                renderable = getattr(footer, "renderable", "")
+                base_text = (
+                    renderable if isinstance(renderable, str) else str(renderable)
+                )
+            self._footer_saved_text = (
+                base_text if isinstance(base_text, str) else str(base_text)
+            )
+            footer.update(f"{self._footer_saved_text}{hint}")
+            self._footer_hint_active = True
+        else:
+            if not self._footer_hint_active:
+                return
+            base_text = self._footer_saved_text or getattr(screen, "footer_content", "")
+            footer.update(base_text)
+            self._footer_hint_active = False
+            self._footer_saved_text = None
 
 
 class DetailsHelpScreen(ModalScreen[None]):
@@ -718,7 +772,7 @@ class ChoicePrompt(ModalScreen[Optional[str]]):
                 "Press the number of your choice, or ESC to cancel.",
                 id="choice_instructions",
             )
-            # yield Static(choices_text, id="choice_options")
+            yield Static(choices_text, id="choice_options")
 
     def on_key(self, event) -> None:
         key = event.key
@@ -771,6 +825,63 @@ class ConfirmPrompt(ModalScreen[Optional[bool]]):
             self.dismiss(True)
         elif key == "n":
             self.dismiss(False)
+
+
+class TextPrompt(ModalScreen[Optional[str]]):
+    """
+    Simple text entry prompt.
+    Returns the submitted string (stripped) or None if cancelled.
+    """
+
+    def __init__(
+        self,
+        title: str,
+        message: str = "",
+        initial: str = "",
+        placeholder: str = "",
+    ):
+        super().__init__()
+        self._title = title or "Input"
+        self._message = message.strip()
+        self._initial = initial or ""
+        self._placeholder = placeholder
+        self._input: Input | None = None
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="text_prompt"):
+            yield Static(self._title, classes="title-class", id="text_prompt_title")
+            if self._message:
+                yield Static(self._message, id="text_prompt_message")
+
+            self._input = Input(
+                value=self._initial,
+                placeholder=self._placeholder,
+                id="text_prompt_input",
+            )
+            yield self._input
+
+            yield Static(
+                "[bold yellow]Enter[/bold yellow] to submit, "
+                "[bold yellow]ESC[/bold yellow] to cancel.",
+                id="text_prompt_instructions",
+            )
+
+    def on_mount(self) -> None:
+        self._input = self.query_one("#text_prompt_input", Input)
+        self._input.focus()
+        if self._initial:
+            self._input.cursor_position = len(self._initial)
+
+    @on(Input.Submitted)
+    def _on_input_submitted(self, event: Input.Submitted) -> None:
+        value = (event.value or "").strip()
+        self.dismiss(value or None)
+        event.stop()
+
+    def on_key(self, event: events.Key) -> None:
+        if event.key == "escape":
+            event.stop()
+            self.dismiss(None)
 
 
 # class DatetimePrompt(ModalScreen[datetime | None]):
@@ -2176,15 +2287,19 @@ class TaggedHierarchyScreen(SearchableScreen):
         self.pages: list[tuple[list[str], dict[str, tuple[str, object]]]] = []
         self.current_page: int = 0
         self.title: str = ""
-        self.footer_content = (
+        self._base_footer = (
             footer_content
             or f"[bold {FOOTER}]?[/bold {FOOTER}] Help "
             f" [bold {FOOTER}]/[/bold {FOOTER}] Search "
+            f" [bold {FOOTER}]a-z[/bold {FOOTER}] Open tagged bin"
         )
+        self.footer_content = self._base_footer
         self.list_with_details: Optional[ListWithDetails] = None
         self.tag_map: dict[str, tuple[str, object]] = {}
         self.crumb: list[tuple[int, str]] = []  # [(id, name), ...]
         self.descendants: list[tuple[int, str, int]] = []  # (bin_id, name, depth)
+        self._awaiting_bin_action_key: bool = False
+        self._selection_kind: str = "bin"  # "bin" or "reminder"
 
     # ----- Compose -----
     def compose(self) -> ComposeResult:
@@ -2195,6 +2310,9 @@ class TaggedHierarchyScreen(SearchableScreen):
         # Details handler is the same pattern as other views
         self.list_with_details.set_detail_key_handler(
             self.app.make_detail_key_handler(view_name="bins")
+        )
+        self.list_with_details.set_details_visibility_callback(
+            self._on_details_visibility_change
         )
         yield self.list_with_details
 
@@ -2232,9 +2350,7 @@ class TaggedHierarchyScreen(SearchableScreen):
 
         kind, data = payload
         if kind == "bin":
-            # navigate into that bin
-            self.bin_id = int(data)
-            self.refresh_hierarchy()
+            self._open_bin(int(data))
             return
 
         # "rem" -> open details
@@ -2247,6 +2363,18 @@ class TaggedHierarchyScreen(SearchableScreen):
     def on_key(self, event) -> None:
         k = event.key
 
+        if self._awaiting_bin_action_key:
+            self._awaiting_bin_action_key = False
+            self._handle_bin_action_shortcut(k)
+            event.stop()
+            return
+
+        if k == "comma":
+            self._awaiting_bin_action_key = True
+            self._notify("Bin action shortcut: press a/r/m/d.", timeout=2)
+            event.stop()
+            return
+
         # ESC -> jump to root (same behavior as BinView)
         if k == "escape":
             root_id = getattr(self.controller, "root_id", None)
@@ -2255,6 +2383,12 @@ class TaggedHierarchyScreen(SearchableScreen):
                 self.refresh_hierarchy()
                 event.stop()
                 return
+
+        if k == "enter":
+            if self._current_bin_supports_menu():
+                self._prompt_bin_actions(self.bin_id)
+                event.stop()
+            return
 
         # digits -> breadcrumb jump (ancestors only, last crumb is current bin)
         if k.isdigit():
@@ -2281,6 +2415,7 @@ class TaggedHierarchyScreen(SearchableScreen):
         """Rebuild pages and redraw from the current bin."""
         self.pages, self.title = self._build_pages_and_title()
         self.current_page = 0
+        self._selection_kind = "bin"
         self._refresh_page()
 
     def _refresh_page(self) -> None:
@@ -2293,6 +2428,7 @@ class TaggedHierarchyScreen(SearchableScreen):
                 self.list_with_details.hide_details()
 
         self._refresh_header()
+        self._refresh_footer_text()
 
     def _refresh_header(self) -> None:
         bullets = self._page_bullets()  # "1/3" or ""
@@ -2410,6 +2546,244 @@ class TaggedHierarchyScreen(SearchableScreen):
 
         # Title is just the crumb text; page indicator is added in _refresh_header
         return pages, crumb_txt
+
+    def _prompt_bin_actions(self, target_bin_id: int) -> None:
+        """Show available operations for a tagged bin."""
+        if not self._bin_supports_menu(target_bin_id):
+            return
+        try:
+            ctx = self._get_bin_action_context(target_bin_id)
+        except Exception as exc:
+            self._notify(f"Failed to load bin: {exc}", severity="error")
+            return
+
+        bin_name = ctx["name"]
+        action_options: list[str] = ["Open bin"]
+        if ctx["allow_children"]:
+            action_options.append("Add child")
+        if not ctx["is_protected"]:
+            action_options.extend(["Rename bin", "Move bin", "Delete bin"])
+
+        if len(action_options) == 1:
+            # Nothing extra to do; behave like legacy single-key navigation.
+            self._open_bin(target_bin_id)
+            return
+
+        options = action_options + ["Cancel"]
+        message = (
+            f"[{TYPE_TO_COLOR['b']}]{bin_name}[/ {TYPE_TO_COLOR['b']}]\n"
+            "Choose an action:"
+        )
+
+        def _after(choice: str | None) -> None:
+            if not choice or choice == "Cancel":
+                return
+            if choice == "Open bin":
+                self._open_bin(target_bin_id)
+            elif choice == "Add child":
+                self._prompt_add_child(target_bin_id, bin_name)
+            elif choice == "Rename bin":
+                self._prompt_rename_bin(target_bin_id, bin_name)
+            elif choice == "Move bin":
+                self._prompt_move_bin(target_bin_id, bin_name)
+            elif choice == "Delete bin":
+                self._prompt_delete_bin(target_bin_id, bin_name)
+
+        self.app.push_screen(OptionPrompt(message, options), callback=_after)
+
+    def _open_bin(self, bin_id: int) -> None:
+        self.bin_id = bin_id
+        self.refresh_hierarchy()
+        self._set_selection_kind("bin")
+
+    def _set_selection_kind(self, kind: str) -> None:
+        if kind == self._selection_kind:
+            return
+        self._selection_kind = kind
+        self._refresh_footer_text()
+
+    def _current_bin_name(self) -> str:
+        if self.crumb:
+            return self.crumb[-1][1]
+        return self.controller.get_bin_name(self.bin_id)
+
+    def _get_bin_action_context(self, bin_id: int) -> dict[str, object]:
+        name = self.controller.get_bin_name(bin_id)
+        try:
+            is_protected = self.controller.is_protected_bin(bin_id)
+        except Exception:
+            is_protected = False
+        deleted_id = self.controller.find_bin_id_by_name("deleted")
+        allow_children = deleted_id is None or bin_id != deleted_id
+        return {
+            "name": name,
+            "is_protected": is_protected,
+            "allow_children": allow_children,
+        }
+
+    def _handle_bin_action_shortcut(self, key: str) -> None:
+        action = (key or "").lower()
+        try:
+            ctx = self._get_bin_action_context(self.bin_id)
+        except Exception as exc:
+            self._notify(f"Bin action unavailable: {exc}", severity="error")
+            return
+
+        name = ctx["name"]
+        if action == "a":
+            if not ctx["allow_children"]:
+                self._notify("Cannot add children here.", severity="warning")
+                return
+            self._prompt_add_child(self.bin_id, name)
+        elif action == "r":
+            if ctx["is_protected"]:
+                self._notify("System bins cannot be renamed.", severity="warning")
+                return
+            self._prompt_rename_bin(self.bin_id, name)
+        elif action == "m":
+            if ctx["is_protected"]:
+                self._notify("System bins cannot be moved.", severity="warning")
+                return
+            self._prompt_move_bin(self.bin_id, name)
+        elif action == "d":
+            if ctx["is_protected"]:
+                self._notify("System bins cannot be deleted.", severity="warning")
+                return
+            self._prompt_delete_bin(self.bin_id, name)
+        elif action:
+            self._notify(f"No bin action bound to '{action}'.", severity="warning")
+
+    def _on_details_visibility_change(self, visible: bool) -> None:
+        self._set_selection_kind("reminder" if visible else "bin")
+
+    def _bin_supports_menu(self, bin_id: int) -> bool:
+        try:
+            return not self.controller.is_protected_bin(bin_id)
+        except Exception:
+            return False
+
+    def _current_bin_supports_menu(self) -> bool:
+        return self._bin_supports_menu(self.bin_id)
+
+    def _refresh_footer_text(self) -> None:
+        show_bin_hint = (
+            self._selection_kind != "reminder" and self._current_bin_supports_menu()
+        )
+        enter_hint = (
+            f"  [bold {FOOTER}]Enter[/bold {FOOTER}] Bin menu" if show_bin_hint else ""
+        )
+        text = f"{self._base_footer}{enter_hint}"
+        self.footer_content = text
+        try:
+            footer = self.query_one("#custom_footer", Static)
+            footer.update(text)
+        except Exception:
+            pass
+
+    def _prompt_add_child(self, parent_id: int, parent_name: str) -> None:
+        message = (
+            f"Create a child under [{TYPE_TO_COLOR['b']}]{parent_name}"
+            f"[/ {TYPE_TO_COLOR['b']}]."
+        )
+
+        def _after(result: str | None) -> None:
+            if not result:
+                return
+            try:
+                self.controller.create_bin(result, parent_id)
+            except Exception as exc:
+                self._notify(str(exc), severity="error")
+                return
+            self._notify(f"Added bin '{result}'.")
+            self.refresh_hierarchy()
+
+        self.app.push_screen(
+            TextPrompt(
+                "Add Bin",
+                message=message,
+                placeholder="New bin name",
+            ),
+            callback=_after,
+        )
+
+    def _prompt_rename_bin(self, bin_id: int, current_name: str) -> None:
+        def _after(result: str | None) -> None:
+            if not result or result == current_name:
+                return
+            try:
+                self.controller.rename_bin(bin_id, result)
+            except Exception as exc:
+                self._notify(str(exc), severity="error")
+                return
+            self._notify("Bin renamed.")
+            self.refresh_hierarchy()
+
+        self.app.push_screen(
+            TextPrompt(
+                "Rename Bin",
+                message="Enter a new name:",
+                initial=current_name,
+            ),
+            callback=_after,
+        )
+
+    def _prompt_move_bin(self, bin_id: int, bin_name: str) -> None:
+        parent = self.controller.get_parent_bin(bin_id)
+        initial_parent = parent["name"] if parent else "root"
+        message = (
+            f"Move [{TYPE_TO_COLOR['b']}]{bin_name}[/ {TYPE_TO_COLOR['b']}] "
+            "under which parent?\n"
+            "Enter an existing bin name (case-insensitive)."
+        )
+
+        def _after(result: str | None) -> None:
+            if not result:
+                return
+            new_parent_id = self.controller.find_bin_id_by_name(result)
+            if new_parent_id is None:
+                self._notify(f"No bin named '{result}'.", severity="warning")
+                return
+            try:
+                self.controller.move_bin_under(bin_id, new_parent_id)
+            except Exception as exc:
+                self._notify(str(exc), severity="error")
+                return
+            self._notify("Bin moved.")
+            self.refresh_hierarchy()
+
+        self.app.push_screen(
+            TextPrompt(
+                "Move Bin",
+                message=message,
+                initial=initial_parent,
+                placeholder="Parent bin name",
+            ),
+            callback=_after,
+        )
+
+    def _prompt_delete_bin(self, bin_id: int, bin_name: str) -> None:
+        message = (
+            f"Move [{TYPE_TO_COLOR['b']}]{bin_name}"
+            f"[/ {TYPE_TO_COLOR['b']}] (and its children) to 'deleted'?"
+        )
+
+        def _after(result: Optional[bool]) -> None:
+            if not result:
+                return
+            try:
+                self.controller.delete_bin(bin_id)
+            except Exception as exc:
+                self._notify(str(exc), severity="error")
+                return
+            self._notify("Bin moved to 'deleted'.")
+            self.refresh_hierarchy()
+
+        self.app.push_screen(ConfirmPrompt(message), callback=_after)
+
+    def _notify(self, message: str, *, severity: str = "info", timeout: float = 1.5):
+        app = getattr(self, "app", None)
+        if app and hasattr(app, "notify"):
+            app.notify(message, severity=severity, timeout=timeout)
 
     def _render_tree_rows(
         self,
@@ -2555,6 +2929,7 @@ class DynamicViewApp(App):
         self.saved_lines = []
         self.afill = 1
         self.leader_mode = False
+        self.details_footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search  [bold yellow]Enter[/bold yellow] Actions Menu "
         self.details_drawer: DetailsDrawer | None = None
         self.run_daily_tasks()
 
@@ -2735,8 +3110,9 @@ class DynamicViewApp(App):
             if not record_id:
                 return
 
-            # ---------- ,f : FINISH ----------
-            if key == "comma,f" and itemtype in "~^!":
+            def finish_item() -> None:
+                if itemtype not in "~^!":
+                    return
                 # bug_msg(f"{record_id = }, {job_id = }, {first = }")
                 job = f" {job_id}" if job_id else ""
                 id_part = f"({record_id}{job})"
@@ -2759,8 +3135,7 @@ class DynamicViewApp(App):
 
                 app.prompt_datetime_with_callback(msg, _after_dt)
 
-            # ---------- ,e : EDIT ----------
-            elif key == "comma,e":
+            def edit_item() -> None:
                 # bug_msg("got comma,e")
                 seed_text = ctrl.get_entry_from_record(record_id)
                 # bug_msg(f"{seed_text = }")
@@ -2782,16 +3157,14 @@ class DynamicViewApp(App):
                     callback=self._after_edit,
                 )
 
-            # ---------- ,c : CLONE ----------
-            elif key == "comma,c":
+            def clone_item() -> None:
                 seed_text = ctrl.get_entry_from_record(record_id)
                 app.push_screen(
                     EditorScreen(ctrl, None, seed_text=seed_text),
                     callback=self._after_edit,
                 )
 
-            # ---------- ,d : DELETE ----------
-            elif key == "comma,d":
+            def delete_item() -> None:
                 # bug_msg(f"in delete {second = }, {instance_ts = }, {itemtype = }")
                 is_repeating = second is not None
                 app.open_delete_prompt(
@@ -2803,9 +3176,7 @@ class DynamicViewApp(App):
                     is_repeating=is_repeating,
                 )
 
-            # ---------- ,n : SCHEDULE NEW INSTANCE ----------
-            elif key == "comma,n":
-
+            def schedule_new_instance() -> None:
                 def _after_dt(dt: datetime | None) -> None:
                     # bug_msg(f"schedule_new, got {dt = }")
                     if dt:
@@ -2815,8 +3186,7 @@ class DynamicViewApp(App):
 
                 app.prompt_datetime_with_callback("Schedule when?", _after_dt)
 
-            # ---------- ,r : RESCHEDULE INSTANCE ----------
-            elif key == "comma,r":
+            def reschedule_item() -> None:
                 if instance_ts:
                     msg = (
                         f"Reschedule instance for "
@@ -2850,28 +3220,115 @@ class DynamicViewApp(App):
 
                     app.prompt_datetime_with_callback("Reschedule to?", _after_dt)
 
-            # ---------- ,g : GOTO (open_with_default) ----------
-            elif key == "comma,g":
+            def goto_item() -> None:
                 self.action_open_with_default(record_id)
 
-            # ---------- ,t : TOUCH ----------
-            elif key == "comma,t":
+            def touch_item() -> None:
                 ctrl.touch_item(record_id)
 
-            # ---------- ,p : PIN / UNPIN ----------
-            elif key == "comma,p" and itemtype == "~":
+            def toggle_pin() -> None:
                 ctrl.toggle_pinned(record_id)
                 if hasattr(app, "_reopen_details"):
                     app._reopen_details(tag_meta=meta)
 
-            elif key == "comma,h":
+            def show_completions() -> None:
                 title, lines = ctrl.get_record_completions(record_id)
                 if hasattr(app, "_screen_show_details"):
                     app._screen_show_details(title, lines, meta, push_history=True)
 
-            # keep ctrl+r for repetitions
-            elif key == "ctrl+r" and itemtype == "~":
+            def show_repetitions() -> None:
                 ctrl.show_repetitions(record_id)
+
+            def show_action_menu() -> None:
+                options: list[str] = []
+                callbacks: dict[str, Callable[[], None]] = {}
+
+                def add_option(
+                    label: str, func: Callable[[], None], *, enabled: bool = True
+                ) -> None:
+                    if not enabled:
+                        return
+                    options.append(label)
+                    callbacks[label] = func
+
+                add_option("Finish", finish_item, enabled=itemtype in "~^!")
+                add_option("Edit", edit_item, enabled=True)
+                add_option("Clone", clone_item, enabled=True)
+                add_option("Delete…", delete_item, enabled=True)
+                add_option("Schedule new instance", schedule_new_instance, enabled=True)
+                add_option(
+                    "Reschedule instance" if instance_ts else "Reschedule",
+                    reschedule_item,
+                    enabled=True,
+                )
+                add_option("Open externally", goto_item, enabled=True)
+                add_option("Touch", touch_item, enabled=True)
+                add_option("Pin/Unpin", toggle_pin, enabled=itemtype == "~")
+                add_option("Show completions", show_completions, enabled=True)
+                add_option(
+                    "Show repetitions", show_repetitions, enabled=itemtype == "~"
+                )
+
+                if not options:
+                    app.notify(
+                        "No actions available for this item.", severity="warning"
+                    )
+                    return
+
+                options.append("Cancel")
+                subj = subject or "Untitled"
+                color = "white"
+                if itemtype:
+                    color = TYPE_TO_COLOR.get(
+                        itemtype, TYPE_TO_COLOR.get(itemtype.lower(), "white")
+                    )
+                message = f"[{color}]{subj}[/{color}]\nChoose an action:"
+
+                def _after(choice: str | None) -> None:
+                    if not choice or choice == "Cancel":
+                        return
+                    cb = callbacks.get(choice)
+                    if cb:
+                        cb()
+
+                app.push_screen(OptionPrompt(message, options), callback=_after)
+
+            if key == "ENTER":
+                show_action_menu()
+                return
+
+            # ---------- ,f : FINISH ----------
+            if key == "comma,f" and itemtype in "~^!":
+                finish_item()
+            # ---------- ,e : EDIT ----------
+            elif key == "comma,e":
+                edit_item()
+            # ---------- ,c : CLONE ----------
+            elif key == "comma,c":
+                clone_item()
+            # ---------- ,d : DELETE ----------
+            elif key == "comma,d":
+                delete_item()
+            # ---------- ,n : SCHEDULE NEW INSTANCE ----------
+            elif key == "comma,n":
+                schedule_new_instance()
+            # ---------- ,r : RESCHEDULE INSTANCE ----------
+            elif key == "comma,r":
+                reschedule_item()
+            # ---------- ,g : GOTO (open_with_default) ----------
+            elif key == "comma,g":
+                goto_item()
+            # ---------- ,t : TOUCH ----------
+            elif key == "comma,t":
+                touch_item()
+            # ---------- ,p : PIN / UNPIN ----------
+            elif key == "comma,p" and itemtype == "~":
+                toggle_pin()
+            elif key == "comma,h":
+                show_completions()
+            # keep ctrl+r for repetitions
+            elif key == "ctrl+r":
+                show_repetitions()
 
         return handler
 

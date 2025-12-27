@@ -3679,6 +3679,25 @@ class Controller:
         walk(bin_id, 0)
         return out
 
+    # ----- Bin mutations -----
+    def find_bin_id_by_name(self, name: str) -> int | None:
+        return self.db_manager.get_bin_id_by_name(name)
+
+    def create_bin(self, name: str, parent_id: int | None) -> int:
+        return self.db_manager.create_bin(name, parent_id)
+
+    def rename_bin(self, bin_id: int, new_name: str) -> None:
+        self.db_manager.rename_bin(bin_id, new_name)
+
+    def move_bin_under(self, bin_id: int, new_parent_id: int) -> None:
+        self.db_manager.move_bin_to_parent(bin_id, new_parent_id)
+
+    def delete_bin(self, bin_id: int) -> None:
+        self.db_manager.mark_bin_deleted(bin_id)
+
+    def is_protected_bin(self, bin_id: int) -> bool:
+        return self.db_manager.is_system_bin(bin_id)
+
     def get_tag_groups(self) -> dict[str, list[dict]]:
         """
         Return a mapping: tag -> list of Records rows for that tag.

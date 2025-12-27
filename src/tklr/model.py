@@ -513,7 +513,7 @@ class BinPathProcessor:
         log.append(f"Parsed leaf='{leaf_name}', ancestors={ancestors!r}")
 
         # Ensure system bins present
-        root_id, unlinked_id = self.m.ensure_system_bins()
+        root_id, unlinked_id, _ = self.m.ensure_system_bins()
 
         # Ensure leaf exists
         leaf_id = self.m.ensure_bin_exists(leaf_name)
@@ -1008,6 +1008,12 @@ class DatabaseManager:
             ),
         )
         self.bin_cache = BinCache(self.conn)
+        self.root_bin_id = None
+        self.unlinked_bin_id = None
+        self.deleted_bin_id = None
+        self.root_bin_id, self.unlinked_bin_id, self.deleted_bin_id = (
+            self.ensure_system_bins()
+        )
         # bug_msg(f"{self.bin_cache.name_to_binpath() = }")
         self.populate_dependent_tables()
 
@@ -4000,52 +4006,16 @@ class DatabaseManager:
 
     def move_bin(self, bin_name: str, new_parent_name: str) -> bool:
         """
-        Move a bin under a new parent bin.
-
-        Example:
-            move_bin("whatever", "journal")
-
-        Ensures both bins exist, removes any previous parent link,
-        and inserts a new (bin_id → new_parent_id) link.
-        Prevents cycles and self-parenting.
+        Convenience wrapper that moves bins by name (creating them if missing).
         """
         try:
-            # Ensure the root/unlinked bins exist first
-            root_id, unlinked_id = self.ensure_system_bins()
-
-            # Resolve both bin IDs (creating them if needed)
+            self.ensure_system_bins()
             bin_id = self.ensure_bin_exists(bin_name)
             new_parent_id = self.ensure_bin_exists(new_parent_name)
-
-            # ⚡ Efficiency check: prevent self-parenting before DB recursion
-            if bin_id == new_parent_id:
-                raise ValueError(f"Cannot move {bin_name!r} under itself.")
-
-            # 🌀 Recursive acyclicity check
-            if self.is_descendant(bin_id, new_parent_id):
-                raise ValueError(
-                    f"Cannot move {bin_name!r} under {new_parent_name!r}: "
-                    "would create a cycle."
-                )
-
-            # Remove any existing parent link(s)
-            self.cursor.execute("DELETE FROM BinLinks WHERE bin_id = ?", (bin_id,))
-
-            # Insert the new parent link
-            self.cursor.execute(
-                """
-                INSERT OR REPLACE INTO BinLinks (bin_id, container_id)
-                VALUES (?, ?)
-                """,
-                (bin_id, new_parent_id),
-            )
-
-            self.conn.commit()
-            print(f"[move_bin] Moved {bin_name!r} → {new_parent_name!r}")
+            self.move_bin_to_parent(bin_id, new_parent_id)
             return True
-
-        except Exception as e:
-            print(f"[move_bin] Error moving {bin_name!r} → {new_parent_name!r}: {e}")
+        except Exception as exc:
+            print(f"[move_bin] Error moving {bin_name!r} → {new_parent_name!r}: {exc}")
             return False
 
     def is_descendant(self, ancestor_id: int, candidate_id: int) -> bool:
@@ -4098,7 +4068,7 @@ class DatabaseManager:
         If single-level, link under 'unlinked'.
         Returns the final (leaf) bin_id.
         """
-        root_id, unlinked_id = self.ensure_system_bins()
+        root_id, unlinked_id, _ = self.ensure_system_bins()
         parts = [p.strip() for p in path.split("/") if p.strip()]
         if not parts:
             return root_id
@@ -4122,7 +4092,7 @@ class DatabaseManager:
         return parent_id
 
     def ensure_bin_path(self, path: str) -> int:
-        root_id, unlinked_id = self.ensure_system_bins()
+        root_id, unlinked_id, _ = self.ensure_system_bins()
         parts = [p.strip() for p in path.split("/") if p.strip()]
         if not parts:
             return root_id
@@ -4152,30 +4122,173 @@ class DatabaseManager:
         self.conn.commit()
         return parent_id
 
-    def ensure_system_bins(self) -> tuple[int, int]:
+    def ensure_system_bins(self) -> tuple[int, int, int]:
         root_id = self.ensure_bin_exists("root")
         unlinked_id = self.ensure_bin_exists("unlinked")
-
-        # link unlinked → root (if not already)
-        self.cursor.execute(
-            "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
-            (unlinked_id, root_id),
-        )
-        # 👇 cache: reflect current effective parent
-        if hasattr(self, "bin_cache"):
-            self.bin_cache.on_link(unlinked_id, root_id)
+        deleted_id = self.ensure_bin_exists("deleted")
 
         # Ensure root has no parent (NULL)
         self.cursor.execute(
             "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, NULL)",
             (root_id,),
         )
-        # 👇 cache: reflect root’s parent = None
         if hasattr(self, "bin_cache"):
             self.bin_cache.on_link(root_id, None)
 
+        # Link unlinked → root
+        self.cursor.execute(
+            "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
+            (unlinked_id, root_id),
+        )
+        # Link deleted → root
+        self.cursor.execute(
+            "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
+            (deleted_id, root_id),
+        )
+
+        if hasattr(self, "bin_cache"):
+            self.bin_cache.on_link(unlinked_id, root_id)
+            self.bin_cache.on_link(deleted_id, root_id)
+
         self.conn.commit()
-        return root_id, unlinked_id
+
+        self.root_bin_id = root_id
+        self.unlinked_bin_id = unlinked_id
+        self.deleted_bin_id = deleted_id
+        return root_id, unlinked_id, deleted_id
+
+    def get_bin_id_by_name(self, name: str) -> int | None:
+        """Return the id for `name` (case-insensitive) or None if missing."""
+        nm = (name or "").strip()
+        if not nm:
+            return None
+        self.cursor.execute(
+            "SELECT id FROM Bins WHERE name = ? COLLATE NOCASE",
+            (nm,),
+        )
+        row = self.cursor.fetchone()
+        return int(row[0]) if row else None
+
+    def is_system_bin(self, bin_id: int) -> bool:
+        """True if bin_id refers to root/unlinked/deleted."""
+        self.ensure_system_bins()
+        protected = {
+            self.root_bin_id,
+            self.unlinked_bin_id,
+            self.deleted_bin_id,
+        }
+        return bin_id in protected
+
+    def create_bin(self, name: str, parent_id: int | None) -> int:
+        """
+        Create a new bin under parent_id (or root if None). Raises on duplicates.
+        """
+        nm = (name or "").strip()
+        if not nm:
+            raise ValueError("Bin name must be non-empty.")
+
+        if self.get_bin_id_by_name(nm) is not None:
+            raise ValueError(f"A bin named {nm!r} already exists.")
+
+        if parent_id is None:
+            parent_id = self.ensure_root_exists()
+
+        # Validate parent exists
+        self.cursor.execute("SELECT 1 FROM Bins WHERE id = ?", (parent_id,))
+        if self.cursor.fetchone() is None:
+            raise ValueError(f"Parent bin #{parent_id} does not exist.")
+
+        self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (nm,))
+        new_id = int(self.cursor.lastrowid)
+        self.cursor.execute(
+            "INSERT OR REPLACE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
+            (new_id, parent_id),
+        )
+        self.conn.commit()
+
+        if hasattr(self, "bin_cache"):
+            self.bin_cache.on_create(new_id, nm, parent_id)
+
+        return new_id
+
+    def rename_bin(self, bin_id: int, new_name: str) -> None:
+        """Rename a bin unless it is one of the protected system bins."""
+        nm = (new_name or "").strip()
+        if not nm:
+            raise ValueError("Bin name must be non-empty.")
+
+        self.cursor.execute("SELECT name FROM Bins WHERE id = ?", (bin_id,))
+        row = self.cursor.fetchone()
+        if not row:
+            raise ValueError(f"Bin #{bin_id} does not exist.")
+
+        if self.is_system_bin(bin_id):
+            raise ValueError("System bins cannot be renamed.")
+
+        current = row[0]
+        if current.lower() == nm.lower():
+            return  # no change
+
+        self.cursor.execute(
+            "SELECT 1 FROM Bins WHERE id != ? AND name = ? COLLATE NOCASE",
+            (bin_id, nm),
+        )
+        if self.cursor.fetchone():
+            raise ValueError(f"A bin named {nm!r} already exists.")
+
+        self.cursor.execute("UPDATE Bins SET name = ? WHERE id = ?", (nm, bin_id))
+        self.conn.commit()
+
+        if hasattr(self, "bin_cache"):
+            self.bin_cache.on_rename(bin_id, nm)
+
+    def move_bin_to_parent(self, bin_id: int, new_parent_id: int) -> None:
+        """Re-parent a bin (by id) under a new parent id."""
+        if bin_id == new_parent_id:
+            raise ValueError("Cannot move a bin under itself.")
+
+        self.cursor.execute("SELECT 1 FROM Bins WHERE id = ?", (bin_id,))
+        if self.cursor.fetchone() is None:
+            raise ValueError(f"Bin #{bin_id} does not exist.")
+
+        self.cursor.execute("SELECT 1 FROM Bins WHERE id = ?", (new_parent_id,))
+        if self.cursor.fetchone() is None:
+            raise ValueError(f"Parent bin #{new_parent_id} does not exist.")
+
+        if self.is_system_bin(bin_id):
+            raise ValueError("System bins cannot be moved.")
+
+        if self.is_descendant(bin_id, new_parent_id):
+            raise ValueError("Cannot move a bin under its own descendant.")
+
+        self.cursor.execute(
+            "SELECT container_id FROM BinLinks WHERE bin_id = ?",
+            (bin_id,),
+        )
+        row = self.cursor.fetchone()
+        current_parent = row[0] if row else None
+        if current_parent == new_parent_id:
+            return
+
+        self.cursor.execute("DELETE FROM BinLinks WHERE bin_id = ?", (bin_id,))
+        self.cursor.execute(
+            "INSERT OR REPLACE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
+            (bin_id, new_parent_id),
+        )
+        self.conn.commit()
+
+        if hasattr(self, "bin_cache"):
+            self.bin_cache.on_link(bin_id, new_parent_id)
+
+    def mark_bin_deleted(self, bin_id: int) -> None:
+        """Move a bin into the special 'deleted' container."""
+        self.ensure_system_bins()
+        if self.is_system_bin(bin_id):
+            raise ValueError("System bins cannot be deleted.")
+        deleted_id = self.deleted_bin_id
+        if deleted_id is None:
+            raise ValueError("Deleted bin is unavailable.")
+        self.move_bin_to_parent(bin_id, deleted_id)
 
     def link_record_to_bin_path(self, record_id: int, path: str) -> None:
         """
@@ -4313,7 +4426,7 @@ class DatabaseManager:
 
     def ensure_root_exists(self) -> int:
         """Return id for 'root' (creating/anchoring it if needed)."""
-        root_id, _ = self.ensure_system_bins()
+        root_id, _, _ = self.ensure_system_bins()
         return root_id
 
     def ensure_root_children(self, names: list[str]) -> dict[str, int]:
