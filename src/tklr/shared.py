@@ -255,6 +255,32 @@ def truncate_string(s: str, max_length: int) -> str:
         return s
 
 
+def decimal_to_base26(value: int) -> str:
+    """
+    Convert a non-negative integer to a base-26 string using lowercase letters.
+    """
+    if value < 0:
+        raise ValueError("value must be non-negative")
+    if value == 0:
+        return "a"
+
+    digits: list[str] = []
+    while value:
+        digits.append(chr(ord("a") + (value % 26)))
+        value //= 26
+    return "".join(reversed(digits))
+
+
+def indx_to_tag(index: int, fill: int = 1) -> str:
+    """
+    Map a 0-based index to a tag string (a, b, ..., aa, ab, ...),
+    left-padding with 'a' when a wider tag width is required.
+    """
+    if index < 0:
+        raise ValueError("index must be non-negative")
+    return decimal_to_base26(index).rjust(fill, "a")
+
+
 def log_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = False):
     """
     Log a message and save it directly to a specified file.

@@ -45,6 +45,7 @@ from .shared import (
     parse,
     fmt_utc_z,
     timedelta_str_to_seconds,
+    indx_to_tag,
 )
 from tklr.tklr_env import TklrEnvironment
 from tklr.view import ChildBinRow, ReminderRow
@@ -387,36 +388,6 @@ def calculate_4_week_start():
     return start_of_week - timedelta(weeks=weeks_into_cycle)
 
 
-def decimal_to_base26(decimal_num):
-    """
-    Convert a decimal number to its equivalent base-26 string.
-
-    Args:
-        decimal_num (int): The decimal number to convert.
-
-    Returns:
-        str: The base-26 representation where 'a' = 0, 'b' = 1, ..., 'z' = 25.
-    """
-    if decimal_num < 0:
-        raise ValueError("Decimal number must be non-negative.")
-
-    if decimal_num == 0:
-        return "a"  # Special case for zero
-
-    base26 = ""
-    while decimal_num > 0:
-        digit = decimal_num % 26
-        base26 = chr(digit + ord("a")) + base26  # Map digit to 'a'-'z'
-        decimal_num //= 26
-
-    return base26
-
-
-def indx_to_tag(indx: int, fill: int = 1):
-    """
-    Convert an index to a base-26 tag.
-    """
-    return decimal_to_base26(indx).rjust(fill, "a")
 def ordinal(n: int) -> str:
     """Return ordinal representation of an integer (1 -> 1st)."""
     if 10 <= n % 100 <= 20:

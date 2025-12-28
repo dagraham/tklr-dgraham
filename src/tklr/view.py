@@ -35,7 +35,6 @@ from textual.widgets import Placeholder
 from textual.widgets import TextArea
 from textual.widgets import OptionList
 from textual import on
-import string
 import shutil
 import asyncio
 from .shared import fmt_user
@@ -118,25 +117,9 @@ SELECTED_COLOR = "bold yellow"
 
 ONEDAY = timedelta(days=1)
 ONEWK = 7 * ONEDAY
-alpha = [x for x in string.ascii_lowercase]
 
 
 # TYPE_TO_COLOR - moved to shared.py
-
-
-def base26_to_decimal(tag: str) -> int:
-    """Decode 'a'..'z' (a=0) for any length."""
-    total = 0
-    for ch in tag:
-        total = total * 26 + (ord(ch) - ord("a"))
-    return total
-
-
-def indx_to_tag(indx: int, fill: int = 1):
-    """
-    Convert an index to a base-26 tag.
-    """
-    return decimal_to_base26(indx).rjust(fill, "a")
 
 
 def build_details_help(meta: dict) -> list[str]:
@@ -217,31 +200,6 @@ def format_date_range(start_dt: datetime, end_dt: datetime):
         return f"{start_dt.strftime('%B %-d')} - {end_dt.strftime('%B %-d, %Y')}"
     else:
         return f"{start_dt.strftime('%B %-d, %Y')} - {end_dt.strftime('%B %-d, %Y')}"
-
-
-def decimal_to_base26(decimal_num):
-    """
-    Convert a decimal number to its equivalent base-26 string.
-
-    Args:
-        decimal_num (int): The decimal number to convert.
-
-    Returns:
-        str: The base-26 representation where 'a' = 0, 'b' = 1, ..., 'z' = 25.
-    """
-    if decimal_num < 0:
-        raise ValueError("Decimal number must be non-negative.")
-
-    if decimal_num == 0:
-        return "a"  # Special case for zero
-
-    base26 = ""
-    while decimal_num > 0:
-        digit = decimal_num % 26
-        base26 = chr(digit + ord("a")) + base26  # Map digit to 'a'-'z'
-        decimal_num //= 26
-
-    return base26
 
 
 def get_previous_yrwk(year, week):
