@@ -121,6 +121,11 @@ TYPE_TO_COLOR = {
 
 
 def get_anchor(aware: bool) -> datetime:
+    """
+    Return the canonical 1970-01-01 anchor datetime used when normalizing dates.
+    If ``aware`` is True the anchor is tagged with UTC tzinfo, otherwise it
+    remains naive so callers can safely compare like-with-like values.
+    """
     dt = datetime(1970, 1, 1, 0, 0, 0)
     if aware:
         return dt.replace(tzinfo=ZoneInfo("UTC"))
@@ -144,11 +149,16 @@ def fmt_user(dt_str: str) -> str:
 
 
 def parse(s, yearfirst: bool = True, dayfirst: bool = False):
-    # enable pi when read by main and settings is available
+    """
+    Parse free-form date/datetime text using the configured ordering rules.
+    Dates (no time component) are returned as ``date`` objects; timestamps are
+    returned as naive ``datetime`` values with the midnight shortcut collapsed
+    back to just the date.  Returns an empty string when parsing fails so
+    callers can surface an error without raising.
+    """
     pi = parserinfo(
         dayfirst=dayfirst, yearfirst=yearfirst
     )  # FIXME: should come from config
-    # logger.debug(f"parsing {s = } with {kwd = }")
     dt = dateutil_parse(s, parserinfo=pi)
     if isinstance(dt, date) and not isinstance(dt, datetime):
         return dt
