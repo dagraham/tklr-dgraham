@@ -459,6 +459,13 @@ _BACKUP_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})\.db$")
 
 
 class Controller:
+    """
+    Coordinates CLI/UI actions: loads reminders from ``DatabaseManager``,
+    builds the paginated textual views, and applies edits coming from the
+    command handler.  The class intentionally centralizes formatting helpers
+    (tag generation, agenda pagination, etc.) so both the CLI and Textual UI
+    share the same behavior.
+    """
     def __init__(self, database_path: str, env: TklrEnvironment, reset: bool = False):
         # Initialize the database manager
         self.db_manager = DatabaseManager(database_path, env, reset=reset)

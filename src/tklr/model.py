@@ -102,16 +102,21 @@ DT_FMT = "%Y%m%dT%H%M"
 
 
 def _fmt_date(d: date) -> str:
+    """Return date keys in YYYYMMDD form."""
     return d.strftime(DATE_FMT)
 
 
 def _fmt_naive(dt: datetime) -> str:
+    """Format a datetime as local-naive minute precision (YYYYMMDDTHHMM)."""
     if dt.tzinfo is not None:
         dt = dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
     return dt.strftime(DT_FMT)
 
 
 def _fmt_utc(dt_aware_utc: datetime) -> str:
+    """
+    Format any datetime into the storage key space, preferring UTC when tz-aware.
+    """
     if isinstance(dt_aware_utc, date):
         return _fmt_date(dt_aware_utc)
     if isinstance(dt_aware_utc, datetime) and dt_aware_utc.tzinfo is None:
@@ -134,8 +139,8 @@ def _split_span_local_days(
     start_local: datetime, end_local: datetime
 ) -> list[tuple[datetime, datetime]]:
     """
-    Split a local-naive span into same-day segments.
-    Inclusive start, inclusive end per segment.
+    Split a local-naive span into day segments so multi-day busy windows
+    can be processed per calendar day. Returns (start, end) pairs for each day.
     """
     if end_local <= start_local:
         return [(start_local, end_local)]
@@ -203,7 +208,7 @@ def td_str_to_seconds(duration_str: str) -> int:
 
 
 def dt_str_to_seconds(datetime_str: str) -> int:
-    """Convert a datetime string like '20250601T090000' into a datetime object."""
+    """Convert timestamps like '20250601T0900' into epoch seconds."""
     if not datetime_str:
         return None
     if "T" not in datetime_str:

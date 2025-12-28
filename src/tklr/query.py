@@ -33,6 +33,11 @@ class QueryPlan:
         self.clauses = clauses
 
     def matches(self, record: "RecordView") -> bool:
+        """
+        Evaluate the compiled plan against a record, applying each predicate in
+        sequence while honoring the stored ``and``/``or`` connectors.  Clauses
+        default to ``and`` when no connector is provided (first clause).
+        """
         result: bool | None = None
         for connector, predicate in self.clauses:
             value = predicate(record)
