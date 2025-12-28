@@ -406,12 +406,6 @@ class TklrEnvironment:
         # self.usrhome = Path.home()
         self._config: Optional[TklrConfig] = None
 
-    # def norm_path(self, path: Path):
-    #     rpath = path.resolve()
-    #     if rpath.is_relative_to(self.usrhome):
-    #         return rpath.relative_to(self.usrhome).as_posix()
-    #     return rpath.as_posix()
-
     def get_paths(self):
         return [collapse_home(p) for p in [self.home, self.db_path, self.config_path]]
 

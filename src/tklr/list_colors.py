@@ -178,28 +178,6 @@ def get_contrasting_text_color(hex_color: str) -> str:
     return "black" if brightness > 128 else "white"
 
 
-# @click.command()
-# @click.option(
-#     "--sort",
-#     type=click.Choice(["name", "hue"], case_sensitive=False),
-#     default="name",
-#     help="Sort colors name or by hue",
-# )
-# def show_colors(sort):
-#     console = Console(record=True)
-#     table = Table(title=f"CSS Named Colors (--sort {sort})")
-#     table.add_column("Color Name")
-#     table.add_column("Hex Value")
-#
-#     for name, hex_val in sort_colors(css_named_colors, sort):
-#         name_style = Style(color=hex_val)
-#         hex_style = Style(color=get_contrasting_text_color(hex_val), bgcolor=hex_val)
-#         table.add_row(f"[{hex_val}]{name}[/]", f"[{hex_style}]{hex_val}[/]")
-#
-#     console.print(table)
-#     output = console.export_text()
-#     click.echo_via_pager(output)
-
 
 @click.command()
 @click.option(

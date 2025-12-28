@@ -121,15 +121,6 @@ def _fmt_utc(dt_aware_utc: datetime) -> str:
     return dt_aware_utc.astimezone(tz.UTC).strftime(DT_FMT) + "Z"
 
 
-# def _to_local_naive(dt: datetime) -> datetime:
-#     """
-#     Convert aware -> local-naive; leave naive unchanged.
-#     Assumes dt is datetime (not date).
-#     """
-#     if dt.tzinfo is not None:
-#         dt = dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
-#     return dt
-
 
 def _to_key(dt: datetime) -> str:
     """Naive-local datetime -> 'YYYYMMDDTHHMMSS' string key."""
@@ -1577,74 +1568,6 @@ class DatabaseManager:
             print(f"Error updating record {record_id}: {e}")
             raise
 
-    # def save_record(self, item: Item, record_id: int | None = None):
-    #     """Insert or update a record and refresh associated tables."""
-    #     timestamp = utc_now_string()
-    #
-    #     if record_id is None:
-    #         # Insert new record
-    #         self.cursor.execute(
-    #             """
-    #             INSERT INTO Records (
-    #                 itemtype, subject, description, rruleset, timezone,
-    #                 extent, alerts, notice, context, jobs,
-    #                 tokens, created, modified
-    #             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    #             """,
-    #             (
-    #                 item.itemtype,
-    #                 item.subject,
-    #                 item.description,
-    #                 item.rruleset,
-    #                 item.tz_str,
-    #                 item.extent,
-    #                 json.dumps(item.alerts),
-    #                 item.notice,
-    #                 item.context,
-    #                 json.dumps(item.jobs),
-    #                 json.dumps(item.tokens),
-    #                 timestamp,
-    #                 timestamp,
-    #             ),
-    #         )
-    #         record_id = self.cursor.lastrowid
-    #     else:
-    #         # Update existing record
-    #         self.cursor.execute(
-    #             """
-    #             UPDATE Records
-    #             SET itemtype = ?, subject = ?, description = ?, rruleset = ?, timezone = ?,
-    #                 extent = ?, alerts = ?, notice = ?, context = ?, jobs = ?,
-    #                 tokens = ?, modified = ?
-    #             WHERE id = ?
-    #             """,
-    #             (
-    #                 item.itemtype,
-    #                 item.subject,
-    #                 item.description,
-    #                 item.rruleset,
-    #                 item.tz_str,
-    #                 item.extent,
-    #                 json.dumps(item.alerts),
-    #                 item.notice,
-    #                 item.context,
-    #                 json.dumps(item.jobs),
-    #                 json.dumps(item.tokens),
-    #                 timestamp,
-    #                 record_id,
-    #             ),
-    #         )
-    #
-    #     self.conn.commit()
-    #
-    #     # Refresh auxiliary tables
-    #     self.generate_datetimes_for_record(record_id)
-    #     self.populate_alerts_for_record(record_id)
-    #     if item.notice:
-    #         self.populate_notice_for_record(record_id)
-    #     if item.itemtype in ["~", "^"]:
-    #         self.populate_urgency_from_record(record_id)
-
     def save_record(self, item: Item, record_id: int | None = None) -> int:
         """Insert or update a record and refresh associated tables."""
         timestamp = utc_now_string()
@@ -1727,33 +1650,6 @@ class DatabaseManager:
 
         self.conn.commit()
         return record_id
-
-    # def get_record_tags(self, record_id: int) -> list[str]:
-    #     self.cursor.execute(
-    #         "SELECT COALESCE(tags,'[]') FROM Records WHERE id=?", (record_id,)
-    #     )
-    #     row = self.cursor.fetchone()
-    #     try:
-    #         return self._normalize_tags(json.loads(row[0])) if row and row[0] else []
-    #     except Exception:
-    #         return []
-    #
-    # def find_records_with_any_tags(self, tags: list[str]) -> list[tuple]:
-    #     want = set(self._normalize_tags(tags))
-    #     self.cursor.execute("SELECT id, subject, COALESCE(tags,'[]') FROM Records")
-    #     out = []
-    #     for rid, subj, tags_json in self.cursor.fetchall():
-    #         try:
-    #             have = (
-    #                 set(self._normalize_tags(json.loads(tags_json)))
-    #                 if tags_json
-    #                 else set()
-    #             )
-    #         except Exception:
-    #             have = set()
-    #         if want & have:
-    #             out.append((rid, subj))
-    #     return out
 
     def add_completion(
         self,
@@ -2376,73 +2272,6 @@ class DatabaseManager:
 
         self.conn.commit()
         log_msg("✅ Alerts table updated with today's relevant alerts.")
-
-    # def populate_alerts_for_record(self, record_id: int):
-    #     """Regenerate alerts for a specific record, but only if any are scheduled for today."""
-    #
-    #     # Clear old alerts for this record
-    #     self.cursor.execute("DELETE FROM Alerts WHERE record_id = ?", (record_id,))
-    #
-    #     # Look up the record’s alert data and start datetimes
-    #     self.cursor.execute(
-    #         """
-    #         SELECT R.subject, R.description, R.context, R.alerts, D.start_datetime
-    #         FROM Records R
-    #         JOIN DateTimes D ON R.id = D.record_id
-    #         WHERE R.id = ? AND R.alerts IS NOT NULL AND R.alerts != ''
-    #         """,
-    #         (record_id,),
-    #     )
-    #     records = self.cursor.fetchall()
-    #     if not records:
-    #         log_msg(f"🔕 No alerts to populate for record {record_id}")
-    #         return
-    #
-    #     now = round(datetime.now().timestamp())
-    #     midnight = round(
-    #         datetime.now().replace(hour=23, minute=59, second=59).timestamp()
-    #     )
-    #
-    #     for subject, description, context, alerts_json, start_ts in records:
-    #         # start_dt = datetime.fromtimestamp(start_ts)
-    #         alerts = json.loads(alerts_json)
-    #         for alert in alerts:
-    #             if ":" not in alert:
-    #                 continue
-    #             time_part, command_part = alert.split(":")
-    #             timedelta_values = [
-    #                 td_str_to_seconds(t.strip()) for t in time_part.split(",")
-    #             ]
-    #             commands = [cmd.strip() for cmd in command_part.split(",")]
-    #
-    #             for td in timedelta_values:
-    #                 trigger = start_ts - td
-    #                 if now <= trigger < midnight:
-    #                     for name in commands:
-    #                         alert_command = self.create_alert(
-    #                             name,
-    #                             td,
-    #                             start_ts,
-    #                             record_id,
-    #                             subject,
-    #                             description,
-    #                             context,
-    #                         )
-    #                         if alert_command:
-    #                             self.cursor.execute(
-    #                                 "INSERT INTO Alerts (record_id, record_name, trigger_datetime, start_datetime, alert_name, alert_command) VALUES (?, ?, ?, ?, ?, ?)",
-    #                                 (
-    #                                     record_id,
-    #                                     subject,
-    #                                     trigger,
-    #                                     start_ts,
-    #                                     name,
-    #                                     alert_command,
-    #                                 ),
-    #                             )
-    #
-    #     self.conn.commit()
-    #     log_msg(f"✅ Alerts updated for record {record_id}")
 
     def populate_alerts_for_record(self, record_id: int):
         """
@@ -3093,33 +2922,6 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
-    # def get_urgency(self):
-    #     """
-    #     Return tasks for the Agenda view, with pinned-first ordering.
-    #
-    #     Rows:
-    #     (record_id, job_id, subject, urgency, color, status, weights, pinned_int)
-    #     """
-    #     self.cursor.execute(
-    #         """
-    #         SELECT
-    #             u.record_id,
-    #             u.job_id,
-    #             u.subject,
-    #             u.urgency,
-    #             u.color,
-    #             u.status,
-    #             u.weights,
-    #             CASE WHEN p.record_id IS NULL THEN 0 ELSE 1 END AS pinned
-    #         FROM Urgency AS u
-    #         JOIN Records AS r ON r.id = u.record_id
-    #         LEFT JOIN Pinned AS p ON p.record_id = u.record_id
-    #         WHERE r.itemtype != 'x'
-    #         ORDER BY pinned DESC, u.urgency DESC, u.id ASC
-    #         """
-    #     )
-    #     return self.cursor.fetchall()
-
     def get_urgency(self):
         """
         Return tasks for the Agenda view, with pinned-first ordering.
@@ -3336,36 +3138,6 @@ class DatabaseManager:
         self.conn.commit()
         log_msg(f"✅ BusyWeeksFromDateTimes populated ({total_inserted} week-records).")
 
-    # def get_last_instances(
-    #     self,
-    # ) -> List[Tuple[int, int | None, str, str, str, str]]:
-    #     """
-    #     Retrieve the last instances of each record/job falling before today.
-    #
-    #     Returns:
-    #         List of tuples:
-    #             (record_id, job_id, subject, description, itemtype, last_datetime)
-    #     """
-    #     today = datetime.now().strftime("%Y%m%dT%H%M")
-    #     self.cursor.execute(
-    #         """
-    #         SELECT
-    #             r.id,
-    #             d.job_id,
-    #             r.subject,
-    #             r.description,
-    #             r.itemtype,
-    #             MAX(d.start_datetime) AS last_datetime
-    #         FROM Records r
-    #         JOIN DateTimes d ON r.id = d.record_id
-    #         WHERE d.start_datetime < ?
-    #         GROUP BY r.id, d.job_id
-    #         ORDER BY last_datetime DESC
-    #         """,
-    #         (today,),
-    #     )
-    #     return self.cursor.fetchall()
-
     def get_last_instances(
         self,
     ) -> List[Tuple[int, int, int | None, str, str, str, str]]:
@@ -3418,19 +3190,6 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
-    # def get_next_instances(
-    #     self,
-    # ) -> List[Tuple[int, int | None, str, str, str, str]]:
-    #     """
-    #     Retrieve the next instances of each record/job falling on or after today.
-    #
-    #     Returns:
-    #         List of tuples:
-    #             (record_id, job_id, subject, description, itemtype, last_datetime)
-    #     """
-    #     today = datetime.now().strftime("%Y%m%dT%H%M")
-    #     self.cursor.execute(
-    #         """
     #         SELECT
     #             r.id,
     #             d.job_id,
@@ -3445,9 +3204,6 @@ class DatabaseManager:
     #         ORDER BY next_datetime ASC
     #         """,
     #         (today,),
-    #     )
-    #     return self.cursor.fetchall()
-
     def get_next_instances(
         self,
     ) -> List[Tuple[int, int, int | None, str, str, str, str]]:
@@ -4353,25 +4109,6 @@ class DatabaseManager:
         row = self.cursor.fetchone()
         return {"id": row[0], "name": row[1]} if row else None
 
-    # def get_subbins(self, bin_id: int) -> list[dict]:
-    #     """Return bins contained in this bin, with counts of subbins/reminders."""
-    #     self.cursor.execute(
-    #         """
-    #         SELECT b.id, b.name,
-    #             (SELECT COUNT(*) FROM BinLinks sub WHERE sub.container_id = b.id) AS subbins,
-    #             (SELECT COUNT(*) FROM ReminderLinks rl WHERE rl.bin_id = b.id) AS reminders
-    #         FROM BinLinks bl
-    #         JOIN Bins b ON bl.bin_id = b.id
-    #         WHERE bl.container_id = ?
-    #         ORDER BY b.name COLLATE NOCASE
-    #     """,
-    #         (bin_id,),
-    #     )
-    #     return [
-    #         {"id": row[0], "name": row[1], "subbins": row[2], "reminders": row[3]}
-    #         for row in self.cursor.fetchall()
-    #     ]
-
     def get_subbins(
         self, bin_id: int, custom_order: list[str] | None = None
     ) -> list[dict]:
@@ -4408,21 +4145,6 @@ class DatabaseManager:
             return sorted(results, key=sort_key)
         else:
             return sorted(results, key=lambda ch: ch["name"].lower())
-
-    # def apply_flags(self, record_id: int, subject: str) -> str:
-    #     """
-    #     Append any flags from Records.flags (e.g. 𝕒𝕘𝕠𝕣) to the given subject.
-    #     """
-    #     row = self.get_record_as_dictionary(record_id)
-    #     if not row:
-    #         return subject
-    #
-    #     flags = f" {row.get('flags')}" or ""
-    #     log_msg(f"{row = }, {flags = }")
-    #     if not flags:
-    #         return subject
-    #
-    #     return subject + flags
 
     def get_reminders_in_bin(self, bin_id: int) -> list[dict]:
         """Return reminders linked to this bin."""
@@ -4560,30 +4282,6 @@ class DatabaseManager:
         else:
             tokens = list(tokens_obj)
         return reveal_mask_tokens(tokens, secret)
-
-    # def _extract_tag_and_bin_names(self, item) -> tuple[list[str], list[str]]:
-    #     """
-    #     Read '@t <name>' and '@b <name>' from item.tokens.
-    #     tokens are dicts; we rely on keys: t='@', k in {'t','b'}, token='@t blue'
-    #     """
-    #     tokens = self._tokens_list(getattr(item, "tokens", []))
-    #     tags: list[str] = []
-    #     bins: list[str] = []
-    #     for t in tokens:
-    #         if t.get("t") != "@":
-    #             continue
-    #         k = t.get("k")
-    #         raw = t.get("token", "")
-    #         value = ""
-    #         if isinstance(raw, str) and " " in raw:
-    #             value = raw.split(" ", 1)[1].strip()
-    #         if not value:
-    #             continue
-    #         if k == "t":
-    #             tags.append(value)
-    #         elif k == "b":
-    #             bins.append(value)
-    #     return tags, bins
 
     def relink_bins_for_record(
         self, record_id: int, item, *, default_parent_name: str = "unlinked"

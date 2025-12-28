@@ -346,11 +346,6 @@ def parse(dt_str: str, zone: tzinfo = None):
     return aware.astimezone(tz.UTC)
 
 
-# def parse_pair(dt_pair_str: str) -> str:
-#     """ """
-#     dt_strs = [x.strip() for x in dt_pair_str.split(",")]
-#     return [parse(x) for x in dt_strs]
-
 
 def parse_completion_value(v: str) -> tuple[datetime | None, datetime | None]:
     """
@@ -2330,12 +2325,6 @@ Entry: {self.entry}
 
         return True, job_params, []
 
-    # def do_at(self):
-    #     print("TODO: do_at() -> show available @ tokens")
-
-    # def do_amp(self):
-    #     print("TODO: do_amp() -> show available & tokens")
-
     @classmethod
     def do_weekdays(cls, wkd_str: str):
         """
@@ -2660,39 +2649,6 @@ Entry: {self.entry}
             bug_msg(f"error {e = }")
             return None, None
 
-    # def _get_o_interval(self):
-    #     """
-    #     Return (timedelta, learn_bool) if @o present, else None.
-    #     Expects self.over to hold the *original* @o string (e.g. '4d' or '~4d').
-    #     """
-    #     s = (self.over or "").strip()
-    #     if not s:
-    #         return None
-    #     # FIXME: what about projects?
-    #     learn = s.startswith("~")
-    #     base = s[1:].strip() if learn else s
-    #     ok, seconds = timedelta_str_to_seconds(base)
-    #     if not ok:
-    #         return None
-    #
-    #     return (timedelta(seconds=seconds), learn)
-    #
-    # def _set_o_interval(self, td, learn: bool):
-    #     """Write @o token back (e.g., '@o 4d3h ' or '@o ~4d3h ')."""
-    #     # convert timedelta -> your TD string; use your existing helper if you have it
-    #     seconds = int(td.total_seconds())
-    #     # simple example: only days/hours; replace with your own formatter
-    #     days, rem = divmod(seconds, 86400)
-    #     hours, rem = divmod(rem, 3600)
-    #     minutes = rem // 60
-    #     parts = []
-    #     if days:
-    #         parts.append(f"{days}d")
-    #     if hours:
-    #         parts.append(f"{hours}h")
-    #     if minutes:
-    #         parts.append(f"{minutes}m")
-    #     td_str = "".join(parts) or "0m"
     #
     #     prefix = "~" if learn else ""
     #     new_token_text = f"@o {prefix}{td_str} "

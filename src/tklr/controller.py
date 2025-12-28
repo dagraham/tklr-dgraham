@@ -1205,64 +1205,6 @@ class Controller:
         tokens[:] = new_tokens
         return removed
 
-    # def finish_task(self, record_id: int, job_id: int | None, when: datetime) -> bool:
-    #     """
-    #     Mark a task (or job) as finished at `when`.
-    #
-    #     Semantics:
-    #     - Job (job_id not None):
-    #         add &f <stamp> to that job spec (unchanged from before).
-    #     - Plain task (no job_id):
-    #         look at upcoming instances from DateTimes:
-    #
-    #         * 0 upcoming:
-    #             - no schedule → just append @f <stamp>.
-    #         * 1 upcoming:
-    #             - consume that last instance (like delete_instance),
-    #               then append @f <stamp> to mark the reminder finished.
-    #         * 2+ upcoming:
-    #             - consume only the *next* instance (like delete_instance),
-    #               and DO NOT add @f yet (reminder still has future instances).
-    #     """
-    #     stamp = self.fmt_user(when)
-    #
-    #     # ---- Case 1: project job ----
-    #     if job_id is not None:
-    #
-    #         def edit_job(text: str) -> str:
-    #             # your existing helper that injects &f into the given job
-    #             return self._add_finish_to_job(text, job_id, stamp)
-    #
-    #         return self.apply_textual_edit(record_id, edit_job)
-    #
-    #     # ---- Case 2: plain task (no job_id) ----
-    #     upcoming = self.db_manager.get_next_start_datetimes_for_record(record_id) or []
-    #
-    #     # 0 upcoming instances: no schedule -> simple one-shot finish
-    #     if not upcoming:
-    #
-    #         def edit_no_schedule(text: str) -> str:
-    #             return text.rstrip() + f" @f {stamp}"
-    #
-    #         return self.apply_textual_edit(record_id, edit_no_schedule)
-    #
-    #     # 1 upcoming instance: finishing this consumes the last instance AND the reminder
-    #     if len(upcoming) == 1:
-    #         instance_text = upcoming[0]
-    #
-    #         # consume that final instance (RDATE/@s/@+ housekeeping)
-    #         self.delete_instance(record_id, instance_text)
-    #
-    #         # now mark the reminder as finished with @f
-    #         def edit_last(text: str) -> str:
-    #             return text.rstrip() + f" @f {stamp}"
-    #
-    #         return self.apply_textual_edit(record_id, edit_last)
-    #
-    #     # 2+ upcoming instances: repeating → consume ONLY the next instance
-    #     instance_text = upcoming[0]
-    #     return self.delete_instance(record_id, instance_text)
-
     def _add_finish_to_job(self, record_id: int, job_id: int, stamp: str) -> bool:
         """
         Insert or update an &f token for the given job_id on a project record.
@@ -1400,89 +1342,6 @@ class Controller:
 
         return self.apply_textual_edit(record_id, edit)
 
-    # def delete_instance(
-    #     self,
-    #     record_id: int,
-    #     instance_text: str,
-    # ) -> bool:
-    #     """
-    #     For a single instance:
-    #
-    #     Special case:
-    #     - If the record uses @s + @+ with no @r, we:
-    #         * Compute the full instance list from rruleset.
-    #         * Drop just this instance.
-    #         * Rebuild @s and @+ from the survivors.
-    #
-    #     General case:
-    #     - If the instance appears in an @+ list, remove it from that list.
-    #     - Otherwise, append an @- <instance_text> exclusion token (in entry format).
-    #     """
-    #
-    #     rec = self.db_manager.get_record_as_dictionary(record_id)
-    #     if not rec:
-    #         return False
-    #
-    #     rruleset = rec.get("rruleset") or ""
-    #
-    #     def edit_tokens(tokens: list[dict]) -> bool:
-    #         # 1) Special case: @s + @+ but no @r
-    #         if self._is_s_plus_no_r(tokens) and rruleset:
-    #             changed = self._adjust_s_plus_from_rruleset(
-    #                 tokens,
-    #                 rruleset=rruleset,
-    #                 instance_text=instance_text,
-    #                 mode="one",
-    #             )
-    #             if changed:
-    #                 return True
-    #             # fall through to general path if nothing changed for some reason
-    #
-    #         changed = False
-    #
-    #         # 2) General path: try to remove from @+ using UTC-Z
-    #         removed = self._remove_instance_from_plus_tokens(tokens, instance_text)
-    #         changed = changed or removed
-    #
-    #         # 3) If not present in @+, fall back to @- <entry-style-datetime>
-    #         if not removed:
-    #             inst_dt = parse(instance_text)
-    #             entry_style = self.fmt_user(inst_dt)
-    #             tokens.append(
-    #                 {
-    #                     "token": f"@- {entry_style}",
-    #                     "t": "@",
-    #                     "k": "-",
-    #                 }
-    #             )
-    #             changed = True
-    #
-    #         return changed
-    #
-    #     return self.apply_token_edit(record_id, edit_tokens)
-    #
-    # def delete_this_and_future(
-    #     self,
-    #     record_id: int,
-    #     instance_text: str,
-    # ) -> bool:
-    #     """
-    #     instance_text is the TEXT of the selected instance's start_datetime.
-    #
-    #     Special case (@s + @+ with no @r):
-    #     - Use rruleset to get the full instance list.
-    #     - Remove this instance and all subsequent ones.
-    #     - Rebuild @s and @+ from survivors (or clear schedule if none).
-    #
-    #     General case:
-    #     - Remove this instance from @+ if present.
-    #     - Append &u <cutoff_stamp> where cutoff_stamp is (instance_dt - 1s)
-    #         in entry format.
-    #     """
-    #
-    #     rec = self.db_manager.get_record_as_dictionary(record_id)
-    #     if not rec:
-    #         return False
     #
     #     rruleset = rec.get("rruleset") or ""
     #
@@ -1672,20 +1531,6 @@ class Controller:
         # leaf_lower -> "Leaf/Parent/.../Root"
         return self.db_manager.bin_cache.name_to_binpath()
 
-    # def get_tag_iterator(self, view: str, count: int) -> Iterator[str]:
-    #     if view not in self.afill_by_view:
-    #         self.set_afill([None] * count, view)
-    #     fill = self.afill_by_view[view]
-    #     for i in range(count):
-    #         yield indx_to_tag(i, fill)
-
-    # --- replace your set_afill with this per-view version ---
-    # def set_afill(self, details: list, view: str):
-    #     n = len(details)
-    #     fill = 1 if n <= 26 else 2 if n <= 26 * 26 else 3
-    #     log_msg(f"{view = }, {n = }, {fill = }, {details = }")
-    #     self.afill_by_view[view] = fill
-
     def add_tag(
         self, view: str, indx: int, record_id: int, *, job_id: int | None = None
     ):
@@ -1698,12 +1543,6 @@ class Controller:
             "job_id": job_id,
         }
         return tag_fmt, indx + 1
-
-    # def set_week_afill(self, details: list, yr_wk: Tuple[int, int]):
-    #     n = len(details)
-    #     fill = 1 if n <= 26 else 2 if n <= 26 * 26 else 3
-    #     log_msg(f"{yr_wk = }, {n = }, {fill = }")
-    #     # self.afill_by_week[yr_wk] = fill
 
     def add_week_tag(
         self,
@@ -3012,52 +2851,6 @@ class Controller:
 
         return rows
 
-    # def get_agenda_tasks(self):
-    #     """
-    #     Returns list of (urgency_str_or_pin, color, tag_fmt, colored_subject)
-    #     Suitable for the Agenda Tasks pane.
-    #     """
-    #     tasks_by_urgency = []
-    #
-    #     # Use the JOIN with Pinned so pins persist across restarts
-    #     urgency_records = self.db_manager.get_urgency()
-    #     # rows: (record_id, job_id, subject, urgency, color, status, weights, pinned_int)
-    #
-    #     # self.set_afill(urgency_records, "tasks")
-    #     # log_msg(f"urgency_records {self.afill_by_view = }, {len(urgency_records) = }")
-    #     # indx = 0
-    #     # self.list_tag_to_id.setdefault("tasks", {})
-    #
-    #     # Agenda tasks (has job_id)
-    #     header = f"Tasks ({len(urgency_records)})"
-    #     rows = [
-    #         {"record_id": None, "job_id": None, "text": header},
-    #     ]
-    #     for (
-    #         record_id,
-    #         job_id,
-    #         subject,
-    #         urgency,
-    #         color,
-    #         status,
-    #         weights,
-    #         pinned,
-    #     ) in urgency_records:
-    #         # log_msg(f"collecting tasks {record_id = }, {job_id = }, {subject = }")
-    #         # tag_fmt, indx = self.add_tag("tasks", indx, record_id, job_id=job_id)
-    #         urgency_str = (
-    #             "📌" if pinned else f"[{color}]{int(round(urgency * 100)):>2}[/{color}]"
-    #         )
-    #         rows.append(
-    #             {
-    #                 "record_id": record_id,
-    #                 "job_id": job_id,
-    #                 "text": f"[{TASK_COLOR}]{urgency_str} {self.apply_flags(record_id, subject)}[/{TASK_COLOR}]",
-    #             }
-    #         )
-    #
-    #     return rows
-
     def get_agenda_tasks(self):
         """
         Returns rows suitable for the Agenda Tasks pane.
@@ -3242,125 +3035,6 @@ class Controller:
     def get_subbins(self, bin_id: int) -> list[dict]:
         return self.db_manager.get_subbins(bin_id)
 
-        # def get_reminders(self, bin_id: int) -> list[dict]:
-        #     return self.db_manager.get_reminders_in_bin(bin_id)
-
-        # def _bin_name(self, bin_id: int) -> str:
-        #     self.db_manager.cursor.execute("SELECT name FROM Bins WHERE id=?", (bin_id,))
-        #     row = self.db_manager.cursor.fetchone()
-        #     return row[0] if row else f"bin:{bin_id}"
-
-        # def _is_root(self, bin_id: int) -> bool:
-        #     # adjust if your root id differs
-        #     return bin_id == getattr(self, "root_id", 0)
-
-        # @lru_cache(maxsize=2048)
-        # def _bin_name(self, bin_id: int) -> str:
-        #     if self._is_root(bin_id):
-        #         # choose what you want to display for root
-        #         return "root"  # or "" if you prefer no label
-        #     cur = self.db_manager.cursor
-        #     cur.execute("SELECT name FROM Bins WHERE id=?", (bin_id,))
-        #     row = cur.fetchone()
-        #     return row[0] if row and row[0] else f"bin:{bin_id}"
-        #
-        # def _parent_bin_id(self, bin_id: int) -> Optional[int]:
-        #     # Root has NULL parent
-        #     self.db_manager.cursor.execute(
-        #         "SELECT container_id FROM BinLinks WHERE bin_id=? LIMIT 1", (bin_id,)
-        #     )
-        #     row = self.db_manager.cursor.fetchone()
-        #     return row[0] if row and row[0] is not None else None
-        #
-        # def _bin_path_ids(self, bin_id: int) -> List[int]:
-        #     """Return path of bin ids from root→...→bin_id, but EXCLUDING root."""
-        #     path: List[int] = []
-        #     cur = bin_id
-        #     while cur is not None:
-        #         parent = self._parent_bin_id(cur)
-        #         path.append(cur)
-        #         cur = parent
-        #     path.reverse()
-        #     # Exclude root if it exists and is first
-        #     if path and self._bin_name(path[0]).lower() == "root":
-        #         path = path[1:]
-        #     return path
-
-        # def bin_tagger(self, bin_id: int, page_size: int = 26) -> List[Page]:
-        #     """
-        #     Build pages for a single Bin view.
-        #
-        #     Path (excluding 'root') is shown as the first row on every page.
-        #     - Path segments are tagged a.., but the LAST segment (the current bin) is NOT tagged.
-        #     - On every page, content letters start after the header letters, so if header used a..c,
-        #     content begins at 'd' on each page.
-        #     - Only taggable rows (bins + reminders) count toward page_size.
-        #
-        #     Returns: list[ (rows: list[str], tag_map: dict[str, ('bin'| 'record', target)]) ]
-        #     - target is bin_id for 'bin', or (record_id, job_id|None) for 'record'.
-        #     """
-        #
-        #     # ---------- helpers ----------
-        #     def _is_root(bid: int) -> bool:
-        #         # Adjust if you use a different root id
-        #         return bid == getattr(self, "root_id", 0)
-        #
-        #     @lru_cache(maxsize=4096)
-        #     def _bin_name(bid: int) -> str:
-        #         if _is_root(bid):
-        #             return "root"
-        #         cur = self.db_manager.cursor
-        #         cur.execute("SELECT name FROM Bins WHERE id=?", (bid,))
-        #         row = cur.fetchone()
-        #         return row[0] if row and row[0] else f"bin:{bid}"
-        #
-        #     def _bin_path_ids(bid: int) -> List[int]:
-        #         """Return ancestor path including current bin, excluding root."""
-        #         ids: List[int] = []
-        #         cur = self.db_manager.cursor
-        #         b = bid
-        #         while b is not None and not _is_root(b):
-        #             ids.append(b)
-        #             cur.execute(
-        #                 "SELECT container_id FROM BinLinks WHERE bin_id = ? LIMIT 1", (b,)
-        #             )
-        #             row = cur.fetchone()
-        #             b = row[0] if row else None
-        #         ids.reverse()
-        #         return ids
-        #
-        #     def _pretty_child_name(parent_name: str, child_name: str) -> str:
-        #         """
-        #         Trim exactly 'parent:' from the front of a child name.
-        #         This avoids accidental trims when a child merely starts with the same characters.
-        #         Examples:
-        #         parent='2025', child='2025:10'  -> '10'
-        #         parent='people', child='people:S' -> 'S'
-        #         parent='2025', child='202510'   -> '202510'   (unchanged)
-        #         parent='2025', child='2025x'    -> '2025x'    (unchanged)
-        #         """
-        #         if not parent_name:
-        #             return child_name
-        #         prefix = f"{parent_name}:"
-        #         if child_name.startswith(prefix):
-        #             suffix = child_name[len(prefix) :]
-        #             return suffix or child_name  # never return empty string
-        #         return child_name
-        #
-        #     def _format_path_header(
-        #         path_ids: List[int], continued: bool
-        #     ) -> Tuple[str, Dict[str, Tuple[str, int]], int]:
-        #         """
-        #         Build the header text and its tag_map.
-        #         Tag all but the last path segment (so the current bin is untagged).
-        #         Returns: (header_text, header_tagmap, header_letters_count)
-        #         """
-        #         tag_map: Dict[str, Tuple[str, int]] = {}
-        #         segs: List[str] = []
-        #         if not path_ids:
-        #             header_text = ".."
-        #             return (
-        #                 (header_text + (" [i](continued)[/i]" if continued else "")),
         #                 tag_map,
         #                 0,
         #             )
@@ -3424,62 +3098,6 @@ class Controller:
         #
         #     all_rows: List[Tuple[str, Any, str]] = bin_rows + rec_rows
         #
-        #     # ---------- paging ----------
-        #     pages: List[Page] = []
-        #     idx = 0
-        #     first = True
-        #
-        #     # header (first page) + how many letters consumed by header
-        #     first_header_text, first_hdr_map, header_letters = _format_path_header(
-        #         path_ids, continued=False
-        #     )
-        #     content_capacity = max(0, page_size - header_letters)
-        #
-        #     while first or idx < len(all_rows):
-        #         if first:
-        #             header_text, hdr_map = first_header_text, dict(first_hdr_map)
-        #         else:
-        #             # repeated header with (continued)
-        #             header_text, hdr_map, _ = _format_path_header(path_ids, continued=True)
-        #
-        #         rows_out: List[str] = [header_text]
-        #         tag_map: Dict[str, Tuple[str, Any]] = dict(hdr_map)
-        #
-        #         if content_capacity == 0:
-        #             # Deep path; show header-only page to avoid infinite loop
-        #             pages.append((rows_out, tag_map))
-        #             break
-        #
-        #         tagged = 0
-        #         next_letter_idx = (
-        #             header_letters  # content starts after header letters every page
-        #         )
-        #         while idx < len(all_rows) and tagged < content_capacity:
-        #             kind, payload, text = all_rows[idx]
-        #             idx += 1
-        #             tag = chr(ord("a") + next_letter_idx)
-        #             if kind == "bin":
-        #                 tag_map[tag] = ("bin", payload)
-        #             else:
-        #                 tag_map[tag] = ("record", payload)  # (record_id, job_id)
-        #             rows_out.append(f" [dim]{tag}[/dim]  {text}")
-        #             tagged += 1
-        #             next_letter_idx += 1
-        #
-        #         pages.append((rows_out, tag_map))
-        #         first = False
-        #
-        #     return pages
-
-        # def get_bin_pages(self, bin_id: int):
-        #     """Public API the view will call."""
-        #     pages = self.bin_tagger(bin_id)
-        #     # Title: path text without tags, e.g. "Activities / Travel". If no path => "root".
-        #     path_ids = self._bin_path_ids(bin_id)
-        #     # title = " / ".join(self._bin_name(b) for b in path_ids) or ".."
-        #     title = "Bins"
-        #     return pages, title
-
         def get_record_details(self, record_id: int) -> str:
             """Fetch record details formatted for the details pane."""
             record = self.db_manager.get_record(record_id)
@@ -3535,22 +3153,6 @@ class Controller:
             out.append(_BackupInfo(path=p, day=d, mtime=st.st_mtime))
         out.sort(key=lambda bi: (bi.day, bi.mtime), reverse=True)
         return out
-
-    # def _sqlite_backup(self, src_db: Path, dest_db: Path) -> None:
-    #     """Use SQLite's backup API for a consistent snapshot."""
-    #     dest_tmp = dest_db.with_suffix(dest_db.suffix + ".tmp")
-    #     dest_db.parent.mkdir(parents=True, exist_ok=True)
-    #     with sqlite3.connect(str(src_db)) as src, sqlite3.connect(str(dest_tmp)) as dst:
-    #         src.backup(dst, pages=0)  # full backup
-    #         # Safety on the destination file only:
-    #         dst.execute("PRAGMA wal_checkpoint(TRUNCATE);")
-    #         dst.execute("VACUUM;")
-    #         dst.commit()
-    #     try:
-    #         shutil.copystat(src_db, dest_tmp)
-    #     except Exception:
-    #         pass
-    #     dest_tmp.replace(dest_db)
 
     def _should_snapshot(self, db_path: Path, backups: List[_BackupInfo]) -> bool:
         try:
@@ -3718,19 +3320,6 @@ class Controller:
             bin_id if bin_id is not None else self.get_root_bin_id()
         )
         return children, reminders, crumb
-
-    # def get_reminder_details(self, record_id: int) -> str:
-    #     # Minimal, safe detail using your existing schema
-    #     row = self.db_manager.cursor.execute(
-    #         "SELECT subject, itemtype FROM Records WHERE id=?",
-    #         (record_id,),
-    #     ).fetchone()
-    #     if not row:
-    #         return "[b]Unknown reminder[/b]"
-    #     old_subject, itemtype = row
-    #     subject = self.apply_flags(record_id, old_subject)
-    #     log_msg(f"bins new {old_subject = }, {subject = }")
-    #     return f"[b]{subject}[/b]\n[dim]type:[/dim] {itemtype or '—'}"
 
     def get_descendant_tree(self, bin_id: int) -> list[tuple[int, str, int]]:
         """

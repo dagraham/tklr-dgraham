@@ -884,93 +884,6 @@ class TextPrompt(ModalScreen[Optional[str]]):
             self.dismiss(None)
 
 
-# class DatetimePrompt(ModalScreen[datetime | None]):
-#     """
-#     Prompt for a datetime, live-parsed with dateutil.parser.parse.
-#     """
-#
-#     def __init__(
-#         self,
-#         message: str,  # top custom lines before fixed footer
-#         subject: str | None = None,
-#         due: str | None = None,
-#         default: datetime | None = None,
-#     ):
-#         super().__init__()
-#         self.title_text = " Datetime Entry"
-#         self.message = message.strip()
-#         # self.subject = subject
-#         # self.due = due
-#         self.default = default or datetime.now()
-#
-#         # assigned later
-#         self.input: Input | None = None
-#         self.feedback: Static | None = None
-#         self.instructions: Static | None = None
-#
-#     def compose(self) -> ComposeResult:
-#         """Build prompt layout."""
-#         # ARROW = "↳"
-#         default_str = self.default.strftime("%Y-%m-%d %H:%M")
-#
-#         def rule():
-#             return Static("─" * 60, classes="dim-rule")
-#
-#         with Vertical(id="dt_prompt"):
-#             instructions = [
-#                 "Modify the datetime belew if necessary, then press",
-#                 "[bold yellow]ENTER[/bold yellow] to submit or [bold yellow]ESC[/bold yellow] to cancel.",
-#             ]
-#             self.instructions = Static("\n".join(instructions), id="dt_instructions")
-#             self.feedback = Static(f"️↳ {default_str}", id="dt_feedback")
-#             self.input = Input(value=default_str, id="dt_entry")
-#             #
-#             # Title
-#             yield Static(self.title_text, classes="title-class", id="dt_title")
-#             # yield rule()
-#
-#             # Message (custom, may include subject/due or other contextual info)
-#             if self.message:
-#                 yield Static(self.message.strip(), id="dt_message")
-#                 # yield rule()
-#
-#             yield self.instructions
-#
-#             yield self.input
-#
-#             yield self.feedback
-#
-#             # yield rule()
-#
-#     def on_mount(self) -> None:
-#         """Focus the input and show feedback for the initial value."""
-#         self.query_one("#dt_entry", Input).focus()
-#         self._update_feedback(self.input.value)
-#
-#     def _update_feedback(self, text: str) -> None:
-#         try:
-#             parsed = parse(text)
-#             if isinstance(parsed, date) and not isinstance(parsed, datetime):
-#                 self.feedback.update(f"datetime: {parsed.strftime('%Y-%m-%d')}")
-#             else:
-#                 self.feedback.update(f"datetime: {parsed.strftime('%Y-%m-%d %H:%M')}")
-#         except Exception:
-#             _t = f": {text} " if text else ""
-#             self.feedback.update(f"[{ORANGE_RED}] invalid{_t}[/{ORANGE_RED}] ")
-#
-#     def on_key(self, event) -> None:
-#         """Handle Enter and Escape."""
-#         if event.key == "escape":
-#             self.dismiss(None)
-#         elif event.key == "enter":
-#             try:
-#                 value = self.input.value.strip()
-#                 parsed = parse(value) if value else self.default
-#                 self.dismiss(parsed)
-#             except Exception:
-#                 self.dismiss(None)
-
-
 class DatetimePrompt(ModalScreen[datetime | None]):
     """
     Prompt for a datetime, live-parsed with dateutil.parser.parse.
@@ -1034,19 +947,6 @@ class DatetimePrompt(ModalScreen[datetime | None]):
         if event.input.id == "dt_entry":
             self._update_feedback(event.value)
 
-    # def on_key(self, event) -> None:
-    #     """Handle Enter and Escape."""
-    #     if event.key == "escape":
-    #         self.dismiss(None)
-    #     elif event.key == "enter":
-    #         try:
-    #             value = self.input.value.strip()
-    #             parsed = parse(value) if value else self.default
-    #             log_msg(f"returning {parsed =} from submitted {value = }")
-    #             self.dismiss(parsed)
-    #         except Exception:
-    #             self.dismiss(None)
-
     def on_key(self, event) -> None:
         """Handle Enter and Escape."""
         if event.key == "escape":
@@ -1080,11 +980,6 @@ class EditorScreen(Screen):
           persist only if parse_ok, else warn.
     """
 
-    # BINDINGS = [
-    #     ("shift+enter", "commit", "Commit"),
-    #     ("ctrl+s", "save", "Save"),
-    #     ("escape", "close", "Back"),
-    # ]
     BINDINGS = [
         ("shift+enter", "save_and_close", "Commit"),
         ("escape", "close", "Back"),
@@ -1146,10 +1041,6 @@ class EditorScreen(Screen):
     # ---------- Text change -> live parse ----------
     def on_text_area_changed(self, event: TextArea.Changed) -> None:
         """Re-parse using the actual TextArea content, not the event payload."""
-        # Make sure we have a handle to the TextArea
-        # if not getattr(self, "_text", None):
-        #     self._text = self.query_one("#ed_entry", TextArea)
-
         # Source of truth: the widget's text property
         self.entry_text = self._text.text or ""
         self._live_parse_and_feedback(final=False)
@@ -1161,31 +1052,6 @@ class EditorScreen(Screen):
         # Don't re-parse—just re-render feedback for the new caret position
         self._render_feedback()
 
-    # ---------- Actions ----------
-    # def action_close(self) -> None:
-    #     self.app.pop_screen()
-    #
-    # def action_save(self) -> None:
-    #     """Finalize, re-parse, and persist if valid (no partial saves)."""
-    #     ok = self._finalize_and_validate()
-    #     if not ok:
-    #         self.app.notify("Cannot save: fix errors first.", severity="warning")
-    #         return
-    #     self._persist(self.item)
-    #     self.app.notify("Saved.", timeout=1.0)
-    #
-    #
-    # def action_commit(self) -> None:
-    #     """Same semantics as save; you can keep separate if you want a different UX."""
-    #     ok = self._finalize_and_validate()
-    #     if not ok:
-    #         self.app.notify("Cannot commit: fix errors first.", severity="warning")
-    #         return
-    #     self._persist(self.item)
-    #     self.app.notify("Committed.", timeout=1.0)
-    #     self._try_refresh_calling_view()
-    #     self.app.pop_screen()
-
     def action_save_and_close(self) -> None:
         ok = self._finalize_and_validate()
         if not ok:
@@ -1194,12 +1060,6 @@ class EditorScreen(Screen):
         self._persist(self.item)
         self.app.notify("Saved.", timeout=0.8)
         self.dismiss({"changed": True, "record_id": self.record_id})
-
-    # def action_save(self) -> None:        # optional shim
-    #     self.action_save_and_close()
-    #
-    # def action_commit(self) -> None:      # optional shim
-    #     self.action_save_and_close()
 
     def action_close(self) -> None:
         self.dismiss(None)  # close without saving
@@ -1390,35 +1250,6 @@ class EditorScreen(Screen):
 
 
 class DetailsScreen(ModalScreen[None]):
-    # BINDINGS = [
-    #     ("escape", "close", "Back"),
-    #     ("?", "show_help", "Help"),
-    #     ("ctrl+q", "quit", "Quit"),
-    #     ("alt+e", "edit_item", "Edit"),
-    #     ("alt+c", "copy_item", "Copy"),
-    #     ("alt+d", "delete_item", "Delete"),
-    #     ("alt+f", "finish_task", "Finish"),  # tasks only
-    #     ("alt+p", "toggle_pinned", "Pin/Unpin"),  # tasks only
-    #     ("alt+n", "schedule_new", "Schedule"),
-    #     ("alt+r", "reschedule", "Reschedule"),
-    #     ("alt+t", "touch_item", "Touch"),
-    #     ("ctrl+r", "show_repetitions", "Show Repetitions"),
-    # ]
-
-    # Actions mapped to bindings
-    # def action_edit_item(self) -> None:
-    #     self._edit_item()
-    #
-    # def action_copy_item(self) -> None:
-    #     self._copy_item()
-    #
-    # def action_delete_item(self) -> None:
-    #     self._delete_item()
-    #
-    # def action_finish_task(self) -> None:
-    #     if self.is_task:
-    #         self._finish_task()
-    #
     def action_toggle_pinned(self) -> None:
         if self.is_task:
             self._toggle_pinned()
@@ -1501,26 +1332,10 @@ class DetailsScreen(ModalScreen[None]):
         if self.is_recurring:
             self._show_repetitions()
 
-    # def action_show_help(self) -> None:
-    #     self.app.push_screen(DetailsHelpScreen(self._build_help_text()))
-
     def action_show_help(self) -> None:
         # Build the specialized details help
         lines = self._build_help_text().splitlines()
         self.app.push_screen(HelpScreen(lines))
-
-    # ---------- wire these to your controller ----------
-    # def _edit_item(self) -> None:
-    #     # e.g. self.app.controller.edit_record(self.record_id)
-    #     log_msg("edit_item")
-    #
-    # def _copy_item(self) -> None:
-    #     # e.g. self.app.controller.copy_record(self.record_id)
-    #     log_msg("copy_item")
-    #
-    # def _delete_item(self) -> None:
-    #     # e.g. self.app.controller.delete_record(self.record_id, scope=...)
-    #     log_msg("delete_item")
 
     def _prompt_finish_datetime(self) -> datetime | None:
         """
@@ -3754,9 +3569,6 @@ class DynamicViewApp(App):
                 os.system(alert_command)
             self.controller.db_manager.mark_alert_executed(alert_id)
 
-    # def action_new_reminder(self):
-    #     self.push_screen(EditorScreen(self.controller, None, seed_text=""))
-
     def action_new_reminder(self) -> None:
         # Use whatever seed you like (empty, template, clipboard, etc.)
         self.open_editor_for(seed_text="")
@@ -4012,9 +3824,6 @@ class DynamicViewApp(App):
 
     def action_quit(self):
         self.exit()
-
-    # def action_show_help(self):
-    #     self.push_screen(HelpScreen(HelpText))
 
     def action_show_help(self):
         scr = self.screen

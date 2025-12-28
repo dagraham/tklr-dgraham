@@ -184,30 +184,6 @@ def format_subvalue(val) -> list[str]:
     return results
 
 
-# ------------------------------------------------------------
-# Conversion logic
-# ------------------------------------------------------------
-# def etm_to_tokens(item: dict, key: str | None, include_etm: bool = True) -> list[str]:
-#     """Convert an etm JSON entry into a list of tklr tokens."""
-#
-#     raw_type = item.get("itemtype", "?")
-#     has_jobs = bool(item.get("j"))  # detect jobs
-#     itemtype = TYPE_MAP.get(raw_type, raw_type)
-#
-#     # Promote tasks-with-jobs to projects
-#     if itemtype == "~" and has_jobs:
-#         itemtype = "^"
-#
-#     summary = item.get("summary", "")
-#     tokens = [f"{itemtype} {summary}"]
-#
-#     for k, v in item.items():
-#         if k in {"itemtype", "summary", "created", "modified", "h", "k", "q"}:
-#             continue
-#
-#         if k == "d":  # description
-#             tokens.append(f"@d {v}")
-#             continue
 #
 #         if k == "b":  # beginby
 #             tokens.append(f"@b {v}d")
