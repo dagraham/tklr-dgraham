@@ -2349,6 +2349,31 @@ class Controller:
                         return parts[1].strip()
             return ""
 
+        def _update_at_token(
+            tokens: list[dict],
+            key: str,
+            new_value: str | None,
+            *,
+            allow_create: bool = False,
+        ) -> bool:
+            """
+            Update the first token matching @<key>. Returns True when a change occurs.
+            """
+            for idx, tok in enumerate(tokens):
+                if tok.get("t") == "@" and tok.get("k") == key:
+                    if new_value is None:
+                        tokens.pop(idx)
+                        return True
+                    new_text = f"@{key} {new_value}".strip()
+                    if tok.get("token") != new_text:
+                        tokens[idx] = {**tok, "token": new_text}
+                        return True
+                    return False
+            if new_value is None or not allow_create:
+                return False
+            tokens.append({"token": f"@{key} {new_value}".strip(), "t": "@", "k": key})
+            return True
+
         records = self.db_manager.get_goal_records()
         header = (
             f"[bold {HEADER_COLOR}]tag        done    left      subject"
@@ -2371,8 +2396,8 @@ class Controller:
         goals: list[dict[str, object]] = []
 
         for record_id, subject, tokens_json in records:
-            tokens = _ensure_tokens_list(tokens_json)
-            tokens = reveal_mask_tokens(tokens, self.mask_secret)
+            raw_tokens = _ensure_tokens_list(tokens_json)
+            tokens = reveal_mask_tokens(raw_tokens, self.mask_secret)
             if not tokens:
                 continue
 
@@ -2383,7 +2408,7 @@ class Controller:
                 continue
 
             try:
-                start_dt = parse(
+                parsed_start = parse(
                     start_raw,
                     yearfirst=self.yearfirst,
                     dayfirst=self.dayfirst,
@@ -2391,9 +2416,16 @@ class Controller:
             except Exception:
                 continue
 
-            if isinstance(start_dt, date) and not isinstance(start_dt, datetime):
-                start_dt = datetime.combine(start_dt, datetime.min.time())
-            if isinstance(start_dt, datetime) and start_dt.tzinfo is not None:
+            start_is_date_only = isinstance(parsed_start, date) and not isinstance(
+                parsed_start, datetime
+            )
+            if start_is_date_only:
+                start_dt = datetime.combine(parsed_start, datetime.min.time())
+            else:
+                start_dt = parsed_start if isinstance(parsed_start, datetime) else None
+                if start_dt is None:
+                    continue
+            if start_dt.tzinfo is not None:
                 start_dt = _to_local_naive(start_dt)
 
             num_part, period_part = target_raw.split("/", 1)
@@ -2416,8 +2448,45 @@ class Controller:
                 num_completed = 0
             num_completed = max(0, min(num_completed, num_required))
 
+            tokens_dirty = False
+            has_k_token = any(
+                tok.get("t") == "@" and tok.get("k") == "k" for tok in raw_tokens
+            )
+
+            completed_periods = num_completed // num_required if num_required else 0
+            if completed_periods:
+                start_dt = start_dt + period_td * completed_periods
+                num_completed -= completed_periods * num_required
+                formatted_start = self.fmt_user(
+                    start_dt.date() if start_is_date_only else start_dt
+                )
+                if _update_at_token(raw_tokens, "s", formatted_start):
+                    tokens_dirty = True
+                if has_k_token and _update_at_token(
+                    raw_tokens, "k", str(num_completed)
+                ):
+                    tokens_dirty = True
+
             end_dt = start_dt + period_td
-            if now < start_dt or now >= end_dt:
+
+            if now >= end_dt:
+                delta = now - start_dt
+                periods_passed = max(1, int(delta // period_td))
+                start_dt = start_dt + period_td * periods_passed
+                end_dt = start_dt + period_td
+                formatted_start = self.fmt_user(
+                    start_dt.date() if start_is_date_only else start_dt
+                )
+                if _update_at_token(raw_tokens, "s", formatted_start):
+                    tokens_dirty = True
+                if has_k_token and _update_at_token(raw_tokens, "k", "0"):
+                    tokens_dirty = True
+                num_completed = 0
+
+            if tokens_dirty:
+                self.db_manager.update_record_tokens(record_id, raw_tokens)
+
+            if now < start_dt:
                 continue
 
             remaining_seconds_raw = int((end_dt - now).total_seconds())

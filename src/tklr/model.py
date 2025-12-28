@@ -2189,6 +2189,15 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
+    def update_record_tokens(self, record_id: int, tokens: list[dict]) -> None:
+        """Persist an updated tokens list for a record."""
+        serialized = json.dumps(tokens or [])
+        self.cursor.execute(
+            "UPDATE Records SET tokens = ?, modified = ? WHERE id = ?",
+            (serialized, utc_now_string(), record_id),
+        )
+        self.conn.commit()
+
     def iter_records_for_query(self):
         """
         Yield dictionaries containing id, itemtype, subject, and decoded tokens for queries.

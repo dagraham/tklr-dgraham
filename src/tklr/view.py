@@ -285,11 +285,12 @@ HelpText = f"""\
 [bold]^Q[/bold]        Quit           [bold]^S[/bold]    Screenshot
 [bold] +[/bold]        New Reminder   [bold] ?[/bold]    Help
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
- [bold]A[/bold]    Agenda              [bold]H[/bold]    Hash Tags
- [bold]B[/bold]    Bins                [bold]L[/bold]    Last
- [bold]C[/bold]    Completed           [bold]N[/bold]    Next
+ [bold]A[/bold]    Agenda              [bold]L[/bold]    Last
+ [bold]B[/bold]    Bins                [bold]N[/bold]    Next
+ [bold]C[/bold]    Completed           [bold]Q[/bold]    Query
  [bold]F[/bold]    Find                [bold]R[/bold]    Remaining Alerts
  [bold]G[/bold]    Goals               [bold]W[/bold]    Weeks
+ [bold]H[/bold]    Hash Tags
 [bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
  [bold]/[/bold]        Set search      empty search clears
  [bold]>[/bold]        Next match      [bold]<[/bold]    Previous match
@@ -552,9 +553,7 @@ class ListWithDetails(Container):
         """handler(key: str, meta: dict) -> None"""
         self._detail_key_handler = handler
 
-    def set_details_visibility_callback(
-        self, callback: Callable[[bool], None]
-    ) -> None:
+    def set_details_visibility_callback(self, callback: Callable[[bool], None]) -> None:
         self._details_visibility_callback = callback
 
     def on_key(self, event) -> None:
@@ -615,7 +614,7 @@ class ListWithDetails(Container):
         except Exception:
             return
 
-        hint = f"  [bold {FOOTER}]Enter[/bold {FOOTER}] Actions menu"
+        hint = f"  [bold {FOOTER}]Enter[/bold {FOOTER}] Reminder menu"
 
         if active:
             if self._footer_hint_active:
@@ -2292,7 +2291,7 @@ class TaggedHierarchyScreen(SearchableScreen):
             footer_content
             or f"[bold {FOOTER}]?[/bold {FOOTER}] Help "
             f" [bold {FOOTER}]/[/bold {FOOTER}] Search "
-            f" [bold {FOOTER}]a-z[/bold {FOOTER}] Open tagged bin"
+            f" [bold {FOOTER}]a-z[/bold {FOOTER}] Open tagged "
         )
         self.footer_content = self._base_footer
         self.list_with_details: Optional[ListWithDetails] = None
@@ -2418,6 +2417,12 @@ class TaggedHierarchyScreen(SearchableScreen):
         self.current_page = 0
         self._selection_kind = "bin"
         self._refresh_page()
+
+    def _render_reminder_label(self, r: ReminderRow) -> str:
+        # Example: "Fix itinerary  [dim]task[/dim]"
+        log_msg(f"view bins {r = }")
+        tclr = TYPE_TO_COLOR[r.itemtype]
+        return f"[{tclr}]{r.itemtype} {r.subject}[/ {tclr}]"
 
     def _refresh_page(self) -> None:
         rows, tag_map = self.pages[self.current_page] if self.pages else ([], {})
@@ -3044,6 +3049,7 @@ class QueryScreen(SearchableScreen, SafeScreen):
         if hasattr(parent, "on_key"):
             return parent.on_key(event)
         return None
+
     def _render_tree_rows(
         self,
         flat_nodes: list[tuple[int, str, int]],
@@ -3163,7 +3169,7 @@ class DynamicViewApp(App):
         self.saved_lines = []
         self.afill = 1
         self.leader_mode = False
-        self.details_footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search  [bold yellow]Enter[/bold yellow] Actions Menu "
+        self.details_footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search  [bold yellow]Enter[/bold yellow] Reminder menu "
         self.details_drawer: DetailsDrawer | None = None
         self.run_daily_tasks()
 

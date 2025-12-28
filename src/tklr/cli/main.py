@@ -808,3 +808,35 @@ def query(ctx, query_parts, limit):
     else:
         suffix = "" if total == 1 else "es"
         print(f"{total} match{suffix}.")
+
+
+@cli.command()
+@click.argument("regex_parts", nargs=-1)
+@click.pass_context
+def find(ctx, regex_parts):
+    """
+    Search reminders whose subject or @d description matches a case-insensitive regex.
+
+    Examples:
+        tklr find waldo
+        tklr find '(?i)project\\d+'
+    """
+    pattern = " ".join(regex_parts).strip()
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+    controller = Controller(db_path, env)
+
+    matches = controller.db_manager.find_records(pattern)
+    if not matches:
+        if pattern:
+            print(f"No reminders matched {pattern!r}.")
+        else:
+            print("No reminders found.")
+        return
+
+    for record_id, subject, _description, itemtype, _last_ts, _next_ts in matches:
+        subj = subject or "(untitled)"
+        print(f"{itemtype} {subj} (id {record_id})")
+
+    suffix = "" if len(matches) == 1 else "es"
+    print(f"{len(matches)} match{suffix}.")
