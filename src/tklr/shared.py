@@ -168,12 +168,6 @@ def _to_local_naive(dt: datetime) -> datetime:
     return local
 
 
-def dt_as_utc_timestamp(dt: datetime) -> int:
-    if not isinstance(dt, datetime):
-        return 0
-    return round(dt.astimezone(tz.UTC).timestamp())
-
-
 def timedelta_str_to_seconds(time_str: str) -> tuple[bool, int]:
     """
     Converts a time string composed of integers followed by 'w', 'd', 'h', or 'm'
@@ -205,25 +199,6 @@ def timedelta_str_to_seconds(time_str: str) -> tuple[bool, int]:
     return True, total_seconds
 
 
-# ---------- DateTimes (local-naive, minute precision) ----------
-def fmt_local_compact(dt: datetime) -> str:
-    """Local-naive → 'YYYYMMDD' or 'YYYYMMDDTHHMM' (no seconds)."""
-    if dt.hour == dt.minute == dt.second == 0:
-        return dt.strftime("%Y%m%d")
-    return dt.strftime("%Y%m%dT%H%M")
-
-
-def parse_local_compact(s: str) -> datetime:
-    """'YYYYMMDD' or 'YYYYMMDDTHHMM' → local-naive datetime."""
-    if len(s) == 8:
-        return datetime.strptime(s, "%Y%m%d")
-    if len(s) == 13 and s[8] == "T":
-        return datetime.strptime(s, "%Y%m%dT%H%M")
-    raise ValueError(f"Bad local-compact datetime: {s!r}")
-
-
-
-# ---------- Aware UTC (with trailing 'Z', minute precision) ----------
 def fmt_utc_z(dt: datetime) -> str:
     """Aware/naive → UTC aware → 'YYYYMMDDTHHMMZ' (no seconds)."""
     if dt.tzinfo is None:

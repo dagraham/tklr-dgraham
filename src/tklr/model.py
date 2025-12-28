@@ -36,8 +36,6 @@ from .shared import (
     datetime_from_timestamp,
     duration_in_words,
     datetime_in_words,
-    fmt_local_compact,
-    parse_local_compact,
     fmt_utc_z,
     parse_utc_z,
     fmt_user,

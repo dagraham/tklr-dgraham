@@ -36,8 +36,6 @@ from .shared import (
     bug_msg,
     _to_local_naive,
     print_msg,
-    fmt_local_compact,
-    parse_local_compact,
     fmt_utc_z,
     parse_utc_z,
     timedelta_str_to_seconds,
