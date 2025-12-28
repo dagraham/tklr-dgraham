@@ -1,32 +1,11 @@
 from __future__ import annotations
 from packaging.version import parse as parse_version
 from importlib.metadata import version
-from functools import lru_cache
-
-# TODO: Keep the display part - the model part will be in model.py
 from datetime import datetime, timedelta, date, timezone
 
-# from logging import log
-# from sre_compile import dis
-from rich.console import Console
-from rich.table import Table
-from rich.box import HEAVY_EDGE
-from rich import style
-from rich.columns import Columns
-from rich.console import Group, group
-from rich.panel import Panel
-from rich.layout import Layout
-from rich import print as rprint
 import re
 import inspect
-from rich.theme import Theme
-from rich import box
-from rich.text import Text
 from typing import List, Tuple, Optional, Dict, Any, Set
-from bisect import bisect_left, bisect_right
-from typing import Iterator, Callable
-
-import string
 import shutil
 import subprocess
 import shlex
@@ -53,13 +32,10 @@ from dateutil import tz
 # import sqlite3
 from .shared import (
     TYPE_TO_COLOR,
-    REPEATING,
     log_msg,
     bug_msg,
     _to_local_naive,
     HRS_MINS,
-    # ALERT_COMMANDS,
-    dt_as_utc_timestamp,
     format_time_range,
     format_timedelta,
     datetime_from_timestamp,
@@ -67,11 +43,7 @@ from .shared import (
     datetime_in_words,
     truncate_string,
     parse,
-    fmt_local_compact,
-    parse_local_compact,
     fmt_utc_z,
-    # fmt_user,
-    parse_utc_z,
     timedelta_str_to_seconds,
 )
 from tklr.tklr_env import TklrEnvironment
@@ -160,8 +132,6 @@ HEADER_STYLE = f"bold {LEMON_CHIFFON}"
 FIELD_COLOR = LIGHT_SKY_BLUE
 
 ONEDAY = timedelta(days=1)
-ONEWK = 7 * ONEDAY
-alpha = [x for x in string.ascii_lowercase]
 
 # TYPE_TO_COLOR = {
 #     "*": EVENT_COLOR,  # event
@@ -190,19 +160,6 @@ def _ensure_tokens_list(value):
         return json.loads(value)
     # last resort: try to coerce
     return list(value)
-
-
-# Stop at end-of-line or the start of another token-ish thing (@, &, +, %, - ...)
-RE_BIN = re.compile(r"@b\s+([^\s].*?)\s*(?=$|[@&+%-])", re.IGNORECASE)
-
-
-def extract_bin_slashpath(line: str) -> str | None:
-    """
-    Example:
-      "Pick up pastry @b Lille\\France\\places @t 9a" -> "Lille\\France\\places"
-    """
-    m = RE_BIN.search(line or "")
-    return m.group(1) if m else None
 
 
 def format_tokens(tokens, width, highlight=True):
@@ -455,115 +412,11 @@ def decimal_to_base26(decimal_num):
     return base26
 
 
-def base26_to_decimal(tag: str) -> int:
-    """Decode 'a'..'z' (a=0) for any length."""
-    total = 0
-    for ch in tag:
-        total = total * 26 + (ord(ch) - ord("a"))
-    return total
-
-
 def indx_to_tag(indx: int, fill: int = 1):
     """
     Convert an index to a base-26 tag.
     """
     return decimal_to_base26(indx).rjust(fill, "a")
-
-
-def event_tuple_to_minutes(start_dt: datetime, end_dt: datetime) -> Tuple[int, int]:
-    """
-    Convert event start and end datetimes to minutes since midnight.
-
-    Args:
-        start_dt (datetime): Event start datetime.
-        end_dt (datetime): Event end datetime.
-
-    Returns:
-        Tuple(int, int): Tuple of start and end minutes since midnight.
-    """
-    start_minutes = start_dt.hour * 60 + start_dt.minute
-    end_minutes = end_dt.hour * 60 + end_dt.minute if end_dt else start_minutes
-    return (start_minutes, end_minutes)
-
-
-def get_busy_bar(events):
-    """
-    Determine slot states (0: free, 1: busy, 2: conflict) for a list of events.
-
-    Args:
-        L (List[int]): Sorted list of slot boundaries.
-        events (List[Tuple[int, int]]): List of event tuples (start, end).
-
-    Returns:
-        List[int]: A list where 0 indicates a free slot, 1 indicates a busy slot,
-                and 2 indicates a conflicting slot.
-    """
-    # Initialize slot usage as empty lists
-    L = SLOT_MINUTES
-    slot_events = [[] for _ in range(len(L) - 1)]
-    allday = 0
-
-    for b, e in events:
-        # Find the start and end slots for the current event
-
-        if b == 0 and e == 0:
-            allday += 1
-        if e == b and not allday:
-            continue
-
-        start_slot = bisect_left(L, b) - 1
-        end_slot = bisect_left(L, e) - 1
-
-        # Track the event in each affected slot
-        for i in range(start_slot, min(len(slot_events), end_slot + 1)):
-            if L[i + 1] > b and L[i] < e:  # Ensure overlap with the slot
-                slot_events[i].append((b, e))
-
-    # Determine the state of each slot
-    slots_state = []
-    for i, events_in_slot in enumerate(slot_events):
-        if not events_in_slot:
-            # No events in the slot
-            slots_state.append(0)
-        elif len(events_in_slot) == 1:
-            # Only one event in the slot, so it's busy but not conflicting
-            slots_state.append(1)
-        else:
-            # Check for overlaps to determine if there's a conflict
-            events_in_slot.sort()  # Sort events by start time
-            conflict = False
-            for j in range(len(events_in_slot) - 1):
-                _, end1 = events_in_slot[j]
-                start2, _ = events_in_slot[j + 1]
-                if start2 < end1:  # Overlap detected
-                    conflict = True
-                    break
-            slots_state.append(2 if conflict else 1)
-
-    busy_bar = ["_" for _ in range(len(slots_state))]
-    have_busy = False
-    for i in range(len(slots_state)):
-        if slots_state[i] == 0:
-            busy_bar[i] = f"[dim]{FREE}[/dim]"
-        elif slots_state[i] == 1:
-            have_busy = True
-            busy_bar[i] = f"[{BUSY_COLOR}]{BUSY}[/{BUSY_COLOR}]"
-        else:
-            have_busy = True
-            busy_bar[i] = f"[{CONF_COLOR}]{BUSY}[/{CONF_COLOR}]"
-
-    # return slots_state, "".join(busy_bar)
-    busy_str = (
-        f"\n[{BUSY_FRAME_COLOR}]{''.join(busy_bar)}[/{BUSY_FRAME_COLOR}]"
-        if have_busy
-        else "\n"
-    )
-
-    aday_str = f"[{BUSY_COLOR}]{ADAY}[/{BUSY_COLOR}]" if allday > 0 else ""
-
-    return aday_str, busy_str
-
-
 def ordinal(n: int) -> str:
     """Return ordinal representation of an integer (1 -> 1st)."""
     if 10 <= n % 100 <= 20:

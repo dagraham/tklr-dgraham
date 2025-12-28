@@ -160,17 +160,7 @@ def add(ctx, entry, file, batch):
             return []
         return split_entries(result)
 
-    def get_entries_from_file(path: str) -> list[str]:
-        with open(path, "r", encoding="utf-8") as f:
-            content = f.read().strip()
-        return split_entries(content)
-
-    def get_entries_from_stdin() -> list[str]:
-        data = sys.stdin.read().strip()
-        return split_entries(data)
-
     def process_entry(entry_str: str) -> bool:
-        exception = False
         msg = None
         try:
             item = Item(env=env, raw=entry_str, final=True)
@@ -583,7 +573,6 @@ def weeks(ctx, start_opt, end_opt, width, rich):
 
     first_week = True
     while week_start <= end_sunday:
-        week_end = week_start + timedelta(days=6)
         iso_year, iso_week, _ = week_start.isocalendar()
 
         if not first_week:
