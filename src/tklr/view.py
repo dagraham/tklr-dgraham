@@ -9,7 +9,6 @@ from asyncio import create_task
 from .shared import (
     log_msg,
     bug_msg,
-    display_messages,
     parse,
     TYPE_TO_COLOR,
     fmt_user,

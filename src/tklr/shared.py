@@ -306,6 +306,186 @@ def calculate_4_week_start() -> datetime:
     return start_of_week - timedelta(weeks=weeks_into_cycle)
 
 
+def datetime_from_timestamp(fmt_dt: str | datetime | None) -> datetime | None:
+    """
+    Parse a compact timestamp ('YYYYMMDD' or 'YYYYMMDDTHHMM') into a datetime.
+    """
+    if isinstance(fmt_dt, datetime):
+        return fmt_dt
+    if not fmt_dt:
+        return None
+    fmt_dt = str(fmt_dt).strip()
+    try:
+        if "T" in fmt_dt:
+            return datetime.strptime(fmt_dt, "%Y%m%dT%H%M")
+        return datetime.strptime(fmt_dt, "%Y%m%d")
+    except ValueError:
+        log_msg(f"could not parse timestamp: {fmt_dt}")
+        return None
+
+
+def format_time_range(start_time: str, end_time: str | None, ampm: bool = False) -> str:
+    """Format a time range respecting the AM/PM preference."""
+    start_dt = datetime_from_timestamp(start_time)
+    end_dt = datetime_from_timestamp(end_time) if end_time else None
+    if start_dt is None:
+        return ""
+    if end_dt is None:
+        end_dt = start_dt
+
+    if start_dt == end_dt and start_dt.hour == 0 and start_dt.minute == 0:
+        return ""
+
+    extent = start_dt != end_dt
+    if ampm:
+        start_fmt = "%-I:%M%p" if start_dt.hour < 12 <= end_dt.hour else "%-I:%M"
+        start_str = start_dt.strftime(start_fmt).lower().replace(":00", "")
+        end_str = end_dt.strftime("%-I:%M%p").lower().replace(":00", "")
+        return f"{start_str}-{end_str}" if extent else end_str
+
+    start_str = start_dt.strftime("%H:%M").replace(":00", "")
+    if start_str.startswith("0"):
+        start_str = start_str[1:]
+    end_str = end_dt.strftime("%H:%M")
+    if end_str.startswith("0"):
+        end_str = end_str[1:]
+    return f"{start_str}-{end_str}" if extent else end_str
+
+
+def speak_time(time_int: int, mode: Literal["24", "12"]) -> str:
+    """Convert a POSIX timestamp to a spoken phrase."""
+    dt = datetime.fromtimestamp(time_int)
+    hour = dt.hour
+    minute = dt.minute
+
+    if mode == "24":
+        if minute == 0:
+            return f"{hour} hours"
+        else:
+            return f"{hour} {minute} hours"
+    else:
+        return dt.strftime("%-I:%M %p").lower().replace(":00", "")
+
+
+def duration_in_words(seconds: int, short: bool = False) -> str:
+    """
+    Convert a duration (seconds) into a human-readable string.
+    """
+    try:
+        sign = "" if seconds >= 0 else "- "
+        total_seconds = abs(int(seconds))
+        units = [
+            ("week", 604800),
+            ("day", 86400),
+            ("hour", 3600),
+            ("minute", 60),
+            ("second", 1),
+        ]
+        parts: list[str] = []
+        for name, unit_seconds in units:
+            value, total_seconds = divmod(total_seconds, unit_seconds)
+            if value:
+                parts.append(f"{sign}{value} {name}{'s' if value > 1 else ''}")
+        if not parts:
+            return "zero minutes"
+        return " ".join(parts[:2]) if short else " ".join(parts)
+    except Exception as exc:
+        log_msg(f"{seconds = } raised exception: {exc}")
+        return ""
+
+
+def format_timedelta(seconds: int, short: bool = False) -> str:
+    """
+    Express a timedelta (seconds) using tokens like '+1h30m' or '-2d'.
+    When ``short`` is True limit output to the first two non-zero units.
+    """
+    try:
+        sign = "+" if seconds >= 0 else "-"
+        total_seconds = abs(int(seconds))
+        units = [
+            ("w", 604800),
+            ("d", 86400),
+            ("h", 3600),
+            ("m", 60),
+            ("s", 1),
+        ]
+        parts: list[str] = []
+        for label, unit_seconds in units:
+            value, total_seconds = divmod(total_seconds, unit_seconds)
+            if value:
+                parts.append(f"{value}{label}")
+        if not parts:
+            return "now"
+        body = "".join(parts[:2]) if short else "".join(parts)
+        return sign + body
+    except Exception as exc:
+        log_msg(f"{seconds = } raised exception: {exc}")
+        return ""
+
+
+def format_datetime(fmt_dt: str, ampm: bool = False) -> str:
+    """
+    Convert a compact timestamp into a human-readable phrase.
+    """
+    if "T" in fmt_dt:
+        dt = datetime.strptime(fmt_dt, "%Y%m%dT%H%M")
+        is_date_only = False
+    else:
+        dt = datetime.strptime(fmt_dt, "%Y%m%d")
+        is_date_only = True
+
+    today = date.today()
+    delta_days = (dt.date() - today).days
+
+    if is_date_only:
+        if delta_days == 0:
+            return "today"
+        if -6 <= delta_days <= 6:
+            return dt.strftime("%A")
+        return dt.strftime("%B %-d, %Y")
+
+    suffix = dt.strftime("%p").lower() if ampm else ""
+    hours = dt.strftime("%-I") if ampm else dt.strftime("%H")
+    minutes = dt.strftime(":%M") if not ampm or dt.minute else ""
+    seconds = dt.strftime(":%S") if dt.second else ""
+    time_str = hours + minutes + seconds + suffix
+
+    if delta_days == 0:
+        return time_str
+    if -6 <= delta_days <= 6:
+        return f"{dt.strftime('%A')} at {time_str}"
+    return f"{dt.strftime('%B %-d, %Y')} at {time_str}"
+
+
+def datetime_in_words(fmt_dt: str, ampm: bool = False) -> str:
+    """
+    Convert a compact datetime string into a conversational description.
+    """
+    if "T" in fmt_dt:
+        dt = datetime.strptime(fmt_dt, "%Y%m%dT%H%M%S")
+    else:
+        dt = datetime.strptime(fmt_dt, "%Y%m%d")
+    today = date.today()
+    delta_days = (dt.date() - today).days
+
+    minutes = dt.minute
+    minutes_str = (
+        "" if minutes == 0 else f" o {minutes}" if minutes < 10 else f" {minutes}"
+    )
+    hours_str = dt.strftime("%H") if ampm else dt.strftime("%I")
+    if hours_str.startswith("0"):
+        hours_str = hours_str[1:]
+    suffix = " hours" if ampm else " a m" if dt.hour < 12 else " p m"
+    time_str = f"{hours_str}{minutes_str}{suffix}"
+
+    if delta_days == 0:
+        return time_str
+    if -6 <= delta_days <= 6:
+        return f"{dt.strftime('%A')} at {time_str}"
+    date_str = dt.strftime("%B %-d, %Y")
+    return f"{date_str} at {time_str}"
+
+
 def decimal_to_base26(value: int) -> str:
     """
     Convert a non-negative integer to a base-26 string using lowercase letters.
@@ -456,284 +636,3 @@ def print_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = Fals
     # print("".join(lines))
     for line in lines:
         rich_print(line)
-
-
-def display_messages(file_path: str = "log_msg.md"):
-    """
-    Display all logged messages from the specified file.
-
-    Args:
-        file_path (str, optional): Path to the log file. Defaults to "log_msg.txt".
-    """
-    try:
-        # Read messages from the file
-        with open(file_path, "r") as f:
-            markdown_content = f.read()
-        markdown = Markdown(markdown_content)
-        console = Console()
-        console.print(markdown)
-    except FileNotFoundError:
-        print(f"Error: Log file '{file_path}' not found.")
-
-
-def format_time_range(start_time: str, end_time: str, ampm: bool = False) -> str:
-    """Format time range respecting ampm setting."""
-    start_dt = datetime_from_timestamp(start_time)
-    end_dt = datetime_from_timestamp(end_time) if end_time else None
-    # log_msg(f"{start_dt = }, {end_dt = }")
-
-    if not end_dt:
-        end_dt = start_dt
-
-    extent = start_dt != end_dt
-
-    if start_dt == end_dt and start_dt.hour == 0 and start_dt.minute == 0:
-        return ""
-
-    if ampm:
-        start_fmt = "%-I:%M%p" if start_dt.hour < 12 and end_dt.hour >= 12 else "%-I:%M"
-        start_hour = start_dt.strftime(f"{start_fmt}").lower().replace(":00", "")
-        end_hour = (
-            end_dt.strftime("%-I:%M%p").lower().replace(":00", "")  # .replace("m", "")
-        )
-        # log_msg(f"{start_hour = }, {end_hour = }")
-        return f"{start_hour}-{end_hour}" if extent else f"{end_hour}"
-    else:
-        start_hour = start_dt.strftime("%H:%M").replace(":00", "")
-        if start_hour.startswith("0"):
-            start_hour = start_hour[1:]
-        end_hour = end_dt.strftime("%H:%M")  # .replace(":00", "")
-        if end_hour.startswith("0"):
-            end_hour = end_hour[1:]
-        # log_msg(f"{start_hour = }, {end_hour = }")
-        return f"{start_hour}-{end_hour}" if extent else f"{end_hour}"
-
-
-def speak_time(time_int: int, mode: Literal["24", "12"]) -> str:
-    """Convert time into a spoken phrase for 24-hour or 12-hour format."""
-    dt = datetime.fromtimestamp(time_int)
-    hour = dt.hour
-    minute = dt.minute
-
-    if mode == "24":
-        if minute == 0:
-            return f"{hour} hours"
-        else:
-            return f"{hour} {minute} hours"
-    else:
-        return dt.strftime("%-I:%M %p").lower().replace(":00", "")
-
-
-def duration_in_words(seconds: int, short=False):
-    """
-    Convert a duration in seconds into a human-readable string (weeks, days, hours, minutes).
-
-    Args:
-        seconds (int): Duration in seconds.
-        short (bool): If True, return a shortened version (max 2 components).
-
-    Returns:
-        str: Human-readable duration (e.g., "1 week 2 days", "3 hours 27 minutes").
-    """
-    try:
-        # Handle sign for negative durations
-        sign = "" if seconds >= 0 else "- "
-        total_seconds = abs(int(seconds))
-
-        # Define time units in seconds
-        units = [
-            ("week", 604800),  # 7 * 24 * 60 * 60
-            ("day", 86400),  # 24 * 60 * 60
-            ("hour", 3600),  # 60 * 60
-            ("minute", 60),  # 60
-            ("second", 1),  # 1
-        ]
-
-        # Compute time components
-        result = []
-        for name, unit_seconds in units:
-            value, total_seconds = divmod(total_seconds, unit_seconds)
-            if value:
-                result.append(f"{sign}{value} {name}{'s' if value > 1 else ''}")
-
-        # Handle case where duration is zero
-        if not result:
-            return "zero minutes"
-
-        # Return formatted duration
-        return " ".join(result[:2]) if short else " ".join(result)
-
-    except Exception as e:
-        log_msg(f"{seconds = } raised exception: {e}")
-        return None
-
-
-def format_timedelta(seconds: int, short=False):
-    """
-    Convert a duration in seconds into a human-readable string (weeks, days, hours, minutes).
-
-    Args:
-        seconds (int): Duration in seconds.
-        short (bool): If True, return a shortened version (max 2 components).
-
-    Returns:
-        str: Human-readable duration (e.g., "1 week 2 days", "3 hours 27 minutes").
-    """
-    try:
-        # Handle sign for negative durations
-        sign = "+" if seconds >= 0 else "-"
-        total_seconds = abs(int(seconds))
-
-        # Define time units in seconds
-        units = [
-            ("w", 604800),  # 7 * 24 * 60 * 60
-            ("d", 86400),  # 24 * 60 * 60
-            ("h", 3600),  # 60 * 60
-            ("m", 60),  # 60
-            ("s", 1),  # 1
-        ]
-
-        # Compute time components
-        result = []
-        for name, unit_seconds in units:
-            value, total_seconds = divmod(total_seconds, unit_seconds)
-            if value:
-                result.append(f"{value}{name}")
-
-        # Handle case where duration is zero
-        if not result:
-            return "now"
-
-        # Return formatted duration
-        return sign + ("".join(result[:2]) if short else "".join(result))
-
-    except Exception as e:
-        log_msg(f"{seconds = } raised exception: {e}")
-        return None
-
-
-
-def datetime_from_timestamp(fmt_dt: str) -> str:
-    if isinstance(fmt_dt, datetime):
-        return fmt_dt
-    if fmt_dt is None:
-        return None
-    try:
-        if "T" in fmt_dt:
-            dt = datetime.strptime(fmt_dt, "%Y%m%dT%H%M")
-            # is_date_only = False
-        else:
-            dt = datetime.strptime(fmt_dt, "%Y%m%d")
-            # is_date_only = True
-    except ValueError:
-        print(f"could not parse {fmt_dt}")
-        return None
-    return dt
-
-
-def format_datetime(fmt_dt: str, ampm: bool = False) -> str:
-    """
-    Convert a compact naive-local datetime string into a human-readable phrase.
-
-    Args:
-        fmt_dt: 'YYYYMMDD' (date) or 'YYYYMMDDTHHMMSS' (naive datetime, local).
-        ampm:   True -> '3:30pm' / False -> '15h30'.
-
-    Returns:
-        str: Human-readable phrase like 'today', 'Monday at 3pm', or
-             'January 5, 2026 at 15h'.
-    """
-    # Parse
-    if "T" in fmt_dt:
-        dt = datetime.strptime(fmt_dt, "%Y%m%dT%H%M")
-        is_date_only = False
-    else:
-        dt = datetime.strptime(fmt_dt, "%Y%m%d")
-        is_date_only = True
-
-    today = date.today()
-    delta_days = (dt.date() - today).days
-
-    # Date-only cases
-    if is_date_only:
-        if delta_days == 0:
-            return "today"
-        elif -6 <= delta_days <= 6:
-            return dt.strftime("%A")
-        else:
-            # Note: %-d is POSIX; if you need Windows support, use an alternate path.
-            return dt.strftime("%B %-d, %Y")
-
-    suffix = dt.strftime("%p").lower() if ampm else ""
-    hours = dt.strftime("%-I") if ampm else dt.strftime("%H")
-    minutes = dt.strftime(":%M") if not ampm or dt.minute else ""
-    seconds = dt.strftime(":%S") if dt.second else ""
-    time_str = hours + minutes + seconds + suffix
-
-    # Time string
-    # time_str = dt.strftime("%I:%M%p").lower() if ampm else dt.strftime("%H:%M")
-    # Drop :00 minutes
-    # if time_str.endswith(":00pm") or time_str.endswith(":00am"):
-    # if ampm:
-    #     time_str = time_str.replace(":00", "")
-    # # else:
-    # #     time_str = time_str.replace(":00", "h")
-    # # Drop leading zero for 12-hour format
-    # if ampm and time_str.startswith("0"):
-    #     time_str = time_str[1:]
-
-    # Phrasing
-    if delta_days == 0:
-        return time_str
-    elif -6 <= delta_days <= 6:
-        return f"{dt.strftime('%A')} at {time_str}"
-    else:
-        return f"{dt.strftime('%B %-d, %Y')} at {time_str}"
-
-
-def datetime_in_words(fmt_dt: str, ampm: bool = False) -> str:
-    """
-    Convert a compact datetime string into a human-readable phrase based on the current time.
-
-    Args:
-        fmt_dt: 'YYYYMMDD' (date) or 'YYYYMMDDTHHMMSS' (naive datetime, local).
-        ampm:   True -> '3:30pm' / False -> '15h30'.
-
-    Returns:
-        str: Human-readable phrase like 'today', 'Monday at 3pm', or
-             'January 5, 2026 at 15h'.
-    """
-    if "T" in fmt_dt:
-        dt = datetime.strptime(fmt_dt, "%Y%m%dT%H%M%S")
-        is_date_only = False
-    else:
-        dt = datetime.strptime(fmt_dt, "%Y%m%d")
-        is_date_only = True
-    today = date.today()
-    delta_days = (dt.date() - today).days
-
-    # ✅ Format time based on mode
-    minutes = dt.minute
-    minutes_str = (
-        "" if minutes == 0 else f" o {minutes}" if minutes < 10 else f" {minutes}"
-    )
-    hours_str = dt.strftime("%H") if ampm else dt.strftime("%I")
-    if hours_str.startswith("0"):
-        hours_str = hours_str[1:]  # Remove leading zero
-    suffix = " hours" if ampm else " a m" if dt.hour < 12 else " p m"
-
-    time_str = f"{hours_str}{minutes_str}{suffix}"
-
-    # ✅ Case 1: Today → "3 30 p m" or "15 30 hours"
-    if delta_days == 0:
-        return time_str
-
-    # ✅ Case 2: Within the past/future 6 days → "Monday at 3 30 p m"
-    elif -6 <= delta_days <= 6:
-        day_of_week = dt.strftime("%A")
-        return f"{day_of_week} at {time_str}"
-
-    # ✅ Case 3: Beyond 6 days → "January 1, 2022 at 3 30 p m"
-    else:
-        date_str = dt.strftime("%B %-d, %Y")  # "January 1, 2022"
-        return f"{date_str} at {time_str}"
