@@ -46,6 +46,11 @@ from .shared import (
     fmt_utc_z,
     timedelta_str_to_seconds,
     indx_to_tag,
+    format_date_range,
+    format_iso_week,
+    get_previous_yrwk,
+    get_next_yrwk,
+    calculate_4_week_start,
 )
 from tklr.tklr_env import TklrEnvironment
 from tklr.view import ChildBinRow, ReminderRow
@@ -314,78 +319,6 @@ def format_hours_mins(dt: datetime, mode: Literal["24", "12"]) -> str:
     if mode == "12":
         return dt.strftime(fmt[mode]).lower().rstrip("m")
     return f"{dt.strftime(fmt[mode])}"
-
-
-def format_date_range(start_dt: datetime, end_dt: datetime):
-    """
-    Format a datetime object as a week string, taking not to repeat the month subject unless the week spans two months.
-    """
-    same_year = start_dt.year == end_dt.year
-    same_month = start_dt.month == end_dt.month
-    # same_day = start_dt.day == end_dt.day
-    if same_year and same_month:
-        return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%-d, %Y')}"
-    elif same_year and not same_month:
-        return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%b %-d, %Y')}"
-    else:
-        return f"{start_dt.strftime('%b %-d, %Y')} - {end_dt.strftime('%b %-d, %Y')}"
-
-
-def format_iso_week(monday_date: datetime) -> str:
-    """
-    Format an ISO week string, taking not to repeat the month subject unless the week spans two months.
-
-    Args:
-        monday_date (datetime): The date of the Monday of the week.
-
-    Returns:
-        str: Formatted string like 'Monday 17 - Sunday 23, 2023 #1'.
-    """
-    start_dt = monday_date.date()
-    end_dt = start_dt + timedelta(days=6)
-    iso_yr, iso_wk, _ = start_dt.isocalendar()
-    yr_wk = f"{iso_yr} #{iso_wk}"
-    same_month = start_dt.month == end_dt.month
-    # same_day = start_dt.day == end_dt.day
-    if same_month:
-        return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%-d')}, {yr_wk}"
-    else:
-        return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%b %-d')}, {yr_wk}"
-
-
-def get_previous_yrwk(year, week):
-    """
-    Get the previous (year, week) from an ISO calendar (year, week).
-    """
-    # Convert the ISO year and week to a Monday date
-    monday_date = datetime.strptime(f"{year} {week} 1", "%G %V %u")
-    # Subtract 1 week
-    previous_monday = monday_date - timedelta(weeks=1)
-    # Get the ISO year and week of the new date
-    return previous_monday.isocalendar()[:2]
-
-
-def get_next_yrwk(year, week):
-    """
-    Get the next (year, week) from an ISO calendar (year, week).
-    """
-    # Convert the ISO year and week to a Monday date
-    monday_date = datetime.strptime(f"{year} {week} 1", "%G %V %u")
-    # Add 1 week
-    next_monday = monday_date + timedelta(weeks=1)
-    # Get the ISO year and week of the new date
-    return next_monday.isocalendar()[:2]
-
-
-def calculate_4_week_start():
-    """
-    Calculate the starting date of the 4-week period, starting on a Monday.
-    """
-    today = datetime.now()
-    iso_year, iso_week, iso_weekday = today.isocalendar()
-    start_of_week = today - timedelta(days=iso_weekday - 1)
-    weeks_into_cycle = (iso_week - 1) % 4
-    return start_of_week - timedelta(weeks=weeks_into_cycle)
 
 
 def ordinal(n: int) -> str:

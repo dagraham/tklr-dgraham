@@ -6,7 +6,17 @@ import time
 
 from asyncio import create_task
 
-from .shared import log_msg, bug_msg, display_messages, parse
+from .shared import (
+    log_msg,
+    bug_msg,
+    display_messages,
+    parse,
+    TYPE_TO_COLOR,
+    fmt_user,
+    get_previous_yrwk,
+    get_next_yrwk,
+    calculate_4_week_start,
+)
 from datetime import datetime, timedelta, date
 
 # from logging import log
@@ -37,7 +47,6 @@ from textual.widgets import OptionList
 from textual import on
 import shutil
 import asyncio
-from .shared import fmt_user
 from typing import Dict, Tuple
 import pyperclip
 from .item import Item
@@ -61,9 +70,6 @@ from pathlib import Path
 from dataclasses import dataclass
 import json
 
-from .shared import (
-    TYPE_TO_COLOR,
-)
 from .query import QueryMatch, QueryError
 
 
@@ -186,55 +192,6 @@ def _make_rows(lines: list[str]) -> list[str]:
     for block in lines:
         new_lines.extend(block.splitlines())
     return new_lines
-
-
-def format_date_range(start_dt: datetime, end_dt: datetime):
-    """
-    Format a datetime object as a week string, taking not to repeat the month name unless the week spans two months.
-    """
-    same_year = start_dt.year == end_dt.year
-    same_month = start_dt.month == end_dt.month
-    if same_year and same_month:
-        return f"{start_dt.strftime('%B %-d')} - {end_dt.strftime('%-d, %Y')}"
-    elif same_year and not same_month:
-        return f"{start_dt.strftime('%B %-d')} - {end_dt.strftime('%B %-d, %Y')}"
-    else:
-        return f"{start_dt.strftime('%B %-d, %Y')} - {end_dt.strftime('%B %-d, %Y')}"
-
-
-def get_previous_yrwk(year, week):
-    """
-    Get the previous (year, week) from an ISO calendar (year, week).
-    """
-    # Convert the ISO year and week to a Monday date
-    monday_date = datetime.strptime(f"{year} {week} 1", "%G %V %u")
-    # Subtract 1 week
-    previous_monday = monday_date - timedelta(weeks=1)
-    # Get the ISO year and week of the new date
-    return previous_monday.isocalendar()[:2]
-
-
-def get_next_yrwk(year, week):
-    """
-    Get the next (year, week) from an ISO calendar (year, week).
-    """
-    # Convert the ISO year and week to a Monday date
-    monday_date = datetime.strptime(f"{year} {week} 1", "%G %V %u")
-    # Add 1 week
-    next_monday = monday_date + timedelta(weeks=1)
-    # Get the ISO year and week of the new date
-    return next_monday.isocalendar()[:2]
-
-
-def calculate_4_week_start():
-    """
-    Calculate the starting date of the 4-week period, starting on a Monday.
-    """
-    today = datetime.now()
-    iso_year, iso_week, iso_weekday = today.isocalendar()
-    start_of_week = today - timedelta(days=iso_weekday - 1)
-    weeks_into_cycle = (iso_week - 1) % 4
-    return start_of_week - timedelta(weeks=weeks_into_cycle)
 
 
 HelpText = f"""\

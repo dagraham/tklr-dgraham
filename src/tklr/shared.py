@@ -255,6 +255,57 @@ def truncate_string(s: str, max_length: int) -> str:
         return s
 
 
+def format_date_range(start_dt: datetime, end_dt: datetime) -> str:
+    """
+    Format two datetimes as a succinct date range.
+    """
+    same_year = start_dt.year == end_dt.year
+    same_month = start_dt.month == end_dt.month
+    if same_year and same_month:
+        return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%-d, %Y')}"
+    if same_year:
+        return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%b %-d, %Y')}"
+    return f"{start_dt.strftime('%b %-d, %Y')} - {end_dt.strftime('%b %-d, %Y')}"
+
+
+def format_iso_week(monday_date: datetime) -> str:
+    """
+    Format a label for the ISO week containing `monday_date`.
+    """
+    start_dt = monday_date.date()
+    end_dt = start_dt + timedelta(days=6)
+    iso_yr, iso_wk, _ = start_dt.isocalendar()
+    yr_wk = f"{iso_yr} #{iso_wk}"
+    if start_dt.month == end_dt.month:
+        return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%-d')}, {yr_wk}"
+    return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%b %-d')}, {yr_wk}"
+
+
+def get_previous_yrwk(year: int, week: int) -> tuple[int, int]:
+    """Return the ISO year/week preceding the given pair."""
+    monday = datetime.strptime(f"{year} {week} 1", "%G %V %u")
+    prev = monday - timedelta(weeks=1)
+    return prev.isocalendar()[:2]
+
+
+def get_next_yrwk(year: int, week: int) -> tuple[int, int]:
+    """Return the ISO year/week following the given pair."""
+    monday = datetime.strptime(f"{year} {week} 1", "%G %V %u")
+    nxt = monday + timedelta(weeks=1)
+    return nxt.isocalendar()[:2]
+
+
+def calculate_4_week_start() -> datetime:
+    """
+    Calculate the Monday starting the current 4-week block.
+    """
+    today = datetime.now()
+    _, iso_week, iso_weekday = today.isocalendar()
+    start_of_week = today - timedelta(days=iso_weekday - 1)
+    weeks_into_cycle = (iso_week - 1) % 4
+    return start_of_week - timedelta(weeks=weeks_into_cycle)
+
+
 def decimal_to_base26(value: int) -> str:
     """
     Convert a non-negative integer to a base-26 string using lowercase letters.

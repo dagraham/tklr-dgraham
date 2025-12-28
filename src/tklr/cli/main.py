@@ -11,14 +11,14 @@ from rich.console import Console
 # from rich.table import Table
 
 from tklr.item import Item
-from tklr.controller import Controller, format_iso_week
+from tklr.controller import Controller
 from tklr.model import DatabaseManager
 from tklr.view import DynamicViewApp
 from tklr.tklr_env import TklrEnvironment
 
 # from tklr.view_agenda import run_agenda_view
 from tklr.versioning import get_version
-from tklr.shared import format_time_range
+from tklr.shared import format_time_range, format_iso_week
 from tklr.query import QueryError
 
 from datetime import date, datetime, timedelta, time
