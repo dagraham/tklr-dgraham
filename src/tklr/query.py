@@ -140,6 +140,21 @@ class QueryParser:
         }
 
     def parse(self, text: str) -> tuple[QueryPlan, int | None]:
+        """
+        Parse the mini query DSL into executable predicates.
+
+        Grammar (simplified):
+            query := clause ( (AND|OR) clause )*
+            clause := [~] command args...
+            command := begins|includes|equals|...|dt|info
+            args depend on command (see help text)
+
+        Special cases:
+            • ``info <id>`` short-circuits and returns the requested record id.
+            • Prefixing a command with ``~`` negates the resulting predicate.
+
+        Tokens are whitespace-delimited; connectors must be lowercase ``and``/``or``.
+        """
         text = (text or "").strip()
         if not text:
             raise QueryError("Enter a query.")

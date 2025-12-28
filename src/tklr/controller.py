@@ -1347,6 +1347,18 @@ class Controller:
         return self.db_manager.is_pinned(record_id)
 
     def get_entry(self, record_id, job_id=None, instance=None):
+        """
+        Build the Rich-rendered detail view for a reminder.
+
+        Returns a list of strings representing:
+        1) the colored header line (item type + subject);
+        2) a blank spacer;
+        3) the optional ``instance`` line if supplied;
+        4) the optional formatted rruleset block (wrapped, indented);
+        5) the id/created/modified footer with optional job id.
+
+        Callers can feed the returned list directly into ListWithDetails.
+        """
         lines = []
         result = self.db_manager.get_tokens(record_id)
         # log_msg(f"{result = }")
@@ -2677,12 +2689,11 @@ class Controller:
 
     def get_entry_from_record(self, record_id: int) -> str:
         """
-        1) Load record -> Item
-        2) Call item.finish_without_exdate(...)
-        3) Persist Item
-        4) Insert Completions row
-        5) If fully finished, remove from Urgency/DateTimes
-        6) Return summary dict
+        Convenience wrapper that returns the formatted token summary for a record.
+
+        Unlike ``get_entry`` this method does not touch jobs or completions—it
+        simply loads ``tokens`` + formatting metadata from the database and
+        feeds them through ``format_tokens`` for CLI display.
         """
         result = self.db_manager.get_tokens(record_id)
         tokens, rruleset, created, modified = result[0]
