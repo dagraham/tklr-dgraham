@@ -15,6 +15,7 @@ from tklr.controller import Controller
 from tklr.model import DatabaseManager
 from tklr.view import DynamicViewApp
 from tklr.tklr_env import TklrEnvironment
+from tklr.migration import MIGRATION_ITEM_TYPES, migrate_etm_directory
 
 # from tklr.view_agenda import run_agenda_view
 from tklr.versioning import get_version
@@ -829,3 +830,68 @@ def find(ctx, regex_parts):
 
     suffix = "" if len(matches) == 1 else "es"
     print(f"{len(matches)} match{suffix}.")
+
+
+@cli.command()
+@click.argument("etm_dir", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--outfile",
+    type=click.Path(dir_okay=False),
+    help="Defaults to [--home]/etm.txt",
+)
+@click.option("--secret", help="Secret from etm cfg.yaml used to decode @m values.")
+@click.option(
+    "--record-ids",
+    is_flag=True,
+    help="Append @# tags with the original etm record ids.",
+)
+@click.option(
+    "--include-archive",
+    is_flag=True,
+    help="Include archived etm entries.",
+)
+@click.option(
+    "--types",
+    type=click.Choice(MIGRATION_ITEM_TYPES),
+    multiple=True,
+    help="Restrict migration to specific etm item types (default: all).",
+)
+@click.pass_context
+def migrate(
+    ctx,
+    etm_dir,
+    outfile,
+    secret,
+    record_ids,
+    include_archive,
+    types,
+):
+    """
+    Convert ETM reminders into a Tklr batch-entry file for the current home.
+
+    ETM_DIR must contain an ``etm.json`` export created by etm.
+
+    Example:
+
+      tklr --home ~/.config/tklr migrate ~/etm
+    """
+
+    env = ctx.obj["ENV"]
+    etm_dir_path = Path(etm_dir)
+    outfile_path = Path(outfile) if outfile else env.home / "etm.txt"
+    allowed = set(types) if types else None
+
+    try:
+        count = migrate_etm_directory(
+            etm_dir_path,
+            outfile_path,
+            secret=secret,
+            include_archive=include_archive,
+            include_record_ids=record_ids,
+            allowed_item_types=allowed,
+        )
+    except FileNotFoundError as exc:
+        raise click.UsageError(str(exc)) from exc
+
+    noun = "record" if count == 1 else "records"
+    click.echo(f"Migrated {count} {noun} to {outfile_path}")
