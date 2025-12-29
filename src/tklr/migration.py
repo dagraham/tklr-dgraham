@@ -204,7 +204,9 @@ def etm_to_tokens(
                 s = vals[0]
                 if "->" in s:
                     left, right = [t.strip() for t in s.split("->", 1)]
-                    tokens.append(f"@f {left}" if left == right else f"@f {left}, {right}")
+                    tokens.append(
+                        f"@f {left}" if left == right else f"@f {left}, {right}"
+                    )
                 else:
                     tokens.append(f"@f {s}")
             continue
@@ -247,7 +249,9 @@ def etm_to_tokens(
                         prereqs = jd.get("p", [])
                         if jid:
                             parts.append(
-                                f"&r {jid}: {', '.join(prereqs)}" if prereqs else f"&r {jid}"
+                                f"&r {jid}: {', '.join(prereqs)}"
+                                if prereqs
+                                else f"&r {jid}"
                             )
                         fstr = jd.get("f")
                         if isinstance(fstr, str) and fstr.startswith("{P}:"):
@@ -271,13 +275,16 @@ def etm_to_tokens(
                         tokens.append(f"@a {','.join(times)}: {','.join(cmds)}")
             continue
         if k == "u":
-            if isinstance(v, list):
-                for used in v:
-                    if isinstance(used, list) and len(used) == 2:
-                        td = format_subvalue(used[0])[0]
-                        d = format_subvalue(used[1])[0]
-                        tokens.append(f"@u {td}: {d}")
+            # skip 'u' key entirely
             continue
+            # if isinstance(v, list):
+            #     for used in v:
+            #         if isinstance(used, list) and len(used) == 2:
+            #             td = format_subvalue(used[0])[0]
+            #             d = format_subvalue(used[1])[0]
+            #             print(f"{used = }, {td = }, {d = }")
+            #             tokens.append(f"@u {td}: {d}")
+            # continue
         if k in {"+", "-", "w"}:
             if k == "-" and convert_o_from_r:
                 continue

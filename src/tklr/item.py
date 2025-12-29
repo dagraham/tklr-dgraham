@@ -344,7 +344,6 @@ def parse(dt_str: str, zone: tzinfo = None):
     return aware.astimezone(tz.UTC)
 
 
-
 def parse_completion_value(v: str) -> tuple[datetime | None, datetime | None]:
     """
     Parse '@f' or '&f' value text entered in *user format* (e.g. '2024-3-1 12a, 2024-3-1 10a')
@@ -529,7 +528,7 @@ type_keys = {
     "x": "finished",
     # '✓': 'finished',  # more a property of a task than an item type
 }
-common_methods = list("cdgblmnstuxz") + ["k", "#"]
+common_methods = list("cdgblmnstxz") + ["k", "#"]
 
 repeating_methods = list("o") + [
     "r",
@@ -566,13 +565,11 @@ job_methods = list("efhp") + [
     "~m",
     "~p",
     "~s",
-    "~u",
 ]
 
 multiple_allowed = [
     "a",
     "b",
-    "u",
     "r",
     "t",
     "~",
@@ -820,7 +817,7 @@ class Item:
             "timeperiod after task scheduled when job is scheduled",
             "do_job_s",
         ],
-        "~u": ["used time", "timeperiod: datetime", "do_usedtime"],
+        # "~u": ["used time", "timeperiod: datetime", "do_usedtime"],
         "~?": ["job &-key", "enter &-key", "do_ampj"],
         "k": ["konnection", "not implemented", "do_nothing"],
         "#": ["etm record number", "not implemented", "do_nothing"],
@@ -1589,7 +1586,10 @@ Entry: {self.entry}
                 if amp_partial and " " not in amp_partial.group(0):
                     parent = None
                     for tok in reversed(self.relative_tokens):
-                        if tok["t"] == "@" and tok.get("k") in self.GROUPABLE_ANCHOR_KEYS:
+                        if (
+                            tok["t"] == "@"
+                            and tok.get("k") in self.GROUPABLE_ANCHOR_KEYS
+                        ):
                             parent = tok["k"]
                             break
                     partial_token = {
@@ -3516,14 +3516,21 @@ Entry: {self.entry}
                 )
                 should_skip = match
             else:
-                match = tok.get("t") == selector and (key is None or tok.get("k") == key)
+                match = tok.get("t") == selector and (
+                    key is None or tok.get("k") == key
+                )
                 should_skip = match and (max_count is None or removed < max_count)
 
             if should_skip:
                 removed += 1
                 if (
-                    (using_key_set and ("f" in keys) and (not token_types or "@" in token_types))
-                    or (not using_key_set and selector == "@" and (key is None or key == "f"))
+                    using_key_set
+                    and ("f" in keys)
+                    and (not token_types or "@" in token_types)
+                ) or (
+                    not using_key_set
+                    and selector == "@"
+                    and (key is None or key == "f")
                 ):
                     removed_f = True
                 continue
