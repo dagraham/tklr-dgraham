@@ -140,6 +140,15 @@ def reorder_tokens(tokens: list[str]) -> list[str]:
     return ordered
 
 
+def _append_description_token(
+    tokens: list[str],
+    content: str,
+    insert_at: int | None,
+) -> None:
+    index = insert_at if insert_at is not None else len(tokens)
+    tokens.insert(index, f"@d {content}")
+
+
 def etm_to_tokens(
     item: dict,
     key: str | None,
@@ -178,11 +187,30 @@ def etm_to_tokens(
                 convert_o_from_r = True
                 skip_o_key = True
 
+    description_value: str | None = None
+    description_insert_index: int | None = None
+    hashtag_suffix: list[str] = []
+
     for k, v in item.items():
         if k in {"itemtype", "summary", "created", "modified", "h", "k", "q"}:
             continue
         if k == "d":
-            tokens.append(f"@d {v}")
+            description_value = str(v)
+            if description_insert_index is None:
+                description_insert_index = len(tokens)
+            continue
+        if k == "t":
+            vals = format_subvalue(v)
+            if vals:
+                hashtags: list[str] = []
+                for entry in vals:
+                    parts = [p.strip() for p in entry.split() if p.strip()]
+                    if parts:
+                        hashtags.append("#" + "_".join(parts))
+                if hashtags:
+                    hashtag_suffix.extend(hashtags)
+                    if description_insert_index is None:
+                        description_insert_index = len(tokens)
             continue
         if k == "b":
             tokens.append(f"@n {v}d")
@@ -318,6 +346,13 @@ def etm_to_tokens(
         vals = format_subvalue(v)
         if vals:
             tokens.append(f"@{k} {', '.join(vals)}")
+
+    if description_value is not None or hashtag_suffix:
+        content = description_value or ""
+        if hashtag_suffix:
+            suffix = " ".join(hashtag_suffix)
+            content = f"{content} {suffix}" if content else suffix
+        _append_description_token(tokens, content, description_insert_index)
 
     tokens = reorder_tokens(tokens)
     if include_record_id and key is not None:

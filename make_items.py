@@ -364,7 +364,8 @@ bins = [
 
 alerts = [
     f"* alert test  @s {in_five_minutes()} @a 3m, 1m: v",
-    f"* notify test @s {in_five_minutes()} @a 4m, 2m, 0m: n",
+    f"* notify test @s {in_five_minutes()} @a 4m, 2m: n",
+    f"* combined test @s {in_five_minutes()} @a 0m, -1m: n, v",
 ]
 
 records = []
@@ -395,7 +396,7 @@ while len(items) < num_items:
 id = 0
 # for entry in items:  # + alerts:
 # for entry in busy + items:
-for entry in items + bins + finish + goals:
+for entry in items + bins + finish + goals + alerts + busy:
     id += 1
     try:
         item = Item(raw=entry, env=env, final=True, controller=ctrl)  # .to_dict()

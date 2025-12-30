@@ -1647,6 +1647,7 @@ class DatabaseManager:
         if item.itemtype in ["~", "^"]:
             # bug_msg("calling populate_urgency_from_record")
             self.populate_urgency_from_record(record_id)
+        self.update_busy_weeks_for_record(record_id)
 
         # Hashtags: based on subject + description
         self._update_hashtags_for_record(record_id, item.subject, item.description)
@@ -3602,6 +3603,7 @@ class DatabaseManager:
         cur = self.conn.cursor()
         cur.execute("DELETE FROM Records WHERE id = ?", (record_id,))
         self.conn.commit()
+        self.update_busy_weeks_for_record(record_id)
 
     def count_records(self):
         cur = self.conn.cursor()
@@ -3675,6 +3677,91 @@ class DatabaseManager:
 
         self.conn.commit()
         # bug_msg("✅ BusyWeeks aggregation complete.")
+
+    def _aggregate_busy_week(self, year_week: str) -> None:
+        import numpy as np
+
+        self.cursor.execute(
+            "SELECT busybits FROM BusyWeeksFromDateTimes WHERE year_week = ?",
+            (year_week,),
+        )
+        blobs = [
+            np.frombuffer(row[0], dtype=np.uint8) for row in self.cursor.fetchall()
+        ]
+        if not blobs:
+            self.cursor.execute("DELETE FROM BusyWeeks WHERE year_week = ?", (year_week,))
+            self.conn.commit()
+            return
+
+        stack = np.vstack(blobs)
+        counts = stack.sum(axis=0)
+        merged = np.where(counts >= 2, 2, np.where(counts >= 1, 1, 0)).astype(np.uint8)
+        merged = _reduce_to_35_slots(merged)
+        bits_str = "".join(str(int(x)) for x in merged)
+        self.cursor.execute(
+            """
+            INSERT INTO BusyWeeks (year_week, busybits)
+            VALUES (?, ?)
+            ON CONFLICT(year_week)
+            DO UPDATE SET busybits = excluded.busybits
+            """,
+            (year_week, bits_str),
+        )
+        self.conn.commit()
+
+    def update_busy_weeks_for_record(self, record_id: int) -> None:
+        """
+        Recompute busy caches impacted by a single record.
+        """
+        import numpy as np
+
+        self.cursor.execute(
+            "SELECT year_week FROM BusyWeeksFromDateTimes WHERE record_id = ?",
+            (record_id,),
+        )
+        affected = {row[0] for row in self.cursor.fetchall()}
+        self.cursor.execute(
+            "DELETE FROM BusyWeeksFromDateTimes WHERE record_id = ?", (record_id,)
+        )
+        self.conn.commit()
+
+        self.cursor.execute("SELECT itemtype FROM Records WHERE id = ?", (record_id,))
+        row = self.cursor.fetchone()
+        itemtype = row[0] if row else None
+
+        if itemtype == "*":
+            self.cursor.execute(
+                """
+                SELECT start_datetime, end_datetime
+                FROM DateTimes
+                WHERE record_id = ?
+                """,
+                (record_id,),
+            )
+            rows = self.cursor.fetchall()
+            week_map: dict[str, np.ndarray] = {}
+            for start_str, end_str in rows:
+                for year_week, arr in fine_busy_bits_for_event(start_str, end_str).items():
+                    affected.add(year_week)
+                    arr = np.asarray(arr, dtype=np.uint8)
+                    if year_week in week_map:
+                        week_map[year_week] = np.maximum(week_map[year_week], arr)
+                    else:
+                        week_map[year_week] = arr
+            for year_week, arr in week_map.items():
+                self.cursor.execute(
+                    """
+                    INSERT INTO BusyWeeksFromDateTimes (record_id, year_week, busybits)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(record_id, year_week)
+                    DO UPDATE SET busybits = excluded.busybits
+                    """,
+                    (record_id, year_week, arr.tobytes()),
+                )
+            self.conn.commit()
+
+        for year_week in affected:
+            self._aggregate_busy_week(year_week)
 
     def show_busy_week(self, year_week: str):
         """

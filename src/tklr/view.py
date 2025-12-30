@@ -1907,8 +1907,21 @@ class FullScreenList(SearchableScreen):
     # --- Tag Lookup ---------------------------------------------------------
     def get_record_for_tag(self, tag: str):
         """Return the record_id corresponding to a tag on the current page."""
-        _, tag_map = self.pages[self.current_page]
-        log_msg(f"{tag_map = }")
+        total_pages = len(self.pages)
+        log_msg(f"{self.current_page = }, {total_pages = }")
+        if total_pages == 0:
+            return None
+
+        # Guard against stale current_page indices (e.g., when pages changed)
+        index = max(0, min(self.current_page, total_pages - 1))
+        if index != self.current_page:
+            self.current_page = index
+
+        try:
+            _, tag_map = self.pages[self.current_page]
+        except IndexError:
+            return None
+
         return tag_map.get(tag)
 
     def show_details_for_tag(self, tag: str) -> None:

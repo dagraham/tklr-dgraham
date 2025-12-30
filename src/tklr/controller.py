@@ -2552,6 +2552,11 @@ class Controller:
         for d in allowed_dates:
             entries = grouped_by_date.get(d, [])
             for _, (dt_id, start_ts, end_ts, subject, record_id, job_id) in entries:
+                start_dt = datetime_from_timestamp(start_ts)
+                if start_dt is not None:
+                    subject = self.apply_anniversary_if_needed(
+                        record_id, subject, start_dt
+                    )
                 subject = self.apply_flags(record_id, subject)
                 end_ts = end_ts or start_ts
                 label = format_time_range(start_ts, end_ts, self.AMPM).strip()
