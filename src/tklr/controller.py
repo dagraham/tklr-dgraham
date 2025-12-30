@@ -1895,29 +1895,22 @@ class Controller:
             if job_id is not None:
                 try:
                     js = self.db_manager.get_job_display_subject(id, job_id)
-                    if js:  # only override if present/non-empty
+                    if js:
                         subject = js
-                    # log_msg(f"{subject = }")
                 except Exception as e:
-                    # fail-safe: keep the record subject
                     log_msg(f"{e = }")
-                    pass
 
-            # 👉 NEW: append flags from Records.flags
             subject = self.apply_flags(id, subject)
-
-            monthday = start_dt.strftime("%-m-%d")
-            start_end = f"{monthday:>2} {format_hours_mins(start_dt, HRS_MINS)}"
+            day_display = start_dt.strftime("%m-%d")
+            timestamp_markup = f"[not bold]{day_display}[/not bold]"
             type_color = TYPE_TO_COLOR[itemtype]
-            escaped_start_end = f"[not bold]{start_end}[/not bold]"
             item = {
                 "record_id": id,
                 "job_id": job_id,
                 "datetime_id": dt_id,
                 "instance_ts": start_ts,
-                "text": f"[{type_color}]{itemtype} {escaped_start_end} {subject}[/{type_color}]",
+                "text": f"{timestamp_markup}   [{type_color}]{itemtype} {subject}[/{type_color}]",
             }
-            # yr_mnth_to_events.setdefault(start_dt.strftime("%B %Y"), []).append(row)
             year_to_events.setdefault(start_dt.strftime("%b %Y"), []).append(item)
 
         # self.list_tag_to_id.setdefault("next", {})
@@ -2275,31 +2268,24 @@ class Controller:
         for dt_id, id, job_id, subject, description, itemtype, start_ts in events:
             start_dt = datetime_from_timestamp(start_ts)
             subject = self.apply_anniversary_if_needed(id, subject, start_dt)
-            # log_msg(f"Week description {subject = }, {start_dt = }, {end_dt = }")
             if job_id is not None:
                 try:
                     js = self.db_manager.get_job_display_subject(id, job_id)
-                    if js:  # only override if present/non-empty
+                    if js:
                         subject = js
-                    # bug_msg(f"{subject = }")
-                except Exception as e:
-                    # fail-safe: keep the record subject
-                    # bug_msg(f"{e = }")
+                except Exception:
                     pass
 
-            # 👉 NEW: append flags from Records.flags
             subject = self.apply_flags(id, subject)
-
-            monthday = start_dt.strftime("%-m-%d")
-            start_end = f"{monthday:>2} {format_hours_mins(start_dt, HRS_MINS)}"
+            day_display = start_dt.strftime("%m-%d")
+            timestamp_markup = f"[not bold]{day_display}[/not bold]"
             type_color = TYPE_TO_COLOR[itemtype]
-            escaped_start_end = f"[not bold]{start_end}[/not bold]"
             item = {
                 "dt_id": dt_id,
                 "record_id": id,
                 "job_id": job_id,
                 "instance_ts": start_ts,
-                "text": f"[{type_color}]{itemtype} {escaped_start_end} {subject}[/{type_color}]",
+                "text": f"{timestamp_markup}   [{type_color}]{itemtype} {subject}[/{type_color}]",
             }
             year_to_events.setdefault(start_dt.strftime("%b %Y"), []).append(item)
 
