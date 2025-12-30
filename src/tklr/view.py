@@ -199,12 +199,12 @@ HelpText = f"""\
 [bold]^Q[/bold]        Quit           [bold]^S[/bold]    Screenshot
 [bold] +[/bold]        New Reminder   [bold] ?[/bold]    Help
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
- [bold]A[/bold]    Agenda              [bold]L[/bold]    Last
+ [bold]A[/bold]    Agenda              [bold]M[/bold]    Modified
  [bold]B[/bold]    Bins                [bold]N[/bold]    Next
  [bold]C[/bold]    Completed           [bold]Q[/bold]    Query
  [bold]F[/bold]    Find                [bold]R[/bold]    Remaining Alerts
- [bold]G[/bold]    Goals               [bold]W[/bold]    Weeks
- [bold]H[/bold]    Hash Tags
+ [bold]G[/bold]    Goals               [bold]T[/bold]    Tags
+ [bold]L[/bold]    Last                [bold]W[/bold]    Weeks
 [bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
  [bold]/[/bold]        Set search      empty search clears
  [bold]>[/bold]        Next match      [bold]<[/bold]    Previous match
@@ -2887,7 +2887,7 @@ class DynamicViewApp(App):
         ("L", "show_last", "Show Last"),
         ("M", "show_modified", "Show Modified"),
         ("N", "show_next", "Show Next"),
-        ("H", "show_tags", "Show Hash Tags"),
+        ("T", "show_tags", "Show Tags"),
         ("F", "show_find", "Find"),
         ("W", "show_weeks", "Weeks"),
         ("?", "show_help", "Help"),
