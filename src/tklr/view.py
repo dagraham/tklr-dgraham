@@ -2571,7 +2571,7 @@ class QueryScreen(SearchableScreen, SafeScreen):
     def compose(self) -> ComposeResult:
         yield Static("Query", id="query_title", classes="title-class")
         self.query_input = Input(
-            placeholder="includes summary waldo",
+            placeholder="includes subject waldo",
             id="query_input",
         )
         yield self.query_input
@@ -2658,7 +2658,7 @@ class QueryScreen(SearchableScreen, SafeScreen):
                 rows = []
                 tag_map = {}
             tag = TAGS[idx % len(TAGS)]
-            subject = match.summary or "(untitled)"
+            subject = match.subject or "(untitled)"
             rows.append(
                 f" [dim]{tag}[/dim] {match.itemtype} {subject} (id {match.record_id})"
             )

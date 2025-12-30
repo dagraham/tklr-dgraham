@@ -790,7 +790,7 @@ def query(ctx, query_parts, limit):
         display_matches = matches
 
     for match in display_matches:
-        subject = match.summary or "(untitled)"
+        subject = match.subject or "(untitled)"
         print(f"{match.itemtype} {subject} (id {match.record_id})")
 
     if limit is not None and limit < total:

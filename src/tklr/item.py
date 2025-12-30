@@ -2520,11 +2520,12 @@ Entry: {self.entry}
         Handle @m / ~m tokens. Validation ensures a value is provided;
         actual encoding happens during finalize_record().
         """
-        token_text = token.get("token") or ""
-        parts = token_text.split(maxsplit=1)
-        if len(parts) < 2 or not parts[1].strip():
+        token_text = token.get("token").strip() or ""
+        # parts = token_text.split(maxsplit=1)
+        # if len(parts) < 2 or not parts[1].strip():
+        if not token_text:
             return False, "@m requires a value", []
-        return True, parts[1].strip(), []
+        return True, token_text, []
 
     def integer(cls, arg, min, max, zero, typ=None):
         """

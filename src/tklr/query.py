@@ -19,7 +19,7 @@ class QueryError(ValueError):
 class QueryMatch:
     record_id: int
     itemtype: str
-    summary: str
+    subject: str
 
 
 @dataclass
@@ -62,22 +62,25 @@ class RecordView:
         self,
         record_id: int,
         itemtype: str,
-        summary: str,
+        subject: str,
         tokens: Sequence[dict],
     ) -> None:
         self.record_id = record_id
         self.itemtype = (itemtype or "").strip()
-        self.summary = (summary or "").strip()
+        self.subject = (subject or "").strip()
         self._field_map: dict[str, list[str]] = {}
         self._populate_from_tokens(tokens or [])
 
     def _populate_from_tokens(self, tokens: Sequence[dict]) -> None:
         self._field_map["itemtype"] = [self.itemtype]
-        self._field_map["summary"] = [self.summary]
+        self._field_map["subject"] = [self.subject]
         for token in tokens:
             if token.get("t") == "@":
                 key = (token.get("k") or "").lower()
-                if not key or key == "m":
+                if not key:
+                    continue
+                if key == "m":
+                    self._field_map.setdefault("m", []).append("[masked]")
                     continue
                 value = self._extract_token_value(token)
                 if value is None:
@@ -86,7 +89,7 @@ class RecordView:
             elif token.get("t") == "subject":
                 text = (token.get("token") or "").strip()
                 if text:
-                    self._field_map["summary"].append(text)
+                    self._field_map["subject"].append(text)
 
     def _extract_token_value(self, token: dict) -> str | None:
         raw = token.get("token")
@@ -394,7 +397,7 @@ class QueryEngine:
             view = RecordView(
                 record_id=record.get("id", 0),
                 itemtype=record.get("itemtype", ""),
-                summary=record.get("subject", ""),
+                subject=record.get("subject", ""),
                 tokens=record.get("tokens", []),
             )
             if plan.matches(view):
@@ -402,7 +405,7 @@ class QueryEngine:
                     QueryMatch(
                         record_id=view.record_id,
                         itemtype=view.itemtype,
-                        summary=view.summary or "(untitled)",
+                        subject=view.subject or "(untitled)",
                     )
                 )
         return QueryResponse(matches=matches, info_id=None)
@@ -420,7 +423,7 @@ def normalize_field(name: str) -> str:
     if name.startswith("@"):
         name = name[1:]
     if name in ("subject", "summary"):
-        return "summary"
+        return "subject"
     if name in ("itemtype", "type", "item"):
         return "itemtype"
     return name
