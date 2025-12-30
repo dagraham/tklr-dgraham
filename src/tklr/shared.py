@@ -538,11 +538,13 @@ def log_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = False)
     )
     lines.append("\n\n")
 
-    # Save the message to the file
-    with open(file_path, "a") as f:
-        f.writelines(lines)
+    # Best-effort file logging; fall back to console when the file is unwritable.
+    try:
+        with open(file_path, "a") as f:
+            f.writelines(lines)
+    except OSError:
+        print_output = True
 
-    # Optional console print
     if print_output:
         print("".join(lines))
 
@@ -584,11 +586,12 @@ def bug_msg(msg: str, file_path: str = "bug_msg.md", print_output: bool = False)
     )
     lines.append("\n\n")
 
-    # Save the message to the file
-    with open(file_path, "a") as f:
-        f.writelines(lines)
+    try:
+        with open(file_path, "a") as f:
+            f.writelines(lines)
+    except OSError:
+        print_output = True
 
-    # Optional console print
     if print_output:
         print("".join(lines))
 

@@ -2862,6 +2862,7 @@ class DynamicViewApp(App):
         "agenda": "action_show_agenda",
         "goals": "action_show_goals",
         "query": "action_show_query",
+        "modified": "action_show_modified",
         # ...
     }
 
@@ -2884,6 +2885,7 @@ class DynamicViewApp(App):
         ("Q", "show_query", "Query"),
         ("C", "show_completions", "Completions"),
         ("L", "show_last", "Show Last"),
+        ("M", "show_modified", "Show Modified"),
         ("N", "show_next", "Show Next"),
         ("H", "show_tags", "Show Hash Tags"),
         ("F", "show_find", "Find"),
@@ -3560,6 +3562,12 @@ class DynamicViewApp(App):
         details, title = self.controller.get_next()
         log_msg(f"{details = }, {title = }")
 
+        footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
+        self.show_screen(FullScreenList(details, title, "", footer))
+
+    def action_show_modified(self):
+        self.view = "modified"
+        details, title = self.controller.get_modified()
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         self.show_screen(FullScreenList(details, title, "", footer))
 

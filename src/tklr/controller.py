@@ -1950,6 +1950,58 @@ class Controller:
         # bug_msg(f"{pages = }")
         return pages, header
 
+    def get_modified(self, yield_rows: bool = False):
+        """
+        List reminders ordered by their modified timestamp (newest first).
+        """
+        records = self.db_manager.get_records_by_modified()
+        header = f"Modified ({len(records)})"
+
+        rows: list[dict] = []
+        if not records:
+            return rows if yield_rows else ([], header)
+
+        current_bucket: str | None = None
+        for record_id, subject, itemtype, modified_ts, _desc in records:
+            normalized_ts = (
+                modified_ts[:-1] if modified_ts and modified_ts.endswith("Z") else modified_ts
+            )
+            bucket_dt = datetime_from_timestamp(normalized_ts)
+            bucket_label = bucket_dt.strftime("%b %Y") if bucket_dt else "Unknown"
+            day_display = bucket_dt.strftime("%m-%d") if bucket_dt else "--"
+            if bucket_label != current_bucket:
+                current_bucket = bucket_label
+                rows.append(
+                    {
+                        "record_id": None,
+                        "job_id": None,
+                        "datetime_id": None,
+                        "instance_ts": None,
+                        "text": f"[not bold][{HEADER_COLOR}]{bucket_label}[/{HEADER_COLOR}][/not bold]",
+                    }
+                )
+
+            subject_text = subject or "(untitled)"
+            subject_text = self.apply_flags(record_id, subject_text)
+            timestamp_markup = f"[not bold]{day_display}[/not bold]"
+            type_color = TYPE_TO_COLOR.get(itemtype, "white")
+
+            rows.append(
+                {
+                    "record_id": record_id,
+                    "job_id": None,
+                    "datetime_id": None,
+                    "instance_ts": modified_ts,
+                    "text": f"{timestamp_markup}   [{type_color}]{itemtype} {subject_text}[/{type_color}]",
+                }
+            )
+
+        if yield_rows:
+            return rows
+
+        pages = page_tagger(rows)
+        return pages, header
+
     def get_goals(self):
         """
         Build the data needed for Goals View: priority-sorted goals with progress.

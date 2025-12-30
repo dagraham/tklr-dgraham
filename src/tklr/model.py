@@ -3194,6 +3194,22 @@ class DatabaseManager:
         )
         return self.cursor.fetchall()
 
+    def get_records_by_modified(
+        self,
+    ) -> List[Tuple[int, str | None, str, str | None, str | None]]:
+        """
+        Return every record ordered by its modified timestamp, newest first.
+        """
+        self.cursor.execute(
+            """
+            SELECT id, subject, itemtype, modified, description
+            FROM Records
+            WHERE modified IS NOT NULL
+            ORDER BY modified DESC
+            """
+        )
+        return self.cursor.fetchall()
+
     #         SELECT
     #             r.id,
     #             d.job_id,
