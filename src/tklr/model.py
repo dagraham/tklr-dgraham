@@ -2816,7 +2816,7 @@ class DatabaseManager:
             self.cursor.execute(
                 "UPDATE Records SET processed = 1 WHERE id = ?", (record_id,)
             )
-        self.conn.commit()
+        # self.conn.commit()  # Moved to populate_dependent_tables()
 
     def get_events_for_period(self, start_date: datetime, end_date: datetime):
         """
@@ -3514,7 +3514,7 @@ class DatabaseManager:
                     ),
                 )
 
-        self.conn.commit()
+        # self.conn.commit()  # PERF: Batched at end of populate_all_urgency()
 
     def populate_all_urgency(self):
         self.cursor.execute("DELETE FROM Urgency")
