@@ -69,7 +69,7 @@ def ensure_database(db_path: str, env: TklrEnvironment):
         print(
             f"[yellow]⚠️ [/yellow]Database not found. Creating new database at {db_path}"
         )
-        dbm = DatabaseManager(db_path, env)
+        dbm = DatabaseManager(db_path, env, auto_populate=False)
         dbm.setup_database()
 
 
@@ -136,7 +136,7 @@ def add(ctx, entry, file, batch):
     db = ctx.obj["DB"]
     verbose = ctx.obj["VERBOSE"]
     bad_items = []
-    dbm = DatabaseManager(db, env)
+    dbm = DatabaseManager(db, env, auto_populate=False)
 
     def clean_and_split(content: str) -> list[str]:
         """
@@ -239,7 +239,7 @@ def ui(ctx):
     if verbose:
         print(f"[blue]Launching UI with database:[/blue] {db}")
 
-    controller = Controller(db, env)
+    controller = Controller(db, env, auto_populate=True)
     DynamicViewApp(controller).run()
 
 
@@ -303,7 +303,7 @@ def agenda(ctx, width, rich):
     db = ctx.obj["DB"]
     verbose = ctx.obj["VERBOSE"]
 
-    controller = Controller(db, env)
+    controller = Controller(db, env, auto_populate=False)
     rows = controller.get_agenda(yield_rows=True)
 
     if verbose:
@@ -530,7 +530,7 @@ def weeks(ctx, start_opt, end_opt, width, rich):
     db_path = ctx.obj["DB"]
 
     # dbm = DatabaseManager(db_path, env)
-    controller = Controller(db_path, env)
+    controller = Controller(db_path, env, auto_populate=False)
     dbm = controller.db_manager
     verbose = ctx.obj["VERBOSE"]
     if verbose:
@@ -667,7 +667,7 @@ def days(ctx, start_opt, end_opt, width, rich):
     env = ctx.obj["ENV"]
     db_path = ctx.obj["DB"]
 
-    controller = Controller(db_path, env)
+    controller = Controller(db_path, env, auto_populate=False)
     dbm = controller.db_manager
     verbose = ctx.obj["VERBOSE"]
     if verbose:
@@ -757,7 +757,7 @@ def query(ctx, query_parts, limit):
 
     env = ctx.obj["ENV"]
     db_path = ctx.obj["DB"]
-    controller = Controller(db_path, env)
+    controller = Controller(db_path, env, auto_populate=False)
 
     try:
         response = controller.run_query(query_text)
@@ -814,7 +814,7 @@ def find(ctx, regex_parts):
     pattern = " ".join(regex_parts).strip()
     env = ctx.obj["ENV"]
     db_path = ctx.obj["DB"]
-    controller = Controller(db_path, env)
+    controller = Controller(db_path, env, auto_populate=False)
 
     matches = controller.db_manager.find_records(pattern)
     if not matches:

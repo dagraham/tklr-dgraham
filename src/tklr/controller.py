@@ -466,9 +466,21 @@ class Controller:
     (tag generation, agenda pagination, etc.) so both the CLI and Textual UI
     share the same behavior.
     """
-    def __init__(self, database_path: str, env: TklrEnvironment, reset: bool = False):
+    def __init__(
+        self,
+        database_path: str,
+        env: TklrEnvironment,
+        reset: bool = False,
+        *,
+        auto_populate: bool = True,
+    ):
         # Initialize the database manager
-        self.db_manager = DatabaseManager(database_path, env, reset=reset)
+        self.db_manager = DatabaseManager(
+            database_path,
+            env,
+            reset=reset,
+            auto_populate=auto_populate,
+        )
 
         self.tag_to_id = {}  # Maps tag numbers to event IDs
         self.list_tag_to_id: dict[str, dict[str, object]] = {}

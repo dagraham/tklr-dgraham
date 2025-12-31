@@ -124,7 +124,6 @@ def _fmt_utc(dt_aware_utc: datetime) -> str:
     return dt_aware_utc.astimezone(tz.UTC).strftime(DT_FMT) + "Z"
 
 
-
 def _to_key(dt: datetime) -> str:
     """Naive-local datetime -> 'YYYYMMDDTHHMMSS' string key."""
     return dt.strftime("%Y%m%dT%H%M")
@@ -978,7 +977,14 @@ class UrgencyComputer:
 
 
 class DatabaseManager:
-    def __init__(self, db_path: str, env: TklrEnvironment, reset: bool = False):
+    def __init__(
+        self,
+        db_path: str,
+        env: TklrEnvironment,
+        reset: bool = False,
+        *,
+        auto_populate: bool = True,
+    ):
         self.db_path = db_path
         self.env = env
         self.AMPM = env.config.ui.ampm
@@ -1009,7 +1015,8 @@ class DatabaseManager:
             self.ensure_system_bins()
         )
         # bug_msg(f"{self.bin_cache.name_to_binpath() = }")
-        self.populate_dependent_tables()
+        if auto_populate:
+            self.populate_dependent_tables()
 
     def format_datetime(self, fmt_dt: str) -> str:
         return format_datetime(fmt_dt, self.ampm)
@@ -2623,6 +2630,7 @@ class DatabaseManager:
         Infinite rules: constrained to `window` when provided.
         Finite rules: generated fully (window ignored).
         """
+        bug_msg(f"regen record {record_id} (window={window})")
         # Fetch core fields including itemtype and jobs JSON
         self.cursor.execute(
             "SELECT itemtype, rruleset, extent, jobs, processed FROM Records WHERE id=?",
@@ -3705,7 +3713,9 @@ class DatabaseManager:
             np.frombuffer(row[0], dtype=np.uint8) for row in self.cursor.fetchall()
         ]
         if not blobs:
-            self.cursor.execute("DELETE FROM BusyWeeks WHERE year_week = ?", (year_week,))
+            self.cursor.execute(
+                "DELETE FROM BusyWeeks WHERE year_week = ?", (year_week,)
+            )
             self.conn.commit()
             return
 
@@ -3757,7 +3767,9 @@ class DatabaseManager:
             rows = self.cursor.fetchall()
             week_map: dict[str, np.ndarray] = {}
             for start_str, end_str in rows:
-                for year_week, arr in fine_busy_bits_for_event(start_str, end_str).items():
+                for year_week, arr in fine_busy_bits_for_event(
+                    start_str, end_str
+                ).items():
                     affected.add(year_week)
                     arr = np.asarray(arr, dtype=np.uint8)
                     if year_week in week_map:
