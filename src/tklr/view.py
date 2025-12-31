@@ -224,7 +224,35 @@ HelpText = f"""\
  details of the item and access related commands
  to edit, reschedule, finish and so forth. To see
  the complete list of available commands press ?
- when the details pane is open.
+when the details pane is open.
+""".splitlines()
+
+QueryHelpText = f"""\
+[bold][{TITLE_COLOR}]Query Builder[{TITLE_COLOR}][/bold]
+[bold][{HEADER_COLOR}]Syntax[/{HEADER_COLOR}][/bold]
+ command field [args]
+ Fields → itemtype, subject, tags, or any @-key (b, d, s, etc.)
+ Commands:
+   begins field RGX      · value begins with regex
+   includes fields RGX   · any listed field matches regex
+   equals field VALUE    · exact match
+   more/less field VALUE · numeric/string comparisons
+   exists field          · field present
+   any/all/one field LST · list membership tests
+   info ID               · open record by id
+   dt field EXP          · date/time queries (? date, ? time, >2024-01-01-09-00)
+ Prefix a command with '~' to negate it. Combine clauses with 'and' / 'or'.
+
+[bold][{HEADER_COLOR}]Examples[/{HEADER_COLOR}][/bold]
+ begins subject waldo
+ ~includes subject waldo
+ includes subject d projectX
+ dt s < 2024-07-01 and equals itemtype *
+
+[bold][{HEADER_COLOR}]Tips[/{HEADER_COLOR}][/bold]
+ • Enter runs the query; Esc edits the query (or closes details).
+ • ↑ / ↓ cycle through query history.
+ • Use result tags (a–z) to open details; Enter shows the actions menu there.
 """.splitlines()
 
 
@@ -427,7 +455,7 @@ class ListWithDetails(Container):
         ):
             self._details_history.append(self._current_details)
         self.details_meta = meta or {}  # <- keep meta for key actions
-        body = [title] + _make_rows(lines)
+        body = _make_rows(lines)
         bug_msg(f"{meta_times(self.details_meta)}")
         # bug_msg(f"{meta['instance_ts'] = }, {title = }, {lines = }")
         self._details.update_list(body)
@@ -1208,12 +1236,15 @@ class DetailsScreen(ModalScreen[None]):
             self.title_text = f"📌 {base}"
         else:
             self.title_text = base
-        self.query_one("#details_title", Static).update(self.title_text)
+        try:
+            self.query_one("#details_title", Static).update(self.title_text)
+        except NoMatches:
+            # Modal no longer renders a dedicated title widget.
+            pass
 
     # ---------- layout ----------
     def compose(self) -> ComposeResult:
         yield Vertical(
-            Static(self.title_text, id="details_title", classes="title-class"),
             Static("\n".join(self.lines), expand=True, id="details_text"),
             # Static(self.footer_content),
         )
@@ -2576,9 +2607,9 @@ class QueryScreen(SearchableScreen, SafeScreen):
         self.current_page: int = 0
         self.matches: list[QueryMatch] = []
         self.footer_content = (
+            f"[bold {FOOTER}]?[/bold {FOOTER}] Help "
             f"[bold {FOOTER}]Enter[/bold {FOOTER}] Run query "
-            f"[bold {FOOTER}]q[/bold {FOOTER}] Edit query "
-            f"[bold {FOOTER}]?[/bold {FOOTER}] Help"
+            f"[bold {FOOTER}]Esc[/bold {FOOTER}] Edit query "
         )
 
     def compose(self) -> ComposeResult:
@@ -2589,7 +2620,7 @@ class QueryScreen(SearchableScreen, SafeScreen):
         )
         yield self.query_input
         self.status_label = Static(
-            "Enter a query and press Enter.",
+            "Enter a query",
             id="query_status",
         )
         yield self.status_label
@@ -2604,7 +2635,7 @@ class QueryScreen(SearchableScreen, SafeScreen):
 
     def after_mount(self) -> None:
         self._focus_query_input()
-        self._set_status("Awaiting query.", "info")
+        self._set_status("Enter a query", "info")
         self._rebuild_pages([])
 
     def show_details_for_tag(self, tag: str) -> None:
@@ -2627,11 +2658,23 @@ class QueryScreen(SearchableScreen, SafeScreen):
             return
         if self.list_with_details:
             self.list_with_details.show_details(title, lines, details_meta)
-        self._set_status(f"Showing record {record_id}.", "info")
+        self._set_status(f"Showing record {record_id}", "info")
 
     def _focus_query_input(self) -> None:
         if self.query_input:
             self.query_input.focus()
+
+    def _focus_results_list(self) -> None:
+        if self.list_with_details:
+            try:
+                self.list_with_details.focus()
+            except Exception:
+                pass
+        if self.query_input and self.query_input.has_focus:
+            try:
+                self.query_input.blur()
+            except Exception:
+                pass
 
     def has_next_page(self) -> bool:
         return self.current_page < len(self.pages) - 1
@@ -2658,6 +2701,7 @@ class QueryScreen(SearchableScreen, SafeScreen):
                 self.list_with_details.hide_details()
         self.controller.list_tag_to_id.setdefault("query", {})
         self.controller.list_tag_to_id["query"] = tag_map
+        self._update_match_status()
 
     def _rebuild_pages(self, matches: list[QueryMatch]) -> None:
         self.matches = matches
@@ -2702,16 +2746,16 @@ class QueryScreen(SearchableScreen, SafeScreen):
         if self.status_label:
             self.status_label.update(f"[{color}]{message}[/]")
 
-    def _run_query(self, text: str) -> None:
+    def _run_query(self, text: str) -> bool:
         query = (text or "").strip()
         if not query:
             self._set_status("Enter a query.", "warning")
-            return
+            return False
         try:
             response = self.controller.run_query(query)
         except QueryError as exc:
             self._set_status(str(exc), "error")
-            return
+            return False
 
         if not self.history or self.history[-1] != query:
             self.history.append(query)
@@ -2730,22 +2774,33 @@ class QueryScreen(SearchableScreen, SafeScreen):
             if self.list_with_details:
                 self.list_with_details.show_details(title, lines, meta)
             self._set_status(f"Opened record {response.info_id}.", "info")
-            return
+            return False
 
         matches = response.matches
         if not matches:
             self._set_status("No results.", "warning")
-        else:
-            suffix = "" if len(matches) == 1 else "s"
-            self._set_status(f"{len(matches)} result{suffix}.", "info")
+            self._rebuild_pages(matches)
+            return True
 
         self._rebuild_pages(matches)
+        self._update_match_status()
+        return True
+
+    def _update_match_status(self) -> None:
+        if not self.matches:
+            return
+        total_pages = max(1, len(self.pages))
+        indicator = (
+            f" ({self.current_page + 1}/{total_pages})" if total_pages > 1 else ""
+        )
+        self._set_status(f"Matching ({len(self.matches)}){indicator}:", "info")
 
     @on(Input.Submitted)
     def _handle_query_submit(self, event: Input.Submitted) -> None:
         if event.input != self.query_input:
             return
-        self._run_query(event.value or "")
+        if self._run_query(event.value or ""):
+            self._focus_results_list()
         event.stop()
 
     def _history_previous(self) -> None:
@@ -2772,8 +2827,11 @@ class QueryScreen(SearchableScreen, SafeScreen):
                 self.query_input.value = self.history[idx]
 
     def on_key(self, event) -> None:
-        if event.key == "q":
-            self._focus_query_input()
+        if event.key == "escape":
+            if self.list_with_details and self.list_with_details.has_details_open():
+                self.list_with_details.hide_details()
+            else:
+                self._focus_query_input()
             event.stop()
             return
         if (
@@ -3772,6 +3830,8 @@ class DynamicViewApp(App):
             meta = self.controller.get_last_details_meta() or {}
             lines = build_details_help(meta)
             self.push_screen(HelpScreen(lines))
+        elif self.view == "query":
+            self.push_screen(HelpScreen(QueryHelpText))
         else:
             self.push_screen(HelpScreen(HelpText))
 

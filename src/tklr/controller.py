@@ -168,7 +168,13 @@ def _ensure_tokens_list(value):
     return list(value)
 
 
-def format_tokens(tokens, width, highlight=True):
+def format_tokens(
+    tokens,
+    width,
+    highlight: bool = True,
+    *,
+    wrap_descriptions: bool = True,
+):
     if isinstance(tokens, str):
         try:
             tokens = json.loads(tokens)
@@ -209,14 +215,15 @@ def format_tokens(tokens, width, highlight=True):
             if current_line:
                 output_lines.append(current_line)
                 current_line = ""
-            # output_lines.append("")
+            if not wrap_descriptions:
+                output_lines.append(token_text)
+                continue
             for line in token_text.splitlines():
                 indent = len(line) - len(line.lstrip(" "))
                 wrapped = textwrap.wrap(
                     line, width=width, subsequent_indent=" " * indent
                 ) or [""]
                 output_lines.extend(wrapped)
-            # output_lines.append("")
             continue
 
         # optional special-case for @~
@@ -2752,7 +2759,12 @@ class Controller:
         """
         result = self.db_manager.get_tokens(record_id)
         tokens, rruleset, created, modified = result[0]
-        entry = format_tokens(tokens, self.width, False)
+        entry = format_tokens(
+            tokens,
+            self.width,
+            False,
+            wrap_descriptions=False,
+        )
 
         return entry
 

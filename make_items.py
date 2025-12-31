@@ -352,6 +352,7 @@ items = [
     "* timezone test for noon naive @s 12p z none @e 1h",
     f"~ wind grandfather clock @s {five_days_ago()}  @o 4d",
     f"~ fill birdfeeders @s {ten_days_ago()}  @o ~4d",
+    f"% very long note @d {lorem.paragraph()} #test #lorem",
 ]
 
 bins = [
