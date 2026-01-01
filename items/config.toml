@@ -17,6 +17,10 @@ ampm = true
 # the next offset for a task
 history_weight = 3
 
+# agenda_days: int >= 1
+# Number of event days to display in Agenda view / CLI command.
+agenda_days = 3
+
 # dayfirst and yearfirst settings
 # These settings are used to resolve ambiguous date entries involving
 # 2-digit components. E.g., the interpretation of the date "12-10-11"

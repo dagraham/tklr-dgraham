@@ -473,6 +473,7 @@ class Controller:
     (tag generation, agenda pagination, etc.) so both the CLI and Textual UI
     share the same behavior.
     """
+
     def __init__(
         self,
         database_path: str,
@@ -497,9 +498,7 @@ class Controller:
         self.start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
         self.env = env
-        self.mask_secret = (
-            getattr(self.env.config, "secret", "") if self.env else ""
-        )
+        self.mask_secret = getattr(self.env.config, "secret", "") if self.env else ""
         self.AMPM = env.config.ui.ampm
         self.agenda_days = 3
         self._last_details_meta = None
@@ -1978,7 +1977,9 @@ class Controller:
         current_bucket: str | None = None
         for record_id, subject, itemtype, modified_ts, _desc in records:
             normalized_ts = (
-                modified_ts[:-1] if modified_ts and modified_ts.endswith("Z") else modified_ts
+                modified_ts[:-1]
+                if modified_ts and modified_ts.endswith("Z")
+                else modified_ts
             )
             bucket_dt = datetime_from_timestamp(normalized_ts)
             bucket_label = bucket_dt.strftime("%b %Y") if bucket_dt else "Unknown"
@@ -2056,10 +2057,11 @@ class Controller:
             return True
 
         records = self.db_manager.get_goal_records()
-        header = (
-            f"[bold {HEADER_COLOR}]tag        done    left      subject"
-            f"[/bold {HEADER_COLOR}]"
-        )
+        # header = (
+        #     f"[bold {HEADER_COLOR}]tag        done    left      subject"
+        #     f"[/bold {HEADER_COLOR}]"
+        # )
+        header = ""
 
         if not records:
             if yield_rows:
@@ -2189,7 +2191,7 @@ class Controller:
                 remaining_seconds_raw if remaining_seconds_raw > 0 else 1
             )
             if remaining_instances == 0:
-                priority = 0.0
+                priority = 0
             else:
                 priority = (remaining_instances * period_seconds) / (
                     num_required * time_for_priority
@@ -2254,13 +2256,14 @@ class Controller:
         rows = []
         goal_count = len(goals)
         for goal in goals:
-            priority_display = f"{goal['priority']:.2f}"
+            # priority_display = f"{goal['priority']:.2f}"
+            priority_display = f"{round(100 * goal['priority'])}"
             progress_display = f"{goal['num_completed']}/{goal['num_required']}"
             time_display = goal["time_display"]
             row_color = _priority_color(goal["priority"])
             text = (
-                f"[{row_color}]{priority_display:>6}  "
-                f"{progress_display:<5}  {time_display:<6}  "
+                f"[{row_color}]{priority_display:>3} "
+                f"{progress_display:>4} {time_display:^6} "
                 f"{goal['subject']}[/{row_color}]"
             )
             rows.append(
@@ -2544,9 +2547,15 @@ class Controller:
 
     def get_agenda(self, now: datetime = datetime.now(), yield_rows: bool = False):
         """Return agenda rows/pages combining events, goals, and tasks."""
-        header = "Agenda - Events, Goals, Tasks"
+        header = "Agenda"
         divider = [
-            {"record_id": None, "job_id": None, "datetime_id": None, "instance_ts": None, "text": "   "},
+            {
+                "record_id": None,
+                "job_id": None,
+                "datetime_id": None,
+                "instance_ts": None,
+                "text": "   ",
+            },
         ]
         events_by_date = self.get_agenda_events(now=now)
         goals_rows, goal_count, goals_header = self.get_goals(yield_rows=True)
@@ -2779,7 +2788,7 @@ class Controller:
             instance_ts,
         ) in urgency_records:
             urgency_str = (
-                "📌" if pinned else f"[{color}]{int(round(urgency * 100)):>2}[/{color}]"
+                "📌" if pinned else f"[{color}]{int(round(urgency * 100)):>3}[/{color}]"
             )
 
             rows.append(
@@ -2788,7 +2797,7 @@ class Controller:
                     "job_id": job_id,
                     "datetime_id": datetime_id,  # 👈 earliest DateTimes.id, or None
                     "instance_ts": instance_ts,  # 👈 earliest start_datetime TEXT, or None
-                    "text": f"[{TASK_COLOR}]{urgency_str} {self.apply_flags(record_id, subject)}[/{TASK_COLOR}]",
+                    "text": f"[{TASK_COLOR}]{urgency_str}  {self.apply_flags(record_id, subject)}[/{TASK_COLOR}]",
                 }
             )
 

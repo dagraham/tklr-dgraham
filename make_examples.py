@@ -50,6 +50,10 @@ BINS = [
 # in_one_hour = (
 #     datetime.now().replace(second=0, microsecond=0) + timedelta(hours=1)
 # ).strftime("%Y-%m-%d %H:%M00")
+def monday():
+    return (parse("monday") - ONEWEEK).strftime("%Y-%m-%d")
+
+
 def in_two_minutes():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 2 + (2 - now.minute % 10)
@@ -285,6 +289,12 @@ one_off = [
     f"* {phrase()} @s {in_ten_minutes()} @a 4m, 2m, 0m: n @d notify test #lorem",
     f"? {phrase()} @d draft test #lorem",
     f"* {phrase()} @s {in_five_days()} @n 7d @d notice test #lorem",
+    f"! {phrase()} @s {monday()} @t 3/1w @d goal test #lorem",
+    f"! {phrase()} @s {monday()} @t 3/1w  @k 1 @d goal test #lorem",
+    f"! {phrase()} @s {monday()} @t 3/1w  @k 2 @d goal test #lorem",
+    f"! {phrase()} @s {monday()} @t 3/2w @d goal test #lorem",
+    f"! {phrase()} @s {monday()} @t 3/2w  @k 1 @d goal test #lorem",
+    f"! {phrase()} @s {monday()} @t 3/2w  @k 2 @d goal test #lorem",
 ]
 
 items = []

@@ -69,7 +69,7 @@ def ensure_database(db_path: str, env: TklrEnvironment):
         print(
             f"[yellow]⚠️ [/yellow]Database not found. Creating new database at {db_path}"
         )
-        dbm = DatabaseManager(db_path, env, auto_populate=False)
+        dbm = DatabaseManager(db_path, env)
         dbm.setup_database()
 
 
@@ -136,7 +136,7 @@ def add(ctx, entry, file, batch):
     db = ctx.obj["DB"]
     verbose = ctx.obj["VERBOSE"]
     bad_items = []
-    dbm = DatabaseManager(db, env, auto_populate=False)
+    dbm = DatabaseManager(db, env)
 
     def clean_and_split(content: str) -> list[str]:
         """
@@ -239,7 +239,7 @@ def ui(ctx):
     if verbose:
         print(f"[blue]Launching UI with database:[/blue] {db}")
 
-    controller = Controller(db, env, auto_populate=True)
+    controller = Controller(db, env)
     DynamicViewApp(controller).run()
 
 
@@ -292,8 +292,7 @@ def check(ctx, entry):
 @click.pass_context
 def agenda(ctx, width, rich):
     """
-    Display the current agenda: events for the configured number of days (with drafts and notices),
-    followed by active goals (if any) and tasks ordered by urgency.
+    Display the current agenda: events for the next 3 days with drafts and notices along with tasks ordered by urgency.
 
     Examples:
       tklr agenda
@@ -304,7 +303,7 @@ def agenda(ctx, width, rich):
     db = ctx.obj["DB"]
     verbose = ctx.obj["VERBOSE"]
 
-    controller = Controller(db, env, auto_populate=False)
+    controller = Controller(db, env)
     rows = controller.get_agenda(yield_rows=True)
 
     if verbose:
@@ -327,7 +326,9 @@ def agenda(ctx, width, rich):
 
         # Parse the markup to get plain text
         rendered = Text.from_markup(text)
-        plain_text = rendered.plain.strip()
+        plain_text = rendered.plain
+        if is_header:
+            plain_text = rendered.plain.strip()
 
         # Skip empty/blank rows (dividers)
         if not plain_text:
@@ -335,6 +336,9 @@ def agenda(ctx, width, rich):
 
         # Add spacing only before the Tasks header
         if is_header and "Tasks" in plain_text:
+            console.print()
+
+        if is_header and "Goals" in plain_text:
             console.print()
 
         # Items need to be indented like in days command
@@ -531,7 +535,7 @@ def weeks(ctx, start_opt, end_opt, width, rich):
     db_path = ctx.obj["DB"]
 
     # dbm = DatabaseManager(db_path, env)
-    controller = Controller(db_path, env, auto_populate=False)
+    controller = Controller(db_path, env)
     dbm = controller.db_manager
     verbose = ctx.obj["VERBOSE"]
     if verbose:
@@ -668,7 +672,7 @@ def days(ctx, start_opt, end_opt, width, rich):
     env = ctx.obj["ENV"]
     db_path = ctx.obj["DB"]
 
-    controller = Controller(db_path, env, auto_populate=False)
+    controller = Controller(db_path, env)
     dbm = controller.db_manager
     verbose = ctx.obj["VERBOSE"]
     if verbose:
@@ -758,7 +762,7 @@ def query(ctx, query_parts, limit):
 
     env = ctx.obj["ENV"]
     db_path = ctx.obj["DB"]
-    controller = Controller(db_path, env, auto_populate=False)
+    controller = Controller(db_path, env)
 
     try:
         response = controller.run_query(query_text)
@@ -791,7 +795,7 @@ def query(ctx, query_parts, limit):
         display_matches = matches
 
     for match in display_matches:
-        subject = match.subject or "(untitled)"
+        subject = match.summary or "(untitled)"
         print(f"{match.itemtype} {subject} (id {match.record_id})")
 
     if limit is not None and limit < total:
@@ -815,7 +819,7 @@ def find(ctx, regex_parts):
     pattern = " ".join(regex_parts).strip()
     env = ctx.obj["ENV"]
     db_path = ctx.obj["DB"]
-    controller = Controller(db_path, env, auto_populate=False)
+    controller = Controller(db_path, env)
 
     matches = controller.db_manager.find_records(pattern)
     if not matches:
@@ -858,7 +862,7 @@ def find(ctx, regex_parts):
     "--types",
     type=click.Choice(MIGRATION_ITEM_TYPES),
     multiple=True,
-    help="Restrict migration to the specified etm item types (default: all).",
+    help="Restrict migration to specific etm item types (default: all).",
 )
 @click.pass_context
 def migrate(
