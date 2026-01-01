@@ -24,6 +24,7 @@ class UIConfig(BaseModel):
     yearfirst: bool = True
     two_digit_year: bool = True
     history_weight: int = 3
+    agenda_days: int = Field(3, ge=1)
 
 
 class DueConfig(BaseModel):
@@ -128,6 +129,10 @@ ampm = {{ ui.ampm | lower }}
 # Apply this weight to the prior history when computing
 # the next offset for a task
 history_weight = {{ ui.history_weight }}
+
+# agenda_days: int >= 1
+# Number of event days to display in Agenda view / CLI command.
+agenda_days = {{ ui.agenda_days }}
 
 # dayfirst and yearfirst settings
 # These settings are used to resolve ambiguous date entries involving

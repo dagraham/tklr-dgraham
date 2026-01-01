@@ -7,6 +7,7 @@ These tests verify goal parsing and tracking functionality.
 import pytest
 from datetime import datetime, timedelta
 from tklr.item import Item
+from tklr.controller import Controller
 from dateutil.parser import parse
 
 
@@ -115,21 +116,77 @@ class TestGoalTracking:
         new_start = parse(tokens["s"][3:].strip())
         assert new_start == starts + timedelta(weeks=1)
 
-    def test_goal_view_filters_inactive_goals(
-        self, frozen_time, test_controller, item_factory
-    ):
-        active = item_factory("! active goal @s 2024-12-31 @t 1/1w")
-        assert active.parse_ok
-        test_controller.add_item(active)
+def test_goal_view_filters_inactive_goals(
+    frozen_time, test_controller, item_factory
+):
+    active = item_factory("! active goal @s 2024-12-31 @t 1/1w")
+    assert active.parse_ok
+    test_controller.add_item(active)
 
-        future = item_factory("! future goal @s 2026-02-01 @t 1/1w")
-        assert future.parse_ok
-        test_controller.add_item(future)
+    future = item_factory("! future goal @s 2026-02-01 @t 1/1w")
+    assert future.parse_ok
+    test_controller.add_item(future)
 
-        pages, title, header = test_controller.get_goals()
-        rows = []
-        for page_rows, _ in pages:
-            rows.extend(page_rows)
-        rows_text = "\n".join(rows)
-        assert "active goal" in rows_text
-        assert "future goal" not in rows_text
+    pages, title, header = test_controller.get_goals()
+    rows = []
+    for page_rows, _ in pages:
+        rows.extend(page_rows)
+    rows_text = "\n".join(rows)
+    assert "active goal" in rows_text
+    assert "future goal" not in rows_text
+
+
+def _add_entry(controller: Controller, env, entry: str) -> None:
+    item = Item(raw=entry, env=env, final=True, controller=controller)
+    assert item.parse_ok, f"Failed to parse entry: {entry}"
+    controller.add_item(item)
+
+
+def test_get_goals_yield_rows_returns_raw_rows(temp_db_path, test_env):
+    ctrl = Controller(str(temp_db_path), test_env, reset=True)
+    try:
+        _add_entry(ctrl, test_env, "! read more books @s 2025-01-01 @t 2/1w")
+        ctrl.db_manager.populate_dependent_tables()
+
+        rows, count, header = ctrl.get_goals(yield_rows=True)
+        assert count == 1
+        assert any("read more books" in row["text"] for row in rows)
+        assert "subject" in header.lower()
+    finally:
+        ctrl.db_manager.conn.close()
+
+
+def test_agenda_includes_goals_section(temp_db_path, test_env):
+    ctrl = Controller(str(temp_db_path), test_env, reset=True)
+    try:
+        _add_entry(ctrl, test_env, "* kickoff @s 2025-01-01 09:00")
+        _add_entry(ctrl, test_env, "! weekly goal @s 2024-12-25 @t 1/1w")
+        ctrl.db_manager.populate_dependent_tables()
+
+        rows = ctrl.get_agenda(yield_rows=True)
+        texts = [row.get("text", "") for row in rows if row.get("text")]
+
+        assert any(text.startswith("Goals (") for text in texts)
+        assert any("weekly goal" in text for text in texts)
+    finally:
+        ctrl.db_manager.conn.close()
+
+
+def test_agenda_event_window_respects_config(temp_db_path, test_env):
+    test_env.config.ui.agenda_days = 2
+    ctrl = Controller(str(temp_db_path), test_env, reset=True)
+    try:
+        base_dt = datetime(2025, 1, 1, 9, 0)
+        for offset in range(4):
+            start = base_dt + timedelta(days=offset)
+            entry = f"* event {offset} @s {start.strftime('%Y-%m-%d %H:%M')}"
+            _add_entry(ctrl, test_env, entry)
+
+        ctrl.db_manager.populate_dependent_tables()
+        rows = ctrl.get_agenda_events(now=base_dt)
+        header_rows = [
+            row for row in rows if row["record_id"] is None and row.get("text", "").strip()
+        ]
+        assert len(header_rows) == 2
+    finally:
+        ctrl.db_manager.conn.close()

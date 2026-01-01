@@ -501,6 +501,7 @@ class Controller:
             getattr(self.env.config, "secret", "") if self.env else ""
         )
         self.AMPM = env.config.ui.ampm
+        self.agenda_days = 3
         self._last_details_meta = None
         # self.afill_by_view: dict[str, int] = {}  # e.g. {"events": 1, "tasks": 2}
         # self.afill_by_week: dict[Tuple[int, int], int] = {}
@@ -522,6 +523,7 @@ class Controller:
             self.dayfirst = self.env.config.ui.dayfirst
             self.yearfirst = self.env.config.ui.yearfirst
             self.history_weight = self.env.config.ui.history_weight
+            self.agenda_days = max(1, self.env.config.ui.agenda_days)
             _yr = "%Y"
             _dm = "%d-%m" if self.dayfirst else "%m-%d"
             self.datefmt = f"{_yr}-{_dm}" if self.yearfirst else f"{_dm}-{_yr}"
@@ -2014,7 +2016,7 @@ class Controller:
         pages = page_tagger(rows)
         return pages, header
 
-    def get_goals(self):
+    def get_goals(self, yield_rows: bool = False):
         """
         Build the data needed for Goals View: priority-sorted goals with progress.
         """
@@ -2060,6 +2062,8 @@ class Controller:
         )
 
         if not records:
+            if yield_rows:
+                return [], 0, header
             rows = [
                 {
                     "record_id": None,
@@ -2205,6 +2209,8 @@ class Controller:
             )
 
         if not goals:
+            if yield_rows:
+                return [], 0, header
             rows = [
                 {
                     "record_id": None,
@@ -2246,6 +2252,7 @@ class Controller:
         )
 
         rows = []
+        goal_count = len(goals)
         for goal in goals:
             priority_display = f"{goal['priority']:.2f}"
             progress_display = f"{goal['num_completed']}/{goal['num_required']}"
@@ -2266,8 +2273,11 @@ class Controller:
                 }
             )
 
+        if yield_rows:
+            return rows, goal_count, header
+
         pages = page_tagger(rows)
-        title = f"Goals ({len(goals)})"
+        title = f"Goals ({goal_count})"
         return pages, title, header
 
     def get_last(self):
@@ -2533,27 +2543,60 @@ class Controller:
         return title, lines
 
     def get_agenda(self, now: datetime = datetime.now(), yield_rows: bool = False):
-        """ """
-        header = "Agenda - Events and Tasks"
+        """Return agenda rows/pages combining events, goals, and tasks."""
+        header = "Agenda - Events, Goals, Tasks"
         divider = [
-            {"record_id": None, "job_id": None, "text": "   "},
+            {"record_id": None, "job_id": None, "datetime_id": None, "instance_ts": None, "text": "   "},
         ]
-        events_by_date = self.get_agenda_events()
+        events_by_date = self.get_agenda_events(now=now)
+        goals_rows, goal_count, goals_header = self.get_goals(yield_rows=True)
         tasks_by_urgency = self.get_agenda_tasks()
-        events_and_tasks = events_by_date + divider + tasks_by_urgency
-        if yield_rows:
-            return events_and_tasks
 
-        pages = page_tagger(events_and_tasks)
+        goals_section: list[dict] = []
+        if goal_count:
+            goals_section.append(
+                {
+                    "record_id": None,
+                    "job_id": None,
+                    "datetime_id": None,
+                    "instance_ts": None,
+                    "text": f"Goals ({goal_count})",
+                }
+            )
+            if goals_header:
+                goals_section.append(
+                    {
+                        "record_id": None,
+                        "job_id": None,
+                        "datetime_id": None,
+                        "instance_ts": None,
+                        "text": goals_header,
+                    }
+                )
+            goals_section.extend(goals_rows)
+
+        events_goals_tasks = list(events_by_date)
+        if goals_section:
+            if events_goals_tasks:
+                events_goals_tasks += divider
+            events_goals_tasks.extend(goals_section)
+        if events_goals_tasks:
+            events_goals_tasks += divider
+        events_goals_tasks.extend(tasks_by_urgency)
+
+        if yield_rows:
+            return events_goals_tasks
+
+        pages = page_tagger(events_goals_tasks)
         return pages, header
 
     def get_agenda_events(self, now: datetime = datetime.now()):
         """
-        Returns dict: date -> list of (tag, label, subject) for up to three days.
+        Build agenda event rows for the configured number of days.
         Rules:
-        • Pick the first 3 days that have events.
+        • Pick the first N days with events where N = agenda_days.
         • Also include TODAY if it has notice/drafts even with no events.
-        • If nothing to display at all, return {}.
+        • If nothing to display at all, return [].
         """
         notice_records = (
             self.db_manager.get_notice_for_events()
@@ -2563,10 +2606,12 @@ class Controller:
         today_dt = now.replace(hour=0, minute=0, second=0, microsecond=0)
         today = today_dt.date()
         now_ts = _fmt_naive(now)
+        days_limit = max(1, getattr(self, "agenda_days", 3))
 
         # Pull events for the next couple of weeks (or whatever window you prefer)
         window_start = today_dt
-        window_end = today_dt + timedelta(days=14)
+        window_span = max(14, days_limit * 3)
+        window_end = today_dt + timedelta(days=window_span)
         events = self.db_manager.get_events_for_period(
             _to_local_naive(window_start), _to_local_naive(window_end)
         )
@@ -2576,12 +2621,12 @@ class Controller:
             events
         )  # {date: [(time_key, (start_ts, end_ts, subject, record_id)), ...]}
 
-        # 1) Determine the first three dates with events
+        # 1) Determine the first N dates with events
         event_dates_sorted = sorted(grouped_by_date.keys())
         allowed_dates: list[date] = []
         for d in event_dates_sorted:
             allowed_dates.append(d)
-            if len(allowed_dates) == 3:
+            if len(allowed_dates) == days_limit:
                 break
 
         # 2) If today has notice/draft items, include it even if it has no events
@@ -2596,7 +2641,7 @@ class Controller:
                 if d not in seen:
                     seen.add(d)
                     deduped.append(d)
-            allowed_dates = deduped[:3]  # cap to 3
+            allowed_dates = deduped[:days_limit]  # cap to configured limit
 
         # 3) If nothing at all to show, bail early
         nothing_to_show = (not allowed_dates) and (not has_today_meta)
