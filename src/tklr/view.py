@@ -195,8 +195,8 @@ def _make_rows(lines: list[str]) -> list[str]:
 HelpText = f"""\
 [bold][{TITLE_COLOR}]TKLR {VERSION}[/{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
-[bold]^Q[/bold]        Quit           [bold]^S[/bold]    Screenshot
-[bold] +[/bold]        New Reminder   [bold] ?[/bold]    Help
+[bold]^Q[/bold]    Quit               [bold]^S[/bold]    Screenshot
+[bold] +[/bold]    New Reminder       [bold] Y[/bold]    Year View
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
  [bold]A[/bold]    Agenda              [bold]M[/bold]    Modified
  [bold]B[/bold]    Bins                [bold]N[/bold]    Next
@@ -210,8 +210,8 @@ HelpText = f"""\
 [bold][{HEADER_COLOR}]Weeks Navigation [/{HEADER_COLOR}][/bold]
  [bold]Left[/bold]     previous week   [bold]Up[/bold]   up in the list
  [bold]Right[/bold]    next week       [bold]Down[/bold] down in the list
- [bold]S+Left[/bold]   4 weeks back    [bold]" "[/bold]  current week
- [bold]S+Right[/bold]  4 weeks forward [bold]"J"[/bold]  ?jump to date?
+ [bold]S+Left[/bold]   4 wks back      [bold]" "[/bold]  current week
+ [bold]S+Right[/bold]  4 wks forward   [bold]J[/bold]    jump to date
 [bold][{HEADER_COLOR}]Tags and Item Details[/{HEADER_COLOR}][/bold]
  Each of the views listed above displays a list
  of items. In these listings, each item begins
@@ -2906,6 +2906,7 @@ class DynamicViewApp(App):
         "goals": "action_show_goals",
         "query": "action_show_query",
         "modified": "action_show_modified",
+        "year": "action_show_year",
         # ...
     }
 
@@ -2933,6 +2934,8 @@ class DynamicViewApp(App):
         ("T", "show_tags", "Show Tags"),
         ("F", "show_find", "Find"),
         ("W", "show_weeks", "Weeks"),
+        ("J", "jump_to_week", "Jump to date"),
+        ("Y", "show_year", "Year"),
         ("?", "show_help", "Help"),
         ("ctrl+q", "quit", "Quit"),
         ("ctrl+n", "new_reminder", "Add new reminder"),
@@ -2958,6 +2961,7 @@ class DynamicViewApp(App):
         self.leader_mode = False
         self.details_footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search  [bold yellow]Enter[/bold yellow] Reminder menu "
         self.details_drawer: DetailsDrawer | None = None
+        self.year_offset = 0
         self.run_daily_tasks()
         self._current_command_task: asyncio.Task | None = None
 
@@ -3413,7 +3417,14 @@ class DynamicViewApp(App):
                     else:
                         self.action_next_week()
                     return
-            # else: not week view -> let other code handle left/right
+            elif self.view == "year":
+                if event.key == "left":
+                    self.year_offset -= 1
+                else:
+                    self.year_offset += 1
+                self.action_show_year()
+                return
+            # else: not week/year view -> let other code handle left/right
         if event.key == "full_stop" and self.view == "weeks":
             # call the existing "center_week" or "go to today" action
             try:
@@ -3544,7 +3555,9 @@ class DynamicViewApp(App):
 
     async def _run_current_command(self, args: list[str], display: str) -> None:
         env = os.environ.copy()
-        if hasattr(self.controller, "env") and getattr(self.controller.env, "home", None):
+        if hasattr(self.controller, "env") and getattr(
+            self.controller.env, "home", None
+        ):
             env.setdefault("TKLR_HOME", str(self.controller.env.home))
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -3604,6 +3617,24 @@ class DynamicViewApp(App):
         # self.set_afill("weeks")
 
         screen = WeeksScreen(title, table, details, footer)
+        self.show_screen(screen)
+
+    def action_show_year(self):
+        self.view = "year"
+        view_width = None
+        if self.size.width:
+            # Leave a little breathing room for panel padding and borders.
+            view_width = max(40, int(self.size.width) - 4)
+        lines, title = self.controller.get_year_calendar(
+            self.year_offset, available_width=view_width
+        )
+        footer = (
+            f"[bold {FOOTER}]←[/bold {FOOTER}] Previous  "
+            f"[bold {FOOTER}]→[/bold {FOOTER}] Next  "
+            f"[bold {FOOTER}]space[/bold {FOOTER}] Current"
+        )
+        pages = [(lines, {})]
+        screen = FullScreenList(pages, title, "", footer)
         self.show_screen(screen)
 
     def action_show_agenda(self):
@@ -3788,18 +3819,30 @@ class DynamicViewApp(App):
             screen.update_table_and_list()
 
     def action_current_period(self):
+        if self.view == "year":
+            self.year_offset = 0
+            self.action_show_year()
+            return
         self.current_start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
         # self.set_afill("weeks")
         self.update_table_and_list()
 
     def action_next_period(self):
+        if self.view == "year":
+            self.year_offset += 1
+            self.action_show_year()
+            return
         self.current_start_date += timedelta(weeks=4)
         self.selected_week = tuple(self.current_start_date.isocalendar()[:2])
         # self.set_afill("weeks")
         self.update_table_and_list()
 
     def action_previous_period(self):
+        if self.view == "year":
+            self.year_offset -= 1
+            self.action_show_year()
+            return
         self.current_start_date -= timedelta(weeks=4)
         self.selected_week = tuple(self.current_start_date.isocalendar()[:2])
         # self.set_afill("weeks")
@@ -3826,6 +3869,50 @@ class DynamicViewApp(App):
             f"{self.selected_week[0]} {self.selected_week[1]} 1", "%G %V %u"
         ) - timedelta(weeks=1)
         self.update_table_and_list()
+
+    def action_jump_to_week(self):
+        """
+        Prompt for a date and jump Weeks view to the week containing it.
+        """
+
+        def _after(result: str | None) -> None:
+            if not result:
+                return
+            try:
+                parsed = parse(result)
+            except Exception as exc:
+                self.notify(f"Could not parse '{result}': {exc}", severity="error")
+                return
+            if not parsed:
+                self.notify("Enter a recognizable date (e.g. 2025-03-14).")
+                return
+
+            if isinstance(parsed, datetime):
+                target_date = parsed.date()
+            elif isinstance(parsed, date):
+                target_date = parsed
+            else:
+                self.notify("Please enter a calendar date.", severity="warning")
+                return
+
+            iso_year, iso_week, _ = target_date.isocalendar()
+            self.selected_week = (iso_year, iso_week)
+            monday = datetime.strptime(f"{iso_year} {iso_week} 1", "%G %V %u")
+            self.current_start_date = monday - timedelta(weeks=1)
+            self.view = "weeks"
+            self.update_table_and_list()
+
+        if self.view != "weeks":
+            self.action_show_weeks()
+
+        self.push_screen(
+            TextPrompt(
+                "Jump to Date",
+                message="Enter a date to view its week (e.g. 2025-03-14).",
+                placeholder="YYYY-MM-DD",
+            ),
+            callback=_after,
+        )
 
     def action_quit(self):
         self.exit()

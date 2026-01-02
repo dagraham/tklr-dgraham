@@ -7,6 +7,8 @@ import re
 import inspect
 from typing import List, Tuple, Optional, Dict, Any, Set
 import shutil
+import calendar
+import calendar
 import subprocess
 import shlex
 import textwrap
@@ -2326,6 +2328,46 @@ class Controller:
         pages = page_tagger(rows)
         title = f"Goals ({goal_count})"
         return pages, title, header
+
+    def get_year_calendar(
+        self, year_offset: int = 0, available_width: int | None = None
+    ) -> tuple[list[str], str]:
+        width = available_width or shutil.get_terminal_size((80, 20)).columns
+        columns = 2 if width < 70 else 3
+        target_year = datetime.now().year + year_offset
+
+        gap = 3
+        # width per column leaves a gap between blocks; keep at least 17 chars
+        available_for_columns = max(width - (columns - 1) * gap, 34)
+        col_width = max(17, available_for_columns // columns)
+
+        text_cal = calendar.TextCalendar()
+        months = [
+            text_cal.formatmonth(target_year, m, w=2).splitlines()
+            for m in range(1, 13)
+        ]
+
+        lines: list[str] = [""]
+        for start in range(0, 12, columns):
+            group = months[start : start + columns]
+            max_height = max(len(m) for m in group)
+            for m in group:
+                while len(m) < max_height:
+                    m.append("")
+            for row in range(max_height):
+                segments = [m[row].ljust(col_width) for m in group]
+                line = (" " * gap).join(segments)
+                lines.append(line.rstrip())
+            lines.append("")
+
+        while lines and not lines[-1].strip():
+            lines.pop()
+
+        max_len = max((len(line) for line in lines), default=0)
+        indent = " " * max(((width - max_len) // 2), 0)
+        indented = [indent + line for line in lines]
+        title = f"Year {target_year}"
+        return indented, title
 
     def get_last(self):
         """
