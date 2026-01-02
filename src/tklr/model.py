@@ -1014,8 +1014,7 @@ class DatabaseManager:
         self.root_bin_id, self.unlinked_bin_id, self.deleted_bin_id = (
             self.ensure_system_bins()
         )
-        # bug_msg(f"{self.bin_cache.name_to_binpath() = }")
-        self.after_save_needed: bool = False
+        self.after_save_needed: bool = True
 
         if auto_populate:
             self.populate_dependent_tables()
@@ -1288,7 +1287,6 @@ class DatabaseManager:
         self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = [row[0] for row in self.cursor.fetchall()]
         tables.sort()
-        # bug_msg(f"Tables after setup_database in {tables = }")
 
     def setup_busy_tables(self):
         """
@@ -1428,14 +1426,10 @@ class DatabaseManager:
         """Populate all tables derived from current Records (Tags, DateTimes, Alerts, notice)."""
         # log_msg("populate dependent tables")
         yr, wk = datetime.now().isocalendar()[:2]
-        # bug_msg(f"Generating weeks for 12 weeks starting from {yr} week number {wk}")
         self.extend_datetimes_for_weeks(yr, wk, 12)
         # self.populate_tags()
-        # bug_msg("calling populate_alerts")
         self.populate_alerts()
-        # bug_msg("calling populate_notice")
         self.populate_notice()
-        # bug_msg("calling populate_busy_from_datetimes")
         self.populate_busy_from_datetimes()  # 👈 new step: source layer
         self.rebuild_busyweeks_from_source()  # 👈 add this line
         self.populate_all_urgency()
@@ -1491,8 +1485,6 @@ class DatabaseManager:
     ) -> None:
         text = (subject or "") + "\n" + (description or "")
         tags = set(TAG_RE.findall(text))
-        # if "#" in text:
-        #     bug_msg(f"has hash mark: {text = }, {tags = }")
 
         self.cursor.execute("DELETE FROM Hashtags WHERE record_id = ?", (record_id,))
         for tag in tags:
@@ -1651,14 +1643,12 @@ class DatabaseManager:
         self.commit()
 
         # Dependent tables
-        # bug_msg(f"save record for {record_id = }, {item.itemtype = }")
         self.relink_bins_for_record(record_id, item)
         self.generate_datetimes_for_record(record_id)
         self.populate_alerts_for_record(record_id)
         if item.notice:
             self.populate_notice_for_record(record_id)
         if item.itemtype in ["~", "^"]:
-            # bug_msg("calling populate_urgency_from_record")
             self.populate_urgency_from_record(record_id)
         self.update_busy_weeks_for_record(record_id)
 
@@ -1821,7 +1811,6 @@ class DatabaseManager:
         )
 
         alerts = self.cursor.fetchall()
-        # bug_msg(f"{alerts = }")
 
         if not alerts:
             return []
@@ -1883,7 +1872,6 @@ class DatabaseManager:
 
         jobs = _parse_jobs_json(row[0])
         for job in jobs:
-            # bug_msg(f"{job = }")
             if job.get("job_id") == job_id:
                 return job.get("display_subject") or None
 
@@ -1895,7 +1883,6 @@ class DatabaseManager:
         Returns None if not found.
 
         """
-        # bug_msg(f"getting job_dict for {record_id = }, {job_id = }")
         if job_id is None:
             return None
 
@@ -1905,12 +1892,10 @@ class DatabaseManager:
             return None
 
         jobs = _parse_jobs_json(row[0])
-        # bug_msg(f"{jobs = }")
         for job in jobs:
             if job.get("job_id") == job_id:
                 return job  # Return the full dictionary
 
-        # bug_msg(f"returning None for {record_id = }, {job_id = }")
         return None
 
     def get_all_alerts(self):
@@ -1991,7 +1976,6 @@ class DatabaseManager:
             location=location,
             start=start,
         )
-        # bug_msg(f"formatted alert {alert_command = }")
         return alert_command
 
     def create_alert(
@@ -2045,7 +2029,6 @@ class DatabaseManager:
             # Fallback: use a minimal template or use the raw template
             formatted = alert_command_template.format_map(SafeDict(field_values))
 
-        # bug_msg(f"formatted alert: {formatted!r}")
         return formatted
 
     def get_notice_for_today(self):
@@ -2349,7 +2332,6 @@ class DatabaseManager:
         )
         records = self.cursor.fetchall()
         if not records:
-            # bug_msg(f"🔕 No alerts to populate for record {record_id}")
             return
 
         for (
@@ -2445,7 +2427,6 @@ class DatabaseManager:
                         )
 
         self.commit()
-        # bug_msg(f"✅ Alerts updated for record {record_id}")
 
     def get_generated_weeks_range(self) -> tuple[int, int, int, int] | None:
         row = self.cursor.execute(
@@ -2569,7 +2550,6 @@ class DatabaseManager:
         ) + timedelta(days=6)
 
         # Generate new datetimes for the extended range
-        # bug_msg(f"generating datetimes for {first_day = } {last_day = }")
         self.generate_datetimes_for_period(first_day, last_day)
 
         # Update the GeneratedWeeks table
@@ -2598,16 +2578,10 @@ class DatabaseManager:
             List[Tuple[datetime, datetime]]: A list of (start_dt, end_dt) tuples.
         """
 
-        # bug_msg(
-        #     f"getting datetimes for {rule_str} between {start_date = } and {end_date = }"
-        # )
         rule = rrulestr(rule_str, dtstart=start_date)
         occurrences = list(rule.between(start_date, end_date, inc=True))
         print(f"{rule_str = }\n{occurrences = }")
         extent = td_str_to_td(extent) if isinstance(extent, str) else extent
-        # bug_msg(
-        #     f"Generating for {len(occurrences) = } between {start_date = } and {end_date = } with {extent = } for {rule_str = }."
-        # )
 
         # Create (start, end) pairs
         results = []
@@ -2636,7 +2610,6 @@ class DatabaseManager:
         Infinite rules: constrained to `window` when provided.
         Finite rules: generated fully (window ignored).
         """
-        bug_msg(f"regen record {record_id} (window={window})")
         # Fetch core fields including itemtype and jobs JSON
         self.cursor.execute(
             "SELECT itemtype, rruleset, extent, jobs, processed FROM Records WHERE id=?",
@@ -2726,7 +2699,6 @@ class DatabaseManager:
 
         # ---- PATH A: Projects with jobs -> generate job rows only ----
         if has_jobs:
-            # bug_msg(f"{record_id = } has jobs")
             for parent_dt in _iter_parent_occurrences():
                 parent_local = _to_local_naive(
                     parent_dt
@@ -2734,7 +2706,6 @@ class DatabaseManager:
                     else datetime.combine(parent_dt, datetime.min.time())
                 )
                 for j in jobs:
-                    # bug_msg(f"job: {j = }")
                     if j.get("status") == "finished":
                         continue
                     job_id = j.get("job_id")
@@ -2758,14 +2729,10 @@ class DatabaseManager:
                                     if seg_end == seg_start
                                     else _fmt_naive(seg_end)
                                 )
-                                # bug_msg(
-                                #     f"inserting job datetimes {s_txt = }, {e_txt = } for {record_id = }, {job_id = }"
-                                # )
                                 self.cursor.execute(
                                     "INSERT OR IGNORE INTO DateTimes (record_id, job_id, start_datetime, end_datetime) VALUES (?, ?, ?, ?)",
                                     (record_id, job_id, s_txt, e_txt),
                                 )
-                                # bug_msg("success")
                         except NameError:
                             # fallback: single row
                             self.cursor.execute(
@@ -3417,7 +3384,6 @@ class DatabaseManager:
 
     def populate_urgency_from_record(self, record_id: int):
         record = self.get_record_as_dictionary(record_id)
-        # bug_msg(f"updating urgency for {record_id = }, {record = }")
 
         record_id = record["id"]
         itemtype = record["itemtype"]
@@ -3435,7 +3401,6 @@ class DatabaseManager:
         description = True if record.get("description", "") else False
 
         if itemtype not in ["^", "~"]:
-            # bug_msg(f"skipping urgency for {record = }")
             return
 
         now_seconds = utc_now_to_seconds()
@@ -3612,7 +3577,6 @@ class DatabaseManager:
         return cur.fetchone()
 
     def get_record_as_dictionary(self, record: int) -> dict | None:
-        # bug_msg(f"get_record_as_dictionary called with {record = } ({type(record)=})")
         if isinstance(record, dict):
             return record
         cur = self.conn.cursor()
@@ -3657,8 +3621,6 @@ class DatabaseManager:
         if not weeks:
             print("⚠️ No data to aggregate.")
             return
-
-        # bug_msg(f"Aggregating {len(weeks)} week(s)...")
 
         for yw in weeks:
             # --- Gather all event arrays for this week
@@ -3706,7 +3668,6 @@ class DatabaseManager:
             )
 
         self.commit()
-        # bug_msg("✅ BusyWeeks aggregation complete.")
 
     def _aggregate_busy_week(self, year_week: str) -> None:
         import numpy as np

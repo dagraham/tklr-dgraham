@@ -19,7 +19,7 @@ from tklr.migration import MIGRATION_ITEM_TYPES, migrate_etm_directory
 
 # from tklr.view_agenda import run_agenda_view
 from tklr.versioning import get_version
-from tklr.shared import format_time_range, format_iso_week
+from tklr.shared import format_time_range, format_iso_week, TYPE_TO_COLOR
 from tklr.query import QueryError
 
 from datetime import date, datetime, timedelta, time
@@ -318,50 +318,37 @@ def agenda(ctx, width, rich):
         highlight=False,
     )
 
-    from rich.text import Text
-
     for i, row in enumerate(rows):
         text = row.get("text", "")
         is_header = row.get("record_id") is None
 
-        # Parse the markup to get plain text
-        rendered = Text.from_markup(text)
-        plain_text = rendered.plain
-        if is_header:
-            plain_text = rendered.plain.strip()
+        from rich.text import Text
 
-        # Skip empty/blank rows (dividers)
-        if not plain_text:
+        rendered = Text.from_markup(text)
+        comparison_text = rendered.plain.strip()
+
+        if not comparison_text:
             continue
 
         # Add spacing only before the Tasks header
-        if is_header and "Tasks" in plain_text:
+        if is_header and "Tasks" in comparison_text:
             console.print()
 
-        if is_header and "Goals" in plain_text:
+        if is_header and "Goals" in comparison_text:
             console.print()
 
-        # Items need to be indented like in days command
-        if not is_header:
-            text = f"  {text}"
-            plain_text = f"  {plain_text}"
+        display_text = rendered if is_header else Text("  ") + rendered
 
-        # Determine what to print based on --rich flag and width
-        if rich:
-            # With --rich: use markup, truncate based on plain text length
-            if len(plain_text) > width:
-                # Truncate plain text and try to preserve some markup
-                truncated = plain_text[: max(0, width - 1)] + "…"
-                console.print(truncated, markup=False, highlight=False)
-            else:
-                console.print(text)
+        if len(display_text.plain) > width:
+            truncated = display_text.copy()
+            truncated.truncate(width, overflow="ellipsis")
         else:
-            # Without --rich: always use plain text (stripped markup)
-            if len(plain_text) > width:
-                truncated = plain_text[: max(0, width - 1)] + "…"
-                console.print(truncated, markup=False, highlight=False)
-            else:
-                console.print(plain_text, markup=False, highlight=False)
+            truncated = display_text
+
+        if rich:
+            console.print(truncated)
+        else:
+            console.print(truncated.plain, markup=False, highlight=False)
 
 
 def _parse_local_text_dt(s: str) -> datetime | date:
@@ -621,12 +608,24 @@ def weeks(ctx, start_opt, end_opt, width, rich):
                         row["start_text"], row["end_text"], controller
                     )
 
-                if time_str:
-                    base = f"  {itemtype} {time_str} {subject}"
-                else:
-                    base = f"  {itemtype} {subject}"
+                body = (
+                    f"{itemtype} {time_str} {subject}"
+                    if time_str
+                    else f"{itemtype} {subject}"
+                )
 
-                console.print(_wrap_or_truncate(base, width))
+                if rich:
+                    from rich.text import Text
+
+                    row_text = Text("  ")
+                    row_text.append(body, style=TYPE_TO_COLOR.get(itemtype, "white"))
+                    display = row_text.copy()
+                    if len(display.plain) > width:
+                        display.truncate(width, overflow="ellipsis")
+                    console.print(display)
+                else:
+                    base = f"  {body}"
+                    console.print(_wrap_or_truncate(base, width))
 
             # console.print()  # blank line between days
 
@@ -735,12 +734,24 @@ def days(ctx, start_opt, end_opt, width, rich):
                         row["start_text"], row["end_text"], controller
                     )
 
-                if time_str:
-                    base = f"  {itemtype} {time_str} {subject}"
-                else:
-                    base = f"  {itemtype} {subject}"
+                body = (
+                    f"{itemtype} {time_str} {subject}"
+                    if time_str
+                    else f"{itemtype} {subject}"
+                )
 
-                console.print(_wrap_or_truncate(base, width))
+                if rich:
+                    from rich.text import Text
+
+                    row_text = Text("  ")
+                    row_text.append(body, style=TYPE_TO_COLOR.get(itemtype, "white"))
+                    display = row_text.copy()
+                    if len(display.plain) > width:
+                        display.truncate(width, overflow="ellipsis")
+                    console.print(display)
+                else:
+                    base = f"  {body}"
+                    console.print(_wrap_or_truncate(base, width))
 
         current_date += timedelta(days=1)
 

@@ -128,7 +128,6 @@ ONEWK = 7 * ONEDAY
 
 
 def build_details_help(meta: dict) -> list[str]:
-    # bug_msg(f"{meta = }")
     is_task = meta.get("itemtype") == "~"
     is_event = meta.get("itemtype") == "*"
     is_goal = meta.get("itemtype") == "!"
@@ -400,8 +399,6 @@ class ListWithDetails(Container):
 
         try:
             m = self.query_one("#main-list")
-            # bug_msg("=== debug: main-list styles ===")
-            # bug_msg(repr(m.styles))
             _dump_chain(m)
         except Exception as e:
             log_msg(f"debug: couldn't find #main-list: {e}")
@@ -456,8 +453,6 @@ class ListWithDetails(Container):
             self._details_history.append(self._current_details)
         self.details_meta = meta or {}  # <- keep meta for key actions
         body = _make_rows(lines)
-        bug_msg(f"{meta_times(self.details_meta)}")
-        # bug_msg(f"{meta['instance_ts'] = }, {title = }, {lines = }")
         self._details.update_list(body)
         self._details.remove_class("hidden")
         self._details_active = True
@@ -670,7 +665,6 @@ class OptionPrompt(ModalScreen[Optional[str]]):
         # event.option.prompt is the label we passed in
         label = str(event.option.prompt)
         # You can log here to prove it fires:
-        # bug_msg(f"OptionPrompt: selected {label!r}")
         self.dismiss(label)
         event.stop()
 
@@ -1102,11 +1096,9 @@ class EditorScreen(Screen):
             "w": "Weekday modifier",
         }
 
-        # bug_msg(f"{self.entry_text = }, {self._text.text = }")
         panel = self.query_one("#ed_feedback", Static)  # <— direct, no fallback
 
         item = getattr(self, "item", None)
-        # bug_msg(f"{item = }")
         if not item:
             panel.update("")
             return
@@ -1118,7 +1110,6 @@ class EditorScreen(Screen):
             return
 
         msgs = getattr(item, "messages", None) or []
-        bug_msg(f"{msgs = }")
         if msgs:
             l = []
             if isinstance(msgs, list):
@@ -1135,7 +1126,6 @@ class EditorScreen(Screen):
             return
 
         last = getattr(item, "last_result", None)
-        # bug_msg(f"{last = }")
         if last and last[1]:
             panel.update(str(last[1]))
             # return
@@ -1143,7 +1133,6 @@ class EditorScreen(Screen):
         # 2) No errors: describe token at cursor (with normalized preview if available).
         idx = self._cursor_abs_index()
         tok = self._token_at(idx)
-        # bug_msg(f"{idx = } {tok = }")
 
         if not tok:
             # panel.update("")
@@ -1151,12 +1140,10 @@ class EditorScreen(Screen):
 
         ttype = tok.get("t", "")
         raw = tok.get("token", "").strip()
-        # bug_msg(f"{raw = }")
         k = tok.get("k", "")
 
         preview = ""
         last = getattr(item, "last_result", None)
-        # bug_msg(f"{last = }")
         # if isinstance(last, tuple) and len(last) >= 3 and last[0] is True:
         if isinstance(last, tuple) and len(last) >= 3:
             meta = last[2] or {}
@@ -1186,7 +1173,6 @@ class EditorScreen(Screen):
         self.record_id = rid
         if self.item.itemtype in ("~", "^"):
             completion = getattr(item, "completion", None)
-            bug_msg(f"{completion = }")
             if completion:
                 self.controller.db_manager.add_completion(self.record_id, completion)
 
@@ -1254,7 +1240,6 @@ class DetailsScreen(ModalScreen[None]):
     # ---------- lifecycle ----------
     def on_mount(self) -> None:
         meta = self.app.controller.get_last_details_meta() or {}
-        # bug_msg(f"{meta = }")
         self.set_focus(self)  # 👈 this makes sure the modal is active for bindings
         self.record_id = meta.get("record_id")
         self.itemtype = meta.get("itemtype") or ""
@@ -3136,11 +3121,9 @@ class DynamicViewApp(App):
     def make_detail_key_handler(self, *, view_name: str, week_provider=None):
         ctrl = self.controller
         app = self
-        # bug_msg(f"{ctrl = }, {app = }")
 
         def handler(key: str, meta: dict) -> None:  # chord-aware, sync
             record_id = meta.get("record_id")
-            # bug_msg(f"in handler with {key = }, {meta = }, {record_id = }")
             job_id = meta.get("job_id")
             first = meta.get("first")
             second = meta.get("second")
@@ -3156,7 +3139,6 @@ class DynamicViewApp(App):
             def finish_item() -> None:
                 if itemtype not in "~^!":
                     return
-                # bug_msg(f"{record_id = }, {job_id = }, {first = }")
                 job = f" {job_id}" if job_id else ""
                 id_part = f"({record_id}{job})"
                 due = (
@@ -3170,7 +3152,6 @@ class DynamicViewApp(App):
                 )
 
                 def _after_dt(dt: datetime | None) -> None:
-                    # bug_msg(f"finish, got {dt = }")
                     if dt:
                         ctrl.finish_task(record_id, job_id=job_id, when=dt)
                         if hasattr(app, "refresh_view"):
@@ -3179,9 +3160,7 @@ class DynamicViewApp(App):
                 app.prompt_datetime_with_callback(msg, _after_dt)
 
             def edit_item() -> None:
-                # bug_msg("got comma,e")
                 seed_text = ctrl.get_entry_from_record(record_id)
-                # bug_msg(f"{seed_text = }")
 
                 # Close/hide details before opening the editor
                 try:
@@ -3208,7 +3187,6 @@ class DynamicViewApp(App):
                 )
 
             def delete_item() -> None:
-                # bug_msg(f"in delete {second = }, {instance_ts = }, {itemtype = }")
                 is_repeating = second is not None
                 app.open_delete_prompt(
                     record_id=record_id,
@@ -3221,7 +3199,6 @@ class DynamicViewApp(App):
 
             def schedule_new_instance() -> None:
                 def _after_dt(dt: datetime | None) -> None:
-                    # bug_msg(f"schedule_new, got {dt = }")
                     if dt:
                         ctrl.schedule_new(record_id, job_id=job_id, when=dt)
                         if hasattr(app, "refresh_view"):
@@ -3238,7 +3215,6 @@ class DynamicViewApp(App):
                     )
 
                     def _after_dt(dt: datetime | None) -> None:
-                        # bug_msg(f"reschedule instance, got {dt = }")
                         if dt:
                             ctrl.reschedule_instance(
                                 record_id,
@@ -3254,7 +3230,6 @@ class DynamicViewApp(App):
                 else:
                     # fallback: older coarse reschedule
                     def _after_dt(dt: datetime | None) -> None:
-                        # bug_msg(f"reschedule coarse, got {dt = }")
                         if dt:
                             yrwk = week_provider() if week_provider else None
                             ctrl.reschedule(
@@ -3377,10 +3352,8 @@ class DynamicViewApp(App):
 
     def on_key(self, event: events.Key) -> None:
         """Handle global key events (tags, escape, etc.)."""
-        # bug_msg(f"before: {event.key = }, {self.leader_mode = }")
 
         # --- View-specific setup ---
-        # bug_msg(f"{self.view = }")
         # ------------------ improved left/right handling ------------------
         # if event.key == "ctrl+b":
         #     self.action_show_bins()
@@ -3429,19 +3402,15 @@ class DynamicViewApp(App):
                 # Prefer page navigation when page available; otherwise fallback to week nav.
                 if event.key == "left":
                     if has_prev_available and do_prev:
-                        # bug_msg("[LEFT/RIGHT] -> screen.previous_page()")
                         screen.previous_page()
                     else:
-                        # bug_msg("[LEFT/RIGHT] -> no prev page -> previous week")
                         self.action_previous_week()
                     return
 
                 else:  # right
                     if has_next_available and do_next:
-                        # bug_msg("[LEFT/RIGHT] -> screen.next_page()")
                         screen.next_page()
                     else:
-                        # bug_msg("[LEFT/RIGHT] -> no next page -> next week")
                         self.action_next_week()
                     return
             # else: not week view -> let other code handle left/right
@@ -3468,16 +3437,13 @@ class DynamicViewApp(App):
         # --- Leader (comma) mode ---
         if event.key == "comma":
             self.leader_mode = True
-            # bug_msg(f"set {self.leader_mode = }")
             return
 
         if self.leader_mode:
             self.leader_mode = False
             meta = self.controller.get_last_details_meta() or {}
             handler = getattr(self, "detail_handler", None)
-            # bug_msg(f"got {event.key = }, {handler = }")
             if handler:
-                # bug_msg(f"dispatching detail handler for {event.key = }, {meta = }")
                 # 🔹 handler is now sync; just call it
                 handler(f"comma,{event.key}", meta)
             return
@@ -3545,6 +3511,7 @@ class DynamicViewApp(App):
             self.notify(
                 "Checking for scheduled alerts...", severity="info", timeout=1.2
             )
+        await self._maybe_run_current_command()
         # execute due alerts
         due = self.controller.get_due_alerts(now)  # list of [alert_id, alert_commands]
         if not due:
@@ -3557,16 +3524,18 @@ class DynamicViewApp(App):
                 os.system(alert_command)
             self.controller.db_manager.mark_alert_executed(alert_id)
 
-        await self._maybe_run_current_command()
-
     async def _maybe_run_current_command(self) -> None:
         command = getattr(self.controller, "current_command", "").strip()
+        log_msg(f"maybe_run_current_command: {command = }")
         if not command:
             return
         if self._current_command_task and not self._current_command_task.done():
-            return
+            log_msg(f"maybe_run_current_command: skipping {command = }")
+            return ()
         payload = self.controller.consume_after_save_command()
+        bug_msg(f"maybe_run_current_command: {payload = }")
         if not payload:
+            log_msg("maybe_run_current_command: no payload")
             return
         args, display = payload
         self._current_command_task = asyncio.create_task(
@@ -3574,18 +3543,20 @@ class DynamicViewApp(App):
         )
 
     async def _run_current_command(self, args: list[str], display: str) -> None:
+        env = os.environ.copy()
+        if hasattr(self.controller, "env") and getattr(self.controller.env, "home", None):
+            env.setdefault("TKLR_HOME", str(self.controller.env.home))
         try:
             proc = await asyncio.create_subprocess_exec(
                 *args,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
             stdout, stderr = await proc.communicate()
             if proc.returncode != 0:
                 err = stderr.decode(errors="ignore").strip()
-                log_msg(
-                    f"current_command failed ({proc.returncode}): {display}\n{err}"
-                )
+                log_msg(f"current_command failed ({proc.returncode}): {display}\n{err}")
                 self.notify(
                     f"Current command failed ({proc.returncode})",
                     severity="warning",
@@ -3861,9 +3832,6 @@ class DynamicViewApp(App):
 
     def action_show_help(self):
         scr = self.screen
-        bug_msg(
-            f"{scr = }, {self.controller.get_last_details_meta() = }, {hasattr(scr, 'list_with_details') = }"
-        )
         if (
             hasattr(scr, "list_with_details")
             and scr.list_with_details.has_details_open()
@@ -3915,7 +3883,6 @@ class DynamicViewApp(App):
         ):
             meta = self.controller.get_last_details_meta() or {}
             handler = self.make_detail_key_handler(view_name=self.view)
-            bug_msg(f"got {self.view = }, {key = }, {meta = }, {handler = }")
             handler(key, meta)
 
     # async def prompt_datetime(

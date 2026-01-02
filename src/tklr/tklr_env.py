@@ -137,6 +137,7 @@ agenda_days = {{ ui.agenda_days }}
 
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
+# Prefix with '!' to run a standalone command/script (no automatic 'tklr').
 current_command = "{{ ui.current_command }}"
 
 # dayfirst and yearfirst settings

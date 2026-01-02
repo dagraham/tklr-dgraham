@@ -569,6 +569,10 @@ class Controller:
 
     def _build_current_command_args(self) -> list[str] | None:
         cmd = (self.current_command or "").strip()
+        raw = False
+        if cmd.startswith("!"):
+            raw = True
+            cmd = cmd[1:].lstrip()
         if not cmd:
             return None
         home = (
@@ -577,21 +581,29 @@ class Controller:
             else str(Path.home() / ".config" / "tklr")
         )
         try:
-            extra = shlex.split(cmd)
+            parts = shlex.split(cmd)
         except ValueError as exc:
             log_msg(f"Invalid current_command '{cmd}': {exc}")
             return None
-        return [sys.executable, "-m", "tklr.cli.main", "--home", home, *extra]
+        if raw:
+            log_msg(f"Built raw current_command args: {parts}")
+            return parts
+        log_msg(f"Built current_command args: {parts}")
+        return [sys.executable, "-m", "tklr.cli.main", "--home", home, *parts]
 
     def consume_after_save_command(self) -> tuple[list[str], str] | None:
         if not self.current_command:
+            bug_msg("No current_command set")
             return None
         if not getattr(self.db_manager, "after_save_needed", False):
+            bug_msg("after_save_needed is False")
             return None
         args = self._build_current_command_args()
         if not args:
+            bug_msg
             return None
         self.db_manager.after_save_needed = False
+        bug_msg(f"Consuming after_save_command: {args = }, {self.current_command = }")
         return args, self.current_command
 
     def make_item(self, entry_str: str, final: bool = False) -> "Item":

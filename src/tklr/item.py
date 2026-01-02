@@ -1047,7 +1047,6 @@ class Item:
         # NOTE: _tokenize sets self.itemtype and self.subject
 
         self.parse_message = self.validate()
-        log_msg(f"validation message: {self.parse_message = }")
         if self.parse_message:
             self.parse_ok = False
             return f"parse failed: {self.parse_message = }"
@@ -1058,7 +1057,6 @@ class Item:
 
         if self.final:
             self.finalize_record()
-        bug_msg(f"{self.messages = }, {self.parse_message = }")
 
     def _remove_instance_from_plus_tokens(
         self, tokens: list[dict], tok_str: str
@@ -1118,13 +1116,11 @@ class Item:
         3) process @f entries (&f entries will have been done by finalize_jobs)
 
         """
-        bug_msg(f"1 finalizing record for {self.subject = }, {self.completions = }")
         if self.has_s:
             self._set_start_dt()
 
         if self.collect_grouped_tokens({"r"}):
             rruleset = self.finalize_rruleset()
-            bug_msg(f"2 got rruleset {rruleset = }")
             if rruleset:
                 self.rruleset = rruleset
         elif self.rdstart_str is not None:
@@ -1132,25 +1128,16 @@ class Item:
             self.rruleset = self.rdstart_str
 
         if self.itemtype == "^":
-            bug_msg(
-                f"3 finalizing jobs for {self.subject = }, {self.relative_tokens = }"
-            )
             jobset = self.build_jobs()
             success, finalized = self.finalize_jobs(jobset)
         # rruleset is needed to get the next two occurrences
-        bug_msg(f"4 {self.has_f = }, {self.completions = }, {self.has_s = }")
 
         if self.has_f:
-            bug_msg(f"5 {self.subject = }, {self.completions = }")
             self.finish()
             # self.has_f = False
-            bug_msg(
-                f"new {self.rruleset = }, {self.rdstart_str = }, {self.completions = }"
-            )
 
         stripped_tokens = self._strip_positions(self.relative_tokens)
         self.tokens = self._encode_mask_tokens(stripped_tokens)
-        bug_msg(f"6 {self.tokens = }")
 
     def validate(self):
         self.validate_messages = []
@@ -1191,7 +1178,6 @@ Entry: {self.entry}
             return "no itemtype"
 
         self.subject = self.relative_tokens[1]["token"].strip()
-        bug_msg(f"{self.itemtype = }, {self.subject = }")
         if not self.subject or self.subject.startswith("@"):
             return fmt_error("Enter a subject for the reminder.")
         allowed_fortype = allowed[self.itemtype]
@@ -1205,9 +1191,7 @@ Entry: {self.entry}
         # print(f"{len(self.relative_tokens) = }")
         for token in self.relative_tokens:
             count += 1
-            bug_msg(f"validating token {count}: {token = }, {token.get('k', '') = }")
             if token.get("incomplete", False):
-                bug_msg(f"incomplete token found: {token = }")
                 type = token["t"]
                 if token.get("t", "") == "@" and token.get("k", "") == "":
                     need = (
@@ -1227,14 +1211,9 @@ Entry: {self.entry}
                     )
 
             if token["t"] == "@":
-                bug_msg(
-                    # f"{token.get('t', '') = }, {self.token_keys[this_atkey][0]} - {self.token_keys[this_atkey][1]}"
-                    f"{token.get('t', '') = }, {token.get('k', '') = }"
-                )
                 used_ampkeys = []
                 this_atkey = token["k"]
 
-                bug_msg(f"{this_atkey = }")
                 if this_atkey not in all_keys:
                     return fmt_error(f"@{this_atkey}, Unrecognized @-key")
                 if this_atkey not in allowed_fortype:
@@ -1246,9 +1225,6 @@ Entry: {self.entry}
                         f"Multiple instances of this @{this_atkey} are not allowed"
                     )
 
-                bug_msg(
-                    f"{self.token_keys[this_atkey][0] = } {self.token_keys[this_atkey][1] = }",
-                )
                 current_atkey = this_atkey
                 used_atkeys.append(current_atkey)
 
@@ -1261,14 +1237,12 @@ Entry: {self.entry}
                     for _key in requires[current_atkey]:
                         if _key not in used_atkeys and _key not in needed:
                             needed.append(_key)
-                bug_msg(f"{token = }")
                 if token.get("incomplete", False):
                     # return the info for this key until the beginning of a value is entered
                     return fmt_error(f"{' - '.join(self.token_keys[this_atkey][:2])}")
 
             elif token["t"] == "&":
                 this_ampkey = f"{current_atkey}{token['k']}"
-                # bug_msg(f"{current_atkey = }, {this_ampkey = }")
                 if current_atkey not in ["r", "~"]:
                     return fmt_error(
                         f"&{token['k']}, The use of &-keys is not supported for @{current_atkey}"
@@ -1407,7 +1381,6 @@ Entry: {self.entry}
             anchor = group[0]
             if anchor.get("t") == "@" and anchor.get("k") in anchor_keys:
                 groups.append(list(group))
-        bug_msg(f"{groups = }")
         return groups
 
     def mark_grouped_tokens(self):
@@ -1474,8 +1447,6 @@ Entry: {self.entry}
             if pairs:
                 tgm.setdefault(akey, []).extend(pairs)
 
-        # bug_msg(f"token_group_map {tgm = }")
-
         self.token_group_map = tgm
 
     def add_token(self, token: dict):
@@ -1505,7 +1476,6 @@ Entry: {self.entry}
                 (False, ": ".join(Item.token_keys["itemtype"][:2]), [])
             )
             return
-        bug_msg(f"tokenizing entry: {entry = } using {entry[0] = }")
         if entry[0] not in {"*", "~", "^", "%", "!", "x", "?"}:
             self.messages.append(
                 (
@@ -1671,7 +1641,6 @@ Entry: {self.entry}
             # print(f"parsing {token = }")
             start_pos, end_pos = token["s"], token["e"]
             # if token.get("k", "") in ["+", "-", "s", "f"]:
-            #     bug_msg(f"identified @+ {token = }")
             if (start_pos, end_pos) in self.skip_token_positions:
                 continue  # skip component of a group
 
@@ -1697,25 +1666,20 @@ Entry: {self.entry}
                 self._dispatch_token(token, start_pos, end_pos, token_type)
 
     def _dispatch_token(self, token, start_pos, end_pos, token_type):
-        # bug_msg(f"dispatch_token {token = }")
         if token_type in self.token_keys:
             method_name = self.token_keys[token_type][2]
             method = getattr(self, method_name)
-            # bug_msg(f"{method_name = } returned {method = }")
             is_valid, result, sub_tokens = method(token)
             self.last_result = (is_valid, result, token)
-            # bug_msg(f"{is_valid = }, {result = }, {sub_tokens = }")
             if is_valid:
                 self.parse_ok = is_valid
             else:
                 self.parse_ok = False
-                log_msg(f"Error processing '{token_type}' {token = } : {result}")
         else:
             self.parse_ok = False
             log_msg(f"No handler for token: {token}")
 
     def _extract_job_node_and_summary(self, text):
-        # bug_msg(f"{text = }")
         match = JOB_PATTERN.match(text)
         if match:
             number = len(match.group(1)) // 2
@@ -1784,7 +1748,6 @@ Entry: {self.entry}
         # notice = re.sub("^@. ", "", token["token"].strip()).lower()
 
         ok, notice_obj = timedelta_str_to_seconds(notice)
-        # bug_msg(f"{token = }, {ok = }, {notice_obj = }")
         if ok:
             self.notice = notice
             return True, notice_obj, []
@@ -1804,7 +1767,6 @@ Entry: {self.entry}
             # return False, "Missing @s value", []
         extent = re.sub("^[@&]. ", "", token["token"].strip()).lower()
         ok, extent_obj = timedelta_str_to_seconds(extent)
-        # bug_msg(f"{token = }, {ok = }, {extent_obj = }")
         if ok:
             self.extent = td_to_td_str(extent_obj)
             return True, f"{self.token_keys['e'][0]} {self.extent}", []
@@ -2025,16 +1987,13 @@ Entry: {self.entry}
         by finalize_rruleset().
         Returns (ok: bool, message: str, extras: list).
         """
-        # bug_msg(f"in do_r: {token = }")
 
         # Normalize input to raw text
         tok_text = token.get("token") if isinstance(token, dict) else str(token)
-        # bug_msg(f"{tok_text = }")
 
         # Find the matching @r group (scan all groups first)
         group = None
         r_groups = list(self.collect_grouped_tokens({"r"}))
-        # bug_msg(f"{r_groups = }")
         for g in r_groups:
             if g and g[0].get("token") == tok_text:
                 group = g
@@ -2071,7 +2030,6 @@ Entry: {self.entry}
             {"token": f"{self.freq_map[freq_code]}", "t": "&", "k": "FREQ"}
         )
 
-        # bug_msg(f"{self.rrule_tokens = } processing remaining tokens")
         # Parse following &-tokens in this @r group (e.g., &i 3, &c 10, &u 20250101, &m..., &w..., &d...)
         for t in group[1:]:
             tstr = t.get("token", "")
@@ -2085,7 +2043,6 @@ Entry: {self.entry}
 
             self.rrule_tokens.append({"token": tstr, "t": "&", "k": key, "v": value})
 
-        # bug_msg(f"got {self.rrule_tokens = }")
         return (True, "", [])
 
     def do_s(self, token: dict):
@@ -2111,17 +2068,14 @@ Entry: {self.entry}
             verbosefmt = self.fmt_verbose(obj)
 
             if kind == "date":
-                bug_msg(f"parsed date {obj = }")
                 compact = self._serialize_date(obj)
                 self.s_kind = "date"
                 self.s_tz = None
             elif kind == "naive":
-                bug_msg(f"parsed naive {obj = }")
                 compact = self._serialize_naive_dt(obj)
                 self.s_kind = "naive"
                 self.s_tz = None
             else:  # aware
-                bug_msg(f"parsed aware {obj = }")
                 compact = self._serialize_aware_dt(obj, tz_used)
                 self.s_kind = "aware"
                 self.s_tz = tz_used  # '' == local
@@ -2137,7 +2091,6 @@ Entry: {self.entry}
             self.rdstart_str = f"RDATE:{compact}"
             token["token"] = f"@s {userfmt}"
             retval = userfmt if self.final else verbosefmt
-            bug_msg(f"@s  {token = }, {retval = }")
             self.has_s = True
 
             return True, retval, []
@@ -2316,10 +2269,8 @@ Entry: {self.entry}
         node, summary, tokens_remaining = self._extract_job_node_and_summary(
             token["token"]
         )
-        # bug_msg(f"{token = }, {node = }, {summary = }, {tokens_remaining = }")
         job_params = {"~": summary}
         job_params["node"] = node
-        # bug_msg(f"{self.job_tokens = }")
 
         return True, job_params, []
 
@@ -2505,10 +2456,8 @@ Entry: {self.entry}
             obj = None
             rep = minutesstr
         if obj is None:
-            # bug_msg(f"returning False, {arg = }, {rep = }")
             return False, rep
 
-        # bug_msg(f"returning True, {arg = }, {rep = },")
         return True, f"BYMINUTE={rep}"
 
     @classmethod
@@ -2634,7 +2583,6 @@ Entry: {self.entry}
         ultimate source of truth for this item's schedule.
         Always return the first two in sequence, even if they’re already past.
         """
-        bug_msg(f"{self.rruleset = }")
         if not (self.rruleset or "").strip():
             return None, None
 
@@ -2645,7 +2593,6 @@ Entry: {self.entry}
             second = next(it, None)
             return first, second
         except Exception as e:
-            bug_msg(f"error {e = }")
             return None, None
 
     #
@@ -2831,7 +2778,6 @@ Entry: {self.entry}
         rewrite the token to store the *expanded* canonical forms so that
         future parses are stable.
         """
-        bug_msg(f"processing rdate {token = }")
         try:
             # Remove the "@+" prefix and extra whitespace
             token_body = token["token"][2:].strip()
@@ -2844,7 +2790,6 @@ Entry: {self.entry}
             udates: list[str] = []
 
             for dt_str in dt_strs:
-                bug_msg(f"processing rdate {dt_str = }")
                 if self.s_kind == "aware":
                     dt = parse(dt_str, self.s_tz)
                     dt_fmt = _fmt_utc_Z(dt)
@@ -2869,12 +2814,10 @@ Entry: {self.entry}
 
             self.rdates = rdates
             self.token_map["+"] = ", ".join(udates)
-            bug_msg(f"{rdates = }, {self.rdstart_str = }")
 
             # 🔸 CRITICAL: when final, freeze the token to the canonical absolute forms
             if getattr(self, "final", False) and rdates:
                 token["token"] = f"@+ {', '.join(rdates)}"
-                # bug_msg(f"finalized @+ token to {token['token'] = }")
 
             # Prepend RDATE in finalize_rruleset after possible insertion of DTSTART
             return True, rdates, []
@@ -2923,7 +2866,6 @@ Entry: {self.entry}
             # 🔸 CRITICAL: when final, freeze the token to the canonical absolute forms
             if getattr(self, "final", False) and new_ex:
                 token["token"] = f"@- {', '.join(new_ex)}"
-                # bug_msg(f"finalized @- token to {token['token'] = }")
 
             return True, new_ex, []
         except Exception as e:
@@ -2957,9 +2899,6 @@ Entry: {self.entry}
         - EXDATE:...  (if you track it)
         """
         rrule_tokens = self.collect_rruleset_tokens()
-        bug_msg(f"{rrule_tokens = }")
-        # rrule_tokens = self.rrule_tokens
-        # bug_msg(f"in finalize_rruleset {self.rrule_tokens = }")
         if not self.dtstart:
             return ""
         # map @r y/m/w/d → RRULE:FREQ=...
@@ -2990,7 +2929,6 @@ Entry: {self.entry}
             elif ", " in value:
                 value = ",".join(value.split(", "))
             component = self.key_to_param.get(key, None)
-            # bug_msg(f"components {key = }, {value = }, {component = }")
             if component:
                 rrule_components[component] = value
 
@@ -2998,26 +2936,20 @@ Entry: {self.entry}
             f"{k}={v}" for k, v in rrule_components.items()
         )
 
-        # bug_msg(f"{self.rrule_components = }")
-
-        # bug_msg(f"{rrule_line = }")
         # Assemble lines safely
         lines: list[str] = []
 
         dtstart_str = getattr(self, "dtstart_str", "") or ""
         if dtstart_str:
             lines.append(dtstart_str)
-            # bug_msg(f"appended dtstart_str: {lines = }")
             self.rruleset_dict["DTSTART"] = dtstart_str
 
         if rrule_line:
             lines.append(rrule_line)
-            # bug_msg(f"appended rrule_line: {lines = }")
             # only add the rdates from @+, not @s since we have a rrule_line
             self.rruleset_dict["RRULE"] = rrule_line
             if self.rdates:
                 lines.append(f"RDATE:{','.join(self.rdates)}")
-                # bug_msg(f"appended RDATE + rdates: {lines = }")
                 self.rruleset_dict["RDATE"] = ",".join(self.rdates)
         else:
             # here we need to include @s since we do not have a rrule_line
@@ -3026,15 +2958,11 @@ Entry: {self.entry}
             if rdstart_str:
                 lines.append(rdstart_str)
                 self.rruleset_dict["RDATESONLY"] = rdstart_str
-                bug_msg(f"appended rdstart_str: {lines = }")
 
         exdate_str = getattr(self, "exdate_str", "") or ""
         if exdate_str:
             lines.append(f"EXDATE:{exdate_str}")
-            # bug_msg(f"appended exdate_str: {lines = }")
             self.rruleset_dict["EXDATE"] = f"EXDATE:{exdate_str}"
-
-        # bug_msg(f"RETURNING {lines = }")
 
         return "\n".join(lines)
 
@@ -3193,7 +3121,6 @@ Entry: {self.entry}
                 self.has_f = True
                 # self.completion = finished_dt
                 first, second = self._get_first_two_occurrences()
-                bug_msg(f"in finalize_jobs {finished_dt = }, {first = }")
                 self.completions = (
                     finished_dt,
                     first,
@@ -3207,9 +3134,6 @@ Entry: {self.entry}
         # --- finalize ---
         self.jobs = list(job_map.values())
         self.jobset = json.dumps(self.jobs, cls=CustomJSONEncoder)
-        bug_msg(
-            f"leaving finalize_jobs {self.completions = }, {self.relative_tokens = }"
-        )
         return True, self.jobs
 
     def do_f(self, token: dict | str, *, job_id: str | None = None):
@@ -3226,7 +3150,6 @@ Entry: {self.entry}
             else:  # job-level &f
                 val = str(token).strip()
             due, next = self._get_first_two_occurrences()
-            bug_msg(f"{due = }, {next = }")
 
             completed = parse(val)
             if not completed:
@@ -3293,10 +3216,7 @@ Entry: {self.entry}
     def _get_start_dt(self) -> datetime | None:
         # start_dt = self.dtstart_str
         # scheduled_datetime = parse(start_dt)  # if self.dtstart_str else None
-        # bug_msg("{self.dtstart = }, {start_dt =}, {scheduled_datetime = }")
         # return scheduled_datetime
-        bug_msg(f"{self.subject = }, {self.dtstart = }")
-        # bug_msg(f"{self.relative_tokens = }")
         tok = next(
             (
                 t
@@ -3310,19 +3230,10 @@ Entry: {self.entry}
         val = tok["token"][2:].strip()  # strip "@s "
         dt = parse(val)
         if isinstance(dt, date):
-            bug_msg(f"date: {dt = }")
             return dt
         if isinstance(dt, datetime) and dt.tzinfo is None:
-            bug_msg(f"naive datetime: {dt = }")
             return dt
-        bug_msg(f"aware datetime: {dt = }")
         return dt.asttimezone(tz.UTC)
-
-        # bug_msg(f"start_dt: {tok = }, {val = }, {dt = }")
-        # try:
-        #     return dt.astimezone(tz.UTC)
-        # except Exception:
-        #     return None
 
     def _set_start_dt(self, dt: datetime | None = None):
         """Replace or add an @s token; keep your formatting with trailing space."""
@@ -3330,7 +3241,6 @@ Entry: {self.entry}
         if not dt:
             return
         ts = dt.strftime("%Y%m%dT%H%M")
-        # bug_msg(f"starting {self.relative_tokens = }, {ts = }")
         tok = next(
             (
                 t
@@ -3341,10 +3251,8 @@ Entry: {self.entry}
         )
         if tok:
             tok["token"] = f"@s {ts} "
-            # bug_msg(f"{tok["token"] = }")
         else:
             self.relative_tokens.append({"token": f"@s {ts} ", "t": "@", "k": "s"})
-        # bug_msg(f"ending {self.relative_tokens = }")
 
     def _has_r(self) -> bool:
         return any(
@@ -3655,7 +3563,6 @@ Entry: {self.entry}
             td = timedelta(seconds=sec)
             # Normalize token text
             normalized = f"@t {num}/{td_to_td_str(td)} "
-            bug_msg(f"{num = }, {period = }, {td = }, {normalized = }")
             token["token"] = normalized
             token["t"] = "@"
             token["k"] = "t"
@@ -3674,7 +3581,6 @@ Entry: {self.entry}
             # token is a relative token dict, like {"token": "@o 3d", "t":"@", "k":"o"}
             body = token["token"][2:].strip()  # remove '@o'
             td, learn = _parse_o_body(body)
-            bug_msg(f"{td = }, {learn = }")
 
             # Normalize token text
             normalized = f"{'~' if learn else ''}{td_to_td_str(td)}"
@@ -3682,7 +3588,6 @@ Entry: {self.entry}
             # token["t"] = "@"
             # token["k"] = "o"
             self._replace_or_add_token("o", normalized)
-            bug_msg(f"{normalized = }, {self.relative_tokens = }")
 
             # return True, int(td.total_seconds()), []
             return True, normalized, []
@@ -3733,7 +3638,6 @@ Entry: {self.entry}
                 parts.sort()
                 plus_dates = parts
 
-        bug_msg(f"{plus_dates = }")
         if not plus_dates:
             return ""
         return plus_dates
@@ -3747,11 +3651,9 @@ Entry: {self.entry}
             rdict.get("RRULE", ""),
             rdict.get("EXDATE", ""),
         ]
-        bug_msg(f"{components = }")
         rule = rrulestr("\n".join(components))
         first_two = list(rule)[:2]
         if len(first_two) == 2:
-            bug_msg(f"returning {first_two[1] = }")
             return first_two[1]
         else:
             return None
@@ -3767,15 +3669,11 @@ Entry: {self.entry}
             raw_offset = offset_tok["token"].split(maxsplit=1)[1]
             td = td_str_to_td(raw_offset.lstrip("~"))
             offset_val = offset_tok["token"][3:]
-            bug_msg(
-                f"{offset_tok = }, {td = }, {completed_dt = }, {offset_val = }, {due_dt = }, {td = }, {offset_val.startswith('~') = }"
-            )
             if offset_val.startswith("~") and due_dt:
                 actual = completed_dt - due_dt
                 td = self._smooth_interval(td, actual)
                 self._replace_or_add_token("o", f"~{td_to_td_str(td)}")
                 new_start = completed_dt + td
-                bug_msg(f"{actual = }, {td = }")
             else:
                 self._replace_or_add_token("o", td_to_td_str(td))
                 new_start = completed_dt
@@ -3784,9 +3682,6 @@ Entry: {self.entry}
             self.rruleset = f"RDATE:{utc_next}"
             self.rdstart_str = f"RDATE:{utc_next}"
             self.dtstart = utc_next
-            bug_msg(
-                f"after processing offset: {self.relative_tokens = }, {self.rruleset = }, {self.dtstart = }"
-            )
             self._remove_tokens({"f"}, token_types={"@"})
             self._remove_job_finish_tokens()
 
@@ -3812,16 +3707,11 @@ Entry: {self.entry}
             completed_dt = self.completion
             ok, (num_completions, period_td), message = self.do_target(target_tok)
             if not ok:
-                bug_msg(f"error processing {target_tok = }: {message = }")
                 return
-            bug_msg(
-                f"processing target: {due_dt = }, {completed_dt = }, {num_completions = }, {period_td = }"
-            )
             done = 0
             if kompleted_tok := next(
                 (t for t in self.relative_tokens if t.get("k") == "k"), None
             ):
-                bug_msg(f"found kompleted_tok: {kompleted_tok = }")
                 done = kompleted_tok["token"][2:].strip()  # remove '@k'
                 done = int(done)
             if done + 1 < num_completions:
@@ -3829,14 +3719,12 @@ Entry: {self.entry}
                 old_done = done
                 done += 1
                 self._replace_or_add_token("k", done)
-                bug_msg(f"incremented @k frpm {old_done = } to {done = }")
             else:
                 # mark success, increment @s by period_td, reset @k
                 done = 0
                 new_start = due_dt + period_td
                 self.dtstart = self.fmt_user(new_start)
                 self._replace_or_add_token("s", self.dtstart)
-                bug_msg(f"completed target, updated @s to {self.dtstart = }")
                 self.rdstart_str = f"RDATE:{self.dtstart}"
                 self.rruleset = f"RDATE:{self.dtstart}"
                 self.rruleset_dict["START_RDATES"] = self.rdstart_str
@@ -3845,9 +3733,7 @@ Entry: {self.entry}
             return
 
         # if not offset or goal, use rruleset for due
-        bug_msg(f"{self.rruleset = }, ")
         first, second = self._get_first_two_occurrences()
-        bug_msg(f"{first = }, {second = }")
         due = first
         if due is None:
             # No upcoming instance — mark done
@@ -3873,9 +3759,6 @@ Entry: {self.entry}
                     )
                 if removed:
                     self._reparse_from_tokens()
-                bug_msg(
-                    f"from rdate: {due = }, {tok_str = }, {self.relative_tokens = }"
-                )
 
             else:
                 # First from RRULE — advance @s to next (and honor COUNT)
@@ -3883,9 +3766,6 @@ Entry: {self.entry}
                 if next_due:
                     local_next = _to_local_naive(next_due)
                     self._advance_dtstart_and_decrement_count(local_next)
-                    bug_msg(
-                        f"from rrule: {next_due = }, {local_next = }, {self.rruleset = }"
-                    )
                 else:
                     self._decrement_count_token()
                     self._remove_tokens({"r", "+", "-"}, token_types={"@"})
@@ -3929,22 +3809,14 @@ Entry: {self.entry}
             self.rruleset = f"RDATE:{self.dtstart}{new_plus_date_str}"
             self.rruleset_dict["START_RDATES"] = self.rdstart_str
 
-            bug_msg(
-                f"{self.dtstart = }, {new_plus_date_str = }, {self.rruleset = }, {self.completions = }"
-            )
-
         else:
             # one-shot or no repetition
             self._remove_tokens({"r", "+", "-"}, token_types={"@"})
             self._set_itemtype_token("x")
 
         self._remove_tokens({"f"}, token_types={"@"})
-        bug_msg(
-            f"after removing f: {self.relative_tokens = }, {self.completions = }, {self.completion = }, {due = }"
-        )
         if not self.completions:
             self.completions = (self.completion, due)
-        bug_msg(f"after reparsing finish tokens: {self.relative_tokens = }")
 
     def _replace_or_add_token(self, key: str, dt: str) -> None:
         """Replace token with key `key` or add new one for dt."""
@@ -3954,11 +3826,9 @@ Entry: {self.entry}
         # replace if exists
         for tok in self.relative_tokens:
             if tok.get("k") == key:
-                bug_msg(f"replaced {key =}; {tok = }; {new_tok = }")
                 tok.update(new_tok)
                 return
         # else append
-        bug_msg(f"appending {new_tok = }")
         self.relative_tokens.append(new_tok)
 
     def _remove_job_finish_tokens(self) -> None:
@@ -4012,8 +3882,6 @@ Entry: {self.entry}
         """Recompute DTSTART/RDATE/RRULE/EXDATE + rruleset + jobs from self.relative_tokens."""
         if resolve_relative is None:
             resolve_relative = self.final
-        bug_msg(f"{resolve_relative = }")
-        # self._normalize_datetime_tokens(resolve_relative=resolve_relative)
         dtstart_str, rdstart_str, rrule_line = self._derive_rrule_pieces()
         self.dtstart_str = dtstart_str or ""
         self.rdstart_str = rdstart_str or ""
@@ -4033,14 +3901,12 @@ Entry: {self.entry}
             return dt.strftime("%Y%m%d")
 
         for tok in self.relative_tokens:
-            bug_msg(f"{tok = }")
             if tok.get("t") != "@":
                 continue
             k = tok.get("k")
             text = (tok.get("token") or "").strip()
             if k == "s":
                 body = text[2:].strip()
-                bug_msg(f"{body = }")
                 dt = (
                     parse(body)
                     if resolve_relative
@@ -4136,7 +4002,6 @@ Entry: {self.entry}
 
     def _rrule_components_from_group(self, group: list[dict]) -> dict:
         """Build RRULE components dict from the @r group & its &-options."""
-        bug_msg("IN RRULE COMPONENTS")
         freq_map = {"y": "YEARLY", "m": "MONTHLY", "w": "WEEKLY", "d": "DAILY"}
         comps = {}
         anchor = group[0]["token"]  # "@r d" etc.
@@ -4163,7 +4028,6 @@ Entry: {self.entry}
                 elif key == "i":
                     comps["INTERVAL"] = value
                 elif key == "u":
-                    bug_msg(f"GOT UNTIL: {value = }")
                     comps["UNTIL"] = value.replace("/", "")
                 elif key == "c":
                     comps["COUNT"] = value
