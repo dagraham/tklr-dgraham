@@ -1015,8 +1015,14 @@ class DatabaseManager:
             self.ensure_system_bins()
         )
         # bug_msg(f"{self.bin_cache.name_to_binpath() = }")
+        self.after_save_needed: bool = False
+
         if auto_populate:
             self.populate_dependent_tables()
+
+    def commit(self):
+        self.conn.commit()
+        self.after_save_needed = True
 
     def format_datetime(self, fmt_dt: str) -> str:
         return format_datetime(fmt_dt, self.ampm)
@@ -1278,7 +1284,7 @@ class DatabaseManager:
 
         self.ensure_root_children(sorted(BIN_ROOTS))
 
-        self.conn.commit()
+        self.commit()
         self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = [row[0] for row in self.cursor.fetchall()]
         tables.sort()
@@ -1378,7 +1384,7 @@ class DatabaseManager:
             END;
         """)
 
-        self.conn.commit()
+        self.commit()
 
     def backup_to(self, dest_db: Path) -> Path:
         """
@@ -1391,7 +1397,7 @@ class DatabaseManager:
         dest_db.parent.mkdir(parents=True, exist_ok=True)
 
         # Ensure we copy a committed state
-        self.conn.commit()
+        self.commit()
 
         # Copy using SQLite's backup API
         with sqlite3.connect(str(tmp)) as dst:
@@ -1526,7 +1532,7 @@ class DatabaseManager:
                     timestamp,
                 ),
             )
-            self.conn.commit()
+            self.commit()
 
             record_id = self.cursor.lastrowid
             self.relink_bins_for_record(record_id, item)  # ← add this
@@ -1571,7 +1577,7 @@ class DatabaseManager:
             sql = f"UPDATE Records SET {', '.join(fields)} WHERE id = ?"
 
             self.cursor.execute(sql, values)
-            self.conn.commit()
+            self.commit()
             self.relink_bins_for_record(record_id, item)  # ← add this
 
         except Exception as e:
@@ -1642,7 +1648,7 @@ class DatabaseManager:
                 ),
             )
 
-        self.conn.commit()
+        self.commit()
 
         # Dependent tables
         # bug_msg(f"save record for {record_id = }, {item.itemtype = }")
@@ -1659,7 +1665,7 @@ class DatabaseManager:
         # Hashtags: based on subject + description
         self._update_hashtags_for_record(record_id, item.subject, item.description)
 
-        self.conn.commit()
+        self.commit()
         return record_id
 
     def add_completion(
@@ -1683,7 +1689,7 @@ class DatabaseManager:
                 _fmt_utc(due_dt) if due_dt else None,
             ),
         )
-        self.conn.commit()
+        self.commit()
 
     def get_completions(self, record_id: int):
         """
@@ -1766,7 +1772,7 @@ class DatabaseManager:
             """,
             (now, record_id),
         )
-        self.conn.commit()
+        self.commit()
 
     def toggle_pinned(self, record_id: int) -> None:
         self.cursor.execute("SELECT 1 FROM Pinned WHERE record_id=?", (record_id,))
@@ -1776,7 +1782,7 @@ class DatabaseManager:
             self.cursor.execute(
                 "INSERT INTO Pinned(record_id) VALUES (?)", (record_id,)
             )
-        self.conn.commit()
+        self.commit()
 
     def is_pinned(self, record_id: int) -> bool:
         self.cursor.execute(
@@ -1943,7 +1949,7 @@ class DatabaseManager:
         """,
             (alert_id,),
         )
-        self.conn.commit()
+        self.commit()
 
     def create_alert(
         self,
@@ -2103,7 +2109,7 @@ class DatabaseManager:
             "UPDATE Records SET tokens = ?, modified = ? WHERE id = ?",
             (serialized, utc_now_string(), record_id),
         )
-        self.conn.commit()
+        self.commit()
 
     def iter_records_for_query(self):
         """
@@ -2167,7 +2173,7 @@ class DatabaseManager:
             """,
             (now.strftime("%Y%m%dT%H%M"), end_of_day.strftime("%Y%m%dT%H%M")),
         )
-        self.conn.commit()
+        self.commit()
 
         # Find records that have alerts and at least one DateTimes row
         self.cursor.execute(
@@ -2281,7 +2287,7 @@ class DatabaseManager:
                             ),
                         )
 
-        self.conn.commit()
+        self.commit()
         log_msg("✅ Alerts table updated with today's relevant alerts.")
 
     def populate_alerts_for_record(self, record_id: int):
@@ -2327,7 +2333,7 @@ class DatabaseManager:
             """,
             (record_id, now_text, eod_text),
         )
-        self.conn.commit()
+        self.commit()
 
         # Look up the record’s alert data and start datetimes
         self.cursor.execute(
@@ -2438,7 +2444,7 @@ class DatabaseManager:
                             ),
                         )
 
-        self.conn.commit()
+        self.commit()
         # bug_msg(f"✅ Alerts updated for record {record_id}")
 
     def get_generated_weeks_range(self) -> tuple[int, int, int, int] | None:
@@ -2576,7 +2582,7 @@ class DatabaseManager:
             (min_year, min_week, max_year, max_week),
         )
 
-        self.conn.commit()
+        self.commit()
 
     def generate_datetimes(self, rule_str, extent, start_date, end_date):
         """
@@ -2825,7 +2831,7 @@ class DatabaseManager:
             self.cursor.execute(
                 "UPDATE Records SET processed = 1 WHERE id = ?", (record_id,)
             )
-        self.conn.commit()
+        self.commit()
 
     def get_events_for_period(self, start_date: datetime, end_date: datetime):
         """
@@ -3053,7 +3059,7 @@ class DatabaseManager:
         This clears existing entries and recomputes them from current record data.
         """
         self.cursor.execute("DELETE FROM Notice;")
-        self.conn.commit()
+        self.commit()
 
         # Fetch both record_id and notice value
         self.cursor.execute(
@@ -3062,7 +3068,7 @@ class DatabaseManager:
         for record_id, notice in self.cursor.fetchall():
             self.populate_notice_for_record(record_id)
 
-        self.conn.commit()
+        self.commit()
 
     def populate_notice_for_record(self, record_id: int):
         self.cursor.execute("SELECT notice FROM Records WHERE id = ?", (record_id,))
@@ -3091,7 +3097,7 @@ class DatabaseManager:
                 )
                 break  # Only insert for the earliest qualifying instance
 
-        self.conn.commit()
+        self.commit()
 
     def populate_busy_from_datetimes(self):
         """
@@ -3147,7 +3153,7 @@ class DatabaseManager:
                 )
                 total_inserted += 1
 
-        self.conn.commit()
+        self.commit()
         log_msg(f"✅ BusyWeeksFromDateTimes populated ({total_inserted} week-records).")
 
     def get_last_instances(
@@ -3394,7 +3400,7 @@ class DatabaseManager:
                 "INSERT INTO RecordTags (record_id, tag_id) VALUES (?, ?)",
                 (record_id, tag_id),
             )
-        self.conn.commit()
+        self.commit()
         return record_id
 
     def get_tags_for_record(self, record_id):
@@ -3539,7 +3545,7 @@ class DatabaseManager:
                     ),
                 )
 
-        self.conn.commit()
+        self.commit()
 
     def populate_all_urgency(self):
         self.cursor.execute("DELETE FROM Urgency")
@@ -3547,7 +3553,7 @@ class DatabaseManager:
         for task in tasks:
             # log_msg(f"adding to urgency: {task['itemtype'] = }, {task = }")
             self.populate_urgency_from_record(task)
-        self.conn.commit()
+        self.commit()
 
     def update_urgency(self, urgency_id: int):
         """
@@ -3588,7 +3594,7 @@ class DatabaseManager:
         """,
             (score, urgency_id),
         )
-        self.conn.commit()
+        self.commit()
 
     def update_all_urgencies(self):
         self.cursor.execute("SELECT id FROM Urgency")
@@ -3626,7 +3632,7 @@ class DatabaseManager:
     def delete_record(self, record_id):
         cur = self.conn.cursor()
         cur.execute("DELETE FROM Records WHERE id = ?", (record_id,))
-        self.conn.commit()
+        self.commit()
         self.update_busy_weeks_for_record(record_id)
 
     def count_records(self):
@@ -3699,7 +3705,7 @@ class DatabaseManager:
                 (yw, bits_str),
             )
 
-        self.conn.commit()
+        self.commit()
         # bug_msg("✅ BusyWeeks aggregation complete.")
 
     def _aggregate_busy_week(self, year_week: str) -> None:
@@ -3716,7 +3722,7 @@ class DatabaseManager:
             self.cursor.execute(
                 "DELETE FROM BusyWeeks WHERE year_week = ?", (year_week,)
             )
-            self.conn.commit()
+            self.commit()
             return
 
         stack = np.vstack(blobs)
@@ -3733,7 +3739,7 @@ class DatabaseManager:
             """,
             (year_week, bits_str),
         )
-        self.conn.commit()
+        self.commit()
 
     def update_busy_weeks_for_record(self, record_id: int) -> None:
         """
@@ -3749,7 +3755,7 @@ class DatabaseManager:
         self.cursor.execute(
             "DELETE FROM BusyWeeksFromDateTimes WHERE record_id = ?", (record_id,)
         )
-        self.conn.commit()
+        self.commit()
 
         self.cursor.execute("SELECT itemtype FROM Records WHERE id = ?", (record_id,))
         row = self.cursor.fetchone()
@@ -3786,7 +3792,7 @@ class DatabaseManager:
                     """,
                     (record_id, year_week, arr.tobytes()),
                 )
-            self.conn.commit()
+            self.commit()
 
         for year_week in affected:
             self._aggregate_busy_week(year_week)
@@ -3947,7 +3953,7 @@ class DatabaseManager:
             return row[0]
 
         self.cursor.execute("INSERT INTO Bins (name) VALUES (?)", (disp,))
-        self.conn.commit()
+        self.commit()
         bid = self.cursor.lastrowid
 
         # 👇 cache: record the creation with unknown parent (None) for now
@@ -3986,7 +3992,7 @@ class DatabaseManager:
             )
             parent_id = bin_id
 
-        self.conn.commit()
+        self.commit()
         return parent_id
 
     def ensure_bin_path(self, path: str) -> int:
@@ -4017,7 +4023,7 @@ class DatabaseManager:
 
             parent_id = bin_id
 
-        self.conn.commit()
+        self.commit()
         return parent_id
 
     def ensure_system_bins(self) -> tuple[int, int, int]:
@@ -4048,7 +4054,7 @@ class DatabaseManager:
             self.bin_cache.on_link(unlinked_id, root_id)
             self.bin_cache.on_link(deleted_id, root_id)
 
-        self.conn.commit()
+        self.commit()
 
         self.root_bin_id = root_id
         self.unlinked_bin_id = unlinked_id
@@ -4102,7 +4108,7 @@ class DatabaseManager:
             "INSERT OR REPLACE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
             (new_id, parent_id),
         )
-        self.conn.commit()
+        self.commit()
 
         if hasattr(self, "bin_cache"):
             self.bin_cache.on_create(new_id, nm, parent_id)
@@ -4135,7 +4141,7 @@ class DatabaseManager:
             raise ValueError(f"A bin named {nm!r} already exists.")
 
         self.cursor.execute("UPDATE Bins SET name = ? WHERE id = ?", (nm, bin_id))
-        self.conn.commit()
+        self.commit()
 
         if hasattr(self, "bin_cache"):
             self.bin_cache.on_rename(bin_id, nm)
@@ -4173,7 +4179,7 @@ class DatabaseManager:
             "INSERT OR REPLACE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
             (bin_id, new_parent_id),
         )
-        self.conn.commit()
+        self.commit()
 
         if hasattr(self, "bin_cache"):
             self.bin_cache.on_link(bin_id, new_parent_id)
@@ -4204,7 +4210,7 @@ class DatabaseManager:
             """,
             (record_id, leaf_bin_id),
         )
-        self.conn.commit()
+        self.commit()
 
     # === Bin access helpers ===
     def get_bin_name(self, bin_id: int) -> str:
@@ -4314,7 +4320,7 @@ class DatabaseManager:
             )
             out[nm] = cid
 
-        self.conn.commit()
+        self.commit()
         return out
 
     def ensure_bin(
@@ -4334,7 +4340,7 @@ class DatabaseManager:
                 "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
                 (bin_id, parent_id),
             )
-            self.conn.commit()
+            self.commit()
         else:
             # already has a parent
             if allow_reparent and parent["id"] != parent_id:
@@ -4349,7 +4355,7 @@ class DatabaseManager:
             "INSERT OR IGNORE INTO ReminderLinks(reminder_id, bin_id) VALUES (?, ?)",
             (record_id, bin_id),
         )
-        self.conn.commit()
+        self.commit()
 
     def unlink_record_from_bins(
         self, record_id: int, *, only_tag_bins: bool | None = None
@@ -4381,7 +4387,7 @@ class DatabaseManager:
                 """,
                 (record_id,),
             )
-        self.conn.commit()
+        self.commit()
 
     # ---- tokens → links glue (single source of truth) ----
 

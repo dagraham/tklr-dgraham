@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import time
 
-from asyncio import create_task
+import asyncio
 
 from .shared import (
     log_msg,
@@ -2974,6 +2974,7 @@ class DynamicViewApp(App):
         self.details_footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search  [bold yellow]Enter[/bold yellow] Reminder menu "
         self.details_drawer: DetailsDrawer | None = None
         self.run_daily_tasks()
+        self._current_command_task: asyncio.Task | None = None
 
     async def on_mount(self):
         self.styles.background = "#373737"
@@ -3555,6 +3556,46 @@ class DynamicViewApp(App):
             else:
                 os.system(alert_command)
             self.controller.db_manager.mark_alert_executed(alert_id)
+
+        await self._maybe_run_current_command()
+
+    async def _maybe_run_current_command(self) -> None:
+        command = getattr(self.controller, "current_command", "").strip()
+        if not command:
+            return
+        if self._current_command_task and not self._current_command_task.done():
+            return
+        payload = self.controller.consume_after_save_command()
+        if not payload:
+            return
+        args, display = payload
+        self._current_command_task = asyncio.create_task(
+            self._run_current_command(args, display)
+        )
+
+    async def _run_current_command(self, args: list[str], display: str) -> None:
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *args,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                err = stderr.decode(errors="ignore").strip()
+                log_msg(
+                    f"current_command failed ({proc.returncode}): {display}\n{err}"
+                )
+                self.notify(
+                    f"Current command failed ({proc.returncode})",
+                    severity="warning",
+                    timeout=4,
+                )
+        except Exception as exc:
+            log_msg(f"current_command error for '{display}': {exc}")
+            self.notify("Current command error", severity="warning", timeout=4)
+        finally:
+            self._current_command_task = None
 
     def action_new_reminder(self) -> None:
         # Use whatever seed you like (empty, template, clipboard, etc.)

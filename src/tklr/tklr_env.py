@@ -25,6 +25,7 @@ class UIConfig(BaseModel):
     two_digit_year: bool = True
     history_weight: int = 3
     agenda_days: int = Field(3, ge=1)
+    current_command: str = ""
 
 
 class DueConfig(BaseModel):
@@ -133,6 +134,10 @@ history_weight = {{ ui.history_weight }}
 # agenda_days: int >= 1
 # Number of event days to display in Agenda view / CLI command.
 agenda_days = {{ ui.agenda_days }}
+
+# current_command: optional CLI snippet to run after saving changes in the UI.
+# Example: 'days --end 8 --width 46'
+current_command = "{{ ui.current_command }}"
 
 # dayfirst and yearfirst settings
 # These settings are used to resolve ambiguous date entries involving

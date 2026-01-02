@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import shlex
 import textwrap
+import sys
 
 
 import json
@@ -526,6 +527,10 @@ class Controller:
             _yr = "%Y"
             _dm = "%d-%m" if self.dayfirst else "%m-%d"
             self.datefmt = f"{_yr}-{_dm}" if self.yearfirst else f"{_dm}-{_yr}"
+            self.current_command = (self.env.config.ui.current_command or "").strip()
+        else:
+            self.current_command = ""
+
         self.datetimefmt = f"{self.datefmt} {self.timefmt}"
         self.query_engine = QueryEngine()
 
@@ -561,6 +566,33 @@ class Controller:
 
     def datetime_in_words(self, fmt_dt: str) -> str:
         return datetime_in_words(fmt_dt, self.AMPM)
+
+    def _build_current_command_args(self) -> list[str] | None:
+        cmd = (self.current_command or "").strip()
+        if not cmd:
+            return None
+        home = (
+            str(self.env.home)
+            if self.env and getattr(self.env, "home", None)
+            else str(Path.home() / ".config" / "tklr")
+        )
+        try:
+            extra = shlex.split(cmd)
+        except ValueError as exc:
+            log_msg(f"Invalid current_command '{cmd}': {exc}")
+            return None
+        return [sys.executable, "-m", "tklr.cli.main", "--home", home, *extra]
+
+    def consume_after_save_command(self) -> tuple[list[str], str] | None:
+        if not self.current_command:
+            return None
+        if not getattr(self.db_manager, "after_save_needed", False):
+            return None
+        args = self._build_current_command_args()
+        if not args:
+            return None
+        self.db_manager.after_save_needed = False
+        return args, self.current_command
 
     def make_item(self, entry_str: str, final: bool = False) -> "Item":
         return Item(self.env, entry_str, final=final)
