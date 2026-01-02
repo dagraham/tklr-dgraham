@@ -2993,7 +2993,7 @@ class DynamicViewApp(App):
         except Exception:
             pass
         # open default screen
-        self.action_show_weeks()
+        self.action_show_agenda()
 
         # your alert timers as-is
         now = datetime.now()
