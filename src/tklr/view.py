@@ -196,7 +196,7 @@ HelpText = f"""\
 [bold][{TITLE_COLOR}]TKLR {VERSION}[/{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
 [bold]^Q[/bold]    Quit               [bold]^S[/bold]    Screenshot
-[bold] +[/bold]    New Reminder       [bold] Y[/bold]    Year View
+[bold] +[/bold]    New Reminder       [bold] Y[/bold]    Yearly Calendar
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
  [bold]A[/bold]    Agenda              [bold]M[/bold]    Modified
  [bold]B[/bold]    Bins                [bold]N[/bold]    Next
@@ -204,26 +204,29 @@ HelpText = f"""\
  [bold]F[/bold]    Find                [bold]R[/bold]    Remaining Alerts
  [bold]G[/bold]    Goals               [bold]T[/bold]    Tags
  [bold]L[/bold]    Last                [bold]W[/bold]    Weeks
-[bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
- [bold]/[/bold]        Set search      empty search clears
- [bold]>[/bold]        Next match      [bold]<[/bold]    Previous match
-[bold][{HEADER_COLOR}]Weeks Navigation [/{HEADER_COLOR}][/bold]
- [bold]Left[/bold]     previous week   [bold]Up[/bold]   up in the list
- [bold]Right[/bold]    next week       [bold]Down[/bold] down in the list
- [bold]S+Left[/bold]   4 wks back      [bold]" "[/bold]  current week
- [bold]S+Right[/bold]  4 wks forward   [bold]J[/bold]    jump to date
-[bold][{HEADER_COLOR}]Tags and Item Details[/{HEADER_COLOR}][/bold]
+[bold][{HEADER_COLOR}]Weeks View Navigation[/{HEADER_COLOR}][/bold]
+ Left/Right cursor keys move by one week.
+   Add Shift to jump by 4 weeks.
+ Press "J" to jump to a specific date
+   or "space" to jump to the current date.
+[bold][{HEADER_COLOR}]Tags and Reminder Details[/{HEADER_COLOR}][/bold]
  Each of the views listed above displays a list
  of items. In these listings, each item begins
  with a tag sequentially generated from 'a', 'b',
  ..., 'z'. When more than 26 tags are required,
  additional pages are appended with left and right
- cursor keys used to move between pages. Press the
+ cursor keys used to move between pages and up and
+ down keys to scroll in the list.  Press the
  key of the tag on your keyboard to see the
  details of the item and access related commands
  to edit, reschedule, finish and so forth. To see
  the complete list of available commands press ?
-when the details pane is open.
+ when the details pane is open.
+[bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
+ Press "/" and enter expression to search
+   or enter nothing to clear search highlighting.
+ While search is active, press "[bold]<[/bold]" and "[bold]>[/bold]"
+   to step through matches.
 """.splitlines()
 
 QueryHelpText = f"""\
@@ -3918,7 +3921,7 @@ class DynamicViewApp(App):
             TextPrompt(
                 "Jump to Date",
                 message="Enter a date to view its week (e.g. 2025-03-14).",
-                placeholder="YYYY-MM-DD",
+                placeholder=" date...",
             ),
             callback=_after,
         )
