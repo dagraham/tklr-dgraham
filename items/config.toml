@@ -23,6 +23,7 @@ agenda_days = 3
 
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
+# Prefix with '!' to run a standalone command/script (no automatic 'tklr').
 current_command = "/Users/dag/.local/bin/write_agenda.sh "
 
 # dayfirst and yearfirst settings

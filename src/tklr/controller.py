@@ -672,6 +672,10 @@ class Controller:
 
         return True
 
+    def new_day(self) -> None:
+        """Set after_save_needed flag."""
+        self.db_manager.after_save_needed = True
+
     def _instance_to_rdate_key(self, instance) -> str:
         """
         Convert an instance (string or datetime) into the canonical UTC-Z key
@@ -2343,8 +2347,7 @@ class Controller:
 
         text_cal = calendar.TextCalendar()
         months = [
-            text_cal.formatmonth(target_year, m, w=2).splitlines()
-            for m in range(1, 13)
+            text_cal.formatmonth(target_year, m, w=2).splitlines() for m in range(1, 13)
         ]
 
         lines: list[str] = [""]

@@ -2962,6 +2962,7 @@ class DynamicViewApp(App):
         self.details_footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search  [bold yellow]Enter[/bold yellow] Reminder menu "
         self.details_drawer: DetailsDrawer | None = None
         self.year_offset = 0
+        self.today = None
         self.run_daily_tasks()
         self._current_command_task: asyncio.Task | None = None
 
@@ -3502,6 +3503,8 @@ class DynamicViewApp(App):
         if removed:
             log_msg("🧹 Pruned: " + ", ".join(p.name for p in removed))
 
+        self.today = date.today()
+        self.controller.new_day()
         self.controller.populate_alerts()
         self.controller.populate_notice()
 
@@ -3515,7 +3518,13 @@ class DynamicViewApp(App):
     async def check_alerts(self):
         # called every 6 seconds
         now = datetime.now()
-        if now.hour == 0 and now.minute == 0 and 0 <= now.second < 6:
+        today = now.date()
+        if (
+            now.hour == 0
+            and now.minute == 0
+            and 0 <= now.second < 6
+            or self.today != today
+        ):
             self.run_daily_tasks()
         if now.minute % 10 == 0 and now.second == 0:
             # check alerts every 10 minutes
