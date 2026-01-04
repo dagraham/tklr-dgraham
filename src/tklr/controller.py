@@ -892,6 +892,10 @@ class Controller:
                             except Exception:
                                 continue
 
+        # Ensure we are working with a datetime (dates can surface from all-day entries)
+        if isinstance(instance_dt, date) and not isinstance(instance_dt, datetime):
+            instance_dt = datetime.combine(instance_dt, datetime.min.time())
+
         # Convert instance_dt to UTC if aware, or leave naive
         if instance_dt.tzinfo is not None:
             instance_utc = instance_dt.astimezone(timezone.utc).replace(tzinfo=None)

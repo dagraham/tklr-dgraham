@@ -2956,6 +2956,9 @@ class DynamicViewApp(App):
         self.controller = controller
         self.current_start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
+        self._week_state_before_editor: (
+            tuple[datetime, tuple[int, int]] | None
+        ) = None
         self.title = ""
         self.view_mode = "list"
         self.view = "weeks"
@@ -3182,6 +3185,7 @@ class DynamicViewApp(App):
                 except Exception as e:
                     log_msg(f"Error while hiding details before edit: {e}")
 
+                app._remember_week_context()
                 app.push_screen(
                     EditorScreen(ctrl, record_id, seed_text=seed_text),
                     callback=self._after_edit,
@@ -3189,6 +3193,7 @@ class DynamicViewApp(App):
 
             def clone_item() -> None:
                 seed_text = ctrl.get_entry_from_record(record_id)
+                app._remember_week_context()
                 app.push_screen(
                     EditorScreen(ctrl, None, seed_text=seed_text),
                     callback=self._after_edit,
@@ -3737,15 +3742,38 @@ class DynamicViewApp(App):
         except Exception:
             pass
 
+    def _remember_week_context(self) -> None:
+        if self.view == "weeks":
+            self._week_state_before_editor = (
+                self.current_start_date,
+                self.selected_week,
+            )
+        else:
+            self._week_state_before_editor = None
+
     def _after_edit(self, result: dict | None) -> None:
+        week_snapshot = getattr(self, "_week_state_before_editor", None)
+        self._week_state_before_editor = None
+
         if not result or not result.get("changed"):
             return
 
-        self.refresh_view()
+        if self.view == "weeks":
+            if week_snapshot:
+                saved_start, saved_week = week_snapshot
+            else:
+                saved_start, saved_week = self.current_start_date, self.selected_week
+
+            self.current_start_date = saved_start
+            self.selected_week = saved_week
+            self.update_table_and_list()
+        else:
+            self.refresh_view()
 
     def open_editor_for(
         self, *, record_id: int | None = None, seed_text: str = ""
     ) -> None:
+        self._remember_week_context()
         self._close_details_if_open()
         self.app.push_screen(
             EditorScreen(self.controller, record_id=record_id, seed_text=seed_text),
