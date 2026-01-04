@@ -305,6 +305,31 @@ goals = [
     "! future goal @s 2026/02/01 @t 1/1w",
 ]
 
+sixpm = [
+    f"* should be 4-7pm @s {today_date} 4p @e 3h",
+    f"* should be 6-9pm @s {today_date} 6p @e 3h",
+    f"* should be 6:01-9:01pm @s {today_date} 6:01p @e 3h",
+    f"* should be 6:59-9:59pm @s {today_date} 6:59p @e 3h",
+    f"* should be 7-10pm @s {today_date} 7p @e 3h",
+    f"* should be 8-11pm @s {today_date} 8p @e 3h",
+    f"* should be 9-11:59pm @s {today_date} 9p @e 3h",
+    f"* should be 10-11:59 with split for 12-1am @s {today_date} 10p @e 3h",
+]
+
+notice = [
+    f"* #notice event tomorrow with 1d notice @s {tomorrow_date} @n 1d",
+    f"* #notice event day after tomorrow with 1d notice @s {in_two_days()} @n 1d",
+    f"~ #notice one off task in 2 days with 1d notice @s {in_two_days()} @n 1d",
+    f"~ #notice one off task  in 2 days with 2d notice @s {in_two_days()} @n 2d",
+    f"~ #notice one off task  in 2 days with 3d notice @s {in_two_days()} @n 3d",
+    f"~ #notice offset task in 2 days with 1d notice @s {in_two_days()} @o 4d @n 1d",
+    f"~ #notice offset task in 2 days with 2d notice @s {in_two_days()} @o 4d @n 2d",
+    f"~ #notice offset task in 2 days with 3d notice @s {in_two_days()} @o 4d @n 3d",
+    f"~ #notice repeating task in 2 days with 1d notice @s {in_two_days()} @r w @n 1d",
+    f"~ #notice repeating task in 2 days with 2d notice @s {in_two_days()} @r w @n 2d",
+    f"~ #notice repeating task in 2 days with 3d notice @s {in_two_days()} @r w @n 3d",
+]
+
 items = [
     f"* {{XXX}} anniversary @s {five_years_ago()} @r y",
     f"* first of the month @d all day event @s {first_of_month}",
@@ -397,7 +422,7 @@ while len(items) < num_items:
 id = 0
 # for entry in items:  # + alerts:
 # for entry in busy + items:
-for entry in items + bins + finish + goals + alerts + busy:
+for entry in items + bins + finish + goals + notice + alerts + sixpm + busy:
     id += 1
     try:
         item = Item(raw=entry, env=env, final=True, controller=ctrl)  # .to_dict()

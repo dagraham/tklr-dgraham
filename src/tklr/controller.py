@@ -307,7 +307,6 @@ def format_rruleset_for_details(
                 continue
         out.append(line)
     # prepend = " " * (len("rruleset: ")) + "\n"
-    bug_msg(f"{out = }")
     return "\n          ".join(out)
 
 
@@ -346,7 +345,6 @@ def set_anniversary(subject: str, start: date, instance: date, freq: str) -> str
     freq ∈ {'y','m','w','d'}.
     """
     has_xxx = "{XXX}" in subject
-    # bug_msg(f"set_anniversary {subject = }, {has_xxx = }")
     if not has_xxx:
         return subject
 
@@ -417,7 +415,6 @@ def page_tagger(
 
     for item in items:
         if not isinstance(item, dict):
-            # bug_msg(f"error: {item} is not a dict")
             continue
 
         # header row
@@ -446,7 +443,6 @@ def page_tagger(
         instance_ts = item.get("instance_ts", None)
 
         tag_map[tag] = (record_id, job_id, datetime_id, instance_ts)
-        # bug_msg(f"{tag_map = }")
 
         # Display text unchanged
         page_rows.append(f" [dim]{tag}[/dim]  {item.get('text', '')}")
@@ -595,32 +591,22 @@ class Controller:
 
     def consume_after_save_command(self) -> tuple[list[str], str] | None:
         if not self.current_command:
-            bug_msg("No current_command set")
             return None
         if not getattr(self.db_manager, "after_save_needed", False):
-            bug_msg("after_save_needed is False")
             return None
         args = self._build_current_command_args()
         if not args:
-            bug_msg
             return None
         self.db_manager.after_save_needed = False
-        bug_msg(f"Consuming after_save_command: {args = }, {self.current_command = }")
         return args, self.current_command
 
     def make_item(self, entry_str: str, final: bool = False) -> "Item":
         return Item(self.env, entry_str, final=final)
 
     def add_item(self, item: Item) -> int:
-        if item.itemtype in "~^x" and item.has_f:
-            bug_msg(
-                f"{item.itemtype = } {item.has_f = } {item.itemtype in '~^x' and item.has_f = }"
-            )
-
         record_id = self.db_manager.add_item(item)
 
         if item.completions:
-            bug_msg(f"{item.completions = }")
             self.db_manager.add_completion(record_id, item.completions)
 
         return record_id
@@ -667,7 +653,6 @@ class Controller:
         # if completion:
         #     self.db_manager.add_completion(record_id, completion)
         if item.completions:
-            bug_msg(f"{item.completions = }")
             self.db_manager.add_completion(record_id, item.completions)
 
         return True
@@ -816,9 +801,6 @@ class Controller:
 
         inst_local = self._instance_local_from_text(instance_text)
 
-        # bug_msg(
-        #     f"{inst_local = }, {instances_local = }, {inst_local in instances_local = }"
-        # )
         if mode == "one":
             survivors = [d for d in instances_local if d != inst_local]
         elif mode == "this_and_future":
@@ -970,7 +952,7 @@ class Controller:
             return self.apply_token_edit(record_id, edit_tokens)
 
         except Exception as e:
-            bug_msg(f"Error advancing @s: {e}")
+            log_msg(f"Error advancing @s: {e}")
             return False
 
     def _instance_to_rdate_key(self, instance_text: str) -> str:
@@ -1105,7 +1087,6 @@ class Controller:
 
         # ---- Case 2: plain task (no job_id) ----
         upcoming = self.db_manager.get_next_start_datetimes_for_record(record_id) or []
-        bug_msg(f"{upcoming = }")
 
         # Case 2a: No instances or only 1 instance → append @f
         if len(upcoming) <= 1:
@@ -1581,7 +1562,6 @@ class Controller:
             "record": self.db_manager.get_record(record_id),
         }
         self._last_details_meta = meta
-        bug_msg(f"{meta['first'] = }, {meta['second'] = }, {meta['instance_ts'] = }")
 
         # return [title, ""] + fields
         return title, fields, meta
@@ -1859,7 +1839,6 @@ class Controller:
 
         # for start_ts, end_ts, itemtype, subject, id, job_id in events:
         for dt_id, start_ts, end_ts, itemtype, subject, id, job_id in events:
-            # bug_msg(f"{itemtype = }, {subject = }, {dt_id = }, {id = }, {job_id = }")
             start_dt = datetime_from_timestamp(start_ts)
             end_dt = datetime_from_timestamp(end_ts)
             if itemtype == "*":  # event
@@ -1898,7 +1877,6 @@ class Controller:
             # 👉 NEW: append flags from Records.flags
             old_subject = subject
             subject = self.apply_flags(id, subject)
-            # bug_msg(f"{old_subject = }, {subject = }")
 
             row = {
                 "record_id": id,
@@ -1908,7 +1886,6 @@ class Controller:
                 "text": f"[{type_color}]{itemtype} {escaped_start_end}{subject}[/{type_color}]",
             }
             weekday_to_events.setdefault(start_dt.date(), []).append(row)
-            # bug_msg(f"job row: {row = }")
 
         for day, events in weekday_to_events.items():
             # TODO: today, tomorrow here
@@ -2010,7 +1987,6 @@ class Controller:
 
         # build 'rows' as a list of dicts with record_id and text
         pages = page_tagger(rows)
-        # bug_msg(f"{pages = }")
         return pages, header
 
     def get_modified(self, yield_rows: bool = False):
@@ -2423,7 +2399,6 @@ class Controller:
                 for event in events:
                     rows.append(event)
         pages = page_tagger(rows)
-        # bug_msg(f"{pages = }")
         return pages, header
 
     def find_records(self, search_str: str):
@@ -2473,7 +2448,6 @@ class Controller:
                 }
             )
         pages = page_tagger(rows)
-        # bug_msg(f"{pages = }")
         return pages, header
 
     def group_events_by_date_and_time(self, events):

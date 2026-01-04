@@ -3556,7 +3556,6 @@ class DynamicViewApp(App):
             log_msg(f"maybe_run_current_command: skipping {command = }")
             return ()
         payload = self.controller.consume_after_save_command()
-        bug_msg(f"maybe_run_current_command: {payload = }")
         if not payload:
             log_msg("maybe_run_current_command: no payload")
             return
@@ -3641,9 +3640,9 @@ class DynamicViewApp(App):
             self.year_offset, available_width=view_width
         )
         footer = (
-            f"[bold {FOOTER}]←[/bold {FOOTER}] Previous  "
-            f"[bold {FOOTER}]→[/bold {FOOTER}] Next  "
-            f"[bold {FOOTER}]space[/bold {FOOTER}] Current"
+            f"[bold {FOOTER}]left[/bold {FOOTER}] earlier  "
+            f"[bold {FOOTER}]right[/bold {FOOTER}] later  "
+            f"[bold {FOOTER}]space[/bold {FOOTER}] current  "
         )
         pages = [(lines, {})]
         screen = FullScreenList(pages, title, "", footer)

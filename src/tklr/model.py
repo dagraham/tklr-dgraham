@@ -141,19 +141,28 @@ def _split_span_local_days(
     Split a local-naive span into day segments so multi-day busy windows
     can be processed per calendar day. Returns (start, end) pairs for each day.
     """
+    if isinstance(start_local, date) and not isinstance(start_local, datetime):
+        start_local = datetime.combine(start_local, time.min)
+    if isinstance(end_local, date) and not isinstance(end_local, datetime):
+        end_local = datetime.combine(end_local, time.min)
+
+    start_local = _to_local_naive(start_local)
+    end_local = _to_local_naive(end_local)
+
     if end_local <= start_local:
+        return [(start_local, end_local)]
+    if start_local.date() == end_local.date():
         return [(start_local, end_local)]
 
     segs: list[tuple[datetime, datetime]] = []
     cur_start = start_local
 
     while cur_start.date() < end_local.date():
-        day_end = datetime.combine(cur_start.date(), time(23, 59, 59))
-        segs.append((cur_start, day_end))
-        next_day_start = datetime.combine(
+        day_boundary = datetime.combine(cur_start.date(), time(23, 59, 59))
+        segs.append((cur_start, day_boundary))
+        cur_start = datetime.combine(
             cur_start.date() + timedelta(days=1), time(0, 0, 0)
         )
-        cur_start = next_day_start
 
     segs.append((cur_start, end_local))
     return segs
@@ -350,9 +359,13 @@ def fine_busy_bits_for_event(
     (7 days × (1 all-day + 96 fifteen-minute blocks))
     """
     start = parse(start_str)
+    if isinstance(start, date) and not isinstance(start, datetime):
+        start = datetime.combine(start, datetime.min.time())
 
     # --- handle end rules ---
     end = parse(end_str) if end_str else None
+    if isinstance(end, date) and not isinstance(end, datetime):
+        end = datetime.combine(end, datetime.min.time())
 
     # if end is None and (start.hour != 0 or start.minute != 0):
     if end is None or not isinstance(start, datetime):
@@ -2759,9 +2772,8 @@ class DatabaseManager:
                 if isinstance(cur, datetime):
                     start_local = _to_local_naive(cur)
                 else:
-                    start_local = (
-                        cur  # date; treated as local-naive midnight by _fmt_naive
-                    )
+                    start_local = datetime.combine(cur, datetime.min.time())
+                start_local = datetime_from_timestamp(_fmt_naive(start_local))
 
                 if extent_sec_record:
                     end_local = (
@@ -2770,22 +2782,14 @@ class DatabaseManager:
                         else datetime.combine(start_local, datetime.min.time())
                         + timedelta(seconds=extent_sec_record)
                     )
-                    try:
-                        for seg_start, seg_end in _split_span_local_days(
-                            start_local, end_local
-                        ):
-                            s_txt = _fmt_naive(seg_start)
-                            e_txt = (
-                                None if seg_end == seg_start else _fmt_naive(seg_end)
-                            )
-                            self.cursor.execute(
-                                "INSERT OR IGNORE INTO DateTimes (record_id, job_id, start_datetime, end_datetime) VALUES (?, NULL, ?, ?)",
-                                (record_id, s_txt, e_txt),
-                            )
-                    except NameError:
+                    end_local = datetime_from_timestamp(_fmt_naive(end_local))
+                    segments = _split_span_local_days(start_local, end_local)
+                    for seg_start, seg_end in segments:
+                        s_txt = _fmt_naive(seg_start)
+                        e_txt = None if seg_end == seg_start else _fmt_naive(seg_end)
                         self.cursor.execute(
                             "INSERT OR IGNORE INTO DateTimes (record_id, job_id, start_datetime, end_datetime) VALUES (?, NULL, ?, ?)",
-                            (record_id, _fmt_naive(start_local), _fmt_naive(end_local)),
+                            (record_id, s_txt, e_txt),
                         )
                 else:
                     self.cursor.execute(
@@ -3065,6 +3069,69 @@ class DatabaseManager:
                 break  # Only insert for the earliest qualifying instance
 
         self.commit()
+
+    def _next_start_seconds(
+        self, record_id: int, job_id: int | None = None
+    ) -> int | None:
+        """
+        Return the epoch seconds for the next scheduled start in DateTimes.
+        If there is no future start, fall back to the earliest historical start.
+        """
+
+        sql = "SELECT start_datetime FROM DateTimes WHERE record_id = ?"
+        params: list[object] = [record_id]
+        if job_id is None:
+            sql += " AND job_id IS NULL"
+        else:
+            sql += " AND job_id = ?"
+            params.append(job_id)
+        sql += " ORDER BY start_datetime ASC"
+
+        self.cursor.execute(sql, tuple(params))
+        rows = self.cursor.fetchall()
+        if not rows:
+            return None
+
+        now = datetime.now()
+        fallback: int | None = None
+        for (start_text,) in rows:
+            start_dt = datetime_from_timestamp(start_text)
+            if not start_dt:
+                continue
+            start_seconds = round(start_dt.timestamp())
+            if start_dt >= now:
+                return start_seconds
+            if fallback is None:
+                fallback = start_seconds
+        return fallback
+
+    def _offset_seconds_from_record(self, record: dict) -> int | None:
+        """Extract the first @o interval (in seconds) from stored tokens."""
+        tokens_json = record.get("tokens")
+        if not tokens_json:
+            return None
+        try:
+            tokens = json.loads(tokens_json)
+        except Exception:
+            return None
+        if not isinstance(tokens, list):
+            return None
+        for tok in tokens:
+            if not isinstance(tok, dict):
+                continue
+            if tok.get("t") != "@" or tok.get("k") != "o":
+                continue
+            body = (tok.get("token") or "").strip()
+            if body.startswith("@o"):
+                body = body[2:].strip()
+            body = body.lstrip("~").strip()
+            if not body:
+                continue
+            try:
+                return td_str_to_seconds(body)
+            except ValueError:
+                continue
+        return None
 
     def populate_busy_from_datetimes(self):
         """
@@ -3399,6 +3466,8 @@ class DatabaseManager:
         priority_level = record.get("priority", None)
         # priority = priority_map.get(priority_level, 0)
         description = True if record.get("description", "") else False
+        flags = record.get("flags") or ""
+        has_offset = "𝕠" in flags
 
         if itemtype not in ["^", "~"]:
             return
@@ -3408,7 +3477,11 @@ class DatabaseManager:
 
         # Try to parse due from first RDATE in rruleset
         due_seconds = None
-        if rruleset.startswith("RDATE:"):
+        offset_seconds = None
+        if has_offset:
+            due_seconds = self._next_start_seconds(record_id, None)
+            offset_seconds = self._offset_seconds_from_record(record)
+        if due_seconds is None and rruleset.startswith("RDATE:"):
             due_str = rruleset.split(":", 1)[1].split(",")[0]
             try:
                 if "T" in due_str:
@@ -3418,10 +3491,15 @@ class DatabaseManager:
                 due_seconds = round(dt.timestamp())
             except Exception as e:
                 log_msg(f"Invalid RDATE value: {due_str}\n{e}")
+        if due_seconds is None:
+            due_seconds = self._next_start_seconds(record_id, None)
         if due_seconds and not notice_seconds:
             # treat due_seconds as the default for a missing @b, i.e.,
             # make the default to hide a task with an @s due entry before due - interval
-            notice_seconds = due_seconds
+            if offset_seconds:
+                notice_seconds = offset_seconds
+            else:
+                notice_seconds = due_seconds
 
         self.cursor.execute("DELETE FROM Urgency WHERE record_id = ?", (record_id,))
 
@@ -3434,15 +3512,18 @@ class DatabaseManager:
                 job_id = job.get("id")
                 subject = job.get("display_subject", subject)
 
-                job_due = due_seconds
-                if job_due:
-                    b = td_str_to_seconds(job.get("b", "0m"))
-                    s = td_str_to_seconds(job.get("s", "0m"))
-                    if b:
-                        hide = job_due - b > now_seconds
-                        if hide:
-                            continue
-                    job_due += s
+                job_due = self._next_start_seconds(record_id, job_id)
+                s_seconds = td_str_to_seconds(job.get("s", "0m"))
+                if job_due is None and due_seconds:
+                    job_due = due_seconds + s_seconds
+                elif job_due is None and s_seconds:
+                    job_due = now_seconds + s_seconds
+
+                job_notice = td_str_to_seconds(job.get("b", "0m")) or notice_seconds
+                if job_due and job_notice:
+                    hide = job_due - job_notice > now_seconds
+                    if hide:
+                        continue
 
                 job_extent = td_str_to_seconds(job.get("e", "0m"))
                 blocking = job.get("blocking")  # assume already computed elsewhere
