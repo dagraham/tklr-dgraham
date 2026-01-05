@@ -16,9 +16,33 @@
 
 <p><a href="https://github.com/dagraham/tklr-dgraham/discussions">Join the conversation</a></p>
 
-❌ Preliminary and incomplete. This notice will be removed when the code is ready for general use.
+# What makes *tklr* different
 
-# Overview
+## Form-free editing
+
+Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used with *just in time prompting.
+
+
+<div style="overflow: auto;">
+  <img src="image1.svg" alt="Description" style="float: left; margin-right: 20px; width: 300px;">
+
+  <p>
+    Your text content goes here beside the image. This text will wrap around
+    the floated image. You can write multiple paragraphs and they'll flow
+    naturally beside the image.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+<div style="overflow: auto;">
+  <img src="image2.svg" alt="Description" style="float: right; margin-left: 20px; width: 300px;">
+  <p>
+    This image is on the right side. The text flows on the left side of the image.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+
 
 _tklr_ began life in 2013 as _etm-qt_ sporting a gui based on _Qt_. The intent was to provide an app supporting GTD (David Allen's Getting Things Done) and exploiting the power of python-dateutil. The name changed to _etmtk_ in 2014 when _Tk_ replaced _Qt_. Development of _etmtk_ continued until 2019 when name changed to _etm-dgraham_, to honor the PyPi naming convention, and the interface changed to a terminal based one based on _prompt_toolkit_. In 2025 the name changed to "tklr", the database to SQLite3 and the interface to Click (CLI) and Textual. Features have changed over the years but the text based interface and basic format of the reminders has changed very little. The goal has always been to be the Swiss Army Knife of tools for managing reminders.
 
@@ -27,6 +51,8 @@ _tklr_ began life in 2013 as _etm-qt_ sporting a gui based on _Qt_. The intent w
 _tklr_ offers a simple way to manage your event, task and note reminders.
 
 Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used. Each reminder in _tklr_ begins with a _type character_ followed by the _subject_ of the reminder and then, perhaps, by one or more _@key value_ pairs to specify other attributes of the reminder. Mnemonics are used to make the keys easy to remember, e.g, @s for scheduled datetime, @l for location, @d for details and so forth.
+
+
 
 The 4 types of reminders in _tklr_ with their associated type characters:
 

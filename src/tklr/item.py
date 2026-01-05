@@ -1151,12 +1151,11 @@ class Item:
 
         if len(self.entry.strip()) < 1:
             # nothing to validate without itemtype and subject
-            return fmt_error(f"""\
-Reminders begin with an type character from:
+            return fmt_error("""\
+Reminders begin with a type character from:
     * (event), ~ (task), ^ (project),
     % (note),  ! (goal), ? (draft)
 followed by a space and the subject.
-type: {self.entry}
 """)
 
         if len(self.relative_tokens) < 1:
