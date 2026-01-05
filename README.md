@@ -16,56 +16,103 @@
 
 <p><a href="https://github.com/dagraham/tklr-dgraham/discussions">Join the conversation</a></p>
 
-# What makes *tklr* different
+## What makes *tklr* different
 
-## Form-free editing
-
-Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used with *just in time prompting.
-
+### Form-free entry
 
 <div style="overflow: auto;">
-  <img src="image1.svg" alt="Description" style="float: left; margin-right: 20px; width: 300px;">
-
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-a.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
   <p>
-    Your text content goes here beside the image. This text will wrap around
-    the floated image. You can write multiple paragraphs and they'll flow
-    naturally beside the image.
+Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used with <i>just in time prompting</i>.
+  </p>
+<p>
+  Here a new reminder is being created. Below the entry area, the prompt indicates that the first step is to enter the type character for the reminder.
+</p>
+</div>
+<div style="clear: both;"></div>
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-b.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <p>
+After the type character is entered, the prompt changes to indicate that the next step is to enter the subject of the reminder.
+  </p>
+<p>
+  These prompts are displayed <i>just in time</i> to assist with the creation of the reminder. They do not interfere with the entry process in any way and will increasingly be ignored be familiarity is gained.
+</p>
+</div>
+<div style="clear: both;"></div>
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-c.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <p>
+As the subject is entered, the prompt changes to reflect the current value of the entry.
   </p>
 </div>
 <div style="clear: both;"></div>
 
 <div style="overflow: auto;">
-  <img src="image2.svg" alt="Description" style="float: right; margin-left: 20px; width: 300px;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-d.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
   <p>
-    This image is on the right side. The text flows on the left side of the image.
+After the subject is entered, adding an <code>@</code> character changes the prompt to a list of the required and optional attributes which can still be entered.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-e.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <p>
+Entering an available key changes the prompt to a description of the attribute.
+  </p>
+  <p>
+Here <code>@s</code>, has been selected and the prompt changes to show that this attibute, which is required for an event, specifies the scheduled datetime at which the event begins.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-f.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <p>
+<i>Fuzzy parsing</i> is supported for entering dates or datetimes in <i>tklr</i>. Since it was January 5, 2026 when this entry was made, the interpretation is that <code>12p</code> means 12:00pm on Jan 5.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-g.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <p>
+  Adding <code>fri</code> changes the interpretation to Friday of the current week.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-h.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <p>
+  Adding <code>@</code> again shows the current list of required and optional attributes, but this time with <code>@s</code> removed since it has already been entered.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-i.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <p>
+  Adding <code>e</code> changes the prompt to indicate that this attribute is used to specify the <i>extent</i> of the event, i.e., how long the event lasts.
   </p>
 </div>
 <div style="clear: both;"></div>
 
 
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-j.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <p>
+  Add <code>1h</code> to specify an <i>extent</i> of one hour. With this setting, the event would last from 12pm until 1pm.
+  </p>
+  <p> In addition to <code>h</code> for hours, other options include <code>m</code> for minutes, <code>d</code> for days and <code>w</code> for weeks. These can be combinded so that, e.g.,  <code>2h30m</code> would represent two hours and thirty minutes.
+  </p>
+</div>
+<div style="clear: both;"></div>
 
-_tklr_ began life in 2013 as _etm-qt_ sporting a gui based on _Qt_. The intent was to provide an app supporting GTD (David Allen's Getting Things Done) and exploiting the power of python-dateutil. The name changed to _etmtk_ in 2014 when _Tk_ replaced _Qt_. Development of _etmtk_ continued until 2019 when name changed to _etm-dgraham_, to honor the PyPi naming convention, and the interface changed to a terminal based one based on _prompt_toolkit_. In 2025 the name changed to "tklr", the database to SQLite3 and the interface to Click (CLI) and Textual. Features have changed over the years but the text based interface and basic format of the reminders has changed very little. The goal has always been to be the Swiss Army Knife of tools for managing reminders.
-
-# Reminders
-
-_tklr_ offers a simple way to manage your event, task and note reminders.
-
-Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used. Each reminder in _tklr_ begins with a _type character_ followed by the _subject_ of the reminder and then, perhaps, by one or more _@key value_ pairs to specify other attributes of the reminder. Mnemonics are used to make the keys easy to remember, e.g, @s for scheduled datetime, @l for location, @d for details and so forth.
-
-
-
-The 4 types of reminders in _tklr_ with their associated type characters:
-
-| type    | char |
-| ------- | ---- |
-| event   | \*   |
-| task    | ~    |
-| project | ^    |
-| note    | %    |
-| goal    | !    |
-| draft   | ?    |
-
-## examples
+## Support for wide variety of reminder types
 
 ### A _task_ (~), pick up milk
 
@@ -73,7 +120,7 @@ The 4 types of reminders in _tklr_ with their associated type characters:
 
 ### An _event_ (\*), lunch with Ed
 
-    * Lunch with Ed @s tue 12p @e 1h30m
+    * Lunch with Ed @s 12p fri @e 1h
 
 - starting (@s) next Tuesday at 12pm
 - with an extent (@e) of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
@@ -83,6 +130,7 @@ The 4 types of reminders in _tklr_ with their associated type characters:
     % Give me a pig - Churchill @d Dogs look up at
       you. Cats look down at you. Give me a pig - they
       look you in the eye and treat you as an equal.
+      @b quotations
 
 The _subject_, "Give me a pig - Churchill" in this example, follows the type character and is meant to be brief - analogous to the subject of an email. The optional _details_ follows the "@d" and is meant to be more expansive - analogous to the body of an email.
 
