@@ -1152,11 +1152,11 @@ class Item:
         if len(self.entry.strip()) < 1:
             # nothing to validate without itemtype and subject
             return fmt_error(f"""\
-Reminders begin with an itemtype from:
+Reminders begin with an type character from:
     * (event), ~ (task), ^ (project),
     % (note),  ! (goal), ? (draft)
 followed by a space and the subject.
-Entry: {self.entry}
+type: {self.entry}
 """)
 
         if len(self.relative_tokens) < 1:
@@ -1239,7 +1239,7 @@ Entry: {self.entry}
                             needed.append(_key)
                 if token.get("incomplete", False):
                     # return the info for this key until the beginning of a value is entered
-                    return fmt_error(f"{' - '.join(self.token_keys[this_atkey][:2])}")
+                    return fmt_error(f"{': '.join(self.token_keys[this_atkey][:2])}")
 
             elif token["t"] == "&":
                 this_ampkey = f"{current_atkey}{token['k']}"

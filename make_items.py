@@ -307,6 +307,7 @@ goals = [
 
 sixpm = [
     f"* should be 4-7pm @s {today_date} 4p @e 3h",
+    f"* should be 5-8pm @s {today_date} 5p @e 3h",
     f"* should be 6-9pm @s {today_date} 6p @e 3h",
     f"* should be 6:01-9:01pm @s {today_date} 6:01p @e 3h",
     f"* should be 6:59-9:59pm @s {today_date} 6:59p @e 3h",

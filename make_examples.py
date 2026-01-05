@@ -285,8 +285,7 @@ in_one_week = (now + ONEWEEK).strftime("%Y-%m-%d")
 
 
 one_off = [
-    f"* {phrase()}  @s {in_ten_minutes()} @a 3m, 1m: v @d alert test #lorem",
-    f"* {phrase()} @s {in_ten_minutes()} @a 4m, 2m, 0m: n @d notify test #lorem",
+    f"* {phrase()} @s {in_ten_minutes()} @a 10m, 5m, 0m: n @d notify test #lorem",
     f"? {phrase()} @d draft test #lorem",
     f"* {phrase()} @s {in_five_days()} @n 7d @d notice test #lorem",
     f"! {phrase()} @s {monday()} @t 3/1w @d goal test #lorem",
