@@ -159,9 +159,9 @@ Starting December 1, a Monday, and calling for 3 completions per week.
 
 At 8am on Wednesday, December 3 with 4d16h remaining in the week and 1 of the 3 instances completed, this goal would be displayed in Goal View as
 
-    1 2/3 4d16h interval training
+    100 2/3 4d16h interval training
 
-where "1" is the current *priority* of the goal, "2/3" is the fraction of the goal remaining to be completed and "4d16h" is the remaining time for completion.
+where "100" is the current *priority* of the goal, "2/3" is the fraction of the goal remaining to be completed and "4d16h" is the remaining time for completion.
 
 Goals are sorted in this view by their *priority*. How is *priority* determined? Suppose `n:` is the number of instances specified in the goal and `t` is the period specified for their completion. In the example, `n = 3` and `t = 1w`. Further suppose that at a particular moment, `n'` is the number of instances remaining unfinished and `t'` is the time remaining in the period for their completion. Initially, the goal is `n/t`. At the moment being considered the goal for the remaining period is `n'/t'`. E.g., `n/t = 3/w = 1/2d8h` and at 8am Wednesday `n'/t' = 2/4d16h = 1/2d8h`.
 
@@ -365,11 +365,11 @@ Press `G` to open Goal View. It displays a prioritized, taggable list of every r
  tag   priority   num_completed/num_required   time_remaining   subject
 ```
 
-Priorities are recomputed whenever the view opens. For each goal, let `n` be the number of required completions in the period `t`, `n'` the number of instances remaining this period, and `t'` the time remaining before the period ends. The ratio `priority = (n' * t) / (n * t')` indicates how far ahead or behind the schedule you are:
+Priorities are recomputed whenever the view opens. For each goal, let `n` be the number of required completions in the period `t`, `n'` the number of instances remaining this period, and `t'` the time remaining before the period ends. The ratio `priority = 100 * (n' * t) / (n * t')` indicates how far ahead or behind the schedule you are:
 
-- `priority > 1`: the goal is behind schedule, so it floats to the top of the view.
-- `priority = 1`: you are on schedule.
-- `priority < 1`: you are ahead of schedule.
+- `priority > 100`: the goal is behind schedule, so it floats to the top of the view.
+- `priority = 100`: you are on schedule.
+- `priority < 100`: you are ahead of schedule.
 
 The time remaining column uses the current datetime, so refreshing the view immediately reflects newly completed instances.
 
