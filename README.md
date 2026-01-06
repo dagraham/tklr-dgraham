@@ -120,21 +120,25 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 
 #### An _event_ (\*), lunch with Ed
 
-Step by step details above.
+Step by step details for this reminder were given above.
 
-    * Lunch with Ed @s 12p fri @e 1h
+    `* Lunch with Ed @s 12p fri @e 1h`
 
-- starting (@s) next Tuesday at 12pm
-- with an extent (@e) of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
+- starting (@s) on the first Friday on or after today at 12pm
+- with an extent (@e) of 1 hour, i.e., lasting from 12pm until 1pm.
 
 #### A _note_ (%), a favorite Churchill quotation
 
-    % Give me a pig - Churchill @d Dogs look up at
-      you. Cats look down at you. Give me a pig - they
-      look you in the eye and treat you as an equal.
+    ```
+    % Give me a pig - #Churchill
+      @d Dogs look up at you.
+      Cats look down at you.
+      Give me a pig - they look you in the eye
+        and treat you as an equal.
       @b quotations
+    ```
 
-The _subject_, "Give me a pig - Churchill" in this example, follows the type character and is meant to be brief - analogous to the subject of an email. The optional _details_ follows the "@d" and is meant to be more expansive - analogous to the body of an email.
+The _subject_, "Give me a pig - \#Churchill" in this example, follows the type character and is meant to be brief - analogous to the subject of an email. The optional _details_ follows the "@d" and is meant to be more expansive - analogous to the body of an email. The hash character that precedes "Churchill" in the subject makes that word a _hash tag_ that will be listed in _Tags View_. Hash tags can also be used in the `@d` details attribute.
 
 #### A _project_ (^), build a dog house with component tasks (@~)
 
@@ -159,32 +163,32 @@ At 8am on Wednesday, December 3 with 4d16h remaining in the week and 1 of the 3 
 
 where "1" is the current *priority* of the goal, "2/3" is the fraction of the goal remaining to be completed and "4d16h" is the remaining time for completion.
 
-Goals are sorted in this view by their *priority*. How is *priority* determined? Suppose `i_g` is the number of instances specified in the goal and `t_g` is the period specified for their completion. In the example, `i_g = 3` and `t_g = 1w`. Further suppose that at a particular moment, `i_r` is the number of instances remaining unfinished and `t_r` is the time remaining in the period for their completion. Initially, the goal is `i_g/t_g`. At the moment being considered the goal for the remaining period is `i_r/t_r`. E.g., `i_g/t_g = 3/w = 1/2d8h` and at 8am Wednesday `i_r/tr = 2/4d16h = 1/2d8h`.
+Goals are sorted in this view by their *priority*. How is *priority* determined? Suppose `n:` is the number of instances specified in the goal and `t` is the period specified for their completion. In the example, `n = 3` and `t = 1w`. Further suppose that at a particular moment, `n'` is the number of instances remaining unfinished and `t'` is the time remaining in the period for their completion. Initially, the goal is `n/t`. At the moment being considered the goal for the remaining period is `n'/t'`. E.g., `n/t = 3/w = 1/2d8h` and at 8am Wednesday `n'/t' = 2/4d16h = 1/2d8h`.
 
-- `i_r/t_r > i_g/t_g`:
+- `n'/t' > n/t`:
     the needed completion rate has increased  - behind schedule
-- `i_r/t_r = i_g/t_g`:
+- `n'/t' = n/t`:
     the needed completion rate is unchanged - on schedule
-- `i_r/t_r < i_g/t_g`:
+- `n'/t' < n/t`:
     the needed completion rate has decreased - ahead of schedule
 
-Equivalently, if we define `priority = (i_r * t_g) / (i_g * t_r)`, then these conditions become
+Equivalently, if we define `priority = 100 * (n' * t) / (n * t')`, to represent the needed rate as a percentage of the original rate, then these conditions become
 
-- `priority > 1`:
+- `priority > 100`:
     the needed completion rate has increased  - behind schedule
-- `priority = 1`:
+- `priority = 100`:
     the needed completion rate is unchanged - on schedule
-- `priority < 1`:
+- `priority < 100`:
     the needed completion rate has decreased - ahead of schedule
 
-In the example, the inital completion rate is `1/2d8h` and at 8am on Wednesday it is remains `1/2d8h` thus *priority* equals 1.
+In the example, the inital completion rate is `1/2d8h` and at 8am on Wednesday it is remains `1/2d8h` thus *priority* equals 100 as it did originally.
 
 A goal is automatically refreshed either when all instances are completed within the given period or when the period ends. In either case, the `@s` entry is reset to the original starting date plus the period specified for completion. E.g., for the example the new starting date would be `2025-12-01 + 1w = 2025-12-08`.
 
 While a *goal* is somewhat like a *task*, it has these important differences:
 
 - Only the instances of a goal for a given period can be finished. The goal itself automatically refreshes forever unless it is deleted.
-- A goal can never be past due, only *behind schedule* (priority > 1) and then at most for the remainder of the given period.
+- A goal can never be past due, only *behind schedule* (priority > 100) and then at most for the remainder of the given period.
 
 #### A _draft_ (?), meet Alex for coffee Friday - time to be determined.
 
@@ -193,37 +197,42 @@ While a *goal* is somewhat like a *task*, it has these important differences:
 This can be changed to an event when the details are confirmed by replacing the **?** with an **\*** and adding the time to `@s`. This _draft_ will appear highlighted on the current day until you make the changes to complete it.
 
 
-### 3. Dates and Repetition
+### 3. Repeating Reminders
 
 #### a. Repetition at Irregular Intervals
 
 An appointment (_event_) for a dental exam and cleaning at 2pm on Feb 5 and then again, **@+**, at 9am on Sep 3.
 
-    `* dental exam and cleaning @s 2p feb 5 @+ 9am Sep 3`
+    `* dental exam and cleaning @s 2p feb 5 @e 45m @+ 9am Sep 3`
 
 Need to add another datetime to an existing reminder? Just add an `@+` attribute with a comma separated list of as many additional dates or datetimes as needed.
 
-#### Repetition at Regular Offsets from the Previous Completion (Tasks Only)
+#### b. Repetition at Regular Offsets from the Previous Completion (Tasks Only)
 
-A reminder to fill the bird feeders starting Friday of the current week and repeat after an _offset_ of 4 days from the datetime of the previous completion.
+A reminder to wind the grandfather clock starting Friday of the current week and repeat after an _offset_ of 4 days from the datetime of the previous completion.
 
-    `~ fill bird feeders @s fri @o 4d`
+    `~ wind grandfather clock @s fri @o 4d`
 
 This doesn't actually repeat - only one instance is created corresponding to the scheduled datetime specified by `@s`. When the task is completed, a new instance is automatically created by replacing the scheduled datetime with the datetime obtained by adding the _offset_ to the datetime the task was completed. In this case, completing the task at 11am on January 8 would change the scheduled datetime to _January 8 11am + 4 days = January 12 11am_.
 
 A related possibility might be called _offset with learning_ in which the offset is automatically adjusted based on experience. This happens when the time interval in the offset attribute is prefixed with an `~`. E.g., with `@+ ~4d`, not only would the `@s` attribute be reset to the completion datetime + 4 days, the `@o` attribute would be reset to a weighted average of the original entry and the actual time interval between the original `@s` entry and the completion datetime. E.g., using the default `history_weight: 3` from the configuration file, an intial offset of 4 days with an actual completion time interval of 5 days, would result in a new offset of `(4d * 3 + 1 * 5d)/4 = 4.25d` and thus a new offset attribute of `@o ~4d6h` which would then apply to the next completion.
 
-### Repetition at Regular Intervals
+#### c. Repetition at Regular Intervals
 
 
 The full flexibility of the superb Python _dateutil_ package is supported and thus repetition at _any_ regular interval.
 
   `* pickleball @s 8a mon @e 90m @r w &w MO, TH`
 
-would schedule an event for 8am on the Mondays and Thursdays of every week beginning with the next Monday.
+would schedule this event for 8am on the Mondays and Thursdays of every week beginning with the next Monday.
+
+With reminders that repeat at regular intervals, _tklr_ also supports the recognition (counting) of anniversaries. E.g.
+
+  `* Max's {XXX} birthday @s
 
 
-Consider, for example, a more complicated but regular reminder for Presidential election day starting in November, 2020 and repeating every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
+
+Consider, for example, a more complicated, but still _regular_ reminder, for Presidential election day starting in November, 2020 and repeating every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
 
   ```
   * Presidential election day @s nov 1 2020
@@ -240,56 +249,9 @@ On any page, pressing the key corresponding to a tag will open a display with al
 
 The point of using tags to select and display reminders in this way is to minimize key presses. Any reminder on a page can be selected and its details displayed with a single key press.
 
-## Weeks
+### Agenda View
 
-Scheduled Reminders for the Week with busy times displayed by a leading _busy bar_.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/week_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Weeks View: busy bar and scheduled reminders for week</em>
-</p>
-
-The _left_ and _right_ cursor keys shift the display backward and forward one week at a time. Adding _shift_ to these cursor keys shifts by four weeks at a time. The _space_ key restores the display to the current week.
-
-There are 5 cells in the _busy bar_ for each week day. The first (furthest left) displays a yellow square if an _all day event_ such as a holiday is scheduled for that date. The remaining 4 cells correspond to the 6-hour periods during the day:
-
-## Goals
-
-Press `G` to open Goal View. It displays a prioritized, taggable list of every reminder whose itemtype is `!`:
-
-```
- tag   priority   num_completed/num_required   time_remaining   subject
-```
-
-Priorities are recomputed whenever the view opens. For each goal, let `i_g` be the number of required completions in the period `t_g`, `i_r` the number of instances remaining this period, and `t_r` the time remaining before the period ends. The ratio `priority = (i_r * t_g) / (i_g * t_r)` indicates how far ahead or behind the schedule you are:
-
-- `priority > 1`: the goal is behind schedule, so it floats to the top of the view.
-- `priority = 1`: you are on schedule.
-- `priority < 1`: you are ahead of schedule.
-
-The time remaining column uses the current datetime, so refreshing the view immediately reflects newly completed instances.
-
-- 00:00-05:59 _night_
-- 06:00-11:59 _morning_
-- 12:00-17:59 _afternoon_
-- 18:00-23:59 _evening_
-
-If the busy period for an event overlaps one or more of these periods then those periods are tentatively colored green. If the busy periods for two events overlap within one or more periods, then those periods are colored red to indicate the conflict. E.g., the red _afternoon_ cell for Wednesday, reflects the conflict between the reminders tagged _g_ and _h_
-
-Pressing _g_ displays the details for that reminder.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/week_with_details_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Weeks View: details for the reminder tagged g</em>
-</p>
-
-## Agenda
-
-The next three days of _events_ with _notices_ and _drafts_ followed by tasks ordered by their urgency.
+The next three days of _events_ together with _notices_ and _drafts_ followed by goals ordered by priority and then tasks ordered by urgency.
 
 The first day will always include any _notice_ or _drafts_ in addition to any scheduled events. In this case the reminber tagged _b_ indicates that there is an event beginning in 4 days (`+4d`) whose subject begins with "Quisquam" and which has a _notice_ entry, "@n INTERVAL" in which `INTERVAL > 4d`. This notice of the upcoming event will be displayed on the first day (current date) of Agenda View each day until the day of the event.
 
@@ -311,69 +273,7 @@ Since there are more than 26 reminders to be displayed and only 26 available low
   <em>Agenda View: The second and last page</em>
 </p>
 
-## Next
-
-The first instance of every scheduled reminder occurring after the current moment listed in **ascending** order by date and time.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/next_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Agenda View: The second and last page</em>
-</p>
-
-Need to find, say, your next dental appointment - this is the view. Just press _/_ to activate search and enter the expression.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/search_entry_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Search: initializing the search</em>
-</p>
-
-The reminders with case-insensitive matches will be highlighted:
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/search_matching_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Search: highlighted matches</em>
-</p>
-
-## Last
-
-The last instance of every scheduled reminder occurring before the current moment listed in **descending** order by date and time.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/last_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Agenda View: The second and last page</em>
-</p>
-
-## Find
-
-Reminders whose subject or detail entries contain a case-insensitive match for an entered expression.
-
-When you need an exhaustive search across all reminders for a case-insensitive match in either the subject or the details, this is the view. Just press "F" in any view to activate the search bar:
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_entry_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Find: initializing the search</em>
-</p>
-
-When submitted, the matching reminders are listed:
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_matches_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Find: matching reminders</em>
-</p>
-
-## Bins
+### Bins View
 
 Hierarchical display of bins and reminders.
 
@@ -433,9 +333,128 @@ Pressing _a_ again, now the tag for _2025:11_, makes this the active parent:
 
 Notice in the _bread crumb_ header that there are integer tags going backward for each of the ancestors and the active parent is, as usual, the last element of the path. But it is listed here not using the alias, _11_, but the actual bin name, _2025:11_.
 
-# Details
+### Completed View - TO BE DONE
 
-## Dates and times
+### Find View
+
+Reminders whose subject or detail entries contain a case-insensitive match for an entered expression.
+
+When you need an exhaustive search across all reminders for a case-insensitive match in either the subject or the details, this is the view. Just press "F" in any view to activate the search bar:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_entry_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Find: initializing the search</em>
+</p>
+
+When submitted, the matching reminders are listed:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_matches_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Find: matching reminders</em>
+</p>
+
+### Goals View
+
+Press `G` to open Goal View. It displays a prioritized, taggable list of every reminder whose itemtype is `!`:
+
+```
+ tag   priority   num_completed/num_required   time_remaining   subject
+```
+
+Priorities are recomputed whenever the view opens. For each goal, let `n` be the number of required completions in the period `t`, `n'` the number of instances remaining this period, and `t'` the time remaining before the period ends. The ratio `priority = (n' * t) / (n * t')` indicates how far ahead or behind the schedule you are:
+
+- `priority > 1`: the goal is behind schedule, so it floats to the top of the view.
+- `priority = 1`: you are on schedule.
+- `priority < 1`: you are ahead of schedule.
+
+The time remaining column uses the current datetime, so refreshing the view immediately reflects newly completed instances.
+
+- 00:00-05:59 _night_
+- 06:00-11:59 _morning_
+- 12:00-17:59 _afternoon_
+- 18:00-23:59 _evening_
+
+If the busy period for an event overlaps one or more of these periods then those periods are tentatively colored green. If the busy periods for two events overlap within one or more periods, then those periods are colored red to indicate the conflict. E.g., the red _afternoon_ cell for Wednesday, reflects the conflict between the reminders tagged _g_ and _h_
+
+Pressing _g_ displays the details for that reminder.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/week_with_details_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Weeks View: details for the reminder tagged g</em>
+</p>
+
+### Last View
+
+The last instance of every scheduled reminder occurring before the current moment listed in **descending** order by date and time.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/last_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Agenda View: The second and last page</em>
+</p>
+
+### Modified View - TO BE DONE
+
+### Next View
+
+The first instance of every scheduled reminder occurring after the current moment listed in **ascending** order by date and time.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/next_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Agenda View: The second and last page</em>
+</p>
+
+Need to find, say, your next dental appointment - this is the view. Just press _/_ to activate search and enter the expression.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/search_entry_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Search: initializing the search</em>
+</p>
+
+The reminders with case-insensitive matches will be highlighted:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/search_matching_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Search: highlighted matches</em>
+</p>
+
+### Query View - TO BE DONE
+
+### Remaining Alerts View - TO BE DONE
+
+### Tags View - TO BE DONE
+
+### Weeks View
+
+Scheduled Reminders for the Week with busy times displayed by a leading _busy bar_.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/week_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Weeks View: busy bar and scheduled reminders for week</em>
+</p>
+
+The _left_ and _right_ cursor keys shift the display backward and forward one week at a time. Adding _shift_ to these cursor keys shifts by four weeks at a time. The _space_ key restores the display to the current week.
+
+There are 5 cells in the _busy bar_ for each week day. The first (furthest left) displays a yellow square if an _all day event_ such as a holiday is scheduled for that date. The remaining 4 cells correspond to the 6-hour periods during the day:
+
+## Details
+
+### DateTime details
 
 Intelligent parsing of the user's entry of a datetime is supported. Suppose it is Thursday, November 6 2025 in the US/Eastern timezone. When a datetime is entered it is interpreted _relative_ to the current date, time and timezone. When entering the scheduled datetime for a reminder using `@s`, the following table illustrates how various entries would be interpreted and the resulting user feedback.
 
@@ -459,7 +478,7 @@ When an `@s` scheduled entry specifies a date without a time, i.e., a date inste
 
 Note that times can only be specified, stored and displayed in hours and minutes - seconds and microseconds are not supported. Internally datetimes are interpreted as having seconds equal to 0.
 
-## Intervals
+### Interval details
 
 An interval is just a period of time and is entered in _tklr_ using expressions such as
 
@@ -475,13 +494,13 @@ Note that w (weeks), d (days), h (hours), m (minutes) and s (seconds) are the av
 
 An interval, `I`, can be added to a datetime, `T`, to get a datetime, `T + I`, that will be after `T` if `I > 0` and before `T` if `I < 0`. Similarly, one datetime, `A`, can be subtracted from another, `B`, to get an interval, `I = B - A`, with `I > 0` if `B` is after (greater than) `A` and `I < 0` if `B` is before (less than) `A`.
 
-## Scheduled datetimes and related intervals
+### Scheduled datetime details
 
 For the discussion that follows, it will be assumed that the current date is `2025-10-01` and that the _scheduled datetime_ for the illustrative reminder is
 
     @s 2025-10-21 10:00am
 
-### extent
+#### extent
 
 The entry `@e 2h30m` would set the _extent_ for the reminder to two hours and 30 minutes.
 
@@ -491,7 +510,7 @@ For a task, this same entry would indicate that attention to completing the task
 
 For a project, this same entry would similarly indicate that attention to completing the project should begin no later than 10am and that two hours and 30 minutes is estimated for completion subject to additional times specified in the jobs. A job entry containing `&s 2d &e 3h`, for example, would set the scheduled time for this job to be two days _after_ the `@s` entry for the project and would add three hours to the estimate of total time required for the project.
 
-### notice
+#### notice
 
 The entry `@n I` where `I` is a _positive_ interval specifies that a notice for the reminder should begin on the date in which `scheduled - I` falls. For the example, adding `@b 1d12h` would set _notice_ to the date corresponding to
 
@@ -503,7 +522,7 @@ If the reminder is an event, then the agenda view would display an notice for th
 
 If the reminder is a task, then the task would _not_ appear in the agenda view until `25-10-19`, i.e., it would be hidden before that date.
 
-### wrap
+#### wrap
 
 The entry `@w BEFORE, AFTER`, where `BEFORE` and `AFTER` are _intervals_, can be used to wrap the _scheduled_ datetime of a reminder. Possible entries and the resulting values of BEFORE and AFTER are illustrated below:
 
@@ -515,7 +534,7 @@ The entry `@w BEFORE, AFTER`, where `BEFORE` and `AFTER` are _intervals_, can be
 
 Consider an event with `@s 2025-10-21 10am @e 2h30m`, which starts at 10am and ends at 12:30pm and suppose that it will take an hour to travel to the location of the event and 30 minutes to travel from the event to the next location. The entry `@w 1h, 30m` could be used to indicate these travel periods from 9am until 10am before the event begins and from 12:30pm until 1pm after the event ends.
 
-### alert
+#### alert
 
 An alert is specified using `@a <list of invervals> : <list of commands>`. An `@s <datetime>` is required and the result is to execute the commands in `<list of commands>` at the datetimes resulting from subtracting the intervals in `<list of intervals>` from `<datetime>`. E.g., with `@s 17:00 fri` and `@a 1h, -15m: c, d`, the commands `c` and `d` would each be executed at `17:00 - 1h = 16:00` and `17:00 + 15m = 17:15` on Friday.
 
@@ -533,9 +552,9 @@ A command such as `d` in the example must be specified in the user configuration
 # minutes before and again 15 minutes before the scheduled datetime.
 ```
 
-## Recurrence
+### Recurrence details
 
-### @r and, by requirement, @s are given
+#### @r and, by requirement, @s are given
 
 When an item is specified with an `@r` entry, an `@s` entry is required and is used as the `DTSTART` entry in the recurrence rule. E.g.,
 
@@ -560,7 +579,7 @@ In the hands of the wonderful _python_ library _dateutil_, this _rruleset_ strin
 
 **Note**: The datetimes generated by the _rruleset_ correspond to datetimes matching the specification of `@r` which occur **on or after** the datetime specified by `@s`. The datetime corresponding to `@s` itself will only be generated if it matches the specification of `@r`.
 
-### @s is given but not @r
+#### @s is given but not @r
 
 On the other hand, if an `@s` entry is specified, but `@r` is not, then the `@s` entry would be stored as an `RDATE` in the recurrence rule. E.g.,
 
@@ -576,7 +595,7 @@ would be serialized (stored) as
 
 The datetime corresponding to `@s` itself is, of course, generated in this case.
 
-### @+ is specified, with or without @r
+#### @+ is specified, with or without @r
 
 When `@s` is specified, an `@+` entry can be used to specify one or more, comma separated datetimes. When `@r` is given, these datetimes are added to those generated by the `@r` specification. Otherwise, they are added to the datetime specified by `@s`. E.g., is a special case. It is used to specify a datetime that is relative to the current datetime. E.g.,
 
@@ -594,7 +613,7 @@ This option is particularly useful for irregular recurrences such as annual doct
 
 **Note**: Without `@r`, the `@s` datetime is included in the datetimes generated but with `@r`, it is only used to set the beginning of the recurrence and otherwise ignored.
 
-## Timezone considerations
+### Timezone considerations
 
 When a datetime is specified without an `z` component, the timezone is assumed to be aware and in the local timezone. The datetime is converted to UTC for storage in the database. When a datetime is displayed, it is displayed using the local timezone of the computer.
 
@@ -615,7 +634,7 @@ With this entry, the rruleset and datetimes generated show the effect of the tra
   Mon 2025-11-03 13:00 EST -0500
 ```
 
-## Urgency
+### Urgency
 
 Since urgency values are used ultimately to give an ordinal ranking of tasks, all that matters is the relative values used to compute the urgency scores. Accordingly, all urgency scores are constrained to fall within the interval from -1.0 to 1.0. The default urgency is 0.0 for a task with no urgency components.
 
@@ -675,13 +694,13 @@ Observations from the weighted average perspective and the fact that `Wn >= 1` a
 
 Thus positive contributions _always_ increase urgency and negative contributions _always_ decrease urgency. The fact that the urgency derived from contributions is always less than `1.0` means that _pinned_ tasks with `urgency = 1` will always be listed first.
 
-# Getting Started
+## Getting Started
 
-## Developer Install Guide
+### Developer Install Guide
 
 This guide walks you through setting up a development environment for `tklr` using [`uv`](https://github.com/astral-sh/uv) and a local virtual environment. Eventually the normal python installation procedures using pip or pipx will be available.
 
-## ✅ Step 1: Clone the repository
+#### ✅ Step 1: Clone the repository
 
 This step will create a directory named _tklr-dgrham_ in your current working directory that contains a clone of the github repository for _tklr_.
 
@@ -690,13 +709,13 @@ git clone https://github.com/dagraham/tklr-dgraham.git
 cd tklr-dgraham
 ```
 
-## ✅ Step 2: Install uv (if needed)
+#### ✅ Step 2: Install uv (if needed)
 
 ```bash
 which uv || curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-## ✅ Step 3: Create a virtual environment with `uv`
+#### ✅ Step 3: Create a virtual environment with `uv`
 
 This will create a `.venv/` directory inside your project to hold all the relevant imports.
 
@@ -704,17 +723,17 @@ This will create a `.venv/` directory inside your project to hold all the releva
 uv venv
 ```
 
-## ✅ Step 4: Install the project in editable mode
+#### ✅ Step 4: Install the project in editable mode
 
 ```bash
 uv pip install -e .
 ```
 
-## ✅ Step 5: Use the CLI
+#### ✅ Step 5: Use the CLI
 
 You have two options for activating the virtual environment for the CLI:
 
-### ☑️ Option 1: Manual activation (every session)
+##### ☑️ Option 1: Manual activation (every session)
 
 ```bash
 source .venv/bin/activate
@@ -734,16 +753,16 @@ To deactivate:
 deactivate
 ```
 
-### ☑️ Option 2: Automatic activation with `direnv` (recommended)
+##### ☑️ Option 2: Automatic activation with `direnv` (recommended)
 
-#### 1. Install `direnv`
+###### 1. Install `direnv`
 
 ```bash
 brew install direnv        # macOS
 sudo apt install direnv    # Ubuntu/Debian
 ```
 
-#### 2. Add the shell hook to your `~/.zshrc` or `~/.bashrc`
+###### 2. Add the shell hook to your `~/.zshrc` or `~/.bashrc`
 
 ```sh
 eval "$(direnv hook zsh)"   # or bash
@@ -751,13 +770,13 @@ eval "$(direnv hook zsh)"   # or bash
 
 Restart your shell or run `source ~/.zshrc`.
 
-#### 3. In the project directory, create a `.envrc` file
+###### 3. In the project directory, create a `.envrc` file
 
 ```bash
 echo 'export PATH="$PWD/.venv/bin:$PATH"' > .envrc
 ```
 
-#### 4. Allow it
+###### 4. Allow it
 
 ```bash
 direnv allow
@@ -773,7 +792,7 @@ tklr ui
 
 You're now ready to develop, test, and run `tklr` locally with full CLI and UI support.
 
-## ✅ Step 6: Updating your repository
+#### ✅ Step 6: Updating your repository
 
 To update your local copy of **Tklr** to the latest version:
 
@@ -788,7 +807,7 @@ git pull origin master
 uv pip install -e .
 ```
 
-## Starting tklr for the first time
+### Starting tklr for the first time
 
 **Tklr** needs a _home_ directory to store its files - most importantly these two:
 
@@ -805,129 +824,6 @@ Any directory can be used for _home_. These are the options:
    - Else if the environmental variable `XDG_CONFIG_HOME` is set, and specifies a path to an existing directory which contains a directory named `tklr`, then that directory will be used.
    - Else the directory `~/.config/tklr` will be used.
 
-## Configuration
+### Configuration
 
-These are the default settings in _config.toml_:
-
-<!-- BEGIN CONFIG -->
-
-```toml
-# DO NOT EDIT TITLE
-title = "Tklr Configuration"
-
-[ui]
-# theme: str = 'dark' | 'light'
-theme = "dark"
-
-# ampm: bool = true | false
-# Use 12 hour AM/PM when true else 24 hour
-ampm = false
-
-# dayfirst and yearfirst settings
-# These settings are used to resolve ambiguous date entries involving
-# 2-digit components. E.g., the interpretation of the date "12-10-11"
-# with the various possible settings for dayfirst and yearfirst:
-#
-# dayfirst  yearfirst    date     interpretation  standard
-# ========  =========  ========   ==============  ========
-#   True     True      12-10-11    2012-11-10     Y-D-M ??
-#   True     False     12-10-11    2011-10-12     D-M-Y EU
-#   False    True      12-10-11    2012-10-11     Y-M-D ISO 8601
-#   False    False     12-10-11    2011-12-10     M-D-Y US
-#
-# The defaults:
-#   dayfirst = false
-#   yearfirst = true
-# correspond to the Y-M-D ISO 8601 standard.
-
-# dayfirst: bool = true | false
-dayfirst = false
-
-# yearfirst: bool = true | false
-yearfirst = true
-
-[alerts]
-# dict[str, str]: character -> command_str.
-# E.g., this entry
-#   d: '/usr/bin/say -v Alex "[[volm 0.5]] {subject}, {when}"'
-# would, on my macbook, invoke the system voice to speak the subject
-# of the reminder and the time remaining until the scheduled datetime.
-# The character "d" would be associated with this command so that, e.g.,
-# the alert entry "@a 30m, 15m: d" would trigger this command 30
-# minutes before and again 15 minutes before the scheduled datetime.
-
-
-# ─── Urgency Configuration ─────────────────────────────────────
-
-[urgency.due]
-# The "due" urgency increases from 0.0 to "max" as now passes from
-# due - interval to due.
-interval = "1w"
-max = 8.0
-
-[urgency.pastdue]
-# The "pastdue" urgency increases from 0.0 to "max" as now passes
-# from due to due + interval.
-interval = "2d"
-max = 2.0
-
-[urgency.recent]
-# The "recent" urgency decreases from "max" to 0.0 as now passes
-# from modified to modified + interval.
-interval = "2w"
-max = 4.0
-
-[urgency.age]
-# The "age" urgency  increases from 0.0 to "max" as now increases
-# from modified to modified + interval.
-interval = "26w"
-max = 10.0
-
-[urgency.extent]
-# The "@e extent" urgency increases from 0.0 when extent = "0m" to "max"
-# when extent >= interval.
-interval = "12h"
-max = 4.0
-
-[urgency.blocking]
-# The "blocking" urgency increases from 0.0 when blocked = 0 to "max"
-# when blocked >= count. Blocked is the integer count of tasks in a project for which the given task is an unfinished prerequisite.
-count = 3
-max = 6.0
-
-[urgency.tags]
-# The "tags" urgency increases from 0.0 when tags = 0 to "max" when
-# when tags >= count. Tags is the count of "@t" entries given in the task.
-count = 3
-max = 3.0
-
-[urgency.priority]
-# The "priority" urgency corresponds to the value from "1" to "5" of `@p`
-# specified in the task. E.g, with "@p 3", the value would correspond to
-# the "3" entry below. Absent an entry for "@p", the value would be 0.0.
-
-"1" = -5.0
-
-"2" = 2.0
-
-"3" = 5.0
-
-"4" = 8.0
-
-"5" = 10.0
-
-# In the default settings, a priority of "1" is the only one that yields
-# a negative value, `-5`, and thus reduces the urgency of the task.
-
-[urgency.description]
-# The "description" urgency equals "max" if the task has an "@d" entry and
-# 0.0 otherwise.
-max = 2.0
-
-[urgency.project]
-# The "project" urgency equals "max" if the task belongs to a project and
-# 0.0 otherwise.
-max = 3.0
-```
-
-<!-- END CONFIG -->
+The default settings are in _config.toml_ in your _tklr_ home directory together with detailed explanations for each setting.
