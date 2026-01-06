@@ -228,15 +228,17 @@ would schedule this event for 8am on the Mondays and Thursdays of every week beg
 
 With reminders that repeat at regular intervals, _tklr_ also supports the recognition (counting) of anniversaries. E.g.
 
-  `* Max's {XXX} birthday @s
+  `* Max's {XXX} birthday @s 2016-10-23 @r y &m 10 &d 23`
 
+would repeat yearly on October 23 and would on that day in 2026 be displayed as
 
+  `* Max's 10th birthday`
 
-Consider, for example, a more complicated, but still _regular_ reminder, for Presidential election day starting in November, 2020 and repeating every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
+Consider another, more complicated, but still _regular_ reminder, for Presidential election day. Beginning with November, 2020, this should repeat every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
 
   ```
   * Presidential election day @s nov 1 2020
-      @r y &i 4 &w TU &m 2, 3, 4, 5, 6, 7, 8 &M 11
+      @r y &i 4 &w TU &d 2, 3, 4, 5, 6, 7, 8 &m 11
   ```
 
 ## Views
@@ -245,7 +247,7 @@ Each of the views listed below can be opened by entering the first letter of the
 
 These views involve vertical lists of reminders, each row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder. When necessary, lists are split into pages so that no more than 26 reminders appear on any one page. The left and right cursor keys are used to move back and forth between pages.
 
-On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. When the details of reminder are being displayed, various commands are available to modify the reminder. E.g., `,e` (comma followed by e) to edit the reminder or `,d` to delete the reminder are two examples. Additionally, the key corresponding to the tag of another reminder will switch the details display to that reminder, `escape` will close the details display and entering the upper case letter corresponding to another view will open that view.
+On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. When the details of reminder are being displayed, various commands are available to modify the reminder. Press `enter` to display a menu of the available options and `enter` again with an option selected to use it or `escape` to close the menu.   Additionally, the key corresponding to the tag of another reminder will switch the details display to that reminder, `escape` will close the details display and entering the upper case letter corresponding to another view will open that view.
 
 The point of using tags to select and display reminders in this way is to minimize key presses. Any reminder on a page can be selected and its details displayed with a single key press.
 
