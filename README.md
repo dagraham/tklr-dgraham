@@ -163,7 +163,7 @@ At 8am on Wednesday, December 3 with 4d16h remaining in the week and 1 of the 3 
 
 where "100" is the current *priority* of the goal, "2/3" is the fraction of the goal remaining to be completed and "4d16h" is the remaining time for completion.
 
-Goals are sorted in this view by their *priority*. How is *priority* determined? Suppose `n:` is the number of instances specified in the goal and `t` is the period specified for their completion. In the example, `n = 3` and `t = 1w`. Further suppose that at a particular moment, `n'` is the number of instances remaining unfinished and `t'` is the time remaining in the period for their completion. Initially, the goal is `n/t`. At the moment being considered the goal for the remaining period is `n'/t'`. E.g., `n/t = 3/w = 1/2d8h` and at 8am Wednesday `n'/t' = 2/4d16h = 1/2d8h`.
+Goals are sorted in this view by their *priority*. How is *priority* determined? Suppose `n` is the number of instances specified in the goal and `t` is the time period specified for their completion. In the example, `n = 3` and `t = 1w`. Further suppose that at a particular moment, `n'` is the number of instances remaining unfinished and `t'` is the time remaining in the period for their completion. Initially, the goal is `n/t`. At the moment being considered the goal for the remaining period is `n'/t'`. E.g., `n/t = 3/w = 1/2d8h` and at 8am Wednesday `n'/t' = 2/4d16h = 1/2d8h`.
 
 - `n'/t' > n/t`:
     the needed completion rate has increased  - behind schedule
