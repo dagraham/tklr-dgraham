@@ -18,10 +18,10 @@
 
 ## What makes *tklr* different
 
-### Form-free entry
+### 1. Form-free entry
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-a.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-a.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
 Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used with <i>just in time prompting</i>.
   </p>
@@ -32,18 +32,18 @@ Rather than filling out fields in a form to create or edit reminders, a simple t
 <div style="clear: both;"></div>
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-b.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-b.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
 After the type character is entered, the prompt changes to indicate that the next step is to enter the subject of the reminder.
   </p>
 <p>
-  These prompts are displayed <i>just in time</i> to assist with the creation of the reminder. They do not interfere with the entry process in any way and will increasingly be ignored be familiarity is gained.
+  These prompts are displayed <i>just in time</i> to assist with the creation of the reminder. They do not interfere with the entry process in any way and will increasingly be ignored as familiarity is gained.
 </p>
 </div>
 <div style="clear: both;"></div>
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-c.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-c.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
 As the subject is entered, the prompt changes to reflect the current value of the entry.
   </p>
@@ -51,7 +51,7 @@ As the subject is entered, the prompt changes to reflect the current value of th
 <div style="clear: both;"></div>
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-d.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-d.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
 After the subject is entered, adding an <code>@</code> character changes the prompt to a list of the required and optional attributes which can still be entered.
   </p>
@@ -59,7 +59,7 @@ After the subject is entered, adding an <code>@</code> character changes the pro
 <div style="clear: both;"></div>
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-e.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-e.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
 Entering an available key changes the prompt to a description of the attribute.
   </p>
@@ -70,7 +70,7 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 <div style="clear: both;"></div>
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-f.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-f.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
 <i>Fuzzy parsing</i> is supported for entering dates or datetimes in <i>tklr</i>. Since it was January 5, 2026 when this entry was made, the interpretation is that <code>12p</code> means 12:00pm on Jan 5.
   </p>
@@ -78,7 +78,7 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 <div style="clear: both;"></div>
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-g.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-g.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
   Adding <code>fri</code> changes the interpretation to Friday of the current week.
   </p>
@@ -86,7 +86,7 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 <div style="clear: both;"></div>
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-h.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-h.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
   Adding <code>@</code> again shows the current list of required and optional attributes, but this time with <code>@s</code> removed since it has already been entered.
   </p>
@@ -94,7 +94,7 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 <div style="clear: both;"></div>
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-i.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-i.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
   Adding <code>e</code> changes the prompt to indicate that this attribute is used to specify the <i>extent</i> of the event, i.e., how long the event lasts.
   </p>
@@ -103,29 +103,31 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-j.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-j.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
-  Add <code>1h</code> to specify an <i>extent</i> of one hour. With this setting, the event would last from 12pm until 1pm.
+  Adding <code>1h</code> specifies an <i>extent</i> of one hour. With this setting, the event would last from 12pm until 1pm.
   </p>
   <p> In addition to <code>h</code> for hours, other options include <code>m</code> for minutes, <code>d</code> for days and <code>w</code> for weeks. These can be combinded so that, e.g.,  <code>2h30m</code> would represent two hours and thirty minutes.
   </p>
 </div>
 <div style="clear: both;"></div>
 
-## Support for wide variety of reminder types
+### 2. Support for wide variety of reminder types
 
-### A _task_ (~), pick up milk
+#### A _task_ (~), pick up milk
 
     ~ pick up milk
 
-### An _event_ (\*), lunch with Ed
+#### An _event_ (\*), lunch with Ed
+
+Step by step details above.
 
     * Lunch with Ed @s 12p fri @e 1h
 
 - starting (@s) next Tuesday at 12pm
 - with an extent (@e) of 1 hour and 30 minutes, i.e., lasting from 12pm until 1:30pm.
 
-### A _note_ (%), a favorite Churchill quotation
+#### A _note_ (%), a favorite Churchill quotation
 
     % Give me a pig - Churchill @d Dogs look up at
       you. Cats look down at you. Give me a pig - they
@@ -134,7 +136,7 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 
 The _subject_, "Give me a pig - Churchill" in this example, follows the type character and is meant to be brief - analogous to the subject of an email. The optional _details_ follows the "@d" and is meant to be more expansive - analogous to the body of an email.
 
-### A _project_ (^), build a dog house with component tasks (@~)
+#### A _project_ (^), build a dog house with component tasks (@~)
 
     ^ Build dog house
       @~ pick up materials &r 1 &e 4h
@@ -145,7 +147,7 @@ The _subject_, "Give me a pig - Churchill" in this example, follows the type cha
 
 The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e _extent_" entries give estimates of the times required to complete the various tasks.
 
-### A _goal_ (!), interval training 3 times each week
+#### A _goal_ (!), interval training 3 times each week
 
     ! interval training @s 2025-12-01 @o 3/1w
 
@@ -184,31 +186,51 @@ While a *goal* is somewhat like a *task*, it has these important differences:
 - Only the instances of a goal for a given period can be finished. The goal itself automatically refreshes forever unless it is deleted.
 - A goal can never be past due, only *behind schedule* (priority > 1) and then at most for the remainder of the given period.
 
-### A _draft_ (?), meet Alex for coffee Friday - time to be determined.
+#### A _draft_ (?), meet Alex for coffee Friday - time to be determined.
 
     ? Coffee with Alex @s fri @e 1h
 
 This can be changed to an event when the details are confirmed by replacing the **?** with an **\*** and adding the time to `@s`. This _draft_ will appear highlighted on the current day until you make the changes to complete it.
 
 
-## Simple repetition
+### 3. Dates and Repetition
 
-- An appointment (_event_) for a dental exam and cleaning at 2pm on Feb 5 and then again, **@+**, at 9am on Sep 3.
+#### a. Repetition at Irregular Intervals
 
-    * dental exam and cleaning @s 2p feb 5 @e 45m @+ 9am Sep 3
+An appointment (_event_) for a dental exam and cleaning at 2pm on Feb 5 and then again, **@+**, at 9am on Sep 3.
 
-- A reminder (_task_) to fill the bird feeders starting Friday of the current week and repeat after an _offset_ of 4 days from datetime of the previous completion.
+    `* dental exam and cleaning @s 2p feb 5 @+ 9am Sep 3`
 
-    ~ fill bird feeders @s fri @o 4d
+Need to add another datetime to an existing reminder? Just add an `@+` attribute with a comma separated list of as many additional dates or datetimes as needed.
 
-## More complex repetition
+#### Repetition at Regular Offsets from the Previous Completion (Tasks Only)
 
-The full flexibility of the superb Python _dateutil_ package is supported. Consider, for example, a reminder for Presidential election day which starts in November, 2020 and repeats every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
+A reminder to fill the bird feeders starting Friday of the current week and repeat after an _offset_ of 4 days from the datetime of the previous completion.
 
-    * Presidential election day @s nov 1 2020
+    `~ fill bird feeders @s fri @o 4d`
+
+This doesn't actually repeat - only one instance is created corresponding to the scheduled datetime specified by `@s`. When the task is completed, a new instance is automatically created by replacing the scheduled datetime with the datetime obtained by adding the _offset_ to the datetime the task was completed. In this case, completing the task at 11am on January 8 would change the scheduled datetime to _January 8 11am + 4 days = January 12 11am_.
+
+A related possibility might be called _offset with learning_ in which the offset is automatically adjusted based on experience. This happens when the time interval in the offset attribute is prefixed with an `~`. E.g., with `@+ ~4d`, not only would the `@s` attribute be reset to the completion datetime + 4 days, the `@o` attribute would be reset to a weighted average of the original entry and the actual time interval between the original `@s` entry and the completion datetime. E.g., using the default `history_weight: 3` from the configuration file, an intial offset of 4 days with an actual completion time interval of 5 days, would result in a new offset of `(4d * 3 + 1 * 5d)/4 = 4.25d` and thus a new offset attribute of `@o ~4d6h` which would then apply to the next completion.
+
+### Repetition at Regular Intervals
+
+
+The full flexibility of the superb Python _dateutil_ package is supported and thus repetition at _any_ regular interval.
+
+  `* pickleball @s 8a mon @e 90m @r w &w MO, TH`
+
+would schedule an event for 8am on the Mondays and Thursdays of every week beginning with the next Monday.
+
+
+Consider, for example, a more complicated but regular reminder for Presidential election day starting in November, 2020 and repeating every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
+
+  ```
+  * Presidential election day @s nov 1 2020
       @r y &i 4 &w TU &m 2, 3, 4, 5, 6, 7, 8 &M 11
+  ```
 
-# Views
+## Views
 
 Each of the views listed below can be opened by entering the first letter of the view's name, e.g., pressing `A` (`shift+a`) will open _Agenda View_.
 
