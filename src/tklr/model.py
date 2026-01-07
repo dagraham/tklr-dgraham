@@ -1024,9 +1024,11 @@ class DatabaseManager:
         self.root_bin_id = None
         self.unlinked_bin_id = None
         self.deleted_bin_id = None
+        self._system_bins_initialized = False
         self.root_bin_id, self.unlinked_bin_id, self.deleted_bin_id = (
             self.ensure_system_bins()
         )
+        self._state_cache: dict[str, Any] = {}
         self.after_save_needed: bool = True
 
         if auto_populate:
@@ -1035,6 +1037,40 @@ class DatabaseManager:
     def commit(self):
         self.conn.commit()
         self.after_save_needed = True
+
+    def _get_state_value(self, key: str, default=None):
+        if key in self._state_cache:
+            return self._state_cache[key]
+        row = self.cursor.execute(
+            "SELECT value FROM DerivedState WHERE key = ?", (key,)
+        ).fetchone()
+        if not row:
+            self._state_cache[key] = default
+            return default
+        try:
+            value = json.loads(row[0])
+        except Exception:
+            value = row[0]
+        self._state_cache[key] = value
+        return value
+
+    def _set_state_value(self, key: str, value) -> None:
+        payload = json.dumps(value)
+        self.cursor.execute(
+            """
+            INSERT INTO DerivedState(key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """,
+            (key, payload),
+        )
+        self._state_cache[key] = value
+
+    def _records_version(self) -> str:
+        row = self.cursor.execute("SELECT MAX(modified) FROM Records").fetchone()
+        if not row:
+            return "0"
+        return row[0] or "0"
 
     def format_datetime(self, fmt_dt: str) -> str:
         return format_datetime(fmt_dt, self.ampm)
@@ -1221,6 +1257,14 @@ class DatabaseManager:
                 record_id      INTEGER NOT NULL,
                 days_remaining INTEGER NOT NULL,
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
+            );
+        """)
+
+        # ---------------- Derived state cache ----------------
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS DerivedState (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
             );
         """)
 
@@ -1435,18 +1479,136 @@ class DatabaseManager:
         tmp.replace(dest_db)
         return dest_db
 
-    def populate_dependent_tables(self):
-        """Populate all tables derived from current Records (Tags, DateTimes, Alerts, notice)."""
-        # log_msg("populate dependent tables")
+    def populate_dependent_tables(self, *, force: bool = False):
+        """
+        Populate derived tables (DateTimes cache, alerts, notice, busy weeks, urgency)
+        only when inputs have changed.
+        """
         yr, wk = datetime.now().isocalendar()[:2]
-        self.extend_datetimes_for_weeks(yr, wk, 12)
-        # self.populate_tags()
+        today_key = date.today().isoformat()
+        records_version = self._records_version()
+
+        work_done = False
+        work_done |= self._maybe_extend_datetimes(yr, wk, 12, records_version, force)
+        work_done |= self._maybe_populate_alerts(today_key, records_version, force)
+        work_done |= self._maybe_populate_notice(today_key, records_version, force)
+        work_done |= self._maybe_refresh_busy_tables(force)
+        work_done |= self._maybe_populate_urgency(records_version, force)
+
+        self.after_save_needed = False
+
+    def _maybe_extend_datetimes(
+        self,
+        year: int,
+        week: int,
+        weeks_ahead: int,
+        records_version: str,
+        force: bool,
+    ) -> bool:
+        need_span = self._advance_week(year, week, weeks_ahead)
+        rng = self.get_generated_weeks_range()
+        state = self._get_state_value("datetimes", {})
+        version_match = state.get("version") == records_version
+        range_ok = bool(
+            rng
+            and self._range_includes(rng, (year, week))
+            and self._range_includes(rng, need_span)
+        )
+
+        if not force and version_match and range_ok:
+            return False
+
+        self.extend_datetimes_for_weeks(year, week, weeks_ahead)
+        new_rng = self.get_generated_weeks_range()
+        self._set_state_value(
+            "datetimes",
+            {
+                "version": records_version,
+                "range": list(new_rng) if new_rng else None,
+            },
+        )
+        return True
+
+    def _maybe_populate_alerts(
+        self, today_key: str, records_version: str, force: bool
+    ) -> bool:
+        state = self._get_state_value("alerts", {})
+        if (
+            not force
+            and state.get("day") == today_key
+            and state.get("version") == records_version
+        ):
+            return False
+
         self.populate_alerts()
+        self._set_state_value(
+            "alerts",
+            {
+                "day": today_key,
+                "version": records_version,
+            },
+        )
+        return True
+
+    def _maybe_populate_notice(
+        self, today_key: str, records_version: str, force: bool
+    ) -> bool:
+        state = self._get_state_value("notice", {})
+        if (
+            not force
+            and state.get("day") == today_key
+            and state.get("version") == records_version
+        ):
+            return False
+
         self.populate_notice()
-        self.populate_busy_from_datetimes()  # 👈 new step: source layer
-        self.rebuild_busyweeks_from_source()  # 👈 add this line
+        self._set_state_value(
+            "notice",
+            {
+                "day": today_key,
+                "version": records_version,
+            },
+        )
+        return True
+
+    def _maybe_refresh_busy_tables(self, force: bool) -> bool:
+        state = self._get_state_value("busy", {})
+        if force:
+            self.populate_busy_from_datetimes()
+            self.rebuild_busyweeks_from_source()
+            self.cursor.execute("DELETE FROM BusyUpdateQueue")
+            self._set_state_value("busy", {"seeded": True})
+            self.commit()
+            return True
+
+        self.cursor.execute("SELECT record_id FROM BusyUpdateQueue")
+        queued = [row[0] for row in self.cursor.fetchall()]
+        if not queued:
+            if state.get("seeded"):
+                return False
+            self.populate_busy_from_datetimes()
+            self.rebuild_busyweeks_from_source()
+            self._set_state_value("busy", {"seeded": True})
+            return True
+
+        for record_id in queued:
+            self.update_busy_weeks_for_record(record_id)
+
+        self.cursor.execute("DELETE FROM BusyUpdateQueue")
+        self.commit()
+        self._set_state_value("busy", {"seeded": True})
+        return True
+
+    def _maybe_populate_urgency(
+        self, records_version: str, force: bool, state_key: str = "urgency"
+    ) -> bool:
+        state = self._get_state_value(state_key, {})
+        if not force and state.get("version") == records_version:
+            return False
+
         self.populate_all_urgency()
-        self.ensure_system_bins()
+        self._set_state_value(state_key, {"version": records_version})
+        return True
 
     def _normalize_tags(self, tags) -> list[str]:
         """Return a sorted, de-duplicated, lowercased list of tag strings."""
@@ -2450,6 +2612,22 @@ class DatabaseManager:
     @staticmethod
     def _week_key(year: int, week: int) -> tuple[int, int]:
         return (year, week)
+
+    @staticmethod
+    def _advance_week(year: int, week: int, weeks: int) -> tuple[int, int]:
+        base = datetime.strptime(f"{year} {week} 1", "%G %V %u") + timedelta(
+            weeks=weeks
+        )
+        return base.isocalendar()[:2]
+
+    @staticmethod
+    def _range_includes(
+        range_tuple: tuple[int, int, int, int], week: tuple[int, int]
+    ) -> bool:
+        sy, sw, ey, ew = range_tuple
+        start_key = (sy, sw)
+        end_key = (ey, ew)
+        return start_key <= week <= end_key
 
     def is_week_in_generated(self, year: int, week: int) -> bool:
         rng = self.get_generated_weeks_range()
@@ -4069,6 +4247,9 @@ class DatabaseManager:
         return parent_id
 
     def ensure_system_bins(self) -> tuple[int, int, int]:
+        if getattr(self, "_system_bins_initialized", False):
+            return self.root_bin_id, self.unlinked_bin_id, self.deleted_bin_id
+
         root_id = self.ensure_bin_exists("root")
         unlinked_id = self.ensure_bin_exists("unlinked")
         deleted_id = self.ensure_bin_exists("deleted")
@@ -4101,6 +4282,7 @@ class DatabaseManager:
         self.root_bin_id = root_id
         self.unlinked_bin_id = unlinked_id
         self.deleted_bin_id = deleted_id
+        self._system_bins_initialized = True
         return root_id, unlinked_id, deleted_id
 
     def get_bin_id_by_name(self, name: str) -> int | None:
