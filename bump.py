@@ -28,6 +28,8 @@ DRY_RUN = "--dry-run" in sys.argv
 # optional CLI flags
 CLEAN_ONLY = "--clean" in sys.argv
 NO_CLEAN = "--no-clean" in sys.argv
+UPLOAD_ONLY = "--upload-only" in sys.argv
+SKIP_EXISTING = "--skip-existing" in sys.argv
 
 
 def clean_env_for_twine() -> dict:
@@ -148,12 +150,26 @@ def clean_build_artifacts(verbose=True):
             print(f"⚠️ could not remove {p}: {e}")
 
 
-def build_and_upload(repo="pypi", verbose=True, skip_existing=False):
-    clean_build_artifacts()
+def build_and_upload(
+    repo="pypi", verbose=True, skip_existing=False, upload_only: bool = False
+):
+    """
+    Build (optionally) and upload the existing dist/ artifacts with Twine.
+    Set upload_only=True to reuse artifacts from a prior build stage.
+    """
+    dist_dir = Path("dist")
+    if not upload_only:
+        if not NO_CLEAN:
+            clean_build_artifacts()
 
-    ok, out = exec_cmd("uv build", stream=True)  # or stream=False if you prefer quiet
-    if not ok:
-        return ok, out
+        ok, out = exec_cmd(
+            "uv build", stream=True
+        )  # or stream=False if you prefer quiet
+        if not ok:
+            return ok, out
+    else:
+        if not dist_dir.exists() or not any(dist_dir.iterdir()):
+            return False, "dist/ is empty. Run without --upload-only first."
 
     ok, out = exec_cmd("uvx twine check dist/*", stream=True)
     if not ok:
@@ -190,6 +206,18 @@ if current_branch != WORKING_BRANCH:
     print(f"⚠️  You are on '{current_branch}', not '{WORKING_BRANCH}'.")
     print(f"Please switch to '{WORKING_BRANCH}' before running this script.")
     sys.exit(1)
+
+if CLEAN_ONLY:
+    clean_build_artifacts()
+    print("Build artifacts removed.")
+    sys.exit(0)
+
+if UPLOAD_ONLY:
+    ok, _ = build_and_upload(
+        skip_existing=SKIP_EXISTING,
+        upload_only=True,
+    )
+    sys.exit(0 if ok else 1)
 
 # --- Bump Logic ---
 version = load_version()
