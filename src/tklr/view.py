@@ -5,6 +5,7 @@ import os
 import time
 
 import asyncio
+from pathlib import Path
 
 from .shared import (
     log_msg,
@@ -3569,12 +3570,27 @@ class DynamicViewApp(App):
             self._run_current_command(args, display)
         )
 
+    def _current_output_path(self) -> Path:
+        home = getattr(self.controller.env, "home", None)
+        if not home:
+            home = Path.home() / ".config" / "tklr"
+        else:
+            home = Path(home)
+        return home / "current.txt"
+
+    def _write_current_output(self, data: bytes) -> None:
+        path = self._current_output_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        text = data.decode("utf-8", errors="replace")
+        path.write_text(text, encoding="utf-8")
+
     async def _run_current_command(self, args: list[str], display: str) -> None:
         env = os.environ.copy()
         if hasattr(self.controller, "env") and getattr(
             self.controller.env, "home", None
         ):
             env.setdefault("TKLR_HOME", str(self.controller.env.home))
+        env["TKLR_SKIP_CURRENT_COMMAND"] = "1"
         try:
             proc = await asyncio.create_subprocess_exec(
                 *args,
@@ -3583,6 +3599,7 @@ class DynamicViewApp(App):
                 env=env,
             )
             stdout, stderr = await proc.communicate()
+            self._write_current_output(stdout or b"")
             if proc.returncode != 0:
                 err = stderr.decode(errors="ignore").strip()
                 log_msg(f"current_command failed ({proc.returncode}): {display}\n{err}")

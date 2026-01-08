@@ -1,5 +1,7 @@
 import sys
 import os
+import shlex
+import subprocess
 import click
 from pathlib import Path
 from rich import print
@@ -14,7 +16,7 @@ from tklr.item import Item
 from tklr.controller import Controller
 from tklr.model import DatabaseManager
 from tklr.view import DynamicViewApp
-from tklr.tklr_env import TklrEnvironment
+from tklr.tklr_env import TklrEnvironment, TklrConfig
 from tklr.migration import MIGRATION_ITEM_TYPES, migrate_etm_directory
 
 # from tklr.view_agenda import run_agenda_view
@@ -62,6 +64,107 @@ _DATE = _DateParam()
 _DATE_OR_INT = _DateOrInt()
 
 VERSION = get_version()
+
+
+def _current_output_path(env: TklrEnvironment) -> Path:
+    home = getattr(env, "home", None)
+    if not home:
+        home = Path.home() / ".config" / "tklr"
+    else:
+        home = Path(home)
+    return home / "current.txt"
+
+
+def _file_mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except FileNotFoundError:
+        return 0.0
+
+
+def _start_of_today_ts() -> float:
+    today = date.today()
+    start = datetime.combine(today, time.min)
+    return start.timestamp()
+
+
+def _build_current_command_args(cmd: str, env: TklrEnvironment) -> list[str] | None:
+    raw = False
+    command = (cmd or "").strip()
+    if not command:
+        return None
+    if command.startswith("!"):
+        raw = True
+        command = command[1:].lstrip()
+    try:
+        parts = shlex.split(command)
+    except ValueError as exc:
+        print(f"[yellow]Invalid current_command '{command}': {exc}[/yellow]")
+        return None
+
+    if raw:
+        return parts
+
+    home = (
+        str(env.home)
+        if env and getattr(env, "home", None)
+        else str(Path.home() / ".config" / "tklr")
+    )
+    return [sys.executable, "-m", "tklr.cli.main", "--home", home, *parts]
+
+
+def _write_current_output(env: TklrEnvironment, data: str) -> None:
+    path = _current_output_path(env)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(data, encoding="utf-8")
+
+
+def _maybe_run_current_command_cli(
+    env: TklrEnvironment,
+    config: TklrConfig,
+    *,
+    force: bool = False,
+) -> None:
+    if os.environ.get("TKLR_SKIP_CURRENT_COMMAND"):
+        return
+    cmd = (config.ui.current_command or "").strip()
+    if not cmd:
+        return
+
+    current_path = _current_output_path(env)
+    current_mtime = _file_mtime(current_path)
+    if not force:
+        db_mtime = _file_mtime(Path(env.db_path))
+        if db_mtime <= current_mtime and _start_of_today_ts() <= current_mtime:
+            return
+
+    args = _build_current_command_args(cmd, env)
+    if not args:
+        return
+
+    env_vars = os.environ.copy()
+    if getattr(env, "home", None):
+        env_vars.setdefault("TKLR_HOME", str(env.home))
+    env_vars["TKLR_SKIP_CURRENT_COMMAND"] = "1"
+    try:
+        res = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env_vars,
+        )
+    except Exception as exc:
+        print(f"[yellow]current_command error: {exc}[/yellow]")
+        return
+
+    _write_current_output(env, res.stdout or "")
+    if res.returncode != 0:
+        err = (res.stderr or "").strip()
+        message = f"current_command failed ({res.returncode})"
+        if err:
+            message += f": {err}"
+        print(f"[yellow]{message}[/yellow]")
 
 
 def ensure_database(db_path: str, env: TklrEnvironment):
@@ -115,6 +218,20 @@ def cli(ctx, home, verbose):
     ctx.obj["DB"] = env.db_path
     ctx.obj["CONFIG"] = config
     ctx.obj["VERBOSE"] = verbose
+    ctx.obj.setdefault("FORCE_CURRENT_COMMAND", False)
+
+    skip_current = bool(os.environ.get("TKLR_SKIP_CURRENT_COMMAND"))
+    ctx.obj["SKIP_CURRENT_COMMAND"] = skip_current
+
+    if not skip_current:
+        def _run_post_command():
+            _maybe_run_current_command_cli(
+                env,
+                config,
+                force=ctx.obj.get("FORCE_CURRENT_COMMAND", False),
+            )
+
+        ctx.call_on_close(_run_post_command)
 
 
 @cli.command()
@@ -219,6 +336,7 @@ def add(ctx, entry, file, batch):
             count += 1
 
     dbm.populate_dependent_tables()
+    ctx.obj["FORCE_CURRENT_COMMAND"] = True
     print(
         f"[green]✔ Added {count} entr{'y' if count == 1 else 'ies'} successfully.[/green]"
     )

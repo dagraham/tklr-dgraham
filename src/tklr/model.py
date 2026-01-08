@@ -5,7 +5,7 @@ import json
 from typing import Optional
 from datetime import date, datetime, time, timedelta
 from dateutil.rrule import rrulestr
-from dateutil.parser import parse
+from dateutil import parser as dateutil_parser
 
 from typing import List, Tuple, Optional, Dict, Any, Set, Iterable
 from rich import print
@@ -1008,6 +1008,10 @@ class DatabaseManager:
             os.remove(self.db_path)
 
         self.conn = sqlite3.connect(self.db_path)
+        try:
+            self.conn.execute("PRAGMA busy_timeout = 5000")
+        except sqlite3.OperationalError:
+            pass
         self.cursor = self.conn.cursor()
         self.conn.create_function("REGEXP", 2, regexp)
         self.conn.create_function("REGEXP", 2, regexp)
@@ -2609,6 +2613,57 @@ class DatabaseManager:
         ).fetchone()
         return tuple(row) if row else None
 
+    def _format_rrule_datetime(self, value: str) -> str:
+        text = (value or "").strip()
+        if not text:
+            return text
+        try:
+            dt = dateutil_parser.parse(text)
+        except Exception:
+            return text
+
+        if isinstance(dt, datetime):
+            has_z = text.upper().endswith("Z")
+            if has_z:
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=tz.UTC)
+                else:
+                    dt = dt.astimezone(tz.UTC)
+                fmt = "%Y%m%dT%H%M%S" if dt.second else "%Y%m%dT%H%M"
+                return dt.strftime(fmt) + "Z"
+            fmt = "%Y%m%dT%H%M%S" if dt.second else "%Y%m%dT%H%M"
+            return dt.strftime(fmt)
+        if isinstance(dt, date):
+            return dt.strftime("%Y%m%d")
+        return text
+
+    def _normalize_rruleset(self, rule_str: str) -> str:
+        if not rule_str:
+            return ""
+
+        cleaned = re.sub(
+            r"\s+(RRULE:|RDATE:|EXDATE:|DTSTART:)", r"\n\1", rule_str, flags=re.IGNORECASE
+        )
+
+        normalized: list[str] = []
+        for raw_line in cleaned.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            upper = line.upper()
+            if upper.startswith("DTSTART:"):
+                _, body = line.split(":", 1)
+                normalized.append(f"DTSTART:{self._format_rrule_datetime(body)}")
+            elif upper.startswith("RDATE:"):
+                _, body = line.split(":", 1)
+                parts = [
+                    self._format_rrule_datetime(part) for part in body.split(",") if part
+                ]
+                normalized.append(f"RDATE:{','.join(parts)}")
+            else:
+                normalized.append(line)
+        return "\n".join(normalized)
+
     @staticmethod
     def _week_key(year: int, week: int) -> tuple[int, int]:
         return (year, week)
@@ -2628,6 +2683,26 @@ class DatabaseManager:
         start_key = (sy, sw)
         end_key = (ey, ew)
         return start_key <= week <= end_key
+
+    def _parse_rdate_to_seconds(self, value: str) -> int | None:
+        text = (value or "").strip()
+        if not text:
+            return None
+        try:
+            dt = parse_utc_z(text)
+        except Exception:
+            try:
+                dt = dateutil_parser.parse(text)
+            except Exception:
+                return None
+
+        if isinstance(dt, date) and not isinstance(dt, datetime):
+            dt = datetime.combine(dt, datetime.min.time())
+
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=tz.tzlocal())
+
+        return round(dt.timestamp())
 
     def is_week_in_generated(self, year: int, week: int) -> bool:
         rng = self.get_generated_weeks_range()
@@ -2812,7 +2887,9 @@ class DatabaseManager:
             return
 
         itemtype, rruleset, record_extent, jobs_json, processed = row
-        rule_str = (rruleset or "").replace("\\N", "\n").replace("\\n", "\n")
+        raw_rule = (rruleset or "").replace("\\N", "\n").replace("\\n", "\n")
+        is_aware = "Z" in raw_rule
+        rule_str = self._normalize_rruleset(raw_rule)
 
         # Nothing to do without any schedule
         if not rule_str:
@@ -2831,7 +2908,6 @@ class DatabaseManager:
 
         has_rrule = "RRULE" in rule_str
         is_finite = (not has_rrule) or ("COUNT=" in rule_str) or ("UNTIL=" in rule_str)
-        is_aware = "Z" in rule_str
 
         # Build parent recurrence iterator
         try:
@@ -2844,7 +2920,6 @@ class DatabaseManager:
 
         def _iter_parent_occurrences():
             if is_finite:
-                anchor = datetime.min
                 anchor = get_anchor(is_aware)
 
                 try:
@@ -2891,11 +2966,13 @@ class DatabaseManager:
         # ---- PATH A: Projects with jobs -> generate job rows only ----
         if has_jobs:
             for parent_dt in _iter_parent_occurrences():
-                parent_local = _to_local_naive(
-                    parent_dt
-                    if isinstance(parent_dt, datetime)
-                    else datetime.combine(parent_dt, datetime.min.time())
-                )
+                if isinstance(parent_dt, datetime):
+                    base_parent = parent_dt
+                    if base_parent.tzinfo is None and is_aware:
+                        base_parent = base_parent.replace(tzinfo=tz.UTC)
+                    parent_local = _to_local_naive(base_parent)
+                else:
+                    parent_local = datetime.combine(parent_dt, datetime.min.time())
                 for j in jobs:
                     if j.get("status") == "finished":
                         continue
@@ -2948,7 +3025,10 @@ class DatabaseManager:
             for cur in _iter_parent_occurrences():
                 # cur can be aware/naive datetime (or, rarely, date)
                 if isinstance(cur, datetime):
-                    start_local = _to_local_naive(cur)
+                    base_dt = cur
+                    if base_dt.tzinfo is None and is_aware:
+                        base_dt = base_dt.replace(tzinfo=tz.UTC)
+                    start_local = _to_local_naive(base_dt)
                 else:
                     start_local = datetime.combine(cur, datetime.min.time())
                 start_local = datetime_from_timestamp(_fmt_naive(start_local))
@@ -3661,14 +3741,11 @@ class DatabaseManager:
             offset_seconds = self._offset_seconds_from_record(record)
         if due_seconds is None and rruleset.startswith("RDATE:"):
             due_str = rruleset.split(":", 1)[1].split(",")[0]
-            try:
-                if "T" in due_str:
-                    dt = datetime.strptime(due_str.strip(), "%Y%m%dT%H%MZ")
-                else:
-                    dt = datetime.strptime(due_str.strip(), "%Y%m%d")
-                due_seconds = round(dt.timestamp())
-            except Exception as e:
-                log_msg(f"Invalid RDATE value: {due_str}\n{e}")
+            parsed_due = self._parse_rdate_to_seconds(due_str)
+            if parsed_due is not None:
+                due_seconds = parsed_due
+            else:
+                log_msg(f"Invalid RDATE value: {due_str}")
         if due_seconds is None:
             due_seconds = self._next_start_seconds(record_id, None)
         if due_seconds and not notice_seconds:
