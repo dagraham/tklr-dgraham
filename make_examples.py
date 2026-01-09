@@ -179,7 +179,7 @@ ctrl = Controller("./examples/tklr.db", env, reset=True)
 # Insert the UTC records into the database
 
 num_items = 0
-types = ["~", "~", "*", "~", "*", "*", "*", "*", "%"]
+types = ["*", "*", "*", "*", "*", "%"]
 
 contexts = ["errands", "home", "office", "shop"]
 tags = ["red", "green", "blue"]
@@ -294,11 +294,29 @@ one_off = [
     f"! {phrase()} @s {monday()} @t 3/2w @d goal test #lorem",
     f"! {phrase()} @s {monday()} @t 3/2w  @k 1 @d goal test #lorem",
     f"! {phrase()} @s {monday()} @t 3/2w  @k 2 @d goal test #lorem",
+    f"~ {phrase()} @s {in_one_hour()} @p 1 @d dated task test #lorem",
+    # f"~ {phrase()} @s {in_one_day()} @p 3 @d dated task test #lorem",
+    # f"~ {phrase()} @s {in_two_days()} @p 5 @d dated task test #lorem",
+    f"~ {phrase()} @s {in_five_days()} @p 4  @d dated task test #lorem",
+    f"~ {phrase()} @s {in_two_weeks()} @p 2 @d dated task test #lorem",
+    f"~ {phrase()} @s {five_days_ago()} @d dated task test #lorem",
+    f"~ {phrase()} @s {in_one_hour()} @p 5 @d dated task test #lorem",
+    # f"~ {phrase()} @s {in_one_day()} @p 3 @d dated task test #lorem",
+    # f"~ {phrase()} @s {in_two_days()} @p 1 @d dated task test #lorem",
+    f"~ {phrase()} @s {in_five_days()} @p 2 @d dated task test #lorem",
+    f"~ {phrase()} @s {in_two_weeks()} @p 3 @d dated task test #lorem",
+    f"~ {phrase()} @s {five_days_ago()} @p 1 @d dated task test #lorem",
+    f"~ {phrase()} @p 1 @d undated task test #lorem",
+    f"~ {phrase()} @p 3 @d undated task test #lorem",
+    f"~ {phrase()} @p 5 @d undated task test #lorem",
+    # f"~ {phrase()} @p 2 @d undated task test #lorem",
+    # f"~ {phrase()} @p 4 @d undated task test #lorem",
+    # f"~ {phrase()} @p 3 @d undated task test #lorem",
 ]
 
 items = []
 count = 0
-num_items = 160
+num_items = 100
 while len(items) < num_items:
     count += 1
     t = random.choice(types)

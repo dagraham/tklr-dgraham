@@ -2,7 +2,7 @@
 title = "Tklr Configuration"
 
 # secret: used to encode/decode masked (@m) fields.
-secret = "bslguiYW5pMuIvsvhwLti0oz1RiT8SDy"
+secret = "i1ZRbCKE8uv2TLoSjh5B0O3FrTBBz1uQ"
 
 [ui]
 # theme: str = 'dark' | 'light'
@@ -10,7 +10,7 @@ theme = "dark"
 
 # ampm: bool = true | false
 # Use 12 hour AM/PM when true else 24 hour
-ampm = true
+ampm = false
 
 # history_weight: int
 # Apply this weight to the prior history when computing
@@ -24,6 +24,8 @@ agenda_days = 3
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
 # Prefix with '!' to run a standalone command/script (no automatic 'tklr').
+# The output of this command will be written to "current.txt" in the Tklr home
+# directory.
 current_command = ""
 
 # dayfirst and yearfirst settings
@@ -52,7 +54,7 @@ yearfirst = true
 # two_digit_year: bool = true | false
 # If true, years are displayed using the last two digits, e.g.,
 # 25 instead of 2025.
-two_digit_year = false
+two_digit_year = true
 
 [alerts]
 # dict[str, str]: character -> command_str.
@@ -66,8 +68,6 @@ two_digit_year = false
 # Additional keys: start (scheduled datetime), time (spoken version of
 # start), location, description.
 
-v = '/usr/bin/say -v Alex "{name}, {when}"'
-
 
 # ─── Urgency Configuration ─────────────────────────────────────
 
@@ -78,8 +78,8 @@ v = '/usr/bin/say -v Alex "{name}, {when}"'
 # These colors are used for tasks in the urgency listing.
 min_hex_color = "#6495ed"
 max_hex_color = "#ffff00"
-min_urgency = 0.5
-steps = 10
+min_urgency = 0.0
+steps = 20
 
 [urgency.due]
 # The "due" urgency increases from 0.0 to "max" as now passes from
@@ -125,9 +125,10 @@ count = 3
 max = 3.0
 
 [urgency.priority]
-# The "priority" urgency corresponds to the value from "1" to "5" of `@p`
-# specified in the task. E.g, with "@p 3", the value would correspond to
-# the "3" entry below. Absent an entry for "@p", the value would be 0.0.
+# The "priority" urgency corresponds to the value from "1" (highest) to
+# "5" (lowest) of `@p` specified in the task. E.g, with "@p 3", the value
+# would correspond to the "3" entry below. Absent an entry for "@p", the
+# value 0.0 is used.
 
 "1" = 10.0
 
@@ -157,5 +158,3 @@ max = 3.0
 # Specify custom ordering of children for a root bin.
 # Example:
 #   seedbed = ["seed", "germination", "seedling", "growth", "flowering"]
-
-seedbed = ["seed","germination","seedling","growing","flowering"]

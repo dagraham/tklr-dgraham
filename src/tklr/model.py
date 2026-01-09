@@ -770,6 +770,12 @@ class UrgencyComputer:
         self.MIN_HEX_COLOR = self.urgency.colors.min_hex_color
         self.MAX_HEX_COLOR = self.urgency.colors.max_hex_color
         self.STEPS = self.urgency.colors.steps
+
+        self.MAX_POSSIBLE_URGENCY = sum(
+            comp.max
+            for comp in vars(self.urgency).values()
+            if hasattr(comp, "max") and isinstance(comp.max, (int, float))
+        )
         self.BUCKETS = self.get_urgency_color_buckets()
 
     def hex_to_rgb(self, hex_color: str) -> Tuple[int, int, int]:
@@ -817,8 +823,7 @@ class UrgencyComputer:
 
         Wn = 0.0 + sum(abs(w) for w in weights.values() if w < 0)
 
-        urgency = (Wp - Wn) / (2 + Wn + Wp)
-        # log_msg(f"{Wp = }, {Wn = }, {Wp - Wn = }, {Wp + Wn = }, {urgency = }")
+        urgency = (Wp - Wn) / self.MAX_POSSIBLE_URGENCY
         return urgency
 
     def urgency_due(self, due_seconds: int, now_seconds: int) -> float:
@@ -2642,7 +2647,10 @@ class DatabaseManager:
             return ""
 
         cleaned = re.sub(
-            r"\s+(RRULE:|RDATE:|EXDATE:|DTSTART:)", r"\n\1", rule_str, flags=re.IGNORECASE
+            r"\s+(RRULE:|RDATE:|EXDATE:|DTSTART:)",
+            r"\n\1",
+            rule_str,
+            flags=re.IGNORECASE,
         )
 
         normalized: list[str] = []
@@ -2657,7 +2665,9 @@ class DatabaseManager:
             elif upper.startswith("RDATE:"):
                 _, body = line.split(":", 1)
                 parts = [
-                    self._format_rrule_datetime(part) for part in body.split(",") if part
+                    self._format_rrule_datetime(part)
+                    for part in body.split(",")
+                    if part
                 ]
                 normalized.append(f"RDATE:{','.join(parts)}")
             else:
@@ -2846,7 +2856,6 @@ class DatabaseManager:
 
         rule = rrulestr(rule_str, dtstart=start_date)
         occurrences = list(rule.between(start_date, end_date, inc=True))
-        print(f"{rule_str = }\n{occurrences = }")
         extent = td_str_to_td(extent) if isinstance(extent, str) else extent
 
         # Create (start, end) pairs

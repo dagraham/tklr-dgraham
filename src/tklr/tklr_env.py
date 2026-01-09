@@ -138,6 +138,8 @@ agenda_days = {{ ui.agenda_days }}
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
 # Prefix with '!' to run a standalone command/script (no automatic 'tklr').
+# The output of this command will be written to "current.txt" in the Tklr home
+# directory.
 current_command = "{{ ui.current_command }}"
 
 # dayfirst and yearfirst settings
@@ -239,9 +241,10 @@ count = {{ urgency.tags.count }}
 max = {{ urgency.tags.max }}
 
 [urgency.priority]
-# The "priority" urgency corresponds to the value from "1" to "5" of `@p`
-# specified in the task. E.g, with "@p 3", the value would correspond to
-# the "3" entry below. Absent an entry for "@p", the value would be 0.0.
+# The "priority" urgency corresponds to the value from "1" (highest) to
+# "5" (lowest) of `@p` specified in the task. E.g, with "@p 3", the value
+# would correspond to the "3" entry below. Absent an entry for "@p", the
+# value 0.0 is used.
 {% for key, value in urgency.priority.items() %}
 "{{ key }}" = {{ value }}
 {% endfor %}

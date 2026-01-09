@@ -2854,9 +2854,10 @@ class Controller:
             datetime_id,
             instance_ts,
         ) in urgency_records:
-            urgency_str = (
-                "📌" if pinned else f"[{color}]{int(round(urgency * 100)):>3}[/{color}]"
-            )
+            # urgency_str = (
+            #     "📌" if pinned else f"[{color}]{int(round(urgency * 100)):>3}[/{color}]"
+            # )
+            urgency_str = "📌" if pinned else f"{round(100 * urgency):>3}"
 
             rows.append(
                 {
@@ -2864,7 +2865,7 @@ class Controller:
                     "job_id": job_id,
                     "datetime_id": datetime_id,  # 👈 earliest DateTimes.id, or None
                     "instance_ts": instance_ts,  # 👈 earliest start_datetime TEXT, or None
-                    "text": f"[{TASK_COLOR}]{urgency_str}  {self.apply_flags(record_id, subject)}[/{TASK_COLOR}]",
+                    "text": f"[{color}]{urgency_str}  {self.apply_flags(record_id, subject)}[/{color}]",
                 }
             )
 
