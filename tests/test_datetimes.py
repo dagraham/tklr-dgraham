@@ -1,4 +1,3 @@
-import os
 import time
 
 import pytest
@@ -8,8 +7,21 @@ from tklr.model import DatabaseManager
 from tklr.item import Item
 
 
+@pytest.fixture
+def isolated_env(tmp_path, monkeypatch):
+    """Create a throwaway TKLR_HOME so tests never touch local data."""
+    home = tmp_path / "tklr-home"
+    monkeypatch.delenv("TKLR_HOME", raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    monkeypatch.setenv("TKLR_HOME", str(home))
+
+    env = TklrEnvironment()
+    env.ensure(init_config=True, init_db_fn=None)
+    return env
+
+
 @pytest.mark.parametrize("tz_name", ["Etc/GMT+5"])
-def test_rdate_rows_use_local_time(tmp_path, monkeypatch, tz_name):
+def test_rdate_rows_use_local_time(isolated_env, monkeypatch, tz_name):
     """
     Regression test: RDATE-only reminders must emit local-naive timestamps
     into DateTimes even though the rruleset stores UTC ('...Z').
@@ -19,17 +31,20 @@ def test_rdate_rows_use_local_time(tmp_path, monkeypatch, tz_name):
     if hasattr(time, "tzset"):
         time.tzset()
 
-    home = tmp_path / "tklr-home"
-    monkeypatch.setenv("TKLR_HOME", str(home))
+    dbm = DatabaseManager(
+        str(isolated_env.db_path),
+        isolated_env,
+        reset=True,
+        auto_populate=False,
+    )
 
-    env = TklrEnvironment()
-    env.ensure(init_config=True, init_db_fn=None)
-
-    dbm = DatabaseManager(str(env.db_path), env, reset=True, auto_populate=False)
-
-    single = Item(env=env, raw="* single @s 2026-01-08 11:00 @e 1h", final=True)
+    single = Item(
+        env=isolated_env,
+        raw="* single @s 2026-01-08 11:00 @e 1h",
+        final=True,
+    )
     recurring = Item(
-        env=env,
+        env=isolated_env,
         raw="* repeating @s 2026-01-08 11:00 @e 1h @r w",
         final=True,
     )
