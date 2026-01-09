@@ -3590,7 +3590,6 @@ class DynamicViewApp(App):
             self.controller.env, "home", None
         ):
             env.setdefault("TKLR_HOME", str(self.controller.env.home))
-        env["TKLR_SKIP_CURRENT_COMMAND"] = "1"
         try:
             proc = await asyncio.create_subprocess_exec(
                 *args,
