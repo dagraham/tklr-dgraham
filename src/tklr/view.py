@@ -981,9 +981,11 @@ class EditorScreen(Screen):
     # ---------- Text change -> live parse ----------
     def on_text_area_changed(self, event: TextArea.Changed) -> None:
         """Re-parse using the actual TextArea content, not the event payload."""
-        # Source of truth: the widget's text property
-        self.entry_text = self._text.text or ""
-        self._live_parse_and_feedback(final=False)
+        text_widget = getattr(event, "control", None) or self._text
+        if text_widget is not None:
+            self._live_parse_and_feedback(final=False, refresh_from_widget=True)
+        else:
+            self._live_parse_and_feedback(final=False)
 
         # Optional: stop propagation so nothing else double-handles it
         event.stop()
@@ -1017,32 +1019,40 @@ class EditorScreen(Screen):
         Finalize the entry (rrules/jobs/etc) and validate.
         Returns True iff parse_ok after a finalizing parse.
         """
+        self._rebuild_item(final=True)
+        self.item.finalize_record()
         if not getattr(self.item, "parse_ok", False):
             self._render_feedback()
             return False
+        return True
 
-        self.item.final = True
-        self.item.parse_input(self.entry_text)
-        self.item.finalize_record()
-        return self.item.parse_ok
-
-    def _live_parse_and_feedback(self, *, final: bool) -> None:
+    def _live_parse_and_feedback(self, *, final: bool, refresh_from_widget: bool = False) -> None:
         """Non-throwing live parse + feedback for current cursor token."""
+        if refresh_from_widget and self._text is not None:
+            self.entry_text = self._text.text or ""
+        self._rebuild_item(final=final)
+        self._render_feedback()
+
+    def _rebuild_item(self, final: bool) -> None:
+        """Recreate the Item from current text to avoid stale token positions."""
+        self.item = self.ItemCls(self.entry_text, controller=self.controller)
         self.item.final = bool(final)
         self.item.parse_input(self.entry_text)
-        self._render_feedback()
 
     def _token_at(self, idx: int) -> Optional[Dict[str, Any]]:
         """Find the token whose [s,e) spans idx; fallback to first incomplete after idx."""
         toks: List[Dict[str, Any]] = getattr(self.item, "relative_tokens", []) or []
+        last_before = None
         for t in toks:
             s, e = t.get("s", -1), t.get("e", -1)
             if s <= idx < e:
                 return t
+            if idx >= e:
+                last_before = t
         for t in toks:
             if t.get("incomplete") and t.get("s", 1 << 30) >= idx:
                 return t
-        return None
+        return last_before
 
     def _cursor_abs_index(self) -> int:
         """Map TextArea (row, col) to absolute index in self.entry_text."""
