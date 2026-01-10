@@ -116,41 +116,71 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 
 #### A _task_ (~), pick up milk
 
-    ~ pick up milk
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>~ pick up milk
+</code>
+  </pre>
+  <p>
+    The beginning "~" type character makes this reminder a <i>task</i> with the following "pick up milk" as the <i>subject</i>.
+  </p>
+</div>
+<div style="clear:both;"></div>
+
+
 
 #### An _event_ (\*), lunch with Ed
 
-Step by step details for this reminder were given above.
-
-    `* Lunch with Ed @s 12p fri @e 1h`
-
-- starting (@s) on the first Friday on or after today at 12pm
-- with an extent (@e) of 1 hour, i.e., lasting from 12pm until 1pm.
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>* lunch with Ed @s 12p fri @e 1h
+</code>
+  </pre>
+  <p>
+    The steps for entering this reminder were given above. The "*" makes this reminder an <i>event</i> with the following "lunch with Ed" as the <i>subject</i>.
+    This snippet schedules a one-hour lunch at 12pm on the first Friday after today.
+  </p>
+</div>
+<div style="clear:both;"></div>
 
 #### A _note_ (%), a favorite Churchill quotation
 
-    ```
-    % Give me a pig - #Churchill
-      @d Dogs look up at you.
-      Cats look down at you.
-      Give me a pig - they look you in the eye
-        and treat you as an equal.
-      @b quotations
-    ```
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>% Give me a pig - #Churchill
+  @d Dogs look up at you.
+  Cats look down at you.
+  Give me a pig - they look you in the eye
+    and treat you as an equal.
+  @b quotations
+</code>
+  </pre>
+  <p>
+The beginning "%" makes this reminder a <i>note</i> with the <i>subject</i>, "Give me a pig - #Churchill". The optional <i>details</i> follows the "@d" and is meant to be more expansive - analogous to the body of an email. The hash character that precedes "Churchill" in the subject makes that word a <i>hash tag</i> for listing in <i>Tags View</i>. The "@b" entry adds this reminder to the "quotations" <i>bin</i> for listing in <i>Bins View</i>.
+  </p>
+</div>
+<div style="clear:both;"></div>
 
-The _subject_, "Give me a pig - \#Churchill" in this example, follows the type character and is meant to be brief - analogous to the subject of an email. The optional _details_ follows the "@d" and is meant to be more expansive - analogous to the body of an email. The hash character that precedes "Churchill" in the subject makes that word a _hash tag_ that will be listed in _Tags View_. Hash tags can also be used in the `@d` details attribute.
+
 
 #### A _project_ (^), build a dog house with component tasks (@~)
 
-    ^ Build dog house
-      @~ pick up materials &r 1 &e 4h
-      @~ cut pieces &r 2: 1 &e 3h
-      @~ assemble &r 3: 2 &e 2h
-      @~ sand &r 4: 3 &e 1h
-      @~ paint &r 5: 4 &e 4h
 
-The "&r X: Y" entries set "X" as the label for the task and the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e _extent_" entries give estimates of the times required to complete the various tasks.
 
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>^ Build dog house
+  @~ pick up materials &r 1 &e 4h
+  @~ cut pieces &r 2: 1 &e 3h
+  @~ assemble &r 3: 2 &e 2h
+  @~ sand &r 4: 3 &e 1h
+  @~ paint &r 5: 4 &e 4h
+</code>
+  </pre>
+  <p>The beginning "^" makes this a <i>project</i>. This is a collection of related tasks specified by the "@~" entries. In each task, the "&r X: Y" snippet sets "X" as the label for the task and sets the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e" <i>extent</i> entries give estimates of the times required to complete the various tasks.
+  </p>
+</div>
+<div style="clear:both;"></div>
 #### A _goal_ (!), interval training 3 times each week
 
     ! interval training @s 2025-12-01 @o 3/1w
