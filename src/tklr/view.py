@@ -2980,7 +2980,7 @@ class DynamicViewApp(App):
         self.details_drawer: DetailsDrawer | None = None
         self.year_offset = 0
         self.today = None
-        self.run_daily_tasks()
+        self.run_daily_tasks(refresh=False)
         self._current_command_task: asyncio.Task | None = None
 
     async def on_mount(self):
@@ -3513,7 +3513,7 @@ class DynamicViewApp(App):
         self.save_screenshot(str(path))
         self.notify(f"Screenshot saved to: {path}", severity="info", timeout=3)
 
-    def run_daily_tasks(self):
+    def run_daily_tasks(self, *, refresh: bool = True):
         created, kept, removed = self.controller.rotate_daily_backups()
         if created:
             log_msg(f"✅ Backup created: {created}")
@@ -3526,6 +3526,16 @@ class DynamicViewApp(App):
         self.controller.new_day()
         self.controller.populate_alerts()
         self.controller.populate_notice()
+        if not refresh:
+            return
+
+        self.current_start_date = calculate_4_week_start()
+        self.selected_week = tuple(datetime.now().isocalendar()[:2])
+        if self.view == "weeks":
+            self.update_table_and_list()
+            return
+
+        self.refresh_view()
 
     def play_bells(self) -> None:
         """An action to ring the bell."""

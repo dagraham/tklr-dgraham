@@ -214,7 +214,8 @@ def format_tokens(
             continue
 
         # @d blocks: own paragraph, preserve newlines/indent
-        if ttype == "@" and k == "d":
+        # if ttype == "@" and k == "d":
+        if ttype == "@" and k in ["d", "m"]:
             if current_line:
                 output_lines.append(current_line)
                 current_line = ""
@@ -1735,7 +1736,6 @@ class Controller:
         busy_bar = self._format_busy_bar(busy_bits)
 
         start_dt = datetime.strptime(f"{year} {week} 1", "%G %V %u")
-        # end_dt = start_dt + timedelta(weeks=1)
         details = self.get_week_details(selected_week)
 
         title = format_iso_week(start_dt)
@@ -2738,9 +2738,9 @@ class Controller:
                 subject = self.apply_flags(record_id, subject)
                 end_ts = end_ts or start_ts
                 label = format_time_range(start_ts, end_ts, self.AMPM).strip()
-                if end_ts.endswith("T000000"):
+                if start_ts.endswith("T000000") and start_ts == end_ts:
                     color = ALLDAY_COLOR
-                elif end_ts <= now_ts and end_ts != start_ts:
+                elif end_ts <= now_ts:
                     color = PASSED_EVENT
                 elif start_ts <= now_ts:
                     color = ACTIVE_EVENT

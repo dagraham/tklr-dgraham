@@ -375,6 +375,9 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
 ### 1.3. Useful attributes
 
+- {XXX} anniversary substitutions
+- @m
+
 
 
 ## 2. Views
