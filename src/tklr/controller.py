@@ -2288,7 +2288,7 @@ class Controller:
         for goal in goals:
             # priority_display = f"{goal['priority']:.2f}"
             priority_display = f"{round(100 * goal['priority'])}"
-            progress_display = f"{goal['num_completed']}/{goal['num_required']}"
+            progress_display = f"{goal['remaining_instances']}/{goal['num_required']}"
             time_display = goal["time_display"]
             row_color = _priority_color(goal["priority"])
             text = (

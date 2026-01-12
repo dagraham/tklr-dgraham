@@ -1,0 +1,4555 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>What makes tklr different</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+/* From extension bierner.markdown-preview-github-styles */
+html,
+body,
+.github-markdown-body {
+    padding: 0 !important;
+    max-width: auto !important;
+}
+
+.github-markdown-body {
+    background-color: var(--bgColor-default);
+    color: var(--fgColor-default);
+}
+
+.github-markdown-body {
+    border: 1px solid transparent;
+    box-sizing: border-box;
+    margin: 0 auto;
+    width: 100% !important;
+}
+
+.github-markdown-content {
+    padding: 32px !important;
+    max-width: 980px;
+    min-width: 200px;
+    margin: 0 auto;
+}
+
+
+.vscode-body.scrollBeyondLastLine {
+    margin-bottom: 0;
+}
+/*
+ * Other extensions may reuse the markdown render function for embedding additional documents
+ * creating multiple .github-markdown-body elements so this should only apply to the top one
+ */
+.vscode-body.scrollBeyondLastLine > .markdown-body > .github-markdown-body {
+    padding-bottom: calc(100vh + 10px) !important;
+}
+
+.github-markdown-body blockquote {
+    background-color: initial;
+}
+
+.github-markdown-body pre {
+    color: initial;
+    border: none;
+}
+
+.github-markdown-body code {
+    color: inherit;
+}
+
+.github-markdown-body pre code {
+    color: initial;
+}
+
+.github-markdown-body code > div {
+    background: none
+}
+
+.github-markdown-body.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.github-markdown-body p,
+.github-markdown-body blockquote,
+.github-markdown-body ul,
+.github-markdown-body ol,
+.github-markdown-body dl,
+.github-markdown-body table,
+.github-markdown-body pre {
+    margin-top: 16px;
+    margin-bottom: 16px;
+}
+
+:is(.vscode-dark, .vscode-light).showEditorSelection .code-active-line:before {
+    border-left: 3px solid var(--borderColor-default);
+}
+:is(.vscode-dark, .vscode-light).showEditorSelection .code-line:hover:before {
+    border-left: 3px solid var(--fgColor-muted);
+}
+
+.github-markdown-body {
+  /* Ideal for movement that starts on the page and ends off the page. */
+  /* Ideal for movement that starts and ends on the page. */
+  /* Ideal for movement that starts off the page and ends on the page. */
+  /* Ideal for non-movement properties, like opacity or background color. */
+  -ms-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  margin: 0;
+  color: var(--fgColor-default);
+  background-color: var(--bgColor-default);
+  font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
+  font-size: 16px;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.github-markdown-body .octicon {
+  display: inline-block;
+  fill: currentColor;
+  vertical-align: text-bottom;
+}
+
+.github-markdown-body h1:hover .anchor .octicon-link:before,
+.github-markdown-body h2:hover .anchor .octicon-link:before,
+.github-markdown-body h3:hover .anchor .octicon-link:before,
+.github-markdown-body h4:hover .anchor .octicon-link:before,
+.github-markdown-body h5:hover .anchor .octicon-link:before,
+.github-markdown-body h6:hover .anchor .octicon-link:before {
+  width: 16px;
+  height: 16px;
+  content: ' ';
+  display: inline-block;
+  background-color: currentColor;
+  -webkit-mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' version='1.1' aria-hidden='true'><path fill-rule='evenodd' d='M7.775 3.275a.75.75 0 001.06 1.06l1.25-1.25a2 2 0 112.83 2.83l-2.5 2.5a2 2 0 01-2.83 0 .75.75 0 00-1.06 1.06 3.5 3.5 0 004.95 0l2.5-2.5a3.5 3.5 0 00-4.95-4.95l-1.25 1.25zm-4.69 9.64a2 2 0 010-2.83l2.5-2.5a2 2 0 012.83 0 .75.75 0 001.06-1.06 3.5 3.5 0 00-4.95 0l-2.5 2.5a3.5 3.5 0 004.95 4.95l1.25-1.25a.75.75 0 00-1.06-1.06l-1.25 1.25a2 2 0 01-2.83 0z'></path></svg>");
+  mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' version='1.1' aria-hidden='true'><path fill-rule='evenodd' d='M7.775 3.275a.75.75 0 001.06 1.06l1.25-1.25a2 2 0 112.83 2.83l-2.5 2.5a2 2 0 01-2.83 0 .75.75 0 00-1.06 1.06 3.5 3.5 0 004.95 0l2.5-2.5a3.5 3.5 0 00-4.95-4.95l-1.25 1.25zm-4.69 9.64a2 2 0 010-2.83l2.5-2.5a2 2 0 012.83 0 .75.75 0 001.06-1.06 3.5 3.5 0 00-4.95 0l-2.5 2.5a3.5 3.5 0 004.95 4.95l1.25-1.25a.75.75 0 00-1.06-1.06l-1.25 1.25a2 2 0 01-2.83 0z'></path></svg>");
+}
+
+.github-markdown-body details,
+.github-markdown-body figcaption,
+.github-markdown-body figure {
+  display: block;
+}
+
+.github-markdown-body summary {
+  display: list-item;
+}
+
+.github-markdown-body [hidden] {
+  display: none !important;
+}
+
+.github-markdown-body a {
+  background-color: transparent;
+  color: var(--fgColor-accent);
+  text-decoration: none;
+}
+
+.github-markdown-body abbr[title] {
+  border-bottom: none;
+  -webkit-text-decoration: underline dotted;
+  text-decoration: underline dotted;
+}
+
+.github-markdown-body b,
+.github-markdown-body strong {
+  font-weight: var(--base-text-weight-semibold, 600);
+}
+
+.github-markdown-body dfn {
+  font-style: italic;
+}
+
+.github-markdown-body h1 {
+  margin: .67em 0;
+  font-weight: var(--base-text-weight-semibold, 600);
+  padding-bottom: .3em;
+  font-size: 2em;
+  border-bottom: 1px solid var(--borderColor-muted);
+}
+
+.github-markdown-body mark {
+  background-color: var(--bgColor-attention-muted);
+  color: var(--fgColor-default);
+}
+
+.github-markdown-body small {
+  font-size: 90%;
+}
+
+.github-markdown-body sub,
+.github-markdown-body sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+.github-markdown-body sub {
+  bottom: -0.25em;
+}
+
+.github-markdown-body sup {
+  top: -0.5em;
+}
+
+.github-markdown-body img {
+  border-style: none;
+  max-width: 100%;
+  box-sizing: content-box;
+}
+
+.github-markdown-body code,
+.github-markdown-body kbd,
+.github-markdown-body pre,
+.github-markdown-body samp {
+  font-family: monospace;
+  font-size: 1em;
+}
+
+.github-markdown-body figure {
+  margin: 1em var(--base-size-40);
+}
+
+.github-markdown-body hr {
+  box-sizing: content-box;
+  overflow: hidden;
+  background: transparent;
+  border-bottom: 1px solid var(--borderColor-muted);
+  height: .25em;
+  padding: 0;
+  margin: var(--base-size-24) 0;
+  background-color: var(--borderColor-default);
+  border: 0;
+}
+
+.github-markdown-body input {
+  font: inherit;
+  margin: 0;
+  overflow: visible;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.github-markdown-body [type=button],
+.github-markdown-body [type=reset],
+.github-markdown-body [type=submit] {
+  -webkit-appearance: button;
+  appearance: button;
+}
+
+.github-markdown-body [type=checkbox],
+.github-markdown-body [type=radio] {
+  box-sizing: border-box;
+  padding: 0;
+}
+
+.github-markdown-body [type=number]::-webkit-inner-spin-button,
+.github-markdown-body [type=number]::-webkit-outer-spin-button {
+  height: auto;
+}
+
+.github-markdown-body [type=search]::-webkit-search-cancel-button,
+.github-markdown-body [type=search]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.github-markdown-body ::-webkit-input-placeholder {
+  color: inherit;
+  opacity: .54;
+}
+
+.github-markdown-body ::-webkit-file-upload-button {
+  -webkit-appearance: button;
+  appearance: button;
+  font: inherit;
+}
+
+.github-markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.github-markdown-body ::placeholder {
+  color: var(--fgColor-muted);
+  opacity: 1;
+}
+
+.github-markdown-body hr::before {
+  display: table;
+  content: "";
+}
+
+.github-markdown-body hr::after {
+  display: table;
+  clear: both;
+  content: "";
+}
+
+.github-markdown-body table {
+  border-spacing: 0;
+  border-collapse: collapse;
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow: auto;
+  font-variant: tabular-nums;
+}
+
+.github-markdown-body td,
+.github-markdown-body th {
+  padding: 0;
+}
+
+.github-markdown-body details summary {
+  cursor: pointer;
+}
+
+.github-markdown-body a:focus,
+.github-markdown-body [role=button]:focus,
+.github-markdown-body input[type=radio]:focus,
+.github-markdown-body input[type=checkbox]:focus {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+
+.github-markdown-body a:focus:not(:focus-visible),
+.github-markdown-body [role=button]:focus:not(:focus-visible),
+.github-markdown-body input[type=radio]:focus:not(:focus-visible),
+.github-markdown-body input[type=checkbox]:focus:not(:focus-visible) {
+  outline: solid 1px transparent;
+}
+
+.github-markdown-body a:focus-visible,
+.github-markdown-body [role=button]:focus-visible,
+.github-markdown-body input[type=radio]:focus-visible,
+.github-markdown-body input[type=checkbox]:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+
+.github-markdown-body a:not([class]):focus,
+.github-markdown-body a:not([class]):focus-visible,
+.github-markdown-body input[type=radio]:focus,
+.github-markdown-body input[type=radio]:focus-visible,
+.github-markdown-body input[type=checkbox]:focus,
+.github-markdown-body input[type=checkbox]:focus-visible {
+  outline-offset: 0;
+}
+
+.github-markdown-body kbd {
+  display: inline-block;
+  padding: var(--base-size-4);
+  font: 11px var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  line-height: 10px;
+  color: var(--fgColor-default);
+  vertical-align: middle;
+  background-color: var(--bgColor-muted);
+  border: solid 1px var(--borderColor-neutral-muted);
+  border-bottom-color: var(--borderColor-neutral-muted);
+  border-radius: 6px;
+  box-shadow: inset 0 -1px 0 var(--borderColor-neutral-muted);
+}
+
+.github-markdown-body h1,
+.github-markdown-body h2,
+.github-markdown-body h3,
+.github-markdown-body h4,
+.github-markdown-body h5,
+.github-markdown-body h6 {
+  margin-top: var(--base-size-24);
+  margin-bottom: var(--base-size-16);
+  font-weight: var(--base-text-weight-semibold, 600);
+  line-height: 1.25;
+}
+
+.github-markdown-body h2 {
+  font-weight: var(--base-text-weight-semibold, 600);
+  padding-bottom: .3em;
+  font-size: 1.5em;
+  border-bottom: 1px solid var(--borderColor-muted);
+}
+
+.github-markdown-body h3 {
+  font-weight: var(--base-text-weight-semibold, 600);
+  font-size: 1.25em;
+}
+
+.github-markdown-body h4 {
+  font-weight: var(--base-text-weight-semibold, 600);
+  font-size: 1em;
+}
+
+.github-markdown-body h5 {
+  font-weight: var(--base-text-weight-semibold, 600);
+  font-size: .875em;
+}
+
+.github-markdown-body h6 {
+  font-weight: var(--base-text-weight-semibold, 600);
+  font-size: .85em;
+  color: var(--fgColor-muted);
+}
+
+.github-markdown-body p {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.github-markdown-body blockquote {
+  margin: 0;
+  padding: 0 1em;
+  color: var(--fgColor-muted);
+  border-left: .25em solid var(--borderColor-default);
+}
+
+.github-markdown-body ul,
+.github-markdown-body ol {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-left: 2em;
+}
+
+.github-markdown-body ol ol,
+.github-markdown-body ul ol {
+  list-style-type: lower-roman;
+}
+
+.github-markdown-body ul ul ol,
+.github-markdown-body ul ol ol,
+.github-markdown-body ol ul ol,
+.github-markdown-body ol ol ol {
+  list-style-type: lower-alpha;
+}
+
+.github-markdown-body dd {
+  margin-left: 0;
+}
+
+.github-markdown-body tt,
+.github-markdown-body code,
+.github-markdown-body samp {
+  font-family: var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  font-size: 12px;
+}
+
+.github-markdown-body pre {
+  margin-top: 0;
+  margin-bottom: 0;
+  font-family: var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  font-size: 12px;
+  word-wrap: normal;
+}
+
+.github-markdown-body .octicon {
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.github-markdown-body .Box-body.scrollable-overlay {
+  max-height: 400px;
+  overflow-y: scroll;
+}
+
+.github-markdown-body .Box-body .help {
+  padding-top: var(--base-size-8);
+  margin: 0;
+  color: var(--fgColor-muted);
+  text-align: center;
+}
+
+.github-markdown-body input::-webkit-outer-spin-button,
+.github-markdown-body input::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.github-markdown-body .border-0 {
+  border: 0 !important;
+}
+
+.github-markdown-body .color-fg-muted {
+  color: var(--fgColor-muted) !important;
+}
+
+.github-markdown-body .color-bg-default {
+  background-color: var(--bgColor-default) !important;
+}
+
+.github-markdown-body .mb-0 {
+  margin-bottom: 0 !important;
+}
+
+.github-markdown-body .mr-2 {
+  margin-right: var(--base-size-8, 8px) !important;
+}
+
+.github-markdown-body .my-2 {
+  margin-top: var(--base-size-8, 8px) !important;
+  margin-bottom: var(--base-size-8, 8px) !important;
+}
+
+.github-markdown-body .p-0 {
+  padding: 0 !important;
+}
+
+.github-markdown-body .py-0 {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.github-markdown-body .px-3 {
+  padding-right: var(--base-size-16, 16px) !important;
+  padding-left: var(--base-size-16, 16px) !important;
+}
+
+.github-markdown-body .f6 {
+  font-size: var(--h6-size, 12px) !important;
+}
+
+.github-markdown-body .text-bold {
+  font-weight: var(--base-text-weight-semibold, 600) !important;
+}
+
+.github-markdown-body .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: rect(0 0 0 0);
+  overflow-wrap: normal;
+  border: 0;
+}
+
+.github-markdown-body::before {
+  display: table;
+  content: "";
+}
+
+.github-markdown-body::after {
+  display: table;
+  clear: both;
+  content: "";
+}
+
+.github-markdown-body>*:first-child {
+  margin-top: 0 !important;
+}
+
+.github-markdown-body>*:last-child {
+  margin-bottom: 0 !important;
+}
+
+.github-markdown-body a:not([href]) {
+  color: inherit;
+  text-decoration: none;
+}
+
+.github-markdown-body .absent {
+  color: var(--fgColor-danger);
+}
+
+.github-markdown-body .anchor {
+  float: left;
+  padding-right: var(--base-size-4);
+  margin-left: -20px;
+  line-height: 1;
+}
+
+.github-markdown-body .anchor:focus {
+  outline: none;
+}
+
+.github-markdown-body p,
+.github-markdown-body blockquote,
+.github-markdown-body ul,
+.github-markdown-body ol,
+.github-markdown-body dl,
+.github-markdown-body table,
+.github-markdown-body pre,
+.github-markdown-body details {
+  margin-top: 0;
+  margin-bottom: var(--base-size-16);
+}
+
+.github-markdown-body blockquote>:first-child {
+  margin-top: 0;
+}
+
+.github-markdown-body blockquote>:last-child {
+  margin-bottom: 0;
+}
+
+.github-markdown-body h1 .octicon-link,
+.github-markdown-body h2 .octicon-link,
+.github-markdown-body h3 .octicon-link,
+.github-markdown-body h4 .octicon-link,
+.github-markdown-body h5 .octicon-link,
+.github-markdown-body h6 .octicon-link {
+  color: var(--fgColor-default);
+  vertical-align: middle;
+  visibility: hidden;
+}
+
+.github-markdown-body h1:hover .anchor,
+.github-markdown-body h2:hover .anchor,
+.github-markdown-body h3:hover .anchor,
+.github-markdown-body h4:hover .anchor,
+.github-markdown-body h5:hover .anchor,
+.github-markdown-body h6:hover .anchor {
+  text-decoration: none;
+}
+
+.github-markdown-body h1:hover .anchor .octicon-link,
+.github-markdown-body h2:hover .anchor .octicon-link,
+.github-markdown-body h3:hover .anchor .octicon-link,
+.github-markdown-body h4:hover .anchor .octicon-link,
+.github-markdown-body h5:hover .anchor .octicon-link,
+.github-markdown-body h6:hover .anchor .octicon-link {
+  visibility: visible;
+}
+
+.github-markdown-body h1 tt,
+.github-markdown-body h1 code,
+.github-markdown-body h2 tt,
+.github-markdown-body h2 code,
+.github-markdown-body h3 tt,
+.github-markdown-body h3 code,
+.github-markdown-body h4 tt,
+.github-markdown-body h4 code,
+.github-markdown-body h5 tt,
+.github-markdown-body h5 code,
+.github-markdown-body h6 tt,
+.github-markdown-body h6 code {
+  padding: 0 .2em;
+  font-size: inherit;
+}
+
+.github-markdown-body summary h1,
+.github-markdown-body summary h2,
+.github-markdown-body summary h3,
+.github-markdown-body summary h4,
+.github-markdown-body summary h5,
+.github-markdown-body summary h6 {
+  display: inline-block;
+}
+
+.github-markdown-body summary h1 .anchor,
+.github-markdown-body summary h2 .anchor,
+.github-markdown-body summary h3 .anchor,
+.github-markdown-body summary h4 .anchor,
+.github-markdown-body summary h5 .anchor,
+.github-markdown-body summary h6 .anchor {
+  margin-left: -40px;
+}
+
+.github-markdown-body summary h1,
+.github-markdown-body summary h2 {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.github-markdown-body ul.no-list,
+.github-markdown-body ol.no-list {
+  padding: 0;
+  list-style-type: none;
+}
+
+.github-markdown-body ol[type="a s"] {
+  list-style-type: lower-alpha;
+}
+
+.github-markdown-body ol[type="A s"] {
+  list-style-type: upper-alpha;
+}
+
+.github-markdown-body ol[type="i s"] {
+  list-style-type: lower-roman;
+}
+
+.github-markdown-body ol[type="I s"] {
+  list-style-type: upper-roman;
+}
+
+.github-markdown-body ol[type="1"] {
+  list-style-type: decimal;
+}
+
+.github-markdown-body div>ol:not([type]) {
+  list-style-type: decimal;
+}
+
+.github-markdown-body ul ul,
+.github-markdown-body ul ol,
+.github-markdown-body ol ol,
+.github-markdown-body ol ul {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.github-markdown-body li>p {
+  margin-top: var(--base-size-16);
+}
+
+.github-markdown-body li+li {
+  margin-top: .25em;
+}
+
+.github-markdown-body dl {
+  padding: 0;
+}
+
+.github-markdown-body dl dt {
+  padding: 0;
+  margin-top: var(--base-size-16);
+  font-size: 1em;
+  font-style: italic;
+  font-weight: var(--base-text-weight-semibold, 600);
+}
+
+.github-markdown-body dl dd {
+  padding: 0 var(--base-size-16);
+  margin-bottom: var(--base-size-16);
+}
+
+.github-markdown-body table th {
+  font-weight: var(--base-text-weight-semibold, 600);
+}
+
+.github-markdown-body table th,
+.github-markdown-body table td {
+  padding: 6px 13px;
+  border: 1px solid var(--borderColor-default);
+}
+
+.github-markdown-body table td>:last-child {
+  margin-bottom: 0;
+}
+
+.github-markdown-body table tr {
+  background-color: var(--bgColor-default);
+  border-top: 1px solid var(--borderColor-muted);
+}
+
+.github-markdown-body table tr:nth-child(2n) {
+  background-color: var(--bgColor-muted);
+}
+
+.github-markdown-body table img {
+  background-color: transparent;
+}
+
+.github-markdown-body img[align=right] {
+  padding-left: 20px;
+}
+
+.github-markdown-body img[align=left] {
+  padding-right: 20px;
+}
+
+.github-markdown-body .emoji {
+  max-width: none;
+  vertical-align: text-top;
+  background-color: transparent;
+}
+
+.github-markdown-body span.frame {
+  display: block;
+  overflow: hidden;
+}
+
+.github-markdown-body span.frame>span {
+  display: block;
+  float: left;
+  width: auto;
+  padding: 7px;
+  margin: 13px 0 0;
+  overflow: hidden;
+  border: 1px solid var(--borderColor-default);
+}
+
+.github-markdown-body span.frame span img {
+  display: block;
+  float: left;
+}
+
+.github-markdown-body span.frame span span {
+  display: block;
+  padding: 5px 0 0;
+  clear: both;
+  color: var(--fgColor-default);
+}
+
+.github-markdown-body span.align-center {
+  display: block;
+  overflow: hidden;
+  clear: both;
+}
+
+.github-markdown-body span.align-center>span {
+  display: block;
+  margin: 13px auto 0;
+  overflow: hidden;
+  text-align: center;
+}
+
+.github-markdown-body span.align-center span img {
+  margin: 0 auto;
+  text-align: center;
+}
+
+.github-markdown-body span.align-right {
+  display: block;
+  overflow: hidden;
+  clear: both;
+}
+
+.github-markdown-body span.align-right>span {
+  display: block;
+  margin: 13px 0 0;
+  overflow: hidden;
+  text-align: right;
+}
+
+.github-markdown-body span.align-right span img {
+  margin: 0;
+  text-align: right;
+}
+
+.github-markdown-body span.float-left {
+  display: block;
+  float: left;
+  margin-right: 13px;
+  overflow: hidden;
+}
+
+.github-markdown-body span.float-left span {
+  margin: 13px 0 0;
+}
+
+.github-markdown-body span.float-right {
+  display: block;
+  float: right;
+  margin-left: 13px;
+  overflow: hidden;
+}
+
+.github-markdown-body span.float-right>span {
+  display: block;
+  margin: 13px auto 0;
+  overflow: hidden;
+  text-align: right;
+}
+
+.github-markdown-body code,
+.github-markdown-body tt {
+  padding: .2em .4em;
+  margin: 0;
+  font-size: 85%;
+  white-space: break-spaces;
+  background-color: var(--bgColor-neutral-muted);
+  border-radius: 6px;
+}
+
+.github-markdown-body code br,
+.github-markdown-body tt br {
+  display: none;
+}
+
+.github-markdown-body del code {
+  text-decoration: inherit;
+}
+
+.github-markdown-body samp {
+  font-size: 85%;
+}
+
+.github-markdown-body pre code {
+  font-size: 100%;
+}
+
+.github-markdown-body pre>code {
+  padding: 0;
+  margin: 0;
+  word-break: normal;
+  white-space: pre;
+  background: transparent;
+  border: 0;
+}
+
+.github-markdown-body .highlight {
+  margin-bottom: var(--base-size-16);
+}
+
+.github-markdown-body .highlight pre {
+  margin-bottom: 0;
+  word-break: normal;
+}
+
+.github-markdown-body .highlight pre,
+.github-markdown-body pre {
+  padding: var(--base-size-16);
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  color: var(--fgColor-default);
+  background-color: var(--bgColor-muted);
+  border-radius: 6px;
+}
+
+.github-markdown-body pre code,
+.github-markdown-body pre tt {
+  display: inline;
+  max-width: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  line-height: inherit;
+  word-wrap: normal;
+  background-color: transparent;
+  border: 0;
+}
+
+.github-markdown-body .csv-data td,
+.github-markdown-body .csv-data th {
+  padding: 5px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.github-markdown-body .csv-data .blob-num {
+  padding: 10px var(--base-size-8) 9px;
+  text-align: right;
+  background: var(--bgColor-default);
+  border: 0;
+}
+
+.github-markdown-body .csv-data tr {
+  border-top: 0;
+}
+
+.github-markdown-body .csv-data th {
+  font-weight: var(--base-text-weight-semibold, 600);
+  background: var(--bgColor-muted);
+  border-top: 0;
+}
+
+.github-markdown-body [data-footnote-ref]::before {
+  content: "[";
+}
+
+.github-markdown-body [data-footnote-ref]::after {
+  content: "]";
+}
+
+.github-markdown-body .footnotes {
+  font-size: 12px;
+  color: var(--fgColor-muted);
+  border-top: 1px solid var(--borderColor-default);
+}
+
+.github-markdown-body .footnotes ol {
+  padding-left: var(--base-size-16);
+}
+
+.github-markdown-body .footnotes ol ul {
+  display: inline-block;
+  padding-left: var(--base-size-16);
+  margin-top: var(--base-size-16);
+}
+
+.github-markdown-body .footnotes li {
+  position: relative;
+}
+
+.github-markdown-body .footnotes li:target::before {
+  position: absolute;
+  top: calc(var(--base-size-8)*-1);
+  right: calc(var(--base-size-8)*-1);
+  bottom: calc(var(--base-size-8)*-1);
+  left: calc(var(--base-size-24)*-1);
+  pointer-events: none;
+  content: "";
+  border: 2px solid var(--borderColor-accent-emphasis);
+  border-radius: 6px;
+}
+
+.github-markdown-body .footnotes li:target {
+  color: var(--fgColor-default);
+}
+
+.github-markdown-body .footnotes .data-footnote-backref g-emoji {
+  font-family: monospace;
+}
+
+.github-markdown-body .Box {
+  background-color: var(--bgColor-default);
+  border-color: var(--borderColor-default);
+  border-radius: var(--borderRadius-medium);
+  border-style: solid;
+  border-width: var(--borderWidth-thin);
+}
+
+.github-markdown-body .Box--condensed {
+  line-height: 1.25;
+}
+
+.github-markdown-body .Box--condensed .Box-body,
+.github-markdown-body .Box--condensed .Box-footer,
+.github-markdown-body .Box--condensed .Box-header {
+  padding: var(--stack-padding-condensed) var(--stack-padding-normal);
+}
+
+.github-markdown-body .Box--condensed .Box-row {
+  padding: var(--stack-padding-condensed) var(--stack-padding-normal);
+}
+
+.github-markdown-body .Box-header {
+  background-color: var(--bgColor-muted);
+  border-color: var(--borderColor-default);
+  border-style: solid;
+  border-top-left-radius: var(--borderRadius-medium);
+  border-top-right-radius: var(--borderRadius-medium);
+  border-width: var(--borderWidth-thin);
+  margin: calc(var(--borderWidth-thin)*-1) calc(var(--borderWidth-thin)*-1) 0;
+  padding: var(--stack-padding-normal);
+}
+
+.github-markdown-body .Box-body {
+  border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+  padding: var(--stack-padding-normal);
+}
+
+.github-markdown-body .Box-body:last-of-type {
+  border-bottom-left-radius: var(--borderRadius-medium);
+  border-bottom-right-radius: var(--borderRadius-medium);
+  margin-bottom: calc(var(--borderWidth-thin)*-1);
+}
+
+.github-markdown-body .pl-c {
+  color: var(--color-prettylights-syntax-comment);
+}
+
+.github-markdown-body .pl-c1,
+.github-markdown-body .pl-s .pl-v {
+  color: var(--color-prettylights-syntax-constant);
+}
+
+.github-markdown-body .pl-e,
+.github-markdown-body .pl-en {
+  color: var(--color-prettylights-syntax-entity);
+}
+
+.github-markdown-body .pl-smi,
+.github-markdown-body .pl-s .pl-s1 {
+  color: var(--color-prettylights-syntax-storage-modifier-import);
+}
+
+.github-markdown-body .pl-ent {
+  color: var(--color-prettylights-syntax-entity-tag);
+}
+
+.github-markdown-body .pl-k {
+  color: var(--color-prettylights-syntax-keyword);
+}
+
+.github-markdown-body .pl-s,
+.github-markdown-body .pl-pds,
+.github-markdown-body .pl-s .pl-pse .pl-s1,
+.github-markdown-body .pl-sr,
+.github-markdown-body .pl-sr .pl-cce,
+.github-markdown-body .pl-sr .pl-sre,
+.github-markdown-body .pl-sr .pl-sra {
+  color: var(--color-prettylights-syntax-string);
+}
+
+.github-markdown-body .pl-v,
+.github-markdown-body .pl-smw {
+  color: var(--color-prettylights-syntax-variable);
+}
+
+.github-markdown-body .pl-bu {
+  color: var(--color-prettylights-syntax-brackethighlighter-unmatched);
+}
+
+.github-markdown-body .pl-ii {
+  color: var(--color-prettylights-syntax-invalid-illegal-text);
+  background-color: var(--color-prettylights-syntax-invalid-illegal-bg);
+}
+
+.github-markdown-body .pl-c2 {
+  color: var(--color-prettylights-syntax-carriage-return-text);
+  background-color: var(--color-prettylights-syntax-carriage-return-bg);
+}
+
+.github-markdown-body .pl-sr .pl-cce {
+  font-weight: bold;
+  color: var(--color-prettylights-syntax-string-regexp);
+}
+
+.github-markdown-body .pl-ml {
+  color: var(--color-prettylights-syntax-markup-list);
+}
+
+.github-markdown-body .pl-mh,
+.github-markdown-body .pl-mh .pl-en,
+.github-markdown-body .pl-ms {
+  font-weight: bold;
+  color: var(--color-prettylights-syntax-markup-heading);
+}
+
+.github-markdown-body .pl-mi {
+  font-style: italic;
+  color: var(--color-prettylights-syntax-markup-italic);
+}
+
+.github-markdown-body .pl-mb {
+  font-weight: bold;
+  color: var(--color-prettylights-syntax-markup-bold);
+}
+
+.github-markdown-body .pl-md {
+  color: var(--color-prettylights-syntax-markup-deleted-text);
+  background-color: var(--color-prettylights-syntax-markup-deleted-bg);
+}
+
+.github-markdown-body .pl-mi1 {
+  color: var(--color-prettylights-syntax-markup-inserted-text);
+  background-color: var(--color-prettylights-syntax-markup-inserted-bg);
+}
+
+.github-markdown-body .pl-mc {
+  color: var(--color-prettylights-syntax-markup-changed-text);
+  background-color: var(--color-prettylights-syntax-markup-changed-bg);
+}
+
+.github-markdown-body .pl-mi2 {
+  color: var(--color-prettylights-syntax-markup-ignored-text);
+  background-color: var(--color-prettylights-syntax-markup-ignored-bg);
+}
+
+.github-markdown-body .pl-mdr {
+  font-weight: bold;
+  color: var(--color-prettylights-syntax-meta-diff-range);
+}
+
+.github-markdown-body .pl-ba {
+  color: var(--color-prettylights-syntax-brackethighlighter-angle);
+}
+
+.github-markdown-body .pl-sg {
+  color: var(--color-prettylights-syntax-sublimelinter-gutter-mark);
+}
+
+.github-markdown-body .pl-corl {
+  text-decoration: underline;
+  color: var(--color-prettylights-syntax-constant-other-reference-link);
+}
+
+.github-markdown-body [role=button]:focus:not(:focus-visible),
+.github-markdown-body [role=tabpanel][tabindex="0"]:focus:not(:focus-visible),
+.github-markdown-body button:focus:not(:focus-visible),
+.github-markdown-body summary:focus:not(:focus-visible),
+.github-markdown-body a:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+.github-markdown-body [tabindex="0"]:focus:not(:focus-visible),
+.github-markdown-body details-dialog:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.github-markdown-body g-emoji {
+  display: inline-block;
+  min-width: 1ch;
+  font-family: "Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";
+  font-size: 1em;
+  font-style: normal !important;
+  font-weight: var(--base-text-weight-normal, 400);
+  line-height: 1;
+  vertical-align: -0.075em;
+}
+
+.github-markdown-body g-emoji img {
+  width: 1em;
+  height: 1em;
+}
+
+.github-markdown-body .commit-tease-sha {
+  display: inline-block;
+  font-family: var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  font-size: 90%;
+  color: var(--fgColor-default);
+}
+
+.github-markdown-body .blob-wrapper {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.github-markdown-body .blob-wrapper table tr:nth-child(2n) {
+  background-color: transparent;
+}
+
+.github-markdown-body .blob-wrapper-embedded {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.github-markdown-body .blob-num {
+  position: relative;
+  width: 1%;
+  min-width: 50px;
+  padding-right: 10px;
+  padding-left: 10px;
+  font-family: var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--fgColor-muted);
+  text-align: right;
+  white-space: nowrap;
+  vertical-align: top;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.github-markdown-body .blob-num:hover {
+  color: var(--fgColor-default);
+}
+
+.github-markdown-body .blob-num::before {
+  content: attr(data-line-number);
+}
+
+.github-markdown-body .blob-num.non-expandable {
+  cursor: default;
+}
+
+.github-markdown-body .blob-num.non-expandable:hover {
+  color: var(--fgColor-muted);
+}
+
+.github-markdown-body .blob-code {
+  position: relative;
+  padding-right: 10px;
+  padding-left: 10px;
+  line-height: 20px;
+  vertical-align: top;
+}
+
+.github-markdown-body .blob-code-inner {
+  display: table-cell;
+  overflow: visible;
+  font-family: var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  font-size: 12px;
+  color: var(--fgColor-default);
+  word-wrap: anywhere;
+  white-space: pre;
+}
+
+.github-markdown-body .blob-code-inner .x-first {
+  border-top-left-radius: .2em;
+  border-bottom-left-radius: .2em;
+}
+
+.github-markdown-body .blob-code-inner .x-last {
+  border-top-right-radius: .2em;
+  border-bottom-right-radius: .2em;
+}
+
+.github-markdown-body .blob-code-inner.highlighted,
+.github-markdown-body .blob-code-inner .highlighted {
+  background-color: var(--bgColor-attention-muted);
+  box-shadow: inset 2px 0 0 var(--borderColor-attention-muted);
+}
+
+.github-markdown-body .blob-code-inner::selection,
+.github-markdown-body .blob-code-inner *::selection {
+  background-color: var(--selection-bgColor);
+}
+
+.github-markdown-body .blob-code-inner.blob-code-addition,
+.github-markdown-body .blob-code-inner.blob-code-deletion {
+  position: relative;
+  padding-left: 22px !important;
+}
+
+.github-markdown-body .task-list-item {
+  list-style-type: none;
+}
+
+.github-markdown-body .task-list-item label {
+  font-weight: var(--base-text-weight-normal, 400);
+}
+
+.github-markdown-body .task-list-item.enabled label {
+  cursor: pointer;
+}
+
+.github-markdown-body .task-list-item+.task-list-item {
+  margin-top: var(--base-size-4);
+}
+
+.github-markdown-body .task-list-item .handle {
+  display: none;
+}
+
+.github-markdown-body .task-list-item-checkbox {
+  margin: 0 .2em .25em -1.4em;
+  vertical-align: middle;
+}
+
+.github-markdown-body ul:dir(rtl) .task-list-item-checkbox {
+  margin: 0 -1.6em .25em .2em;
+}
+
+.github-markdown-body ol:dir(rtl) .task-list-item-checkbox {
+  margin: 0 -1.6em .25em .2em;
+}
+
+.github-markdown-body .contains-task-list:hover .task-list-item-convert-container,
+.github-markdown-body .contains-task-list:focus-within .task-list-item-convert-container {
+  display: block;
+  width: auto;
+  height: 24px;
+  overflow: visible;
+  clip: auto;
+}
+
+.github-markdown-body ::-webkit-calendar-picker-indicator {
+  filter: invert(50%);
+}
+
+.github-markdown-body .markdown-alert {
+  padding: var(--base-size-8) var(--base-size-16);
+  margin-bottom: var(--base-size-16);
+  color: inherit;
+  border-left: .25em solid var(--borderColor-default);
+}
+
+.github-markdown-body .markdown-alert>:first-child {
+  margin-top: 0;
+}
+
+.github-markdown-body .markdown-alert>:last-child {
+  margin-bottom: 0;
+}
+
+.github-markdown-body .markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: var(--base-text-weight-medium, 500);
+  align-items: center;
+  line-height: 1;
+}
+
+.github-markdown-body .markdown-alert.markdown-alert-note {
+  border-left-color: var(--borderColor-accent-emphasis);
+}
+
+.github-markdown-body .markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--fgColor-accent);
+}
+
+.github-markdown-body .markdown-alert.markdown-alert-important {
+  border-left-color: var(--borderColor-done-emphasis);
+}
+
+.github-markdown-body .markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--fgColor-done);
+}
+
+.github-markdown-body .markdown-alert.markdown-alert-warning {
+  border-left-color: var(--borderColor-attention-emphasis);
+}
+
+.github-markdown-body .markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--fgColor-attention);
+}
+
+.github-markdown-body .markdown-alert.markdown-alert-tip {
+  border-left-color: var(--borderColor-success-emphasis);
+}
+
+.github-markdown-body .markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--fgColor-success);
+}
+
+.github-markdown-body .markdown-alert.markdown-alert-caution {
+  border-left-color: var(--borderColor-danger-emphasis);
+}
+
+.github-markdown-body .markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--fgColor-danger);
+}
+
+.github-markdown-body>*:first-child>.heading-element:first-child {
+  margin-top: 0 !important;
+}
+
+.github-markdown-body .tab-size[data-tab-size="1"] {
+  tab-size: 1;
+}
+
+.github-markdown-body .tab-size[data-tab-size="2"] {
+  tab-size: 2;
+}
+
+.github-markdown-body .tab-size[data-tab-size="3"] {
+  tab-size: 3;
+}
+
+.github-markdown-body .tab-size[data-tab-size="4"] {
+  tab-size: 4;
+}
+
+.github-markdown-body .tab-size[data-tab-size="5"] {
+  tab-size: 5;
+}
+
+.github-markdown-body .tab-size[data-tab-size="6"] {
+  tab-size: 6;
+}
+
+.github-markdown-body .tab-size[data-tab-size="7"] {
+  tab-size: 7;
+}
+
+.github-markdown-body .tab-size[data-tab-size="8"] {
+  tab-size: 8;
+}
+
+.github-markdown-body .tab-size[data-tab-size="9"] {
+  tab-size: 9;
+}
+
+.github-markdown-body .tab-size[data-tab-size="10"] {
+  tab-size: 10;
+}
+
+.github-markdown-body .tab-size[data-tab-size="11"] {
+  tab-size: 11;
+}
+
+.github-markdown-body .tab-size[data-tab-size="12"] {
+  tab-size: 12;
+}
+
+.github-markdown-body .Box .section-focus .preview-section {
+  display: none;
+}
+
+.github-markdown-body .Box .section-focus .edit-section {
+  display: block;
+}
+
+.github-markdown-body .highlight pre:has(+.zeroclipboard-container) {
+  min-height: 52px;
+}
+
+.markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode=light][data-light-theme=light],
+[data-color-mode=dark][data-dark-theme=light],
+.vscode-body.vscode-light [data-color-mode=auto][data-light-theme=light],
+.vscode-body.vscode-dark [data-color-mode=auto][data-dark-theme=light] {
+  /* light */
+  color-scheme: light;
+  --fgColor-danger: #d1242f;
+  --bgColor-attention-muted: #fff8c5;
+  --bgColor-muted: #f6f8fa;
+  --bgColor-neutral-muted: #818b981f;
+  --borderColor-accent-emphasis: #0969da;
+  --borderColor-attention-emphasis: #9a6700;
+  --borderColor-attention-muted: #d4a72c66;
+  --borderColor-danger-emphasis: #cf222e;
+  --borderColor-default: #d1d9e0;
+  --borderColor-done-emphasis: #8250df;
+  --borderColor-success-emphasis: #1a7f37;
+  --color-prettylights-syntax-brackethighlighter-angle: #59636e;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #82071e;
+  --color-prettylights-syntax-carriage-return-bg: #cf222e;
+  --color-prettylights-syntax-carriage-return-text: #f6f8fa;
+  --color-prettylights-syntax-comment: #59636e;
+  --color-prettylights-syntax-constant: #0550ae;
+  --color-prettylights-syntax-constant-other-reference-link: #0a3069;
+  --color-prettylights-syntax-entity: #6639ba;
+  --color-prettylights-syntax-entity-tag: #0550ae;
+  --color-prettylights-syntax-invalid-illegal-bg: #82071e;
+  --color-prettylights-syntax-invalid-illegal-text: #f6f8fa;
+  --color-prettylights-syntax-keyword: #cf222e;
+  --color-prettylights-syntax-markup-changed-bg: #ffd8b5;
+  --color-prettylights-syntax-markup-changed-text: #953800;
+  --color-prettylights-syntax-markup-deleted-bg: #ffebe9;
+  --color-prettylights-syntax-markup-deleted-text: #82071e;
+  --color-prettylights-syntax-markup-heading: #0550ae;
+  --color-prettylights-syntax-markup-ignored-bg: #0550ae;
+  --color-prettylights-syntax-markup-ignored-text: #d1d9e0;
+  --color-prettylights-syntax-markup-inserted-bg: #dafbe1;
+  --color-prettylights-syntax-markup-inserted-text: #116329;
+  --color-prettylights-syntax-markup-list: #3b2300;
+  --color-prettylights-syntax-meta-diff-range: #8250df;
+  --color-prettylights-syntax-string: #0a3069;
+  --color-prettylights-syntax-string-regexp: #116329;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #818b98;
+  --color-prettylights-syntax-variable: #953800;
+  --fgColor-accent: #0969da;
+  --fgColor-attention: #9a6700;
+  --fgColor-done: #8250df;
+  --fgColor-muted: #59636e;
+  --fgColor-success: #1a7f37;
+  --bgColor-default: #ffffff;
+  --borderColor-muted: #d1d9e0b3;
+  --color-prettylights-syntax-markup-bold: #1f2328;
+  --color-prettylights-syntax-markup-italic: #1f2328;
+  --color-prettylights-syntax-storage-modifier-import: #1f2328;
+  --fgColor-default: #1f2328;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #0969da33;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+@media (prefers-color-scheme: light) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-light-theme=light] {
+  /* light */
+  color-scheme: light;
+  --fgColor-danger: #d1242f;
+  --bgColor-attention-muted: #fff8c5;
+  --bgColor-muted: #f6f8fa;
+  --bgColor-neutral-muted: #818b981f;
+  --borderColor-accent-emphasis: #0969da;
+  --borderColor-attention-emphasis: #9a6700;
+  --borderColor-attention-muted: #d4a72c66;
+  --borderColor-danger-emphasis: #cf222e;
+  --borderColor-default: #d1d9e0;
+  --borderColor-done-emphasis: #8250df;
+  --borderColor-success-emphasis: #1a7f37;
+  --color-prettylights-syntax-brackethighlighter-angle: #59636e;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #82071e;
+  --color-prettylights-syntax-carriage-return-bg: #cf222e;
+  --color-prettylights-syntax-carriage-return-text: #f6f8fa;
+  --color-prettylights-syntax-comment: #59636e;
+  --color-prettylights-syntax-constant: #0550ae;
+  --color-prettylights-syntax-constant-other-reference-link: #0a3069;
+  --color-prettylights-syntax-entity: #6639ba;
+  --color-prettylights-syntax-entity-tag: #0550ae;
+  --color-prettylights-syntax-invalid-illegal-bg: #82071e;
+  --color-prettylights-syntax-invalid-illegal-text: #f6f8fa;
+  --color-prettylights-syntax-keyword: #cf222e;
+  --color-prettylights-syntax-markup-changed-bg: #ffd8b5;
+  --color-prettylights-syntax-markup-changed-text: #953800;
+  --color-prettylights-syntax-markup-deleted-bg: #ffebe9;
+  --color-prettylights-syntax-markup-deleted-text: #82071e;
+  --color-prettylights-syntax-markup-heading: #0550ae;
+  --color-prettylights-syntax-markup-ignored-bg: #0550ae;
+  --color-prettylights-syntax-markup-ignored-text: #d1d9e0;
+  --color-prettylights-syntax-markup-inserted-bg: #dafbe1;
+  --color-prettylights-syntax-markup-inserted-text: #116329;
+  --color-prettylights-syntax-markup-list: #3b2300;
+  --color-prettylights-syntax-meta-diff-range: #8250df;
+  --color-prettylights-syntax-string: #0a3069;
+  --color-prettylights-syntax-string-regexp: #116329;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #818b98;
+  --color-prettylights-syntax-variable: #953800;
+  --fgColor-accent: #0969da;
+  --fgColor-attention: #9a6700;
+  --fgColor-done: #8250df;
+  --fgColor-muted: #59636e;
+  --fgColor-success: #1a7f37;
+  --bgColor-default: #ffffff;
+  --borderColor-muted: #d1d9e0b3;
+  --color-prettylights-syntax-markup-bold: #1f2328;
+  --color-prettylights-syntax-markup-italic: #1f2328;
+  --color-prettylights-syntax-storage-modifier-import: #1f2328;
+  --fgColor-default: #1f2328;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #0969da33;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-dark-theme=light] {
+  /* light */
+  color-scheme: light;
+  --fgColor-danger: #d1242f;
+  --bgColor-attention-muted: #fff8c5;
+  --bgColor-muted: #f6f8fa;
+  --bgColor-neutral-muted: #818b981f;
+  --borderColor-accent-emphasis: #0969da;
+  --borderColor-attention-emphasis: #9a6700;
+  --borderColor-attention-muted: #d4a72c66;
+  --borderColor-danger-emphasis: #cf222e;
+  --borderColor-default: #d1d9e0;
+  --borderColor-done-emphasis: #8250df;
+  --borderColor-success-emphasis: #1a7f37;
+  --color-prettylights-syntax-brackethighlighter-angle: #59636e;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #82071e;
+  --color-prettylights-syntax-carriage-return-bg: #cf222e;
+  --color-prettylights-syntax-carriage-return-text: #f6f8fa;
+  --color-prettylights-syntax-comment: #59636e;
+  --color-prettylights-syntax-constant: #0550ae;
+  --color-prettylights-syntax-constant-other-reference-link: #0a3069;
+  --color-prettylights-syntax-entity: #6639ba;
+  --color-prettylights-syntax-entity-tag: #0550ae;
+  --color-prettylights-syntax-invalid-illegal-bg: #82071e;
+  --color-prettylights-syntax-invalid-illegal-text: #f6f8fa;
+  --color-prettylights-syntax-keyword: #cf222e;
+  --color-prettylights-syntax-markup-changed-bg: #ffd8b5;
+  --color-prettylights-syntax-markup-changed-text: #953800;
+  --color-prettylights-syntax-markup-deleted-bg: #ffebe9;
+  --color-prettylights-syntax-markup-deleted-text: #82071e;
+  --color-prettylights-syntax-markup-heading: #0550ae;
+  --color-prettylights-syntax-markup-ignored-bg: #0550ae;
+  --color-prettylights-syntax-markup-ignored-text: #d1d9e0;
+  --color-prettylights-syntax-markup-inserted-bg: #dafbe1;
+  --color-prettylights-syntax-markup-inserted-text: #116329;
+  --color-prettylights-syntax-markup-list: #3b2300;
+  --color-prettylights-syntax-meta-diff-range: #8250df;
+  --color-prettylights-syntax-string: #0a3069;
+  --color-prettylights-syntax-string-regexp: #116329;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #818b98;
+  --color-prettylights-syntax-variable: #953800;
+  --fgColor-accent: #0969da;
+  --fgColor-attention: #9a6700;
+  --fgColor-done: #8250df;
+  --fgColor-muted: #59636e;
+  --fgColor-success: #1a7f37;
+  --bgColor-default: #ffffff;
+  --borderColor-muted: #d1d9e0b3;
+  --color-prettylights-syntax-markup-bold: #1f2328;
+  --color-prettylights-syntax-markup-italic: #1f2328;
+  --color-prettylights-syntax-storage-modifier-import: #1f2328;
+  --fgColor-default: #1f2328;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #0969da33;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+.markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode=light][data-light-theme=light_colorblind],
+[data-color-mode=dark][data-dark-theme=light_colorblind],
+.vscode-body.vscode-light [data-color-mode=auto][data-light-theme=light_colorblind],
+.vscode-body.vscode-dark [data-color-mode=auto][data-dark-theme=light_colorblind] {
+  /* light_colorblind */
+  color-scheme: light;
+  --bgColor-attention-muted: #fff8c5;
+  --bgColor-muted: #f6f8fa;
+  --bgColor-neutral-muted: #818b981f;
+  --borderColor-accent-emphasis: #0969da;
+  --borderColor-attention-emphasis: #9a6700;
+  --borderColor-attention-muted: #d4a72c66;
+  --borderColor-danger-emphasis: #bc4c00;
+  --borderColor-default: #d1d9e0;
+  --borderColor-done-emphasis: #8250df;
+  --borderColor-success-emphasis: #0969da;
+  --color-prettylights-syntax-brackethighlighter-angle: #59636e;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #762c00;
+  --color-prettylights-syntax-carriage-return-bg: #bc4c00;
+  --color-prettylights-syntax-carriage-return-text: #f6f8fa;
+  --color-prettylights-syntax-comment: #59636e;
+  --color-prettylights-syntax-constant: #0550ae;
+  --color-prettylights-syntax-constant-other-reference-link: #0a3069;
+  --color-prettylights-syntax-entity: #6639ba;
+  --color-prettylights-syntax-entity-tag: #0550ae;
+  --color-prettylights-syntax-invalid-illegal-bg: #762c00;
+  --color-prettylights-syntax-invalid-illegal-text: #f6f8fa;
+  --color-prettylights-syntax-keyword: #bc4c00;
+  --color-prettylights-syntax-markup-changed-bg: #ffd8b5;
+  --color-prettylights-syntax-markup-changed-text: #953800;
+  --color-prettylights-syntax-markup-deleted-bg: #fff1e5;
+  --color-prettylights-syntax-markup-deleted-text: #762c00;
+  --color-prettylights-syntax-markup-heading: #0550ae;
+  --color-prettylights-syntax-markup-ignored-bg: #0550ae;
+  --color-prettylights-syntax-markup-ignored-text: #d1d9e0;
+  --color-prettylights-syntax-markup-inserted-bg: #ddf4ff;
+  --color-prettylights-syntax-markup-inserted-text: #0550ae;
+  --color-prettylights-syntax-markup-list: #3b2300;
+  --color-prettylights-syntax-meta-diff-range: #8250df;
+  --color-prettylights-syntax-string: #0a3069;
+  --color-prettylights-syntax-string-regexp: #0550ae;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #818b98;
+  --color-prettylights-syntax-variable: #953800;
+  --fgColor-accent: #0969da;
+  --fgColor-attention: #9a6700;
+  --fgColor-danger: #bc4c00;
+  --fgColor-done: #8250df;
+  --fgColor-muted: #59636e;
+  --fgColor-success: #0969da;
+  --bgColor-default: #ffffff;
+  --borderColor-muted: #d1d9e0b3;
+  --color-prettylights-syntax-markup-bold: #1f2328;
+  --color-prettylights-syntax-markup-italic: #1f2328;
+  --color-prettylights-syntax-storage-modifier-import: #1f2328;
+  --fgColor-default: #1f2328;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #0969da33;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+@media (prefers-color-scheme: light) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-light-theme=light_colorblind] {
+  /* light_colorblind */
+  color-scheme: light;
+  --bgColor-attention-muted: #fff8c5;
+  --bgColor-muted: #f6f8fa;
+  --bgColor-neutral-muted: #818b981f;
+  --borderColor-accent-emphasis: #0969da;
+  --borderColor-attention-emphasis: #9a6700;
+  --borderColor-attention-muted: #d4a72c66;
+  --borderColor-danger-emphasis: #bc4c00;
+  --borderColor-default: #d1d9e0;
+  --borderColor-done-emphasis: #8250df;
+  --borderColor-success-emphasis: #0969da;
+  --color-prettylights-syntax-brackethighlighter-angle: #59636e;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #762c00;
+  --color-prettylights-syntax-carriage-return-bg: #bc4c00;
+  --color-prettylights-syntax-carriage-return-text: #f6f8fa;
+  --color-prettylights-syntax-comment: #59636e;
+  --color-prettylights-syntax-constant: #0550ae;
+  --color-prettylights-syntax-constant-other-reference-link: #0a3069;
+  --color-prettylights-syntax-entity: #6639ba;
+  --color-prettylights-syntax-entity-tag: #0550ae;
+  --color-prettylights-syntax-invalid-illegal-bg: #762c00;
+  --color-prettylights-syntax-invalid-illegal-text: #f6f8fa;
+  --color-prettylights-syntax-keyword: #bc4c00;
+  --color-prettylights-syntax-markup-changed-bg: #ffd8b5;
+  --color-prettylights-syntax-markup-changed-text: #953800;
+  --color-prettylights-syntax-markup-deleted-bg: #fff1e5;
+  --color-prettylights-syntax-markup-deleted-text: #762c00;
+  --color-prettylights-syntax-markup-heading: #0550ae;
+  --color-prettylights-syntax-markup-ignored-bg: #0550ae;
+  --color-prettylights-syntax-markup-ignored-text: #d1d9e0;
+  --color-prettylights-syntax-markup-inserted-bg: #ddf4ff;
+  --color-prettylights-syntax-markup-inserted-text: #0550ae;
+  --color-prettylights-syntax-markup-list: #3b2300;
+  --color-prettylights-syntax-meta-diff-range: #8250df;
+  --color-prettylights-syntax-string: #0a3069;
+  --color-prettylights-syntax-string-regexp: #0550ae;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #818b98;
+  --color-prettylights-syntax-variable: #953800;
+  --fgColor-accent: #0969da;
+  --fgColor-attention: #9a6700;
+  --fgColor-danger: #bc4c00;
+  --fgColor-done: #8250df;
+  --fgColor-muted: #59636e;
+  --fgColor-success: #0969da;
+  --bgColor-default: #ffffff;
+  --borderColor-muted: #d1d9e0b3;
+  --color-prettylights-syntax-markup-bold: #1f2328;
+  --color-prettylights-syntax-markup-italic: #1f2328;
+  --color-prettylights-syntax-storage-modifier-import: #1f2328;
+  --fgColor-default: #1f2328;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #0969da33;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-dark-theme=light_colorblind] {
+  /* light_colorblind */
+  color-scheme: light;
+  --bgColor-attention-muted: #fff8c5;
+  --bgColor-muted: #f6f8fa;
+  --bgColor-neutral-muted: #818b981f;
+  --borderColor-accent-emphasis: #0969da;
+  --borderColor-attention-emphasis: #9a6700;
+  --borderColor-attention-muted: #d4a72c66;
+  --borderColor-danger-emphasis: #bc4c00;
+  --borderColor-default: #d1d9e0;
+  --borderColor-done-emphasis: #8250df;
+  --borderColor-success-emphasis: #0969da;
+  --color-prettylights-syntax-brackethighlighter-angle: #59636e;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #762c00;
+  --color-prettylights-syntax-carriage-return-bg: #bc4c00;
+  --color-prettylights-syntax-carriage-return-text: #f6f8fa;
+  --color-prettylights-syntax-comment: #59636e;
+  --color-prettylights-syntax-constant: #0550ae;
+  --color-prettylights-syntax-constant-other-reference-link: #0a3069;
+  --color-prettylights-syntax-entity: #6639ba;
+  --color-prettylights-syntax-entity-tag: #0550ae;
+  --color-prettylights-syntax-invalid-illegal-bg: #762c00;
+  --color-prettylights-syntax-invalid-illegal-text: #f6f8fa;
+  --color-prettylights-syntax-keyword: #bc4c00;
+  --color-prettylights-syntax-markup-changed-bg: #ffd8b5;
+  --color-prettylights-syntax-markup-changed-text: #953800;
+  --color-prettylights-syntax-markup-deleted-bg: #fff1e5;
+  --color-prettylights-syntax-markup-deleted-text: #762c00;
+  --color-prettylights-syntax-markup-heading: #0550ae;
+  --color-prettylights-syntax-markup-ignored-bg: #0550ae;
+  --color-prettylights-syntax-markup-ignored-text: #d1d9e0;
+  --color-prettylights-syntax-markup-inserted-bg: #ddf4ff;
+  --color-prettylights-syntax-markup-inserted-text: #0550ae;
+  --color-prettylights-syntax-markup-list: #3b2300;
+  --color-prettylights-syntax-meta-diff-range: #8250df;
+  --color-prettylights-syntax-string: #0a3069;
+  --color-prettylights-syntax-string-regexp: #0550ae;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #818b98;
+  --color-prettylights-syntax-variable: #953800;
+  --fgColor-accent: #0969da;
+  --fgColor-attention: #9a6700;
+  --fgColor-danger: #bc4c00;
+  --fgColor-done: #8250df;
+  --fgColor-muted: #59636e;
+  --fgColor-success: #0969da;
+  --bgColor-default: #ffffff;
+  --borderColor-muted: #d1d9e0b3;
+  --color-prettylights-syntax-markup-bold: #1f2328;
+  --color-prettylights-syntax-markup-italic: #1f2328;
+  --color-prettylights-syntax-storage-modifier-import: #1f2328;
+  --fgColor-default: #1f2328;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #0969da33;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+.markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode=light][data-light-theme=light_tritanopia],
+[data-color-mode=dark][data-dark-theme=light_tritanopia],
+.vscode-body.vscode-light [data-color-mode=auto][data-light-theme=light_tritanopia],
+.vscode-body.vscode-dark [data-color-mode=auto][data-dark-theme=light_tritanopia] {
+  /* light_tritanopia */
+  color-scheme: light;
+  --fgColor-danger: #d1242f;
+  --bgColor-attention-muted: #fff8c5;
+  --bgColor-muted: #f6f8fa;
+  --bgColor-neutral-muted: #818b981f;
+  --borderColor-accent-emphasis: #0969da;
+  --borderColor-attention-emphasis: #9a6700;
+  --borderColor-attention-muted: #d4a72c66;
+  --borderColor-danger-emphasis: #cf222e;
+  --borderColor-default: #d1d9e0;
+  --borderColor-done-emphasis: #8250df;
+  --borderColor-success-emphasis: #0969da;
+  --color-prettylights-syntax-brackethighlighter-angle: #59636e;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #82071e;
+  --color-prettylights-syntax-carriage-return-bg: #cf222e;
+  --color-prettylights-syntax-carriage-return-text: #f6f8fa;
+  --color-prettylights-syntax-comment: #59636e;
+  --color-prettylights-syntax-constant: #0550ae;
+  --color-prettylights-syntax-constant-other-reference-link: #0a3069;
+  --color-prettylights-syntax-entity: #6639ba;
+  --color-prettylights-syntax-entity-tag: #0550ae;
+  --color-prettylights-syntax-invalid-illegal-bg: #82071e;
+  --color-prettylights-syntax-invalid-illegal-text: #f6f8fa;
+  --color-prettylights-syntax-keyword: #cf222e;
+  --color-prettylights-syntax-markup-changed-bg: #ffcecb;
+  --color-prettylights-syntax-markup-changed-text: #a40e26;
+  --color-prettylights-syntax-markup-deleted-bg: #ffebe9;
+  --color-prettylights-syntax-markup-deleted-text: #82071e;
+  --color-prettylights-syntax-markup-heading: #0550ae;
+  --color-prettylights-syntax-markup-ignored-bg: #0550ae;
+  --color-prettylights-syntax-markup-ignored-text: #d1d9e0;
+  --color-prettylights-syntax-markup-inserted-bg: #ddf4ff;
+  --color-prettylights-syntax-markup-inserted-text: #0550ae;
+  --color-prettylights-syntax-markup-list: #3b2300;
+  --color-prettylights-syntax-meta-diff-range: #8250df;
+  --color-prettylights-syntax-string: #0a3069;
+  --color-prettylights-syntax-string-regexp: #0550ae;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #818b98;
+  --color-prettylights-syntax-variable: #a40e26;
+  --fgColor-accent: #0969da;
+  --fgColor-attention: #9a6700;
+  --fgColor-done: #8250df;
+  --fgColor-muted: #59636e;
+  --fgColor-success: #0969da;
+  --bgColor-default: #ffffff;
+  --borderColor-muted: #d1d9e0b3;
+  --color-prettylights-syntax-markup-bold: #1f2328;
+  --color-prettylights-syntax-markup-italic: #1f2328;
+  --color-prettylights-syntax-storage-modifier-import: #1f2328;
+  --fgColor-default: #1f2328;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #0969da33;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+@media (prefers-color-scheme: light) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-light-theme=light_tritanopia] {
+  /* light_tritanopia */
+  color-scheme: light;
+  --fgColor-danger: #d1242f;
+  --bgColor-attention-muted: #fff8c5;
+  --bgColor-muted: #f6f8fa;
+  --bgColor-neutral-muted: #818b981f;
+  --borderColor-accent-emphasis: #0969da;
+  --borderColor-attention-emphasis: #9a6700;
+  --borderColor-attention-muted: #d4a72c66;
+  --borderColor-danger-emphasis: #cf222e;
+  --borderColor-default: #d1d9e0;
+  --borderColor-done-emphasis: #8250df;
+  --borderColor-success-emphasis: #0969da;
+  --color-prettylights-syntax-brackethighlighter-angle: #59636e;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #82071e;
+  --color-prettylights-syntax-carriage-return-bg: #cf222e;
+  --color-prettylights-syntax-carriage-return-text: #f6f8fa;
+  --color-prettylights-syntax-comment: #59636e;
+  --color-prettylights-syntax-constant: #0550ae;
+  --color-prettylights-syntax-constant-other-reference-link: #0a3069;
+  --color-prettylights-syntax-entity: #6639ba;
+  --color-prettylights-syntax-entity-tag: #0550ae;
+  --color-prettylights-syntax-invalid-illegal-bg: #82071e;
+  --color-prettylights-syntax-invalid-illegal-text: #f6f8fa;
+  --color-prettylights-syntax-keyword: #cf222e;
+  --color-prettylights-syntax-markup-changed-bg: #ffcecb;
+  --color-prettylights-syntax-markup-changed-text: #a40e26;
+  --color-prettylights-syntax-markup-deleted-bg: #ffebe9;
+  --color-prettylights-syntax-markup-deleted-text: #82071e;
+  --color-prettylights-syntax-markup-heading: #0550ae;
+  --color-prettylights-syntax-markup-ignored-bg: #0550ae;
+  --color-prettylights-syntax-markup-ignored-text: #d1d9e0;
+  --color-prettylights-syntax-markup-inserted-bg: #ddf4ff;
+  --color-prettylights-syntax-markup-inserted-text: #0550ae;
+  --color-prettylights-syntax-markup-list: #3b2300;
+  --color-prettylights-syntax-meta-diff-range: #8250df;
+  --color-prettylights-syntax-string: #0a3069;
+  --color-prettylights-syntax-string-regexp: #0550ae;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #818b98;
+  --color-prettylights-syntax-variable: #a40e26;
+  --fgColor-accent: #0969da;
+  --fgColor-attention: #9a6700;
+  --fgColor-done: #8250df;
+  --fgColor-muted: #59636e;
+  --fgColor-success: #0969da;
+  --bgColor-default: #ffffff;
+  --borderColor-muted: #d1d9e0b3;
+  --color-prettylights-syntax-markup-bold: #1f2328;
+  --color-prettylights-syntax-markup-italic: #1f2328;
+  --color-prettylights-syntax-storage-modifier-import: #1f2328;
+  --fgColor-default: #1f2328;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #0969da33;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-dark-theme=light_tritanopia] {
+  /* light_tritanopia */
+  color-scheme: light;
+  --fgColor-danger: #d1242f;
+  --bgColor-attention-muted: #fff8c5;
+  --bgColor-muted: #f6f8fa;
+  --bgColor-neutral-muted: #818b981f;
+  --borderColor-accent-emphasis: #0969da;
+  --borderColor-attention-emphasis: #9a6700;
+  --borderColor-attention-muted: #d4a72c66;
+  --borderColor-danger-emphasis: #cf222e;
+  --borderColor-default: #d1d9e0;
+  --borderColor-done-emphasis: #8250df;
+  --borderColor-success-emphasis: #0969da;
+  --color-prettylights-syntax-brackethighlighter-angle: #59636e;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #82071e;
+  --color-prettylights-syntax-carriage-return-bg: #cf222e;
+  --color-prettylights-syntax-carriage-return-text: #f6f8fa;
+  --color-prettylights-syntax-comment: #59636e;
+  --color-prettylights-syntax-constant: #0550ae;
+  --color-prettylights-syntax-constant-other-reference-link: #0a3069;
+  --color-prettylights-syntax-entity: #6639ba;
+  --color-prettylights-syntax-entity-tag: #0550ae;
+  --color-prettylights-syntax-invalid-illegal-bg: #82071e;
+  --color-prettylights-syntax-invalid-illegal-text: #f6f8fa;
+  --color-prettylights-syntax-keyword: #cf222e;
+  --color-prettylights-syntax-markup-changed-bg: #ffcecb;
+  --color-prettylights-syntax-markup-changed-text: #a40e26;
+  --color-prettylights-syntax-markup-deleted-bg: #ffebe9;
+  --color-prettylights-syntax-markup-deleted-text: #82071e;
+  --color-prettylights-syntax-markup-heading: #0550ae;
+  --color-prettylights-syntax-markup-ignored-bg: #0550ae;
+  --color-prettylights-syntax-markup-ignored-text: #d1d9e0;
+  --color-prettylights-syntax-markup-inserted-bg: #ddf4ff;
+  --color-prettylights-syntax-markup-inserted-text: #0550ae;
+  --color-prettylights-syntax-markup-list: #3b2300;
+  --color-prettylights-syntax-meta-diff-range: #8250df;
+  --color-prettylights-syntax-string: #0a3069;
+  --color-prettylights-syntax-string-regexp: #0550ae;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #818b98;
+  --color-prettylights-syntax-variable: #a40e26;
+  --fgColor-accent: #0969da;
+  --fgColor-attention: #9a6700;
+  --fgColor-done: #8250df;
+  --fgColor-muted: #59636e;
+  --fgColor-success: #0969da;
+  --bgColor-default: #ffffff;
+  --borderColor-muted: #d1d9e0b3;
+  --color-prettylights-syntax-markup-bold: #1f2328;
+  --color-prettylights-syntax-markup-italic: #1f2328;
+  --color-prettylights-syntax-storage-modifier-import: #1f2328;
+  --fgColor-default: #1f2328;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #0969da33;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+.markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode=light][data-light-theme=light_high_contrast],
+[data-color-mode=dark][data-dark-theme=light_high_contrast],
+.vscode-body.vscode-light [data-color-mode=auto][data-light-theme=light_high_contrast],
+.vscode-body.vscode-dark [data-color-mode=auto][data-dark-theme=light_high_contrast] {
+  /* light_high_contrast */
+  color-scheme: light;
+  --bgColor-attention-muted: #fcf7be;
+  --bgColor-muted: #e6eaef;
+  --bgColor-neutral-muted: #e0e6eb;
+  --borderColor-accent-emphasis: #0349b4;
+  --borderColor-attention-emphasis: #744500;
+  --borderColor-attention-muted: #b58407;
+  --borderColor-danger-emphasis: #a0111f;
+  --borderColor-default: #454c54;
+  --borderColor-done-emphasis: #622cbc;
+  --borderColor-success-emphasis: #055d20;
+  --color-prettylights-syntax-brackethighlighter-angle: #59636e;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #6e011a;
+  --color-prettylights-syntax-carriage-return-bg: #a0111f;
+  --color-prettylights-syntax-carriage-return-text: #f6f8fa;
+  --color-prettylights-syntax-comment: #59636e;
+  --color-prettylights-syntax-constant: #023b95;
+  --color-prettylights-syntax-constant-other-reference-link: #032563;
+  --color-prettylights-syntax-entity: #512598;
+  --color-prettylights-syntax-entity-tag: #023b95;
+  --color-prettylights-syntax-invalid-illegal-bg: #6e011a;
+  --color-prettylights-syntax-invalid-illegal-text: #f6f8fa;
+  --color-prettylights-syntax-keyword: #a0111f;
+  --color-prettylights-syntax-markup-changed-bg: #ffc67b;
+  --color-prettylights-syntax-markup-changed-text: #702c00;
+  --color-prettylights-syntax-markup-deleted-bg: #fff0ee;
+  --color-prettylights-syntax-markup-deleted-text: #6e011a;
+  --color-prettylights-syntax-markup-heading: #023b95;
+  --color-prettylights-syntax-markup-ignored-bg: #023b95;
+  --color-prettylights-syntax-markup-ignored-text: #d1d9e0;
+  --color-prettylights-syntax-markup-inserted-bg: #d2fedb;
+  --color-prettylights-syntax-markup-inserted-text: #024c1a;
+  --color-prettylights-syntax-markup-list: #2e1800;
+  --color-prettylights-syntax-meta-diff-range: #622cbc;
+  --color-prettylights-syntax-string: #032563;
+  --color-prettylights-syntax-string-regexp: #024c1a;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #818b98;
+  --color-prettylights-syntax-variable: #702c00;
+  --fgColor-accent: #023b95;
+  --fgColor-attention: #603700;
+  --fgColor-danger: #86061d;
+  --fgColor-done: #512598;
+  --fgColor-muted: #454c54;
+  --fgColor-success: #024c1a;
+  --bgColor-default: #ffffff;
+  --borderColor-muted: var(--borderColor-default);
+  --color-prettylights-syntax-markup-bold: #010409;
+  --color-prettylights-syntax-markup-italic: #010409;
+  --color-prettylights-syntax-storage-modifier-import: #010409;
+  --fgColor-default: #010409;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #0349b433;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+@media (prefers-color-scheme: light) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-light-theme=light_high_contrast] {
+  /* light_high_contrast */
+  color-scheme: light;
+  --bgColor-attention-muted: #fcf7be;
+  --bgColor-muted: #e6eaef;
+  --bgColor-neutral-muted: #e0e6eb;
+  --borderColor-accent-emphasis: #0349b4;
+  --borderColor-attention-emphasis: #744500;
+  --borderColor-attention-muted: #b58407;
+  --borderColor-danger-emphasis: #a0111f;
+  --borderColor-default: #454c54;
+  --borderColor-done-emphasis: #622cbc;
+  --borderColor-success-emphasis: #055d20;
+  --color-prettylights-syntax-brackethighlighter-angle: #59636e;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #6e011a;
+  --color-prettylights-syntax-carriage-return-bg: #a0111f;
+  --color-prettylights-syntax-carriage-return-text: #f6f8fa;
+  --color-prettylights-syntax-comment: #59636e;
+  --color-prettylights-syntax-constant: #023b95;
+  --color-prettylights-syntax-constant-other-reference-link: #032563;
+  --color-prettylights-syntax-entity: #512598;
+  --color-prettylights-syntax-entity-tag: #023b95;
+  --color-prettylights-syntax-invalid-illegal-bg: #6e011a;
+  --color-prettylights-syntax-invalid-illegal-text: #f6f8fa;
+  --color-prettylights-syntax-keyword: #a0111f;
+  --color-prettylights-syntax-markup-changed-bg: #ffc67b;
+  --color-prettylights-syntax-markup-changed-text: #702c00;
+  --color-prettylights-syntax-markup-deleted-bg: #fff0ee;
+  --color-prettylights-syntax-markup-deleted-text: #6e011a;
+  --color-prettylights-syntax-markup-heading: #023b95;
+  --color-prettylights-syntax-markup-ignored-bg: #023b95;
+  --color-prettylights-syntax-markup-ignored-text: #d1d9e0;
+  --color-prettylights-syntax-markup-inserted-bg: #d2fedb;
+  --color-prettylights-syntax-markup-inserted-text: #024c1a;
+  --color-prettylights-syntax-markup-list: #2e1800;
+  --color-prettylights-syntax-meta-diff-range: #622cbc;
+  --color-prettylights-syntax-string: #032563;
+  --color-prettylights-syntax-string-regexp: #024c1a;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #818b98;
+  --color-prettylights-syntax-variable: #702c00;
+  --fgColor-accent: #023b95;
+  --fgColor-attention: #603700;
+  --fgColor-danger: #86061d;
+  --fgColor-done: #512598;
+  --fgColor-muted: #454c54;
+  --fgColor-success: #024c1a;
+  --bgColor-default: #ffffff;
+  --borderColor-muted: var(--borderColor-default);
+  --color-prettylights-syntax-markup-bold: #010409;
+  --color-prettylights-syntax-markup-italic: #010409;
+  --color-prettylights-syntax-storage-modifier-import: #010409;
+  --fgColor-default: #010409;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #0349b433;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-dark-theme=light_high_contrast] {
+  /* light_high_contrast */
+  color-scheme: light;
+  --bgColor-attention-muted: #fcf7be;
+  --bgColor-muted: #e6eaef;
+  --bgColor-neutral-muted: #e0e6eb;
+  --borderColor-accent-emphasis: #0349b4;
+  --borderColor-attention-emphasis: #744500;
+  --borderColor-attention-muted: #b58407;
+  --borderColor-danger-emphasis: #a0111f;
+  --borderColor-default: #454c54;
+  --borderColor-done-emphasis: #622cbc;
+  --borderColor-success-emphasis: #055d20;
+  --color-prettylights-syntax-brackethighlighter-angle: #59636e;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #6e011a;
+  --color-prettylights-syntax-carriage-return-bg: #a0111f;
+  --color-prettylights-syntax-carriage-return-text: #f6f8fa;
+  --color-prettylights-syntax-comment: #59636e;
+  --color-prettylights-syntax-constant: #023b95;
+  --color-prettylights-syntax-constant-other-reference-link: #032563;
+  --color-prettylights-syntax-entity: #512598;
+  --color-prettylights-syntax-entity-tag: #023b95;
+  --color-prettylights-syntax-invalid-illegal-bg: #6e011a;
+  --color-prettylights-syntax-invalid-illegal-text: #f6f8fa;
+  --color-prettylights-syntax-keyword: #a0111f;
+  --color-prettylights-syntax-markup-changed-bg: #ffc67b;
+  --color-prettylights-syntax-markup-changed-text: #702c00;
+  --color-prettylights-syntax-markup-deleted-bg: #fff0ee;
+  --color-prettylights-syntax-markup-deleted-text: #6e011a;
+  --color-prettylights-syntax-markup-heading: #023b95;
+  --color-prettylights-syntax-markup-ignored-bg: #023b95;
+  --color-prettylights-syntax-markup-ignored-text: #d1d9e0;
+  --color-prettylights-syntax-markup-inserted-bg: #d2fedb;
+  --color-prettylights-syntax-markup-inserted-text: #024c1a;
+  --color-prettylights-syntax-markup-list: #2e1800;
+  --color-prettylights-syntax-meta-diff-range: #622cbc;
+  --color-prettylights-syntax-string: #032563;
+  --color-prettylights-syntax-string-regexp: #024c1a;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #818b98;
+  --color-prettylights-syntax-variable: #702c00;
+  --fgColor-accent: #023b95;
+  --fgColor-attention: #603700;
+  --fgColor-danger: #86061d;
+  --fgColor-done: #512598;
+  --fgColor-muted: #454c54;
+  --fgColor-success: #024c1a;
+  --bgColor-default: #ffffff;
+  --borderColor-muted: var(--borderColor-default);
+  --color-prettylights-syntax-markup-bold: #010409;
+  --color-prettylights-syntax-markup-italic: #010409;
+  --color-prettylights-syntax-storage-modifier-import: #010409;
+  --fgColor-default: #010409;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #0349b433;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+.markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode=light][data-light-theme=dark],
+[data-color-mode=dark][data-dark-theme=dark],
+.vscode-body.vscode-light [data-color-mode=auto][data-light-theme=dark],
+.vscode-body.vscode-dark [data-color-mode=auto][data-dark-theme=dark] {
+  /* dark */
+  color-scheme: dark;
+  --fgColor-accent: #4493f8;
+  --bgColor-attention-muted: #bb800926;
+  --bgColor-default: #0d1117;
+  --bgColor-muted: #151b23;
+  --bgColor-neutral-muted: #656c7633;
+  --borderColor-accent-emphasis: #1f6feb;
+  --borderColor-attention-emphasis: #9e6a03;
+  --borderColor-attention-muted: #bb800966;
+  --borderColor-danger-emphasis: #da3633;
+  --borderColor-default: #3d444d;
+  --borderColor-done-emphasis: #8957e5;
+  --borderColor-success-emphasis: #238636;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #f85149;
+  --color-prettylights-syntax-carriage-return-bg: #b62324;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #79c0ff;
+  --color-prettylights-syntax-constant-other-reference-link: #a5d6ff;
+  --color-prettylights-syntax-entity: #d2a8ff;
+  --color-prettylights-syntax-entity-tag: #7ee787;
+  --color-prettylights-syntax-invalid-illegal-bg: #8e1519;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #ff7b72;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #5a1e02;
+  --color-prettylights-syntax-markup-changed-text: #ffdfb6;
+  --color-prettylights-syntax-markup-deleted-bg: #67060c;
+  --color-prettylights-syntax-markup-deleted-text: #ffdcd7;
+  --color-prettylights-syntax-markup-heading: #1f6feb;
+  --color-prettylights-syntax-markup-ignored-bg: #1158c7;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #033a16;
+  --color-prettylights-syntax-markup-inserted-text: #aff5b4;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #f2cc60;
+  --color-prettylights-syntax-meta-diff-range: #d2a8ff;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #a5d6ff;
+  --color-prettylights-syntax-string-regexp: #7ee787;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #ffa657;
+  --fgColor-attention: #d29922;
+  --fgColor-danger: #f85149;
+  --fgColor-default: #f0f6fc;
+  --fgColor-done: #ab7df8;
+  --fgColor-muted: #9198a1;
+  --fgColor-success: #3fb950;
+  --borderColor-muted: #3d444db3;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #1f6febb3;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+@media (prefers-color-scheme: light) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-light-theme=dark] {
+  /* dark */
+  color-scheme: dark;
+  --fgColor-accent: #4493f8;
+  --bgColor-attention-muted: #bb800926;
+  --bgColor-default: #0d1117;
+  --bgColor-muted: #151b23;
+  --bgColor-neutral-muted: #656c7633;
+  --borderColor-accent-emphasis: #1f6feb;
+  --borderColor-attention-emphasis: #9e6a03;
+  --borderColor-attention-muted: #bb800966;
+  --borderColor-danger-emphasis: #da3633;
+  --borderColor-default: #3d444d;
+  --borderColor-done-emphasis: #8957e5;
+  --borderColor-success-emphasis: #238636;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #f85149;
+  --color-prettylights-syntax-carriage-return-bg: #b62324;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #79c0ff;
+  --color-prettylights-syntax-constant-other-reference-link: #a5d6ff;
+  --color-prettylights-syntax-entity: #d2a8ff;
+  --color-prettylights-syntax-entity-tag: #7ee787;
+  --color-prettylights-syntax-invalid-illegal-bg: #8e1519;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #ff7b72;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #5a1e02;
+  --color-prettylights-syntax-markup-changed-text: #ffdfb6;
+  --color-prettylights-syntax-markup-deleted-bg: #67060c;
+  --color-prettylights-syntax-markup-deleted-text: #ffdcd7;
+  --color-prettylights-syntax-markup-heading: #1f6feb;
+  --color-prettylights-syntax-markup-ignored-bg: #1158c7;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #033a16;
+  --color-prettylights-syntax-markup-inserted-text: #aff5b4;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #f2cc60;
+  --color-prettylights-syntax-meta-diff-range: #d2a8ff;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #a5d6ff;
+  --color-prettylights-syntax-string-regexp: #7ee787;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #ffa657;
+  --fgColor-attention: #d29922;
+  --fgColor-danger: #f85149;
+  --fgColor-default: #f0f6fc;
+  --fgColor-done: #ab7df8;
+  --fgColor-muted: #9198a1;
+  --fgColor-success: #3fb950;
+  --borderColor-muted: #3d444db3;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #1f6febb3;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-dark-theme=dark] {
+  /* dark */
+  color-scheme: dark;
+  --fgColor-accent: #4493f8;
+  --bgColor-attention-muted: #bb800926;
+  --bgColor-default: #0d1117;
+  --bgColor-muted: #151b23;
+  --bgColor-neutral-muted: #656c7633;
+  --borderColor-accent-emphasis: #1f6feb;
+  --borderColor-attention-emphasis: #9e6a03;
+  --borderColor-attention-muted: #bb800966;
+  --borderColor-danger-emphasis: #da3633;
+  --borderColor-default: #3d444d;
+  --borderColor-done-emphasis: #8957e5;
+  --borderColor-success-emphasis: #238636;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #f85149;
+  --color-prettylights-syntax-carriage-return-bg: #b62324;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #79c0ff;
+  --color-prettylights-syntax-constant-other-reference-link: #a5d6ff;
+  --color-prettylights-syntax-entity: #d2a8ff;
+  --color-prettylights-syntax-entity-tag: #7ee787;
+  --color-prettylights-syntax-invalid-illegal-bg: #8e1519;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #ff7b72;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #5a1e02;
+  --color-prettylights-syntax-markup-changed-text: #ffdfb6;
+  --color-prettylights-syntax-markup-deleted-bg: #67060c;
+  --color-prettylights-syntax-markup-deleted-text: #ffdcd7;
+  --color-prettylights-syntax-markup-heading: #1f6feb;
+  --color-prettylights-syntax-markup-ignored-bg: #1158c7;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #033a16;
+  --color-prettylights-syntax-markup-inserted-text: #aff5b4;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #f2cc60;
+  --color-prettylights-syntax-meta-diff-range: #d2a8ff;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #a5d6ff;
+  --color-prettylights-syntax-string-regexp: #7ee787;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #ffa657;
+  --fgColor-attention: #d29922;
+  --fgColor-danger: #f85149;
+  --fgColor-default: #f0f6fc;
+  --fgColor-done: #ab7df8;
+  --fgColor-muted: #9198a1;
+  --fgColor-success: #3fb950;
+  --borderColor-muted: #3d444db3;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #1f6febb3;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+.markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode=light][data-light-theme=dark_dimmed],
+[data-color-mode=dark][data-dark-theme=dark_dimmed],
+.vscode-body.vscode-light [data-color-mode=auto][data-light-theme=dark_dimmed],
+.vscode-body.vscode-dark [data-color-mode=auto][data-dark-theme=dark_dimmed] {
+  /* dark_dimmed */
+  color-scheme: dark;
+  --fgColor-accent: #478be6;
+  --bgColor-attention-muted: #ae7c1426;
+  --bgColor-default: #212830;
+  --bgColor-muted: #262c36;
+  --bgColor-neutral-muted: #656c7633;
+  --borderColor-accent-emphasis: #316dca;
+  --borderColor-attention-emphasis: #966600;
+  --borderColor-attention-muted: #ae7c1466;
+  --borderColor-danger-emphasis: #c93c37;
+  --borderColor-default: #3d444d;
+  --borderColor-done-emphasis: #8256d0;
+  --borderColor-muted: #3d444db3;
+  --borderColor-neutral-muted: #3d444db3;
+  --borderColor-success-emphasis: #347d39;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #e5534b;
+  --color-prettylights-syntax-carriage-return-bg: #ad2e2c;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #6cb6ff;
+  --color-prettylights-syntax-constant-other-reference-link: #96d0ff;
+  --color-prettylights-syntax-entity: #dcbdfb;
+  --color-prettylights-syntax-entity-tag: #8ddb8c;
+  --color-prettylights-syntax-invalid-illegal-bg: #922323;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #f47067;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #682d0f;
+  --color-prettylights-syntax-markup-changed-text: #ffddb0;
+  --color-prettylights-syntax-markup-deleted-bg: #78191b;
+  --color-prettylights-syntax-markup-deleted-text: #ffd8d3;
+  --color-prettylights-syntax-markup-heading: #316dca;
+  --color-prettylights-syntax-markup-ignored-bg: #255ab2;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #1b4721;
+  --color-prettylights-syntax-markup-inserted-text: #b4f1b4;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #eac55f;
+  --color-prettylights-syntax-meta-diff-range: #dcbdfb;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #96d0ff;
+  --color-prettylights-syntax-string-regexp: #8ddb8c;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #f69d50;
+  --fgColor-attention: #c69026;
+  --fgColor-danger: #e5534b;
+  --fgColor-default: #d1d7e0;
+  --fgColor-done: #986ee2;
+  --fgColor-muted: #9198a1;
+  --fgColor-success: #57ab5a;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #316dcab3;
+}
+
+@media (prefers-color-scheme: light) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-light-theme=dark_dimmed] {
+  /* dark_dimmed */
+  color-scheme: dark;
+  --fgColor-accent: #478be6;
+  --bgColor-attention-muted: #ae7c1426;
+  --bgColor-default: #212830;
+  --bgColor-muted: #262c36;
+  --bgColor-neutral-muted: #656c7633;
+  --borderColor-accent-emphasis: #316dca;
+  --borderColor-attention-emphasis: #966600;
+  --borderColor-attention-muted: #ae7c1466;
+  --borderColor-danger-emphasis: #c93c37;
+  --borderColor-default: #3d444d;
+  --borderColor-done-emphasis: #8256d0;
+  --borderColor-muted: #3d444db3;
+  --borderColor-neutral-muted: #3d444db3;
+  --borderColor-success-emphasis: #347d39;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #e5534b;
+  --color-prettylights-syntax-carriage-return-bg: #ad2e2c;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #6cb6ff;
+  --color-prettylights-syntax-constant-other-reference-link: #96d0ff;
+  --color-prettylights-syntax-entity: #dcbdfb;
+  --color-prettylights-syntax-entity-tag: #8ddb8c;
+  --color-prettylights-syntax-invalid-illegal-bg: #922323;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #f47067;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #682d0f;
+  --color-prettylights-syntax-markup-changed-text: #ffddb0;
+  --color-prettylights-syntax-markup-deleted-bg: #78191b;
+  --color-prettylights-syntax-markup-deleted-text: #ffd8d3;
+  --color-prettylights-syntax-markup-heading: #316dca;
+  --color-prettylights-syntax-markup-ignored-bg: #255ab2;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #1b4721;
+  --color-prettylights-syntax-markup-inserted-text: #b4f1b4;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #eac55f;
+  --color-prettylights-syntax-meta-diff-range: #dcbdfb;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #96d0ff;
+  --color-prettylights-syntax-string-regexp: #8ddb8c;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #f69d50;
+  --fgColor-attention: #c69026;
+  --fgColor-danger: #e5534b;
+  --fgColor-default: #d1d7e0;
+  --fgColor-done: #986ee2;
+  --fgColor-muted: #9198a1;
+  --fgColor-success: #57ab5a;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #316dcab3;
+}
+
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-dark-theme=dark_dimmed] {
+  /* dark_dimmed */
+  color-scheme: dark;
+  --fgColor-accent: #478be6;
+  --bgColor-attention-muted: #ae7c1426;
+  --bgColor-default: #212830;
+  --bgColor-muted: #262c36;
+  --bgColor-neutral-muted: #656c7633;
+  --borderColor-accent-emphasis: #316dca;
+  --borderColor-attention-emphasis: #966600;
+  --borderColor-attention-muted: #ae7c1466;
+  --borderColor-danger-emphasis: #c93c37;
+  --borderColor-default: #3d444d;
+  --borderColor-done-emphasis: #8256d0;
+  --borderColor-muted: #3d444db3;
+  --borderColor-neutral-muted: #3d444db3;
+  --borderColor-success-emphasis: #347d39;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #e5534b;
+  --color-prettylights-syntax-carriage-return-bg: #ad2e2c;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #6cb6ff;
+  --color-prettylights-syntax-constant-other-reference-link: #96d0ff;
+  --color-prettylights-syntax-entity: #dcbdfb;
+  --color-prettylights-syntax-entity-tag: #8ddb8c;
+  --color-prettylights-syntax-invalid-illegal-bg: #922323;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #f47067;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #682d0f;
+  --color-prettylights-syntax-markup-changed-text: #ffddb0;
+  --color-prettylights-syntax-markup-deleted-bg: #78191b;
+  --color-prettylights-syntax-markup-deleted-text: #ffd8d3;
+  --color-prettylights-syntax-markup-heading: #316dca;
+  --color-prettylights-syntax-markup-ignored-bg: #255ab2;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #1b4721;
+  --color-prettylights-syntax-markup-inserted-text: #b4f1b4;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #eac55f;
+  --color-prettylights-syntax-meta-diff-range: #dcbdfb;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #96d0ff;
+  --color-prettylights-syntax-string-regexp: #8ddb8c;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #f69d50;
+  --fgColor-attention: #c69026;
+  --fgColor-danger: #e5534b;
+  --fgColor-default: #d1d7e0;
+  --fgColor-done: #986ee2;
+  --fgColor-muted: #9198a1;
+  --fgColor-success: #57ab5a;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #316dcab3;
+}
+
+}
+
+.markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode=light][data-light-theme=dark_colorblind],
+[data-color-mode=dark][data-dark-theme=dark_colorblind],
+.vscode-body.vscode-light [data-color-mode=auto][data-light-theme=dark_colorblind],
+.vscode-body.vscode-dark [data-color-mode=auto][data-dark-theme=dark_colorblind] {
+  /* dark_colorblind */
+  color-scheme: dark;
+  --fgColor-accent: #4493f8;
+  --bgColor-attention-muted: #bb800926;
+  --bgColor-default: #0d1117;
+  --bgColor-muted: #151b23;
+  --bgColor-neutral-muted: #656c7633;
+  --borderColor-accent-emphasis: #1f6feb;
+  --borderColor-attention-emphasis: #9e6a03;
+  --borderColor-attention-muted: #bb800966;
+  --borderColor-danger-emphasis: #bd561d;
+  --borderColor-default: #3d444d;
+  --borderColor-done-emphasis: #8957e5;
+  --borderColor-success-emphasis: #1f6feb;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #db6d28;
+  --color-prettylights-syntax-carriage-return-bg: #9b4215;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #79c0ff;
+  --color-prettylights-syntax-constant-other-reference-link: #a5d6ff;
+  --color-prettylights-syntax-entity: #d2a8ff;
+  --color-prettylights-syntax-entity-tag: #a5d6ff;
+  --color-prettylights-syntax-invalid-illegal-bg: #762d0a;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #f0883e;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #5a1e02;
+  --color-prettylights-syntax-markup-changed-text: #ffdfb6;
+  --color-prettylights-syntax-markup-deleted-bg: #5a1e02;
+  --color-prettylights-syntax-markup-deleted-text: #ffdfb6;
+  --color-prettylights-syntax-markup-heading: #1f6feb;
+  --color-prettylights-syntax-markup-ignored-bg: #1158c7;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #0c2d6b;
+  --color-prettylights-syntax-markup-inserted-text: #cae8ff;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #f2cc60;
+  --color-prettylights-syntax-meta-diff-range: #d2a8ff;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #a5d6ff;
+  --color-prettylights-syntax-string-regexp: #a5d6ff;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #ffa657;
+  --fgColor-attention: #d29922;
+  --fgColor-danger: #f0883e;
+  --fgColor-default: #f0f6fc;
+  --fgColor-done: #ab7df8;
+  --fgColor-muted: #9198a1;
+  --fgColor-success: #58a6ff;
+  --borderColor-muted: #3d444db3;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #1f6febb3;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+@media (prefers-color-scheme: light) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-light-theme=dark_colorblind] {
+  /* dark_colorblind */
+  color-scheme: dark;
+  --fgColor-accent: #4493f8;
+  --bgColor-attention-muted: #bb800926;
+  --bgColor-default: #0d1117;
+  --bgColor-muted: #151b23;
+  --bgColor-neutral-muted: #656c7633;
+  --borderColor-accent-emphasis: #1f6feb;
+  --borderColor-attention-emphasis: #9e6a03;
+  --borderColor-attention-muted: #bb800966;
+  --borderColor-danger-emphasis: #bd561d;
+  --borderColor-default: #3d444d;
+  --borderColor-done-emphasis: #8957e5;
+  --borderColor-success-emphasis: #1f6feb;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #db6d28;
+  --color-prettylights-syntax-carriage-return-bg: #9b4215;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #79c0ff;
+  --color-prettylights-syntax-constant-other-reference-link: #a5d6ff;
+  --color-prettylights-syntax-entity: #d2a8ff;
+  --color-prettylights-syntax-entity-tag: #a5d6ff;
+  --color-prettylights-syntax-invalid-illegal-bg: #762d0a;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #f0883e;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #5a1e02;
+  --color-prettylights-syntax-markup-changed-text: #ffdfb6;
+  --color-prettylights-syntax-markup-deleted-bg: #5a1e02;
+  --color-prettylights-syntax-markup-deleted-text: #ffdfb6;
+  --color-prettylights-syntax-markup-heading: #1f6feb;
+  --color-prettylights-syntax-markup-ignored-bg: #1158c7;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #0c2d6b;
+  --color-prettylights-syntax-markup-inserted-text: #cae8ff;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #f2cc60;
+  --color-prettylights-syntax-meta-diff-range: #d2a8ff;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #a5d6ff;
+  --color-prettylights-syntax-string-regexp: #a5d6ff;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #ffa657;
+  --fgColor-attention: #d29922;
+  --fgColor-danger: #f0883e;
+  --fgColor-default: #f0f6fc;
+  --fgColor-done: #ab7df8;
+  --fgColor-muted: #9198a1;
+  --fgColor-success: #58a6ff;
+  --borderColor-muted: #3d444db3;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #1f6febb3;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-dark-theme=dark_colorblind] {
+  /* dark_colorblind */
+  color-scheme: dark;
+  --fgColor-accent: #4493f8;
+  --bgColor-attention-muted: #bb800926;
+  --bgColor-default: #0d1117;
+  --bgColor-muted: #151b23;
+  --bgColor-neutral-muted: #656c7633;
+  --borderColor-accent-emphasis: #1f6feb;
+  --borderColor-attention-emphasis: #9e6a03;
+  --borderColor-attention-muted: #bb800966;
+  --borderColor-danger-emphasis: #bd561d;
+  --borderColor-default: #3d444d;
+  --borderColor-done-emphasis: #8957e5;
+  --borderColor-success-emphasis: #1f6feb;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #db6d28;
+  --color-prettylights-syntax-carriage-return-bg: #9b4215;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #79c0ff;
+  --color-prettylights-syntax-constant-other-reference-link: #a5d6ff;
+  --color-prettylights-syntax-entity: #d2a8ff;
+  --color-prettylights-syntax-entity-tag: #a5d6ff;
+  --color-prettylights-syntax-invalid-illegal-bg: #762d0a;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #f0883e;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #5a1e02;
+  --color-prettylights-syntax-markup-changed-text: #ffdfb6;
+  --color-prettylights-syntax-markup-deleted-bg: #5a1e02;
+  --color-prettylights-syntax-markup-deleted-text: #ffdfb6;
+  --color-prettylights-syntax-markup-heading: #1f6feb;
+  --color-prettylights-syntax-markup-ignored-bg: #1158c7;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #0c2d6b;
+  --color-prettylights-syntax-markup-inserted-text: #cae8ff;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #f2cc60;
+  --color-prettylights-syntax-meta-diff-range: #d2a8ff;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #a5d6ff;
+  --color-prettylights-syntax-string-regexp: #a5d6ff;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #ffa657;
+  --fgColor-attention: #d29922;
+  --fgColor-danger: #f0883e;
+  --fgColor-default: #f0f6fc;
+  --fgColor-done: #ab7df8;
+  --fgColor-muted: #9198a1;
+  --fgColor-success: #58a6ff;
+  --borderColor-muted: #3d444db3;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #1f6febb3;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+.markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode=light][data-light-theme=dark_tritanopia],
+[data-color-mode=dark][data-dark-theme=dark_tritanopia],
+.vscode-body.vscode-light [data-color-mode=auto][data-light-theme=dark_tritanopia],
+.vscode-body.vscode-dark [data-color-mode=auto][data-dark-theme=dark_tritanopia] {
+  /* dark_tritanopia */
+  color-scheme: dark;
+  --fgColor-accent: #4493f8;
+  --bgColor-attention-muted: #bb800926;
+  --bgColor-default: #0d1117;
+  --bgColor-muted: #151b23;
+  --bgColor-neutral-muted: #656c7633;
+  --borderColor-accent-emphasis: #1f6feb;
+  --borderColor-attention-emphasis: #9e6a03;
+  --borderColor-attention-muted: #bb800966;
+  --borderColor-danger-emphasis: #da3633;
+  --borderColor-default: #3d444d;
+  --borderColor-done-emphasis: #8957e5;
+  --borderColor-success-emphasis: #1f6feb;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #f85149;
+  --color-prettylights-syntax-carriage-return-bg: #b62324;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #79c0ff;
+  --color-prettylights-syntax-constant-other-reference-link: #a5d6ff;
+  --color-prettylights-syntax-entity: #d2a8ff;
+  --color-prettylights-syntax-entity-tag: #a5d6ff;
+  --color-prettylights-syntax-invalid-illegal-bg: #8e1519;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #ff7b72;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #67060c;
+  --color-prettylights-syntax-markup-changed-text: #ffdcd7;
+  --color-prettylights-syntax-markup-deleted-bg: #67060c;
+  --color-prettylights-syntax-markup-deleted-text: #ffdcd7;
+  --color-prettylights-syntax-markup-heading: #1f6feb;
+  --color-prettylights-syntax-markup-ignored-bg: #1158c7;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #0c2d6b;
+  --color-prettylights-syntax-markup-inserted-text: #cae8ff;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #f2cc60;
+  --color-prettylights-syntax-meta-diff-range: #d2a8ff;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #a5d6ff;
+  --color-prettylights-syntax-string-regexp: #a5d6ff;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #ffa198;
+  --fgColor-attention: #d29922;
+  --fgColor-danger: #f85149;
+  --fgColor-default: #f0f6fc;
+  --fgColor-done: #ab7df8;
+  --fgColor-muted: #9198a1;
+  --fgColor-success: #58a6ff;
+  --borderColor-muted: #3d444db3;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #1f6febb3;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+@media (prefers-color-scheme: light) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-light-theme=dark_tritanopia] {
+  /* dark_tritanopia */
+  color-scheme: dark;
+  --fgColor-accent: #4493f8;
+  --bgColor-attention-muted: #bb800926;
+  --bgColor-default: #0d1117;
+  --bgColor-muted: #151b23;
+  --bgColor-neutral-muted: #656c7633;
+  --borderColor-accent-emphasis: #1f6feb;
+  --borderColor-attention-emphasis: #9e6a03;
+  --borderColor-attention-muted: #bb800966;
+  --borderColor-danger-emphasis: #da3633;
+  --borderColor-default: #3d444d;
+  --borderColor-done-emphasis: #8957e5;
+  --borderColor-success-emphasis: #1f6feb;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #f85149;
+  --color-prettylights-syntax-carriage-return-bg: #b62324;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #79c0ff;
+  --color-prettylights-syntax-constant-other-reference-link: #a5d6ff;
+  --color-prettylights-syntax-entity: #d2a8ff;
+  --color-prettylights-syntax-entity-tag: #a5d6ff;
+  --color-prettylights-syntax-invalid-illegal-bg: #8e1519;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #ff7b72;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #67060c;
+  --color-prettylights-syntax-markup-changed-text: #ffdcd7;
+  --color-prettylights-syntax-markup-deleted-bg: #67060c;
+  --color-prettylights-syntax-markup-deleted-text: #ffdcd7;
+  --color-prettylights-syntax-markup-heading: #1f6feb;
+  --color-prettylights-syntax-markup-ignored-bg: #1158c7;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #0c2d6b;
+  --color-prettylights-syntax-markup-inserted-text: #cae8ff;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #f2cc60;
+  --color-prettylights-syntax-meta-diff-range: #d2a8ff;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #a5d6ff;
+  --color-prettylights-syntax-string-regexp: #a5d6ff;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #ffa198;
+  --fgColor-attention: #d29922;
+  --fgColor-danger: #f85149;
+  --fgColor-default: #f0f6fc;
+  --fgColor-done: #ab7df8;
+  --fgColor-muted: #9198a1;
+  --fgColor-success: #58a6ff;
+  --borderColor-muted: #3d444db3;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #1f6febb3;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-dark-theme=dark_tritanopia] {
+  /* dark_tritanopia */
+  color-scheme: dark;
+  --fgColor-accent: #4493f8;
+  --bgColor-attention-muted: #bb800926;
+  --bgColor-default: #0d1117;
+  --bgColor-muted: #151b23;
+  --bgColor-neutral-muted: #656c7633;
+  --borderColor-accent-emphasis: #1f6feb;
+  --borderColor-attention-emphasis: #9e6a03;
+  --borderColor-attention-muted: #bb800966;
+  --borderColor-danger-emphasis: #da3633;
+  --borderColor-default: #3d444d;
+  --borderColor-done-emphasis: #8957e5;
+  --borderColor-success-emphasis: #1f6feb;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #f85149;
+  --color-prettylights-syntax-carriage-return-bg: #b62324;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #79c0ff;
+  --color-prettylights-syntax-constant-other-reference-link: #a5d6ff;
+  --color-prettylights-syntax-entity: #d2a8ff;
+  --color-prettylights-syntax-entity-tag: #a5d6ff;
+  --color-prettylights-syntax-invalid-illegal-bg: #8e1519;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #ff7b72;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #67060c;
+  --color-prettylights-syntax-markup-changed-text: #ffdcd7;
+  --color-prettylights-syntax-markup-deleted-bg: #67060c;
+  --color-prettylights-syntax-markup-deleted-text: #ffdcd7;
+  --color-prettylights-syntax-markup-heading: #1f6feb;
+  --color-prettylights-syntax-markup-ignored-bg: #1158c7;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #0c2d6b;
+  --color-prettylights-syntax-markup-inserted-text: #cae8ff;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #f2cc60;
+  --color-prettylights-syntax-meta-diff-range: #d2a8ff;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #a5d6ff;
+  --color-prettylights-syntax-string-regexp: #a5d6ff;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #ffa198;
+  --fgColor-attention: #d29922;
+  --fgColor-danger: #f85149;
+  --fgColor-default: #f0f6fc;
+  --fgColor-done: #ab7df8;
+  --fgColor-muted: #9198a1;
+  --fgColor-success: #58a6ff;
+  --borderColor-muted: #3d444db3;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #1f6febb3;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+.markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode=light][data-light-theme=dark_high_contrast],
+[data-color-mode=dark][data-dark-theme=dark_high_contrast],
+.vscode-body.vscode-light [data-color-mode=auto][data-light-theme=dark_high_contrast],
+.vscode-body.vscode-dark [data-color-mode=auto][data-dark-theme=dark_high_contrast] {
+  /* dark_high_contrast */
+  color-scheme: dark;
+  --fgColor-accent: #74b9ff;
+  --fgColor-done: #d3abff;
+  --fgColor-success: #2bd853;
+  --bgColor-attention-muted: #edaa2726;
+  --bgColor-muted: #151b23;
+  --bgColor-neutral-muted: #212830;
+  --borderColor-accent-emphasis: #409eff;
+  --borderColor-attention-emphasis: #e09b13;
+  --borderColor-attention-muted: #edaa27;
+  --borderColor-danger-emphasis: #ff6a69;
+  --borderColor-default: #b7bdc8;
+  --borderColor-done-emphasis: #b87fff;
+  --borderColor-success-emphasis: #09b43a;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #ff8080;
+  --color-prettylights-syntax-carriage-return-bg: #ff4445;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #91cbff;
+  --color-prettylights-syntax-constant-other-reference-link: #addcff;
+  --color-prettylights-syntax-entity: #dbb7ff;
+  --color-prettylights-syntax-entity-tag: #72f088;
+  --color-prettylights-syntax-invalid-illegal-bg: #e82a2f;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #ff9492;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #a74c00;
+  --color-prettylights-syntax-markup-changed-text: #ffe1b4;
+  --color-prettylights-syntax-markup-deleted-bg: #cc1421;
+  --color-prettylights-syntax-markup-deleted-text: #ffdedb;
+  --color-prettylights-syntax-markup-heading: #409eff;
+  --color-prettylights-syntax-markup-ignored-bg: #318bf8;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #007728;
+  --color-prettylights-syntax-markup-inserted-text: #acf7b6;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #fbd669;
+  --color-prettylights-syntax-meta-diff-range: #dbb7ff;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #addcff;
+  --color-prettylights-syntax-string-regexp: #72f088;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #ffb757;
+  --fgColor-attention: #f0b72f;
+  --fgColor-danger: #ff9492;
+  --fgColor-muted: #b7bdc8;
+  --bgColor-default: #010409;
+  --borderColor-muted: var(--borderColor-default);
+  --fgColor-default: #ffffff;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #194fb1b3;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+@media (prefers-color-scheme: light) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-light-theme=dark_high_contrast] {
+  /* dark_high_contrast */
+  color-scheme: dark;
+  --fgColor-accent: #74b9ff;
+  --fgColor-done: #d3abff;
+  --fgColor-success: #2bd853;
+  --bgColor-attention-muted: #edaa2726;
+  --bgColor-muted: #151b23;
+  --bgColor-neutral-muted: #212830;
+  --borderColor-accent-emphasis: #409eff;
+  --borderColor-attention-emphasis: #e09b13;
+  --borderColor-attention-muted: #edaa27;
+  --borderColor-danger-emphasis: #ff6a69;
+  --borderColor-default: #b7bdc8;
+  --borderColor-done-emphasis: #b87fff;
+  --borderColor-success-emphasis: #09b43a;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #ff8080;
+  --color-prettylights-syntax-carriage-return-bg: #ff4445;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #91cbff;
+  --color-prettylights-syntax-constant-other-reference-link: #addcff;
+  --color-prettylights-syntax-entity: #dbb7ff;
+  --color-prettylights-syntax-entity-tag: #72f088;
+  --color-prettylights-syntax-invalid-illegal-bg: #e82a2f;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #ff9492;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #a74c00;
+  --color-prettylights-syntax-markup-changed-text: #ffe1b4;
+  --color-prettylights-syntax-markup-deleted-bg: #cc1421;
+  --color-prettylights-syntax-markup-deleted-text: #ffdedb;
+  --color-prettylights-syntax-markup-heading: #409eff;
+  --color-prettylights-syntax-markup-ignored-bg: #318bf8;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #007728;
+  --color-prettylights-syntax-markup-inserted-text: #acf7b6;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #fbd669;
+  --color-prettylights-syntax-meta-diff-range: #dbb7ff;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #addcff;
+  --color-prettylights-syntax-string-regexp: #72f088;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #ffb757;
+  --fgColor-attention: #f0b72f;
+  --fgColor-danger: #ff9492;
+  --fgColor-muted: #b7bdc8;
+  --bgColor-default: #010409;
+  --borderColor-muted: var(--borderColor-default);
+  --fgColor-default: #ffffff;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #194fb1b3;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown-body {
+  --base-size-16: 1rem;
+  --base-size-24: 1.5rem;
+  --base-size-4: 0.25rem;
+  --base-size-40: 2.5rem;
+  --base-size-8: 0.5rem;
+  --base-text-weight-medium: 500;
+  --base-text-weight-normal: 400;
+  --base-text-weight-semibold: 600;
+  --borderRadius-medium: 0.375rem;
+  --borderWidth-thin: 0.0625rem;
+  --stack-padding-condensed: 0.5rem;
+  --stack-padding-normal: 1rem;
+  --fontStack-monospace: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  --h6-size: 0.75rem;
+  --fgColor-accent: Highlight;
+}
+
+[data-color-mode='system'][data-dark-theme=dark_high_contrast] {
+  /* dark_high_contrast */
+  color-scheme: dark;
+  --fgColor-accent: #74b9ff;
+  --fgColor-done: #d3abff;
+  --fgColor-success: #2bd853;
+  --bgColor-attention-muted: #edaa2726;
+  --bgColor-muted: #151b23;
+  --bgColor-neutral-muted: #212830;
+  --borderColor-accent-emphasis: #409eff;
+  --borderColor-attention-emphasis: #e09b13;
+  --borderColor-attention-muted: #edaa27;
+  --borderColor-danger-emphasis: #ff6a69;
+  --borderColor-default: #b7bdc8;
+  --borderColor-done-emphasis: #b87fff;
+  --borderColor-success-emphasis: #09b43a;
+  --color-prettylights-syntax-brackethighlighter-angle: #9198a1;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #ff8080;
+  --color-prettylights-syntax-carriage-return-bg: #ff4445;
+  --color-prettylights-syntax-carriage-return-text: #f0f6fc;
+  --color-prettylights-syntax-comment: #9198a1;
+  --color-prettylights-syntax-constant: #91cbff;
+  --color-prettylights-syntax-constant-other-reference-link: #addcff;
+  --color-prettylights-syntax-entity: #dbb7ff;
+  --color-prettylights-syntax-entity-tag: #72f088;
+  --color-prettylights-syntax-invalid-illegal-bg: #e82a2f;
+  --color-prettylights-syntax-invalid-illegal-text: #f0f6fc;
+  --color-prettylights-syntax-keyword: #ff9492;
+  --color-prettylights-syntax-markup-bold: #f0f6fc;
+  --color-prettylights-syntax-markup-changed-bg: #a74c00;
+  --color-prettylights-syntax-markup-changed-text: #ffe1b4;
+  --color-prettylights-syntax-markup-deleted-bg: #cc1421;
+  --color-prettylights-syntax-markup-deleted-text: #ffdedb;
+  --color-prettylights-syntax-markup-heading: #409eff;
+  --color-prettylights-syntax-markup-ignored-bg: #318bf8;
+  --color-prettylights-syntax-markup-ignored-text: #f0f6fc;
+  --color-prettylights-syntax-markup-inserted-bg: #007728;
+  --color-prettylights-syntax-markup-inserted-text: #acf7b6;
+  --color-prettylights-syntax-markup-italic: #f0f6fc;
+  --color-prettylights-syntax-markup-list: #fbd669;
+  --color-prettylights-syntax-meta-diff-range: #dbb7ff;
+  --color-prettylights-syntax-storage-modifier-import: #f0f6fc;
+  --color-prettylights-syntax-string: #addcff;
+  --color-prettylights-syntax-string-regexp: #72f088;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #3d444d;
+  --color-prettylights-syntax-variable: #ffb757;
+  --fgColor-attention: #f0b72f;
+  --fgColor-danger: #ff9492;
+  --fgColor-muted: #b7bdc8;
+  --bgColor-default: #010409;
+  --borderColor-muted: var(--borderColor-default);
+  --fgColor-default: #ffffff;
+  --focus-outlineColor: var(--borderColor-accent-emphasis);
+  --selection-bgColor: #194fb1b3;
+  --borderColor-neutral-muted: var(--borderColor-muted);
+}
+
+}
+
+/*!
+  Theme: GitHub
+  Description: Highlight-js port of github.com theme
+  Author: github.com
+  Maintainer: @SNDST00M, @mjbvz
+  Updated: 2021-12-08
+*/
+.markdown-body pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 16px;
+}
+
+.markdown-body code.hljs {
+  padding: 3px 5px;
+}
+
+/*!
+  Theme: GitHub
+  Description: Theme as seen on github.com
+  Author: github.com
+  Maintainer: @Hirse
+  Updated: 2021-05-15
+
+  Outdated base version: https://github.com/primer/github-syntax-dark
+  Current colors taken from GitHub's CSS
+*/
+.markdown-body .hljs,
+.markdown-body pre > code {
+  color: var(--color-fg-default);
+  background: var(--color-canvas-subtle);
+}
+
+.markdown-body .hljs-function,
+.markdown-body .hljs-params {
+  color: var(--color-fg-default);
+}
+
+.markdown-body .hljs-doctag,
+.markdown-body .hljs-keyword,
+.markdown-body .hljs-meta .hljs-keyword,
+.markdown-body .hljs-template-tag,
+.markdown-body .hljs-template-variable,
+.markdown-body .hljs-type,
+.markdown-body .hljs-variable.language_ {
+  color: var(--color-prettylights-syntax-keyword);
+}
+
+.markdown-body .hljs-title,
+.markdown-body .hljs-title.class_,
+.markdown-body .hljs-title.class_.inherited__,
+.markdown-body .hljs-title.function_ {
+  color: var(--color-prettylights-syntax-entity);
+}
+
+.markdown-body .hljs-attr,
+.markdown-body .hljs-attribute,
+.markdown-body .hljs-literal,
+.markdown-body .hljs-meta,
+.markdown-body .hljs-number,
+.markdown-body .hljs-operator,
+.markdown-body .hljs-selector-attr,
+.markdown-body .hljs-selector-class,
+.markdown-body .hljs-selector-id,
+.markdown-body .hljs-variable {
+  color: var(--color-prettylights-syntax-constant);
+}
+
+.markdown-body .hljs-meta .hljs-string,
+.markdown-body .hljs-regexp,
+.markdown-body .hljs-string {
+  color: var(--color-prettylights-syntax-string);
+}
+
+.markdown-body .hljs-built_in,
+.markdown-body .hljs-symbol {
+  color: var(--color-prettylights-syntax-variable);
+}
+
+.markdown-body .hljs-code,
+.markdown-body .hljs-comment,
+.markdown-body .hljs-formula {
+  color: var(--color-prettylights-syntax-comment);
+}
+
+.markdown-body .hljs-name,
+.markdown-body .hljs-quote,
+.markdown-body .hljs-selector-pseudo,
+.markdown-body .hljs-selector-tag {
+  color: var(--color-prettylights-syntax-entity-tag);
+}
+
+.markdown-body .hljs-subst {
+  color: var(--color-prettylights-syntax-constant);
+}
+
+.markdown-body .hljs-section {
+  color: var(--color-prettylights-syntax-markup-heading);
+  font-weight: bold;
+}
+
+.markdown-body .hljs-bullet {
+  color: var(--color-prettylights-syntax-markup-list);
+}
+
+.markdown-body .hljs-emphasis {
+  color: var(--color-prettylights-syntax-constant);
+  font-style: italic;
+}
+
+.markdown-body .hljs-strong {
+  color: var(--color-prettylights-syntax-constant);
+  font-weight: bold;
+}
+
+.markdown-body .hljs-addition {
+  color: var(--color-prettylights-syntax-markup-inserted-text);
+  background-color: var(--color-prettylights-syntax-markup-inserted-bg);
+}
+
+.markdown-body .hljs-deletion {
+  color: var(--color-prettylights-syntax-markup-deleted-text);
+  background-color: var(--color-prettylights-syntax-markup-deleted-bg);
+}
+
+</style>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+<link href="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.css" rel="stylesheet" type="text/css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+
+        </head>
+        <body class="vscode-body vscode-light">
+            <div
+            class="github-markdown-body"
+            data-color-mode="auto"
+            data-light-theme="light"
+            data-dark-theme="dark"
+        >
+            <div class="github-markdown-content"><table>
+  <tr>
+    <td style="vertical-align: top; width: 75%;">
+      <h1>tklr</h1>
+      <p>
+        The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by <i>urgency</i>, goals by <i>priority</i>, and generally facilitates the same purpose - managing what you need to know quickly and easily. It supports a wide variety of reminder types,  a simple, text-based entry format with timely, automatic assistance, the datetime parsing and recurrence features of <em>dateutil</em> and provides both command line (<i>Click</i>) and graphical (<i>Textual</i>) user interfaces.
+      </p>
+      <p>Make the most of your time!</p>
+    </td>
+    <td style="width: 25%; vertical-align: middle;">
+      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif"
+           alt="tklr logo" title="Tklr" style="max-width: 360px; width: 100%; height: auto;">
+    </td>
+  </tr>
+</table>
+<p>This introduction to <em>tklr</em> is best viewed at <a href="https://dagraham.github.io/tklr-dgraham/">GitHub.io</a> - <em>tklr</em> itself is available from <a href="https://pypi.org/project/tklr-dgraham/">PyPi</a> and <a href="https://github.com/dagraham/tklr-dgraham">GitHub</a> and further information at <a href="https://github.com/dagraham/tklr-dgraham/discussions">Tklr Discussions</a>.</p>
+<p><strong>This README is a work-in-progress. This notice will be removed when all the major sections have been completed.</strong></p>
+<details>
+  <summary><strong>Table of Contents</strong></summary>
+  <ul>
+    <li><a href="#what-makes-tklr-different">What make <em>tklr</em> different</a></li>
+    <li>
+      <details>
+        <summary>2. Views</summary>
+        <ul>
+          <li><a href="#Form-free entry">2.1 Agenda</a></li>
+          <li><a href="#days-view">2.2 Days</a></li>
+          <li><a href="#weeks-view">2.3 Weeks</a></li>
+        </ul>
+      </details>
+    </li>
+    <li><a href="#faq">3. FAQ</a></li>
+  </ul>
+</details>
+<h2 id="what-makes-tklr-different">What makes tklr different</h2>
+<h3 id="1-form-free-entry">1. Form-free entry</h3>
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-a.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used with <i>just in time prompting</i>.
+  </p>
+<p>
+  Here a new reminder is being created. Below the entry area, the prompt indicates that the first step is to enter the type character for the reminder.
+</p>
+</div>
+<div style="clear: both;"></div>
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-b.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+After the type character is entered, the prompt changes to indicate that the next step is to enter the subject of the reminder.
+  </p>
+<p>
+  These prompts are displayed <i>just in time</i> to assist with the creation of the reminder. They do not interfere with the entry process in any way and will increasingly be ignored as familiarity is gained.
+</p>
+</div>
+<div style="clear: both;"></div>
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-c.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+As the subject is entered, the prompt changes to reflect the current value of the entry.
+  </p>
+</div>
+<div style="clear: both;"></div>
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-d.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+After the subject is entered, adding an <code>@</code> character changes the prompt to a list of the required and optional attributes which can still be entered.
+  </p>
+</div>
+<div style="clear: both;"></div>
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-e.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+Entering an available key changes the prompt to a description of the attribute.
+  </p>
+  <p>
+Here <code>@s</code>, has been selected and the prompt changes to show that this attibute, which is required for an event, specifies the scheduled datetime at which the event begins.
+  </p>
+</div>
+<div style="clear: both;"></div>
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-f.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+<i>Fuzzy parsing</i> is supported for entering dates or datetimes in <i>tklr</i>. Since it was January 5, 2026 when this entry was made, the interpretation is that <code>12p</code> means 12:00pm on Jan 5.
+  </p>
+</div>
+<div style="clear: both;"></div>
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-g.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+  Adding <code>fri</code> changes the interpretation to Friday of the current week.
+  </p>
+</div>
+<div style="clear: both;"></div>
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-h.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+  Adding <code>@</code> again shows the current list of required and optional attributes, but this time with <code>@s</code> removed since it has already been entered.
+  </p>
+</div>
+<div style="clear: both;"></div>
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-i.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+  Adding <code>e</code> changes the prompt to indicate that this attribute is used to specify the <i>extent</i> of the event, i.e., how long the event lasts.
+  </p>
+</div>
+<div style="clear: both;"></div>
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-j.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+  Adding <code>1h</code> specifies an <i>extent</i> of one hour. With this setting, the event would last from 12pm until 1pm.
+  </p>
+  <p> In addition to <code>h</code> for hours, other options include <code>m</code> for minutes, <code>d</code> for days and <code>w</code> for weeks. These can be combinded so that, e.g.,  <code>2h30m</code> would represent two hours and thirty minutes.
+  </p>
+</div>
+<div style="clear: both;"></div>
+<h3 id="2-support-for-wide-variety-of-reminder-types">2. Support for wide variety of reminder types</h3>
+<h4 id="21-an-event-lunch-with-ed">2.1. An <em>event</em>: lunch with Ed</h4>
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>* lunch with Ed @s 12p fri @e 1h
+</code>
+  </pre>
+<p>The steps for entering this reminder were given above. The '*' makes this reminder an <i>event</i> with everything up to the next '@' character,  'lunch with Ed', as the <i>subject</i>. The '@s' attribute sets the <i>scheduled</i> or starting time for 12pm on the first Friday after today and the '@e' attribute sets the <i>extent</i> for one hour. This event will be displayed as occupying the period '12-1pm' on that Friday.</p>
+</div>
+<div style="clear:both;"></div>
+<p>The distinguishing feature of an <i>event</i> is that it occurs at a particular time - the <code>@s</code> attribute is thus required.</p>
+<h4 id="22-a-task-pick-up-milk">2.2. A <em>task</em>: pick up milk</h4>
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>~ pick up milk
+</code>
+  </pre>
+  <p>
+    The beginning "~" type character makes this reminder a <i>task</i> with the following "pick up milk" as the <i>subject</i>.
+  </p>
+</div>
+<div style="clear:both;"></div>
+<p>The distinguishing feature of a <i>task</i> is that an action is required to complete it and, when completed, it can be marked <em>finished</em>. The '@s' attribute is optional and, when specified, sets the time at which the task should be completed. The '@e' attribute is also optional and, when given, is intepreted as the estimated time period required for completion.</p>
+<h4 id="23-a-note-a-favorite-churchill-quotation">2.3. A <em>note</em>: a favorite Churchill quotation</h4>
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>% Give me a pig - #Churchill
+  @d Dogs look up at you.
+  Cats look down at you.
+  Give me a pig - they look you in the eye
+    and treat you as an equal.
+  @b quotations
+</code>
+  </pre>
+  <p>
+The beginning "%" makes this reminder a <i>note</i> with the <i>subject</i>, "Give me a pig - #Churchill". The optional <i>details</i> follows the "@d" and is meant to be more expansive - analogous to the body of an email. The hash character that precedes "Churchill" in the subject makes that word a <i>hash tag</i> for listing in <i>Tags View</i>. The "@b" entry adds this reminder to the "quotations" <i>bin</i> for listing in <i>Bins View</i>.
+  </p>
+</div>
+<div style="clear:both;"></div>
+<h4 id="24-a-project-build-a-dog-house-with-component-tasks-">2.4. A <em>project</em>: build a dog house with component tasks (@~)</h4>
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>^ Build dog house
+  @~ pick up materials &r 1 &e 4h
+  @~ cut pieces &r 2: 1 &e 3h
+  @~ assemble &r 3: 2 &e 2h
+  @~ sand &r 4: 3 &e 1h
+  @~ paint &r 5: 4 &e 4h
+</code>
+  </pre>
+  <p>The beginning "^" makes this a <i>project</i>. This is a collection of related tasks specified by the "@~" entries. In each task, the "&r X: Y" <em>requires</em> attribute sets "X" as the label for the task and sets the task labeled "Y" as a requirement or prerequisite for "X". E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e" <i>extent</i> entries give estimates of the times required to complete the various tasks.
+  </p>
+</div>
+<div style="clear:both;"></div>
+<h4 id="25-a-goal-interval-training-3-times-each-week">2.5. A <em>goal</em>: interval training 3 times each week</h4>
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>! interval training @s 2026-01-05 @o 3/1w
+</code>
+  </pre>
+  <p>The beginning '!' type character makes this reminder a <i>goal</i> with the following 'interval training' as the <i>subject</i>. The '@t 3/1w' attribute is required and sets the <i>target</i> to be 3 completions during the period of one week starting at midnight on '2026-01-05', because of the '@s' attribute, and ending at midnight on '2026-01-12', because of the '1w' target period.
+  </p>
+</div>
+<div style="clear:both;"></div>
+<p>When a <em>goal</em> is created, the attribute <code>@k 0</code> is automatically added to indicate that the current <em>completion count</em> is zero. When a completion is recorded for the <em>goal</em> this count is increased by one. This continues until</p>
+<ol>
+<li>the period allowed for completing the goal expires or</li>
+<li>the completion count reaches the target number of completions</li>
+</ol>
+<p>In either case, <code>@k</code> is reset to zero and <code>@s</code> is reset to the previous value <em>plus</em> the period allowed for completion of the goal, i.e, to the <em>end</em> of the period originally allowed for completion.</p>
+<p>At 12am on Monday, January 5 with one week remaining in the one week period and 0 of the 3 target instances completed, this goal would be displayed in  <i>Agenda</i> or <i>Goal View</i> as</p>
+<pre><code>100  3/3  7d  interval training
+</code></pre>
+<p>where &quot;100&quot; is the priority of the goal, &quot;3/3&quot; is the fraction of the target remaining to be completed and &quot;7d&quot; is the period remaining for completion.</p>
+<p>At 8am on Wednesday, January 7 with 4d16h remaining in the one week period and 1 of the 3 instances completed, this goal would be displayed in  <i>Agenda</i> or <i>Goal View</i> as</p>
+<pre><code>100  2/3  4d16h  interval training
+</code></pre>
+<p>where &quot;100&quot; is the current <em>priority</em> of the goal, &quot;2/3&quot; is the fraction of the goal remaining to be completed and &quot;4d16h&quot; is the period remaining completion.</p>
+<p>Goals are sorted in this view by their <em>priority</em>. How is <em>priority</em> calculated? Suppose <code>n</code> is the number of instances specified in the goal and <code>t</code> is the time period specified for their completion. In the example, <code>n = 3</code> and <code>t = 1w</code>. Further suppose that at a particular moment, <code>n'</code> is the number of instances remaining unfinished and <code>t'</code> is the time remaining in the period for their completion. Initially, the goal is <code>n/t</code>. At the moment being considered the goal for the remaining period is <code>n'/t'</code>. E.g., <code>n/t = 3/w = 1/2d8h</code> and at 8am Wednesday <code>n'/t' = 2/4d16h = 1/2d8h</code>.</p>
+<ul>
+<li><code>n'/t' &gt; n/t</code>:
+the needed completion rate has increased  - behind schedule</li>
+<li><code>n'/t' = n/t</code>:
+the needed completion rate is unchanged - on schedule</li>
+<li><code>n'/t' &lt; n/t</code>:
+the needed completion rate has decreased - ahead of schedule</li>
+</ul>
+<p>Equivalently, if we define <code>priority = 100 * (n' * t) / (n * t')</code>, to represent the needed rate as a percentage of the original rate, then these conditions become</p>
+<ul>
+<li><code>priority &gt; 100</code>:
+the needed completion rate has increased  - behind schedule</li>
+<li><code>priority = 100</code>:
+the needed completion rate is unchanged - on schedule</li>
+<li><code>priority &lt; 100</code>:
+the needed completion rate has decreased - ahead of schedule</li>
+</ul>
+<p>In the example, the required completion rate is <code>1/2d8h</code> initially and at 8am on Wednesday it is still <code>1/2d8h</code> -  thus <em>priority</em> equals 100 as it did originally.</p>
+<p>A goal is automatically refreshed either when all instances are completed within the given period or when the period ends. In either case, the <code>@s</code> entry is reset to the original starting date plus the period specified for completion. E.g., for the example the new starting date would be <code>2025-12-01 + 1w = 2025-12-08</code>.</p>
+<h4 id="26-a-draft-meet-alex-for-coffee-friday---time-to-be-determined">2.6. A <em>draft</em>: meet Alex for coffee Friday - time to be determined.</h4>
+<pre><code>? Coffee with Alex @s fri @e 1h
+</code></pre>
+<p>This can be changed to an event when the details are confirmed by replacing the <strong>?</strong> with an <strong>*</strong> and adding the time to <code>@s</code>. This <em>draft</em> will appear highlighted on the current day until you make the changes to complete it.</p>
+<h3 id="3-repeating-reminders">3. Repeating Reminders</h3>
+<h4 id="a-repetition-at-irregular-intervals">a. Repetition at Irregular Intervals</h4>
+<p>An appointment (<em>event</em>) for a dental exam and cleaning at 2pm on Feb 5 and then again, <strong>@+</strong>, at 9am on Sep 3.</p>
+<pre><code>`* dental exam and cleaning @s 2p feb 5 @e 45m @+ 9am Sep 3`
+</code></pre>
+<p>Need to add another datetime to an existing reminder? Just add an <code>@+</code> attribute with a comma separated list of as many additional dates or datetimes as needed.</p>
+<h4 id="b-repetition-at-regular-offsets-from-the-previous-completion-tasks-only">b. Repetition at Regular Offsets from the Previous Completion (Tasks Only)</h4>
+<p>A reminder to wind the grandfather clock starting Friday of the current week and repeat after an <em>offset</em> of 4 days from the datetime of the previous completion.</p>
+<pre><code>`~ wind grandfather clock @s fri @o 4d`
+</code></pre>
+<p>This doesn't actually repeat - only one instance is created corresponding to the scheduled datetime specified by <code>@s</code>. When the task is completed, a new instance is automatically created by replacing the scheduled datetime with the datetime obtained by adding the <em>offset</em> to the datetime the task was completed. In this case, completing the task at 11am on January 8 would change the scheduled datetime to <em>January 8 11am + 4 days = January 12 11am</em>.</p>
+<p>A related possibility might be called <em>offset with learning</em> in which the offset is automatically adjusted based on experience. This happens when the time interval in the offset attribute is prefixed with an <code>~</code>. E.g., with <code>@+ ~4d</code>, not only would the <code>@s</code> attribute be reset to the completion datetime + 4 days, the <code>@o</code> attribute would be reset to a weighted average of the original entry and the actual time interval between the original <code>@s</code> entry and the completion datetime. E.g., using the default <code>history_weight: 3</code> from the configuration file, an intial offset of 4 days with an actual completion time interval of 5 days, would result in a new offset of <code>(4d * 3 + 1 * 5d)/4 = 4.25d</code> and thus a new offset attribute of <code>@o ~4d6h</code> which would then apply to the next completion.</p>
+<h4 id="c-repetition-at-regular-intervals">c. Repetition at Regular Intervals</h4>
+<p>The full flexibility of the superb Python <em>dateutil</em> package is supported and thus repetition at <em>any</em> regular interval.</p>
+<p><code>* pickleball @s 8a mon @e 90m @r w &amp;w MO, TH</code></p>
+<p>would schedule this event for 8am on the Mondays and Thursdays of every week beginning with the next Monday.</p>
+<p>With reminders that repeat at regular intervals, <em>tklr</em> also supports the recognition (counting) of anniversaries. E.g.</p>
+<p><code>* Max's {XXX} birthday @s 2016-10-23 @r y &amp;m 10 &amp;d 23</code></p>
+<p>would repeat yearly on October 23 and would on that day in 2026 be displayed as</p>
+<p><code>* Max's 10th birthday</code></p>
+<p>Consider another, more complicated, but still <em>regular</em> reminder, for Presidential election day. Beginning with November, 2020, this should repeat every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In <em>tklr</em>, this event would be</p>
+<pre><code>* Presidential election day @s nov 1 2020
+    @r y &amp;i 4 &amp;w TU &amp;d 2, 3, 4, 5, 6, 7, 8 &amp;m 11
+</code></pre>
+<h2 id="views">Views</h2>
+<p>Each of the views listed below can be opened by entering the first letter of the view's name, e.g., pressing <code>A</code> (<code>shift+a</code>) will open <em>Agenda View</em>.</p>
+<p>These views involve vertical lists of reminders, each row beginning with a tag from &quot;a&quot;, &quot;b&quot;, ..., &quot;z&quot;, followed by the pertinent details of the reminder. When necessary, lists are split into pages so that no more than 26 reminders appear on any one page. The left and right cursor keys are used to move back and forth between pages.</p>
+<p>On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. When the details of reminder are being displayed, various commands are available to modify the reminder. Press <code>enter</code> to display a menu of the available options and <code>enter</code> again with an option selected to use it or <code>escape</code> to close the menu.   Additionally, the key corresponding to the tag of another reminder will switch the details display to that reminder, <code>escape</code> will close the details display and entering the upper case letter corresponding to another view will open that view.</p>
+<p>The point of using tags to select and display reminders in this way is to minimize key presses. Any reminder on a page can be selected and its details displayed with a single key press.</p>
+<h3 id="agenda-view">Agenda View</h3>
+<p>The next three days of <em>events</em> together with <em>notices</em> and <em>drafts</em> followed by goals ordered by priority and then tasks ordered by urgency.</p>
+<p>The first day will always include any <em>notice</em> or <em>drafts</em> in addition to any scheduled events. In this case the reminber tagged <em>b</em> indicates that there is an event beginning in 4 days (<code>+4d</code>) whose subject begins with &quot;Quisquam&quot; and which has a <em>notice</em> entry, &quot;@n INTERVAL&quot; in which <code>INTERVAL &gt; 4d</code>. This notice of the upcoming event will be displayed on the first day (current date) of Agenda View each day until the day of the event.</p>
+<p>There is also a draft entry displayed in red. This is simply a reminder whose item type is &quot;?&quot;. This is used to flag a reminder as incomplete as would be the case, e.g., if a final datetime for the event had not yet been finalized. Draft reminders are displayed on the current, first day in Agenda view until the item type is changed.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/events_1_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Agenda View: Upcoming events and tasks ordered by urgency</em>
+</p>
+<p>Since there are more than 26 reminders to be displayed and only 26 available lower-case letters to use as tags, the reminders are spread over as many pages as necessary with <em>left</em> and <em>right</em> cursor keys to change pages. Here is the second page.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/events_2_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Agenda View: The second and last page</em>
+</p>
+<h3 id="bins-view">Bins View</h3>
+<p>Hierarchical display of bins and reminders.</p>
+<p>Many note taking applications provide a means for establishing links between notes. The terms <em>Zettelkasten</em> and <em>Second Brain</em> come to mind. A different approach is taken in <em>tklr</em> where <em>bins</em> serve as containers for both reminders and other bins. While a system of links between reminders might be broken by the removal of a reminder, when a reminder is removed from <em>tklr</em>, it simply disappears from the relevant bin membership lists. Bins themselves and their membership lists are otherwise unaffected.</p>
+<p>These are the important facts:</p>
+<ol>
+<li>Bin names are unique.</li>
+<li>A bin can contain <strong>many</strong> other bins (children)</li>
+<li>A bin can belong to <strong>at most one</strong> other bin (parent).</li>
+<li>A reminder can belong to <strong>many</strong> bins.</li>
+</ol>
+<p>The first three are illustrated by <em>Bins</em> view:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_root_screenshot.svg"
+       alt="Bins: root is the active parent" width="540">
+  <br>
+  <em>Bins: root is the active parent</em>
+</p>
+<p>You may think in the <em>journal</em> branch the years <em>2025</em>, <em>2026</em> and so forth may be unique, but surely the months <em>11</em>, <em>12</em>, and so forth, will be repeated. Similarly, under <em>people</em>, the children names <em>A</em>, <em>B</em>, ... might be needed for other purposes as well. How is uniqueness to be maintained? The solution is that <em>11</em>, <em>12</em>, <em>A</em>, <em>B</em>, ... are aliases for the actual bin names which are, in fact, <em>2025:11</em>, <em>2025:12</em>, <em>people:A</em>, <em>people:B</em>, .... The general rule is this: whenever a bin named <em>XXX:YYY</em> is the child of a bin named <em>XXX</em>, the child will be displayed using the alias <em>YYY</em>. Why this insistence upon uniqueness? It means that specifying membership in the bin <em>root / journal / 2025 / 2025:11</em> can be done by just specifying <code>@b 2025:11</code>.</p>
+<p>As an illustration of the power of being able to place a reminder in many bins consider a note describing a visit to Lille, France on November 11, 2025 which involved meeting a dear friend, Mary Smith for lunch. Bins to which this might belong:</p>
+<ul>
+<li><em>travel</em> (in <em>activities</em>)</li>
+<li><em>2025:11</em> (in <em>journal</em>)</li>
+<li><em>Smith,Mary</em> (in <em>people</em>)</li>
+<li><em>Lille</em> (in <em>places</em>)</li>
+</ul>
+<p>As with the other views, key presses corresponding to <em>tags</em> control the action. Note that the children of <em>root</em> are tagged. Pressing the tag for <em>journal</em>, <em>b</em>, makes it the active parent:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_journal_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Bins: journal is the active parent</em>
+</p>
+<p>Note the <em>bread crumb</em> header, <code>0 root / journal</code>, in which <em>root</em> now has the tag <em>0</em> and is followed by <em>journal</em> which is now the active parent with its children now displayed with tags. Pressing <em>0</em> would restore <em>root</em> as the active parent and pressing the tag for one of the children would make that the active parent. Here's the view that results from pressing <em>a</em>, the tag for <em>2025</em>:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_2025_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Bins: 2025 is the active parent</em>
+</p>
+<p>Pressing <em>a</em> again, now the tag for <em>2025:11</em>, makes this the active parent:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_202511_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Bins: 2025 is the active parent</em>
+</p>
+<p>Notice in the <em>bread crumb</em> header that there are integer tags going backward for each of the ancestors and the active parent is, as usual, the last element of the path. But it is listed here not using the alias, <em>11</em>, but the actual bin name, <em>2025:11</em>.</p>
+<h3 id="completed-view---to-be-done">Completed View - TO BE DONE</h3>
+<h3 id="find-view">Find View</h3>
+<p>Reminders whose subject or detail entries contain a case-insensitive match for an entered expression.</p>
+<p>When you need an exhaustive search across all reminders for a case-insensitive match in either the subject or the details, this is the view. Just press &quot;F&quot; in any view to activate the search bar:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_entry_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Find: initializing the search</em>
+</p>
+<p>When submitted, the matching reminders are listed:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_matches_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Find: matching reminders</em>
+</p>
+<h3 id="goals-view">Goals View</h3>
+<p>Press <code>G</code> to open Goal View. It displays a prioritized, taggable list of every reminder whose itemtype is <code>!</code>:</p>
+<pre><code> tag   priority   num_completed/num_required   time_remaining   subject
+</code></pre>
+<p>Priorities are recomputed whenever the view opens. For each goal, let <code>n</code> be the number of required completions in the period <code>t</code>, <code>n'</code> the number of instances remaining this period, and <code>t'</code> the time remaining before the period ends. The ratio <code>priority = 100 * (n' * t) / (n * t')</code> indicates how far ahead or behind the schedule you are:</p>
+<ul>
+<li><code>priority &gt; 100</code>: the goal is behind schedule, so it floats to the top of the view.</li>
+<li><code>priority = 100</code>: you are on schedule.</li>
+<li><code>priority &lt; 100</code>: you are ahead of schedule.</li>
+</ul>
+<p>The time remaining column uses the current datetime, so refreshing the view immediately reflects newly completed instances.</p>
+<ul>
+<li>00:00-05:59 <em>night</em></li>
+<li>06:00-11:59 <em>morning</em></li>
+<li>12:00-17:59 <em>afternoon</em></li>
+<li>18:00-23:59 <em>evening</em></li>
+</ul>
+<p>If the busy period for an event overlaps one or more of these periods then those periods are tentatively colored green. If the busy periods for two events overlap within one or more periods, then those periods are colored red to indicate the conflict. E.g., the red <em>afternoon</em> cell for Wednesday, reflects the conflict between the reminders tagged <em>g</em> and <em>h</em></p>
+<p>Pressing <em>g</em> displays the details for that reminder.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/week_with_details_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Weeks View: details for the reminder tagged g</em>
+</p>
+<h3 id="last-view">Last View</h3>
+<p>The last instance of every scheduled reminder occurring before the current moment listed in <strong>descending</strong> order by date and time.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/last_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Agenda View: The second and last page</em>
+</p>
+<h3 id="modified-view---to-be-done">Modified View - TO BE DONE</h3>
+<h3 id="next-view">Next View</h3>
+<p>The first instance of every scheduled reminder occurring after the current moment listed in <strong>ascending</strong> order by date and time.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/next_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Agenda View: The second and last page</em>
+</p>
+<p>Need to find, say, your next dental appointment - this is the view. Just press <em>/</em> to activate search and enter the expression.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/search_entry_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Search: initializing the search</em>
+</p>
+<p>The reminders with case-insensitive matches will be highlighted:</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/search_matching_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Search: highlighted matches</em>
+</p>
+<h3 id="query-view---to-be-done">Query View - TO BE DONE</h3>
+<h3 id="remaining-alerts-view---to-be-done">Remaining Alerts View - TO BE DONE</h3>
+<h3 id="tags-view---to-be-done">Tags View - TO BE DONE</h3>
+<h3 id="weeks-view">Weeks View</h3>
+<p>Scheduled Reminders for the Week with busy times displayed by a leading <em>busy bar</em>.</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/week_screenshot.svg"
+       alt="Agenda view in Tklr" width="540">
+  <br>
+  <em>Weeks View: busy bar and scheduled reminders for week</em>
+</p>
+<p>The <em>left</em> and <em>right</em> cursor keys shift the display backward and forward one week at a time. Adding <em>shift</em> to these cursor keys shifts by four weeks at a time. The <em>space</em> key restores the display to the current week.</p>
+<p>There are 5 cells in the <em>busy bar</em> for each week day. The first (furthest left) displays a yellow square if an <em>all day event</em> such as a holiday is scheduled for that date. The remaining 4 cells correspond to the 6-hour periods during the day:</p>
+<h2 id="details">Details</h2>
+<h3 id="datetime-details">DateTime details</h3>
+<p>Intelligent parsing of the user's entry of a datetime is supported. Suppose it is Thursday, November 6 2025 in the US/Eastern timezone. When a datetime is entered it is interpreted <em>relative</em> to the current date, time and timezone. When entering the scheduled datetime for a reminder using <code>@s</code>, the following table illustrates how various entries would be interpreted and the resulting user feedback.</p>
+<table>
+<thead>
+<tr>
+<th>@s entry</th>
+<th>interpretation</th>
+<th>user feedback</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>wed</td>
+<td>2025-11-12</td>
+<td>Wed, Nov 12 2025</td>
+</tr>
+<tr>
+<td>9a</td>
+<td>2025-11-06 09:00 EST</td>
+<td>Thu, Nov 6 2025 09:00 EST</td>
+</tr>
+<tr>
+<td>9a fri</td>
+<td>2025-11-07 09:00 EST</td>
+<td>Fri, Nov 7 2025 09:00 EST</td>
+</tr>
+<tr>
+<td>10 9p z none</td>
+<td>2025-11-10 09:00</td>
+<td>Mon, Nov 10 2025 21:00</td>
+</tr>
+<tr>
+<td>3p z US/Pacific</td>
+<td>2025-11-06 18:00 EST</td>
+<td>Thu, Nov 6 2025 18:00 EST</td>
+</tr>
+<tr>
+<td>10 13:30 z CET</td>
+<td>2025-11-10 07:30 EST</td>
+<td>Mon, Nov 10 2025 07:30 EST</td>
+</tr>
+<tr>
+<td>10 20h z none</td>
+<td>2025-11-23 20:00</td>
+<td>Mon, Nov 10 2025 20:00</td>
+</tr>
+</tbody>
+</table>
+<p>Datetimes entered with &quot;z none&quot; and dates are <em>naive</em> - have no timezone information. Datetimes entered with &quot;z TIMEZONE&quot; are interpreted as <em>aware</em> datetimes in TIMEZONE. Datetimes without a &quot;z&quot; entry are also interpreted as <em>aware</em> but in the timezone of the user's computer. Aware datetimes are always reported using the timezone of the user's computer, wherever it might be. Times can be entered using the suffix of either a/p or am/pm for AM/PM times or h for 24-hour times. Times are reported using the preference of the user, here as 24-hour times.</p>
+<p>Why would you want to use a &quot;z&quot; in specifying a time? Suppose a colleague in Europe at asked you to call Friday at 18:00 CET time. Then setting &quot;@s fri 18h z CET&quot; will schedule your reminder for the correct time to call wherever you might be. In the US/Eastern timezone, this would be &quot;Fri, Nov 12 2025 12:00 EST&quot;. As a second example, suppose you want to take a daily medication at 4pm in whatever timezone you happen to be. Then you will want to schedule the reminder for &quot;@s 4p z none&quot;.</p>
+<p>When dates and datetimes are recorded, <em>aware</em> datetimes are first converted to UTC time and then stored with a &quot;Z&quot; appended. E.g., the &quot;3p z US/Pacific&quot; datetime would be interpreted as &quot;2025-11-06 18:00 EST&quot; but would be recorded as &quot;20251106T2300Z&quot;. Dates and <em>naive</em> datetimes are recorded without conversion and without the trailing &quot;Z&quot;. When <em>aware</em> datetimes are displayed to the user, they are first converted to the timezone of the user's computer. Thus the &quot;PST&quot; example would be displayed as scheduled for 6pm today in US/Eastern. Dates and <em>naive</em> datetimes are displayed without change in every timezone.</p>
+<p>When an <code>@s</code> scheduled entry specifies a date without a time, i.e., a date instead of a datetime, the interpretation is that the task is due sometime on that day. Specifically, it is not due until <code>00:00</code> on that day and not past due until <code>00:00</code> on the following day. The interpretation of <code>@b</code> and <code>@u</code> in this circumstance is similar. For example, if <code>@s 2025-04-06</code> is specified with <code>@b 3d</code> and <code>@u 2d</code> then the task status would change from waiting to pending at <code>2025-04-03 00:00</code> and, if not completed, to deleted at <code>2025-04-09 00:00</code>.</p>
+<p>Note that times can only be specified, stored and displayed in hours and minutes - seconds and microseconds are not supported. Internally datetimes are interpreted as having seconds equal to 0.</p>
+<h3 id="interval-details">Interval details</h3>
+<p>An interval is just a period of time and is entered in <em>tklr</em> using expressions such as</p>
+<table>
+<thead>
+<tr>
+<th>entry</th>
+<th>period of time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2h</td>
+<td>2 hours</td>
+</tr>
+<tr>
+<td>-2h</td>
+<td>- 2 hours</td>
+</tr>
+<tr>
+<td>1w7d</td>
+<td>1 week and 7 days</td>
+</tr>
+<tr>
+<td>2h30m</td>
+<td>2 hours and 30 minutes</td>
+</tr>
+<tr>
+<td>1m27s</td>
+<td>1 minute and 27 seconds</td>
+</tr>
+</tbody>
+</table>
+<p>Note that w (weeks), d (days), h (hours), m (minutes) and s (seconds) are the available <em>units</em> for entering <em>intervals</em>. Seconds are ignored save for their use in alerts - more on alerts later.</p>
+<p>An interval, <code>I</code>, can be added to a datetime, <code>T</code>, to get a datetime, <code>T + I</code>, that will be after <code>T</code> if <code>I &gt; 0</code> and before <code>T</code> if <code>I &lt; 0</code>. Similarly, one datetime, <code>A</code>, can be subtracted from another, <code>B</code>, to get an interval, <code>I = B - A</code>, with <code>I &gt; 0</code> if <code>B</code> is after (greater than) <code>A</code> and <code>I &lt; 0</code> if <code>B</code> is before (less than) <code>A</code>.</p>
+<h3 id="scheduled-datetime-details">Scheduled datetime details</h3>
+<p>For the discussion that follows, it will be assumed that the current date is <code>2025-10-01</code> and that the <em>scheduled datetime</em> for the illustrative reminder is</p>
+<pre><code>@s 2025-10-21 10:00am
+</code></pre>
+<h4 id="extent">extent</h4>
+<p>The entry <code>@e 2h30m</code> would set the <em>extent</em> for the reminder to two hours and 30 minutes.</p>
+<p>If the reminder were an <em>event</em>, this would schedule the &quot;busy time&quot; for the event to <em>extend</em> from 10am until 12:30pm.</p>
+<p>For a task, this same entry would indicate that attention to completing the task should begin no later than 10am and that 2 hours and 30 minutes is the <em>estimate</em> of the time required for completion. The period from 10am until 12:30pm is not displayed as a busy time, however, since the task could be begun before or after 10am and could take more or less than 2 hours and 30 minutes to complete. For a task, both <code>@s</code> and <code>@e</code> are best regarded as <em>estimates</em>.</p>
+<p>For a project, this same entry would similarly indicate that attention to completing the project should begin no later than 10am and that two hours and 30 minutes is estimated for completion subject to additional times specified in the jobs. A job entry containing <code>&amp;s 2d &amp;e 3h</code>, for example, would set the scheduled time for this job to be two days <em>after</em> the <code>@s</code> entry for the project and would add three hours to the estimate of total time required for the project.</p>
+<h4 id="notice">notice</h4>
+<p>The entry <code>@n I</code> where <code>I</code> is a <em>positive</em> interval specifies that a notice for the reminder should begin on the date in which <code>scheduled - I</code> falls. For the example, adding <code>@b 1d12h</code> would set <em>notice</em> to the date corresponding to</p>
+<pre><code>  2025-10-21 10am - 1d12h = 2025-10-19 10pm
+</code></pre>
+<p>so notices would begin on <code>2025-10-19</code>.</p>
+<p>If the reminder is an event, then the agenda view would display an notice for the event beginning on <code>25-10-19</code> and continuing on the <code>25-10-20</code>, i.e., from the date of the notice through the date before the scheduled datetime. For an <em>event</em> think of this notice as a visual alert of the proximity of the event.</p>
+<p>If the reminder is a task, then the task would <em>not</em> appear in the agenda view until <code>25-10-19</code>, i.e., it would be hidden before that date.</p>
+<h4 id="wrap">wrap</h4>
+<p>The entry <code>@w BEFORE, AFTER</code>, where <code>BEFORE</code> and <code>AFTER</code> are <em>intervals</em>, can be used to wrap the <em>scheduled</em> datetime of a reminder. Possible entries and the resulting values of BEFORE and AFTER are illustrated below:</p>
+<table>
+<thead>
+<tr>
+<th>entry</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>@w 1h, 30m</td>
+<td>1 hour</td>
+<td>30 minutes</td>
+</tr>
+<tr>
+<td>@w 1h,</td>
+<td>1 hour</td>
+<td>None</td>
+</tr>
+<tr>
+<td>@w , 30m</td>
+<td>None</td>
+<td>30 minutes</td>
+</tr>
+</tbody>
+</table>
+<p>Consider an event with <code>@s 2025-10-21 10am @e 2h30m</code>, which starts at 10am and ends at 12:30pm and suppose that it will take an hour to travel to the location of the event and 30 minutes to travel from the event to the next location. The entry <code>@w 1h, 30m</code> could be used to indicate these travel periods from 9am until 10am before the event begins and from 12:30pm until 1pm after the event ends.</p>
+<h4 id="alert">alert</h4>
+<p>An alert is specified using <code>@a &lt;list of invervals&gt; : &lt;list of commands&gt;</code>. An <code>@s &lt;datetime&gt;</code> is required and the result is to execute the commands in <code>&lt;list of commands&gt;</code> at the datetimes resulting from subtracting the intervals in <code>&lt;list of intervals&gt;</code> from <code>&lt;datetime&gt;</code>. E.g., with <code>@s 17:00 fri</code> and <code>@a 1h, -15m: c, d</code>, the commands <code>c</code> and <code>d</code> would each be executed at <code>17:00 - 1h = 16:00</code> and <code>17:00 + 15m = 17:15</code> on Friday.</p>
+<p>A command such as <code>d</code> in the example must be specified in the user configuration file. This is the relevant section:</p>
+<pre><code>[alerts]
+# dict[str, str]: character -&gt; command_str.
+# E.g., this entry
+#   d: '/usr/bin/say -v Alex &quot;[[volm 0.5]] {subject}, {when}&quot;'
+# would, on my macbook, invoke the system voice to speak the subject
+# of the reminder and the time remaining until the scheduled datetime.
+# The character &quot;d&quot; would be associated with this command so that, e.g.,
+# the alert entry &quot;@a 30m, 15m: d&quot; would trigger this command 30
+# minutes before and again 15 minutes before the scheduled datetime.
+</code></pre>
+<h3 id="recurrence-details">Recurrence details</h3>
+<h4 id="r-and-by-requirement-s-are-given">@r and, by requirement, @s are given</h4>
+<p>When an item is specified with an <code>@r</code> entry, an <code>@s</code> entry is required and is used as the <code>DTSTART</code> entry in the recurrence rule. E.g.,</p>
+<pre><code>* datetime repeating @s 2025-11-06 14:00 @r d &amp;i 2
+</code></pre>
+<p>With this entry, the <code>@s 2025-11-06 14:00</code> and <code>@r d &amp;i 2</code> parts would be combined by <em>tklr</em> to generate this <em>rruleset</em>:</p>
+<pre><code>      &quot;rruleset&quot;: &quot;DTSTART:20251106T1900Z\nRRULE:FREQ=DAILY;INTERVAL=2&quot;
+</code></pre>
+<p>Two aspects of this <em>rruleset</em> are worth emphasizing</p>
+<ol>
+<li>&quot;DTSTART:20251106T1900Z\nRRULE:FREQ=DAILY;INTERVAL=2&quot; is a string and can therefore be stored without conversion in SQLite3 - the database used for <em>tklr</em>.</li>
+<li>Even though it is only 50 characters long, it actually represents an infinite number of datetimes - every datetime matching the recurrence rule which occurs on or after 2025-11-06 19:00 UTC.</li>
+</ol>
+<p>In the hands of the wonderful <em>python</em> library <em>dateutil</em>, this <em>rruleset</em> string can be asked a variety of useful questions which will be answered almost instantly. E.g, What datetimes does it represent which lie between 2025-06-23 08:00 and 2026-01-01 00:00?, What is the first datetime after 2025-10-15 00:00? What is the last datetime before 2025-12-15 00:00? And so forth.</p>
+<p><strong>For every reminder in tklr which involves datetimes, a rruleset is used to represent all of those datetimes.</strong></p>
+<p><strong>Note</strong>: The datetimes generated by the <em>rruleset</em> correspond to datetimes matching the specification of <code>@r</code> which occur <strong>on or after</strong> the datetime specified by <code>@s</code>. The datetime corresponding to <code>@s</code> itself will only be generated if it matches the specification of <code>@r</code>.</p>
+<h4 id="s-is-given-but-not-r">@s is given but not @r</h4>
+<p>On the other hand, if an <code>@s</code> entry is specified, but <code>@r</code> is not, then the <code>@s</code> entry would be stored as an <code>RDATE</code> in the recurrence rule. E.g.,</p>
+<pre><code class="language-python">* datetime only @s <span class="hljs-number">2025</span>-<span class="hljs-number">11</span>-06 <span class="hljs-number">14</span>:<span class="hljs-number">00</span>
+</code></pre>
+<p>would be serialized (stored) as</p>
+<pre><code>  &quot;rruleset&quot;: &quot;RDATE:20251106T1900Z&quot;
+</code></pre>
+<p>The datetime corresponding to <code>@s</code> itself is, of course, generated in this case.</p>
+<h4 id="-is-specified-with-or-without-r">@+ is specified, with or without @r</h4>
+<p>When <code>@s</code> is specified, an <code>@+</code> entry can be used to specify one or more, comma separated datetimes. When <code>@r</code> is given, these datetimes are added to those generated by the <code>@r</code> specification. Otherwise, they are added to the datetime specified by <code>@s</code>. E.g., is a special case. It is used to specify a datetime that is relative to the current datetime. E.g.,</p>
+<pre><code>   ... @s 2025-11-06 14:00 @+ 2025-11-13 21:00
+</code></pre>
+<p>would be serialized (stored) as</p>
+<pre><code>  &quot;rruleset&quot;: &quot;RDATE:20251106T1900Z, 20251114T0200Z&quot;
+</code></pre>
+<p>This option is particularly useful for irregular recurrences such as annual doctor visits. After the initial visit, subsequent visits can simply be added to the <code>@+</code> entry of the existing event once the new appointment is made.</p>
+<p><strong>Note</strong>: Without <code>@r</code>, the <code>@s</code> datetime is included in the datetimes generated but with <code>@r</code>, it is only used to set the beginning of the recurrence and otherwise ignored.</p>
+<h3 id="timezone-considerations">Timezone considerations</h3>
+<p>When a datetime is specified without an <code>z</code> component, the timezone is assumed to be aware and in the local timezone. The datetime is converted to UTC for storage in the database. When a datetime is displayed, it is displayed using the local timezone of the computer.</p>
+<p>This remains true with <em>recurrence</em> and <em>daylight savings time</em> but is a little more complicated. As always, the recurrence rules are stored in UTC and the datetimes generated by the rules are also in UTC. When these datetimes are displayed, they are converted to the local timezone.</p>
+<pre><code>   ... @s 2025-10-31 14:00 @r d &amp;i 1 &amp;c 4
+</code></pre>
+<p>With this entry, the rruleset and datetimes generated show the effect of the transition from daylight to standard time:</p>
+<pre><code>&quot;rruleset&quot;: &quot;DTSTART:20251031T1800Z\nRRULE:FREQ=DAILY;INTERVAL=1;COUNT=4&quot;
+
+  Fri 2025-10-31 14:00 EDT -0400
+  Sat 2025-11-01 14:00 EDT -0400
+  Sun 2025-11-02 13:00 EST -0500
+  Mon 2025-11-03 13:00 EST -0500
+</code></pre>
+<h3 id="urgency">Urgency</h3>
+<p>Since urgency values are used ultimately to give an ordinal ranking of tasks, all that matters is the relative values used to compute the urgency scores. Accordingly, all urgency scores are constrained to fall within the interval from -1.0 to 1.0. The default urgency is 0.0 for a task with no urgency components.</p>
+<p>There are some situations in which a task will <em>not</em> be displayed in the &quot;urgency list&quot; and there is no need, therefore, to compute its urgency:</p>
+<ul>
+<li>Completed tasks are not displayed.</li>
+<li>Hidden tasks are not displayed. The task is hidden if it has an <code>@s</code> entry and an <code>@b</code> entry and the date corresponding to <code>@s - @b</code> falls sometime after the current date.</li>
+<li>Waiting tasks are not displayed. A task is waiting if it belongs to a project and has unfinished prerequisites.</li>
+<li>Only the first <em>unfinished</em> instance of a repeating task is displayed. Subsequent instances are not displayed.</li>
+</ul>
+<p>There is one other circumstance in which urgency need not be computed. When the <em>pinned</em> status of the task is toggled on in the user interface, the task is treated as if the computed urgency were equal to <code>1.0</code> without any actual computations.</p>
+<p>All other tasks will be displayed and ordered by their computed urgency scores. Many of these computations involve datetimes and/or intervals and it is necessary to understand both are represented by integer numbers of seconds - datetimes by the integer number of seconds <em>since the epoch</em> (1970-01-01 00:00:00 UTC) and intervals by the integer numbers of seconds it spans. E.g., for the datetime &quot;2025-01-01 00:00 UTC&quot; this would be <code>1735689600</code> and for the interval &quot;1w&quot; this would be the number of seconds in 1 week, <code>7*24*60*60 = 604800</code>. This means that an interval can be subtracted from a datetime to obtain another datetime which is &quot;interval&quot; earlier or added to get a datetime &quot;interval&quot; later. One datetime can also be subtracted from another to get the &quot;interval&quot; between the two, with the sign indicating whether the first is later (positive) or earlier (negative). (Adding datetimes, on the other hand, is meaningless.)</p>
+<p>Briefly, here is the essence of this method used to compute the urgency scores using &quot;due&quot; as an example. Here is the relevant section from config.toml with the default values:</p>
+<pre><code class="language-toml"><span class="hljs-section">[urgency.due]</span>
+<span class="hljs-comment"># The &quot;due&quot; urgency increases from 0.0 to &quot;max&quot; as now passes from</span>
+<span class="hljs-comment"># due - interval to due.</span>
+<span class="hljs-attr">interval</span> = <span class="hljs-string">&quot;1w&quot;</span>
+<span class="hljs-attr">max</span> = <span class="hljs-number">8.0</span>
+</code></pre>
+<p>The &quot;due&quot; urgency of a task with an <code>@s</code> entry is computed from <em>now</em> (the current datetime), <em>due</em> (the datetime specified by <code>@s</code>) and the <em>interval</em> and <em>max</em> settings from <em>urgency.due</em>. The computation returns:</p>
+<ul>
+<li><code>0.0</code>
+if <code>now &lt; due - interval</code></li>
+<li><code>max * (1.0 - (now - due) / interval)</code>
+if <code>due - interval &lt; now &lt;= due</code></li>
+<li><code>max</code>
+if <code>now &gt; due</code></li>
+</ul>
+<p>For a task without an <code>@s</code> entry, the &quot;due&quot; urgency is 0.0.</p>
+<p>Other contributions of the task to urgency are computed similarly. Depending on the configuration settings and the characteristics of the task, the value can be either positive or negative or 0.0 when missing the requisite characteristic(s).</p>
+<p>Once all the contributions of a task have been computed, they are aggregated into a single urgency value in the following way. The process begins by setting the initial values of variables <code>Wn = 1.0</code> and <code>Wp = 1.0</code>. Then for each of the urgency contributions, <code>v</code>, the value is added to <code>Wp</code> if <code>v &gt; 0</code> or <code>abs(v)</code> is added to <code>Wn</code> if <code>v</code> negative. Thus either <code>Wp</code> or <code>Wn</code> is increased by each addition unless <code>v = 0</code>. When each contribution has been added, the urgency value of the task is computed as follows:</p>
+<pre><code class="language-python">urgency = (Wp - Wn) / (Wp + Wn)
+</code></pre>
+<p>Equivalently, urgency can be regarded as a weighted average of <code>-1.0</code> and <code>1.0</code> with <code>Wn/(Wn + Wp)</code> and <code>Wp/(Wn + Wp)</code> as the weights:</p>
+<pre><code class="language-python">urgency = -<span class="hljs-number">1.0</span> * Wn / (Wn + Wp) + <span class="hljs-number">1.0</span> * Wp / (Wn + Wp) = (Wp - Wn) / (Wn + Wp)
+</code></pre>
+<p>Observations from the weighted average perspective and the fact that <code>Wn &gt;= 1</code> and <code>Wp &gt;= 1</code>:</p>
+<ul>
+<li><code>-1.0 &lt; urgency &lt; 1</code></li>
+<li><code>urgency = 0.0</code> if and only if <code>Wn = Wp</code></li>
+<li><code>urgency</code> is <em>always increasing</em> in <code>Wp</code> and <em>always decreasing</em> in <code>Wn</code></li>
+<li><code>urgency</code> approaches <code>1.0</code> as <code>Wn/Wp</code> approaches <code>0.0</code> - as <code>Wp</code> increases relative to <code>Wn</code></li>
+<li><code>urgency</code> approaches <code>-1.0</code> as <code>Wp/Wn</code> approaches <code>0.0</code> - as <code>Wn</code> increases relative to <code>Wp</code></li>
+</ul>
+<p>Thus positive contributions <em>always</em> increase urgency and negative contributions <em>always</em> decrease urgency. The fact that the urgency derived from contributions is always less than <code>1.0</code> means that <em>pinned</em> tasks with <code>urgency = 1</code> will always be listed first.</p>
+<h2 id="getting-started">Getting Started</h2>
+<h3 id="developer-install-guide">Developer Install Guide</h3>
+<p>This guide walks you through setting up a development environment for <code>tklr</code> using <a href="https://github.com/astral-sh/uv"><code>uv</code></a> and a local virtual environment. Eventually the normal python installation procedures using pip or pipx will be available.</p>
+<h4 id="-step-1-clone-the-repository">✅ Step 1: Clone the repository</h4>
+<p>This step will create a directory named <em>tklr-dgrham</em> in your current working directory that contains a clone of the github repository for <em>tklr</em>.</p>
+<pre><code class="language-bash">git <span class="hljs-built_in">clone</span> https://github.com/dagraham/tklr-dgraham.git
+<span class="hljs-built_in">cd</span> tklr-dgraham
+</code></pre>
+<h4 id="-step-2-install-uv-if-needed">✅ Step 2: Install uv (if needed)</h4>
+<pre><code class="language-bash"><span class="hljs-built_in">which</span> uv || curl -LsSf https://astral.sh/uv/install.sh | sh
+</code></pre>
+<h4 id="-step-3-create-a-virtual-environment-with-uv">✅ Step 3: Create a virtual environment with <code>uv</code></h4>
+<p>This will create a <code>.venv/</code> directory inside your project to hold all the relevant imports.</p>
+<pre><code class="language-bash">uv venv
+</code></pre>
+<h4 id="-step-4-install-the-project-in-editable-mode">✅ Step 4: Install the project in editable mode</h4>
+<pre><code class="language-bash">uv pip install -e .
+</code></pre>
+<h4 id="-step-5-use-the-cli">✅ Step 5: Use the CLI</h4>
+<p>You have two options for activating the virtual environment for the CLI:</p>
+<h5 id="️-option-1-manual-activation-every-session">☑️ Option 1: Manual activation (every session)</h5>
+<pre><code class="language-bash"><span class="hljs-built_in">source</span> .venv/bin/activate
+</code></pre>
+<p>Then you can run:</p>
+<pre><code class="language-bash">tklr --version
+tklr add <span class="hljs-string">&quot;- test task @s 2025-08-01&quot;</span>
+tklr ui
+</code></pre>
+<p>To deactivate:</p>
+<pre><code class="language-bash">deactivate
+</code></pre>
+<h5 id="️-option-2-automatic-activation-with-direnv-recommended">☑️ Option 2: Automatic activation with <code>direnv</code> (recommended)</h5>
+<h6 id="1-install-direnv">1. Install <code>direnv</code></h6>
+<pre><code class="language-bash">brew install direnv        <span class="hljs-comment"># macOS</span>
+sudo apt install direnv    <span class="hljs-comment"># Ubuntu/Debian</span>
+</code></pre>
+<h6 id="2-add-the-shell-hook-to-your-zshrc-or-bashrc">2. Add the shell hook to your <code>~/.zshrc</code> or <code>~/.bashrc</code></h6>
+<pre><code class="language-sh"><span class="hljs-built_in">eval</span> <span class="hljs-string">&quot;<span class="hljs-subst">$(direnv hook zsh)</span>&quot;</span>   <span class="hljs-comment"># or bash</span>
+</code></pre>
+<p>Restart your shell or run <code>source ~/.zshrc</code>.</p>
+<h6 id="3-in-the-project-directory-create-a-envrc-file">3. In the project directory, create a <code>.envrc</code> file</h6>
+<pre><code class="language-bash"><span class="hljs-built_in">echo</span> <span class="hljs-string">&#x27;export PATH=&quot;$PWD/.venv/bin:$PATH&quot;&#x27;</span> &gt; .envrc
+</code></pre>
+<h6 id="4-allow-it">4. Allow it</h6>
+<pre><code class="language-bash">direnv allow
+</code></pre>
+<p>Now every time you <code>cd</code> into the project, your environment is activated automatically and, as with the manual option, test your setup with</p>
+<pre><code class="language-bash">tklr --version
+tklr add <span class="hljs-string">&quot;- test task @s 2025-08-01&quot;</span>
+tklr ui
+</code></pre>
+<p>You're now ready to develop, test, and run <code>tklr</code> locally with full CLI and UI support.</p>
+<h4 id="-step-6-updating-your-repository">✅ Step 6: Updating your repository</h4>
+<p>To update your local copy of <strong>Tklr</strong> to the latest version:</p>
+<pre><code class="language-bash"><span class="hljs-comment"># Navigate to your project directory</span>
+<span class="hljs-built_in">cd</span> ~/Projects/tklr-dgraham  <span class="hljs-comment"># adjust this path as needed</span>
+
+<span class="hljs-comment"># Pull the latest changes from GitHub</span>
+git pull origin master
+
+<span class="hljs-comment"># Reinstall in editable mode (picks up new code and dependencies)</span>
+uv pip install -e .
+</code></pre>
+<h3 id="starting-tklr-for-the-first-time">Starting tklr for the first time</h3>
+<p><strong>Tklr</strong> needs a <em>home</em> directory to store its files - most importantly these two:</p>
+<ul>
+<li><em>config.toml</em>: An editable file that holds user configuration settings</li>
+<li><em>tkrl.db</em>: An <em>SQLite3</em> database file that holds all the records for events, tasks and other reminders created when using <em>tklr</em></li>
+</ul>
+<p>Any directory can be used for <em>home</em>. These are the options:</p>
+<ol>
+<li>
+<p>If started using the command <code>tklr --home &lt;path_to_home&gt;</code> and the directory <code>&lt;path_to_home&gt;</code> exists then <em>tklr</em> will use this directory and, if necessary, create the files <code>config.toml</code> and <code>tklr.db</code> in this directory.</p>
+</li>
+<li>
+<p>If the <code>--home &lt;path_to_home&gt;</code> is not passed to <em>tklr</em> then the <em>home</em> will be selected in this order:</p>
+<ul>
+<li>If the current working directory contains files named <code>config.toml</code> and <code>tklr.db</code> then it will be used as <em>home</em></li>
+<li>Else if the environmental variable <code>TKLR_HOME</code> is set and specifies a path to an existing directory then it will be used as <em>home</em></li>
+<li>Else if the environmental variable <code>XDG_CONFIG_HOME</code> is set, and specifies a path to an existing directory which contains a directory named <code>tklr</code>, then that directory will be used.</li>
+<li>Else the directory <code>~/.config/tklr</code> will be used.</li>
+</ul>
+</li>
+</ol>
+<h3 id="configuration">Configuration</h3>
+<p>The default settings are in <em>config.toml</em> in your <em>tklr</em> home directory together with detailed explanations for each setting.</p>
+</div>
+        </div>
+            <script async src="https://cdn.jsdelivr.net/npm/katex-copytex@latest/dist/katex-copytex.min.js"></script>
+
+        </body>
+        </html>

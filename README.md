@@ -3,7 +3,7 @@
     <td style="vertical-align: top; width: 75%;">
       <h1>tklr</h1>
       <p>
-        The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by urgency and generally facilitates the same purpose - managing what you need to know quickly and easily. It supports the entry format and projects of <strong>etm</strong>, the datetime parsing and recurrence features of <strong>dateutil</strong> and provides both command line (Click) and graphical user interfaces (Textual).
+        The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by <i>urgency</i>, goals by <i>priority</i>, and generally facilitates the same purpose - managing what you need to know quickly and easily. It supports a wide variety of reminder types,  a simple, text-based entry format with timely, automatic assistance, the datetime parsing and recurrence features of <em>dateutil</em> and provides both command line (<i>Click</i>) and graphical (<i>Textual</i>) user interfaces.
       </p>
       <p>Make the most of your time!</p>
     </td>
@@ -14,11 +14,66 @@
   </tr>
 </table>
 
-<p><a href="https://github.com/dagraham/tklr-dgraham/discussions">Join the conversation</a></p>
 
-## What makes *tklr* different
+This introduction to *tklr* is best viewed at [GitHub.io](https://dagraham.github.io/tklr-dgraham/) - *tklr* itself is available from [PyPi](https://pypi.org/project/tklr-dgraham/) and [GitHub](https://github.com/dagraham/tklr-dgraham) and further information at [Tklr Discussions](https://github.com/dagraham/tklr-dgraham/discussions).
 
-### 1. Form-free entry
+<strong>This README is a work-in-progress. This notice will be removed when all the major sections have been completed.</strong>
+
+<a id="table-of-contents"></a>
+<details>
+  <summary><strong>Table of Contents</strong></summary>
+  <ul>
+    <li>
+      <details>
+        <summary><a href="#1-what-makes-tklr-different">1. What makes <em>tklr</em> different</a></summary>
+        <ul>
+          <li><a href="#11-form-free-entry">1.1. Form-free entry</a></li>
+          <li>
+            <details>
+              <summary><a href="#12-support-for-wide-variety-of-reminder-types-and-attributes">1.2. Support for wide variety of reminder types and attributes</a></summary>
+              <ul>
+                <li><a href="#121-an-event-lunch-with-ed-extended">1.2.1. An <em>event</em>: lunch with Ed (extended)</a></li>
+                <li><a href="#122-a-task-pick-up-milk">1.2.2. A <em>task</em>: pick up milk</a></li>
+                <li><a href="#123-a-repeating-event-trash-pickup">1.2.3. A <em>repeating event</em>: trash pickup</a></li>
+                <li><a href="#124-an-event-that-repeats-irregularly-dental-appointment">1.2.4. An <em>event that repeats irregularly</em>: dental appointment</a></li>
+                <li><a href="#125-a-complicated-but-regularly-repeating-task-vote-for-president">1.2.5. A <em>complicated</em> but regularly repeating task: vote for president</a></li>
+                <li><a href="#126-an-offset-task-fill-bird-feeders">1.2.6. An <em>offset task</em>: fill bird feeders</a></li>
+                <li><a href="#127-a-note-a-favorite-churchill-quotation">1.2.7. A <em>note</em>: a favorite Churchill quotation</a></li>
+                <li><a href="#128-a-project-build-a-dog-house-with-component-tasks">1.2.8. A <em>project</em>: build a dog house with component tasks</a></li>
+                <li><a href="#129-a-goal-interval-training-3-times-each-week">1.2.9. A <em>goal</em>: interval training 3 times each week</a></li>
+                <li><a href="#1210-a-draft-reminder-meet-alex-for-coffee---time-to-be-determined">1.2.10. A <em>draft</em> reminder: meet Alex for coffee - time to be determined</a></li>
+              </ul>
+            </details>
+          </li>
+          <li><a href="#13-useful-attributes">1.3. Useful attributes</a></li>
+        </ul>
+      </details>
+    </li>
+    <li>
+      <details>
+        <summary><a href="#2-views">2. Views</a></summary>
+        <ul>
+          <li><a href="#21-agenda-view">2.1. Agenda View</a></li>
+          <li><a href="#22-bins-view">2.2. Bins View</a></li>
+          <li><a href="#23-completed-view---to-be-done">2.3. Completed View</a></li>
+          <li><a href="#24-find-view">2.4. Find View</a></li>
+          <li><a href="#25-goals-view">2.5. Goals View</a></li>
+          <li><a href="#26-last-view">2.6. Last View</a></li>
+          <li><a href="#27-modified-view---to-be-done">2.7. Modified View</a></li>
+          <li><a href="#28-next-view">2.8. Next View</a></li>
+          <li><a href="#29-query-view---to-be-done">2.9. Query View</a></li>
+          <li><a href="#210-remaining-alerts-view---to-be-done">2.10. Remaining Alerts View</a></li>
+          <li><a href="#211-tags-view---to-be-done">2.11. Tags View</a></li>
+          <li><a href="#212-weeks-view">2.12. Weeks View</a></li>
+        </ul>
+      </details>
+    </li>
+  </ul>
+</details>
+
+## 1. What makes tklr different
+
+### 1.1. Form-free entry
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-a.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
@@ -112,38 +167,133 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 </div>
 <div style="clear: both;"></div>
 
-### 2. Support for wide variety of reminder types
+↩︎ [Back to TOC](#table-of-contents)
 
-#### A _task_ (~), pick up milk
+### 1.2. Support for wide variety of reminder types and attributes
+
+*tklr* has six item types, each with a corresponding type character:
+
+| type    | character |
+| ------- | --------- |
+| event   | *         |
+| task    | ~         |
+| project | ^         |
+| goal    | !         |
+| note    | %         |
+| draft   | ?         |
+
+Here are some illustrations of how the various types and attributes can be put to use.
+
+#### 1.2.1. An _event_: lunch with Ed (extended)
+
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>* lunch with Ed @s 12p fri @e 1h @a 30m: n
+</code>
+  </pre>
+<p>The <code>*</code> makes this reminder an <i>event</i> with whatever follows up to the next <code>@</code> character as the subject. The <code>@s</code> attribute sets the <i>scheduled</i> or starting time for 12pm on the first Friday after today and the <code>@e 1h</code> attribute sets the <i>extent</i> for one hour. This event will thus be displayed as occupying the period <code>12-1pm</code> on that Friday. The distinguishing feature of an <i>event</i> is that it occurs at a particular time and the <code>@s</code> attribute is therefore required.
+</p>
+<p>If the <em>tklr ui</em> is running, the addition of <code>@a 30m: n</code> will trigger a built-in <em>notify</em> alert thirty minutes before the start of the event that sounds a bell and posts a message on the <em>tklr</em> display showing the subject and time of the event.
+</p>
+</div>
+<div style="clear:both;"></div>
+
+↩︎ [Back to TOC](#table-of-contents)
+
+#### 1.2.2. A _task_: pick up milk
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>~ pick up milk
 </code>
   </pre>
-  <p>
-    The beginning "~" type character makes this reminder a <i>task</i> with the following "pick up milk" as the <i>subject</i>.
+  <p>The beginning <code>~</code> type character makes this reminder a <i>task</i> with the following <code>pick up milk</code> as the <i>subject</i>.
+  </p>
+
+  <p>Using an <code>@s</code> attribute is optional and, when specified, it sets the time at which the task should be <em>completed</em>, not begun. The <code>@e</code> attribute is also optional and, when given, is intepreted as the estimated time period required for completion.
   </p>
 </div>
 <div style="clear:both;"></div>
 
+↩︎ [Back to TOC](#table-of-contents)
 
-
-#### An _event_ (\*), lunch with Ed
+#### 1.2.3. A _repeating event_: trash pickup
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
-<code>* lunch with Ed @s 12p fri @e 1h
+<code>* trash pickup @s 8a mon @n 1d @r w &w MO
 </code>
   </pre>
-  <p>
-    The steps for entering this reminder were given above. The "*" makes this reminder an <i>event</i> with the following "lunch with Ed" as the <i>subject</i>.
-    This snippet schedules a one-hour lunch at 12pm on the first Friday after today.
+<p>This <em>event</em> repeats because of the <code>@r w &w MO</code> each week on Mondays. Because of the <code>@n 1d</code> a notice will be posted in <em>Agenda View</em> when the current date is within one day of the scheduled datetime or, in this case, on Sundays. This serves as a reminder to put the trash at the curb before 8am Mondays. Why not use a <em>task</em> for this? A task would require being marked finished each week to avoid accumulating past due instances - even when out of town and there's no trash to put at the curb.
+</p>
+</div>
+<div style="clear:both;"></div>
+
+↩︎ [Back to TOC](#table-of-contents)
+
+#### 1.2.4. An _event that repeats irregularly_: dental appointment
+
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>* dental exam and cleaning @s 2p feb 5 @e 45m @+ 9am Sep 3
+</code>
+  </pre>
+<p>An appointment (_event_) for a dental exam and cleaning at 2pm on Feb 5 and then again, <code>@+</code>, at 9am on Sep 3.
+</p>
+
+<p>Need to add another datetime to an existing reminder? Just add an <code>@+</code> attribute with a comma separated list of as many additional dates or datetimes as needed.
+</p>
+</div>
+<div style="clear:both;"></div>
+
+↩︎ [Back to TOC](#table-of-contents)
+
+#### 1.2.5. A _complicated_ but regularly repeating task: vote for president
+
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>~ vote for president
+  @s nov 1 2020
+  @r y &i 4 &w TU &d 2, 3, 4, 5, 6, 7, 8 &m 11
+</code>
+  </pre>
+  <p>Here is another, more complicated, but still _regular_ reminder. Beginning with November, 2020, this <em>task</em> repeats every 4 years on the first Tuesday after a Monday in November (a <em>Tuesday</em> whose <em>month day</em> falls between 2 and 8 in the 11th <em>month</em>).
+  </p>
+
+  <p>This is a good illustration of the power of the <em>dateutil</em> library. Note that the only role of <code>@s nov 1 2020</code> is to limit the repetitions generated by <code>@r</code> to those falling on or after November 1, 2020 and occur on that year or a multiple of 4 years after that year.
   </p>
 </div>
 <div style="clear:both;"></div>
 
-#### A _note_ (%), a favorite Churchill quotation
+
+↩︎ [Back to TOC](#table-of-contents)
+
+#### 1.2.6. An _offset task_: fill bird feeders
+
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>~ fill birdfeeders @s 3p sat @n 1d @o 12d
+</code>
+  </pre>
+<p>Because of the <code>@o 12d</code> <em>offset</em> attribute, when this task is completed the <code>@s</code> <em>scheduled</em> datetime will automatically reset to the datetime that falls precisely 12 days after the completion datetime. Whether they are filled early or late, they will still need to be refilled 12 days after they were last filled.  Because of the <code>@n 1d</code> <em>notice</em> attribute, this task will <em>not</em> appear in the <em>Agenda View</em> task list until the the current datetime is within one day of the <em>scheduled</em> datetime.
+</p>
+</div>
+<div style="clear:both;"></div>
+
+Since the <code>@o</code> attribute involves resetting attibutes  in a way that effectively repeats the <em>task</em>:
+
+1. `@o` can only be used with _tasks_
+2. Using `@o` precludes the use of `@r`
+
+
+It is worth noting the different roles of two attributes in events and tasks.
+
+1. The <em>scheduled</em> datetime attribute describes when an event begins but when a task should be completed.
+2. The <em>notice</em> attribute provides an early warning for an event but postpones the disclosure of a task.
+
+↩︎ [Back to TOC](#table-of-contents)
+
+#### 1.2.7. A _note_: a favorite Churchill quotation
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
@@ -155,17 +305,15 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
   @b quotations
 </code>
   </pre>
-  <p>
-The beginning "%" makes this reminder a <i>note</i> with the <i>subject</i>, "Give me a pig - #Churchill". The optional <i>details</i> follows the "@d" and is meant to be more expansive - analogous to the body of an email. The hash character that precedes "Churchill" in the subject makes that word a <i>hash tag</i> for listing in <i>Tags View</i>. The "@b" entry adds this reminder to the "quotations" <i>bin</i> for listing in <i>Bins View</i>.
+  <p>The beginning <code>%</code> makes this reminder a <i>note</i> with the <i>subject</i>, <code>Give me a pig - #Churchill</code>. The optional <i>details</i> attribute follows the <code>@d</code> and is meant to be more expansive - analogous to the body of an email. The hash character that precedes 'Churchill' in the subject makes that word a <i>hash tag</i> for listing in <i>Tags View</i>. The <code>@b</code> entry adds this reminder to the 'quotations' <i>bin</i> for listing in <i>Bins View</i>.
   </p>
 </div>
 <div style="clear:both;"></div>
 
 
+↩︎ [Back to TOC](#table-of-contents)
 
-#### A _project_ (^), build a dog house with component tasks (@~)
-
-
+#### 1.2.8. A _project_: build a dog house with component tasks
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
@@ -177,113 +325,118 @@ The beginning "%" makes this reminder a <i>note</i> with the <i>subject</i>, "Gi
   @~ paint &r 5: 4 &e 4h
 </code>
   </pre>
-  <p>The beginning "^" makes this a <i>project</i>. This is a collection of related tasks specified by the "@~" entries. In each task, the "&r X: Y" snippet sets "X" as the label for the task and sets the task labeled "Y" as a prerequisite. E.g., "&r 3: 2" establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The "&e" <i>extent</i> entries give estimates of the times required to complete the various tasks.
+      <p>The beginning <code>^</code> makes this a <i>project</i>. This is a collection of related tasks specified by the <code>@~</code> entries. In each task, the <code>&r X: Y</code> <em>requires</em> attribute sets <code>X</code> as the label for the task and sets the task labeled <code>Y</code> as a requirement or prerequisite for <code>X</code>. E.g., <code>&r 3: 2</code> establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The <code>&e</code> <i>extent</i> entries give estimates of the times required to complete the various tasks.
+      </p>
+    </div>
+<div style="clear:both;"></div>
+
+↩︎ [Back to TOC](#table-of-contents)
+
+#### 1.2.9. A _goal_: interval training 3 times each week
+
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>! interval training @s 2026-01-05 @o 3/1w
+</code>
+  </pre>
+  <p>The beginning <code>!</code> type character makes this reminder a <i>goal</i> with the following <code>interval training</code> as the <i>subject</i>. The <code>@t 3/1w</code> attribute is required and sets the <i>target</i> to be 3 completions during the period of one week starting at midnight on '2026-01-05', because of the <code>@s</code> attribute, and ending one week later at midnight on '2026-01-12', because of the '1w' target period.
   </p>
 </div>
 <div style="clear:both;"></div>
-#### A _goal_ (!), interval training 3 times each week
 
-    ! interval training @s 2025-12-01 @o 3/1w
+When a *goal* is created, the attribute `@k 0` is automatically added to indicate that the current *completion count* is zero. When a completion is recorded for the *goal*, this count is automatically increased by one. This process continues until
 
-Starting December 1, a Monday, and calling for 3 completions per week.
+1. the period allowed for completing the goal expires or
+2. the completion count reaches the target number of completions
 
-At 8am on Wednesday, December 3 with 4d16h remaining in the week and 1 of the 3 instances completed, this goal would be displayed in Goal View as
+In either case, `@k` is reset to zero and `@s` is reset to the previous value *plus* the period allowed for completion of the goal, i.e, to the *end* of the period originally allowed for completion.
 
-    100 2/3 4d16h interval training
+↩︎ [Back to TOC](#table-of-contents)
 
-where "100" is the current *priority* of the goal, "2/3" is the fraction of the goal remaining to be completed and "4d16h" is the remaining time for completion.
+#### 1.2.10. A _draft_ reminder: meet Alex for coffee - time to be determined
 
-Goals are sorted in this view by their *priority*. How is *priority* determined? Suppose `n` is the number of instances specified in the goal and `t` is the time period specified for their completion. In the example, `n = 3` and `t = 1w`. Further suppose that at a particular moment, `n'` is the number of instances remaining unfinished and `t'` is the time remaining in the period for their completion. Initially, the goal is `n/t`. At the moment being considered the goal for the remaining period is `n'/t'`. E.g., `n/t = 3/w = 1/2d8h` and at 8am Wednesday `n'/t' = 2/4d16h = 1/2d8h`.
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>? Coffee with Alex @s fri @e 1h
+</code>
+  </pre>
+  <p>The beginning <code>?</code> type character makes this a <i>draft</i> reminder. This can be changed to an event when the details are confirmed by replacing the <cold>?</code> with an <code>*</code> and adding the time to <code>@s fri</code>.
+  </p>
+  <p>
+  This is a reminder that is not yet finished and, in almost every respect, will be ignored by <em>tklr</em>. The exception is that it will appear highlighted on the current day in <em>Agenda View</em> until it is revised. It can be changed to an <em>event</em> when the details are confirmed by replacing the <code>?</code> with an <code>*</code> and adding the time to <code>@s</code>.
+  </p>
+</div>
+<div style="clear:both;"></div>
 
-- `n'/t' > n/t`:
-    the needed completion rate has increased  - behind schedule
-- `n'/t' = n/t`:
-    the needed completion rate is unchanged - on schedule
-- `n'/t' < n/t`:
-    the needed completion rate has decreased - ahead of schedule
-
-Equivalently, if we define `priority = 100 * (n' * t) / (n * t')`, to represent the needed rate as a percentage of the original rate, then these conditions become
-
-- `priority > 100`:
-    the needed completion rate has increased  - behind schedule
-- `priority = 100`:
-    the needed completion rate is unchanged - on schedule
-- `priority < 100`:
-    the needed completion rate has decreased - ahead of schedule
-
-In the example, the inital completion rate is `1/2d8h` and at 8am on Wednesday it is remains `1/2d8h` thus *priority* equals 100 as it did originally.
-
-A goal is automatically refreshed either when all instances are completed within the given period or when the period ends. In either case, the `@s` entry is reset to the original starting date plus the period specified for completion. E.g., for the example the new starting date would be `2025-12-01 + 1w = 2025-12-08`.
-
-While a *goal* is somewhat like a *task*, it has these important differences:
-
-- Only the instances of a goal for a given period can be finished. The goal itself automatically refreshes forever unless it is deleted.
-- A goal can never be past due, only *behind schedule* (priority > 100) and then at most for the remainder of the given period.
-
-#### A _draft_ (?), meet Alex for coffee Friday - time to be determined.
-
-    ? Coffee with Alex @s fri @e 1h
-
-This can be changed to an event when the details are confirmed by replacing the **?** with an **\*** and adding the time to `@s`. This _draft_ will appear highlighted on the current day until you make the changes to complete it.
+<!--
 
 
-### 3. Repeating Reminders
 
-#### a. Repetition at Irregular Intervals
+  ### 3. Repeating Reminders
 
-An appointment (_event_) for a dental exam and cleaning at 2pm on Feb 5 and then again, **@+**, at 9am on Sep 3.
+  #### a. Repetition at Irregular Intervals
 
-    `* dental exam and cleaning @s 2p feb 5 @e 45m @+ 9am Sep 3`
+  An appointment (_event_) for a dental exam and cleaning at 2pm on Feb 5 and then again, **@+**, at 9am on Sep 3.
 
-Need to add another datetime to an existing reminder? Just add an `@+` attribute with a comma separated list of as many additional dates or datetimes as needed.
+      `* dental exam and cleaning @s 2p feb 5 @e 45m @+ 9am Sep 3`
 
-#### b. Repetition at Regular Offsets from the Previous Completion (Tasks Only)
+  Need to add another datetime to an existing reminder? Just add an `@+` attribute with a comma separated list of as many additional dates or datetimes as needed.
 
-A reminder to wind the grandfather clock starting Friday of the current week and repeat after an _offset_ of 4 days from the datetime of the previous completion.
+  #### b. Repetition at Regular Offsets from the Previous Completion (Tasks Only)
 
-    `~ wind grandfather clock @s fri @o 4d`
+  A reminder to wind the grandfather clock starting Friday of the current week and repeat after an _offset_ of 4 days from the datetime of the previous completion.
 
-This doesn't actually repeat - only one instance is created corresponding to the scheduled datetime specified by `@s`. When the task is completed, a new instance is automatically created by replacing the scheduled datetime with the datetime obtained by adding the _offset_ to the datetime the task was completed. In this case, completing the task at 11am on January 8 would change the scheduled datetime to _January 8 11am + 4 days = January 12 11am_.
+      `~ wind grandfather clock @s fri @o 4d`
 
-A related possibility might be called _offset with learning_ in which the offset is automatically adjusted based on experience. This happens when the time interval in the offset attribute is prefixed with an `~`. E.g., with `@+ ~4d`, not only would the `@s` attribute be reset to the completion datetime + 4 days, the `@o` attribute would be reset to a weighted average of the original entry and the actual time interval between the original `@s` entry and the completion datetime. E.g., using the default `history_weight: 3` from the configuration file, an intial offset of 4 days with an actual completion time interval of 5 days, would result in a new offset of `(4d * 3 + 1 * 5d)/4 = 4.25d` and thus a new offset attribute of `@o ~4d6h` which would then apply to the next completion.
+  This doesn't actually repeat - only one instance is created corresponding to the scheduled datetime specified by `@s`. When the task is completed, a new instance is automatically created by replacing the scheduled datetime with the datetime obtained by adding the _offset_ to the datetime the task was completed. In this case, completing the task at 11am on January 8 would change the scheduled datetime to _January 8 11am + 4 days = January 12 11am_.
 
-#### c. Repetition at Regular Intervals
+  A related possibility might be called _offset with learning_ in which the offset is automatically adjusted based on experience. This happens when the time interval in the offset attribute is prefixed with an `~`. E.g., with `@+ ~4d`, not only would the `@s` attribute be reset to the completion datetime + 4 days, the `@o` attribute would be reset to a weighted average of the original entry and the actual time interval between the original `@s` entry and the completion datetime. E.g., using the default `history_weight: 3` from the configuration file, an intial offset of 4 days with an actual completion time interval of 5 days, would result in a new offset of `(4d * 3 + 1 * 5d)/4 = 4.25d` and thus a new offset attribute of `@o ~4d6h` which would then apply to the next completion.
+
+  #### c. Repetition at Regular Intervals
 
 
-The full flexibility of the superb Python _dateutil_ package is supported and thus repetition at _any_ regular interval.
+  The full flexibility of the superb Python _dateutil_ package is supported and thus repetition at _any_ regular interval.
 
-  `* pickleball @s 8a mon @e 90m @r w &w MO, TH`
+    `* pickleball @s 8a mon @e 90m @r w &w MO, TH`
 
-would schedule this event for 8am on the Mondays and Thursdays of every week beginning with the next Monday.
+  would schedule this event for 8am on the Mondays and Thursdays of every week beginning with the next Monday.
 
-With reminders that repeat at regular intervals, _tklr_ also supports the recognition (counting) of anniversaries. E.g.
+  With reminders that repeat at regular intervals, _tklr_ also supports the recognition (counting) of anniversaries. E.g.
 
-  `* Max's {XXX} birthday @s 2016-10-23 @r y &m 10 &d 23`
+    `* Max's {XXX} birthday @s 2016-10-23 @r y &m 10 &d 23`
 
-would repeat yearly on October 23 and would on that day in 2026 be displayed as
+  would repeat yearly on October 23 and would on that day in 2026 be displayed as
 
-  `* Max's 10th birthday`
+    `* Max's 10th birthday`
 
-Consider another, more complicated, but still _regular_ reminder, for Presidential election day. Beginning with November, 2020, this should repeat every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
+  Consider another, more complicated, but still _regular_ reminder, for Presidential election day. Beginning with November, 2020, this should repeat every 4 years on the first Tuesday after a Monday in November (a Tuesday whose month day falls between 2 and 8 in the 11th month). In _tklr_, this event would be
 
-  ```
-  * Presidential election day @s nov 1 2020
-      @r y &i 4 &w TU &d 2, 3, 4, 5, 6, 7, 8 &m 11
-  ```
+    ```
+    * Presidential election day @s nov 1 2020
+        @r y &i 4 &w TU &d 2, 3, 4, 5, 6, 7, 8 &m 11
+    ``` -->
 
-## Views
+↩︎ [Back to TOC](#table-of-contents)
 
-Each of the views listed below can be opened by entering the first letter of the view's name, e.g., pressing `A` (`shift+a`) will open _Agenda View_.
+### 1.3. Useful attributes
 
-These views involve vertical lists of reminders, each row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder. When necessary, lists are split into pages so that no more than 26 reminders appear on any one page. The left and right cursor keys are used to move back and forth between pages.
 
-On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. When the details of reminder are being displayed, various commands are available to modify the reminder. Press `enter` to display a menu of the available options and `enter` again with an option selected to use it or `escape` to close the menu.   Additionally, the key corresponding to the tag of another reminder will switch the details display to that reminder, `escape` will close the details display and entering the upper case letter corresponding to another view will open that view.
 
-The point of using tags to select and display reminders in this way is to minimize key presses. Any reminder on a page can be selected and its details displayed with a single key press.
+## 2. Views
 
-### Agenda View
+  Each of the views listed below can be opened by entering the first letter of the view's name, e.g., pressing `A` (`shift+a`) will open _Agenda View_.
 
-The next three days of _events_ together with _notices_ and _drafts_ followed by goals ordered by priority and then tasks ordered by urgency.
+  These views involve vertical lists of reminders, each row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder. When necessary, lists are split into pages so that no more than 26 reminders appear on any one page. The left and right cursor keys are used to move back and forth between pages.
+
+  On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. When the details of reminder are being displayed, various commands are available to modify the reminder. Press `enter` to display a menu of the available options and `enter` again with an option selected to use it or `escape` to close the menu.   Additionally, the key corresponding to the tag of another reminder will switch the details display to that reminder, `escape` will close the details display and entering the upper case letter corresponding to another view will open that view.
+
+  The point of using tags to select and display reminders in this way is to minimize key presses. Any reminder on a page can be selected and its details displayed with a single key press.
+
+↩︎ [Back to TOC](#table-of-contents)
+
+  ### 2.1. Agenda View
+
+  The next three days of _events_ together with _notices_ and _drafts_ followed by goals ordered by priority and then tasks ordered by urgency.
 
 The first day will always include any _notice_ or _drafts_ in addition to any scheduled events. In this case the reminber tagged _b_ indicates that there is an event beginning in 4 days (`+4d`) whose subject begins with "Quisquam" and which has a _notice_ entry, "@n INTERVAL" in which `INTERVAL > 4d`. This notice of the upcoming event will be displayed on the first day (current date) of Agenda View each day until the day of the event.
 
@@ -305,7 +458,9 @@ Since there are more than 26 reminders to be displayed and only 26 available low
   <em>Agenda View: The second and last page</em>
 </p>
 
-### Bins View
+↩︎ [Back to TOC](#table-of-contents)
+
+### 2.2. Bins View
 
 Hierarchical display of bins and reminders.
 
@@ -365,9 +520,13 @@ Pressing _a_ again, now the tag for _2025:11_, makes this the active parent:
 
 Notice in the _bread crumb_ header that there are integer tags going backward for each of the ancestors and the active parent is, as usual, the last element of the path. But it is listed here not using the alias, _11_, but the actual bin name, _2025:11_.
 
-### Completed View - TO BE DONE
+↩︎ [Back to TOC](#table-of-contents)
 
-### Find View
+### 2.3. Completed View - TO BE DONE
+
+↩︎ [Back to TOC](#table-of-contents)
+
+### 2.4. Find View
 
 Reminders whose subject or detail entries contain a case-insensitive match for an entered expression.
 
@@ -389,15 +548,34 @@ When submitted, the matching reminders are listed:
   <em>Find: matching reminders</em>
 </p>
 
-### Goals View
+↩︎ [Back to TOC](#table-of-contents)
 
-Press `G` to open Goal View. It displays a prioritized, taggable list of every reminder whose itemtype is `!`:
+### 2.5. Goals View
 
-```
- tag   priority   num_completed/num_required   time_remaining   subject
-```
+Press `G` to open Goal View displaying a tagged list of *goals* sorted by their *priority*.
 
-Priorities are recomputed whenever the view opens. For each goal, let `n` be the number of required completions in the period `t`, `n'` the number of instances remaining this period, and `t'` the time remaining before the period ends. The ratio `priority = 100 * (n' * t) / (n * t')` indicates how far ahead or behind the schedule you are:
+How is *priority* calculated?  Suppose, for example, `@t 3/1w` is specified in a goal, then `n = 3` is the specified number of completions and `t = 1w` is the time period allowed for their completion. Further suppose that at a particular moment, `n'` is the number of instances remaining unfinished and `t'` is the time remaining in the period for their completion.  Initially, the needed rate of completions to satisfy the goal is `n/t`. At the moment being considered, the needed rate of completions goal is `n'/t'`.
+
+Now consider these possibilities:
+
+- ` n'/t' > n/t `:
+    the needed completion rate has increased  - completions are behind schedule
+- ` n'/t' = n/t `:
+    the needed completion rate is unchanged - completions are on schedule
+- ` n'/t' < n/t `:
+    the needed completion rate has decreased - completions are ahead of schedule
+
+If *priority* is defined the current rate of completion as a percentage of the original rate,  `100 (n' / t') / (n / t) = 100 (n' t) / (t' n)`, then these possibilites can be restated as
+
+- `priority > 100`:
+    the needed completion rate has increased  - completions are behind schedule
+- `priority = 100`:
+    the needed completion rate is unchanged - completions are on schedule
+- `priority < 100`:
+    the needed completion rate has decreased - completions are ahead of schedule
+
+
+Consider a goal a goal with the target `@t n/t` so that `n` is the number of completions intended for the period `t`, `n'` the number of instances remaining this period, and `t'` the time remaining before the period ends. The ratio `priority = 100 * (n' * t) / (n * t')` indicates how far ahead or behind the schedule you are:
 
 - `priority > 100`: the goal is behind schedule, so it floats to the top of the view.
 - `priority = 100`: you are on schedule.
@@ -421,7 +599,9 @@ Pressing _g_ displays the details for that reminder.
   <em>Weeks View: details for the reminder tagged g</em>
 </p>
 
-### Last View
+↩︎ [Back to TOC](#table-of-contents)
+
+### 2.6. Last View
 
 The last instance of every scheduled reminder occurring before the current moment listed in **descending** order by date and time.
 
@@ -432,9 +612,13 @@ The last instance of every scheduled reminder occurring before the current momen
   <em>Agenda View: The second and last page</em>
 </p>
 
-### Modified View - TO BE DONE
+↩︎ [Back to TOC](#table-of-contents)
 
-### Next View
+### 2.7. Modified View - TO BE DONE
+
+↩︎ [Back to TOC](#table-of-contents)
+
+### 2.8. Next View
 
 The first instance of every scheduled reminder occurring after the current moment listed in **ascending** order by date and time.
 
@@ -463,13 +647,21 @@ The reminders with case-insensitive matches will be highlighted:
   <em>Search: highlighted matches</em>
 </p>
 
-### Query View - TO BE DONE
+↩︎ [Back to TOC](#table-of-contents)
 
-### Remaining Alerts View - TO BE DONE
+### 2.9. Query View - TO BE DONE
 
-### Tags View - TO BE DONE
+↩︎ [Back to TOC](#table-of-contents)
 
-### Weeks View
+### 2.10. Remaining Alerts View - TO BE DONE
+
+↩︎ [Back to TOC](#table-of-contents)
+
+### 2.11. Tags View - TO BE DONE
+
+↩︎ [Back to TOC](#table-of-contents)
+
+### 2.12. Weeks View
 
 Scheduled Reminders for the Week with busy times displayed by a leading _busy bar_.
 
@@ -483,6 +675,8 @@ Scheduled Reminders for the Week with busy times displayed by a leading _busy ba
 The _left_ and _right_ cursor keys shift the display backward and forward one week at a time. Adding _shift_ to these cursor keys shifts by four weeks at a time. The _space_ key restores the display to the current week.
 
 There are 5 cells in the _busy bar_ for each week day. The first (furthest left) displays a yellow square if an _all day event_ such as a holiday is scheduled for that date. The remaining 4 cells correspond to the 6-hour periods during the day:
+
+↩︎ [Back to TOC](#table-of-contents)
 
 ## Details
 
