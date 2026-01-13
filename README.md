@@ -45,7 +45,8 @@ This introduction to *tklr* is best viewed at [GitHub.io](https://dagraham.githu
               </ul>
             </details>
           </li>
-          <li><a href="#13-useful-attributes">1.3. Useful attributes</a></li>
+          <li><a href="#13-mouse-free-navigation">1.3. Mouse-free navigation</a></li>
+          <li><a href="#14-agenda-view">1.4. Agenda View</a></li>
         </ul>
       </details>
     </li>
@@ -372,6 +373,8 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 <div style="clear:both;"></div>
 
 ↩︎ [Back to TOC](#table-of-contents)
+
+### 1.3. Mouse-free navigation
 
 ### 1.3. Useful attributes
 

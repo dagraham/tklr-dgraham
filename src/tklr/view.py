@@ -465,6 +465,7 @@ class ListWithDetails(Container):
         if self._details_visibility_callback:
             self._details_visibility_callback(True)
         self._set_footer_hint(True)
+        self._copy_details_to_clipboard(title, lines)
 
     def hide_details(self) -> None:
         self.details_meta = {}  # clear meta on close
@@ -578,6 +579,23 @@ class ListWithDetails(Container):
             footer.update(base_text)
             self._footer_hint_active = False
             self._footer_saved_text = None
+
+    def _copy_details_to_clipboard(self, title: str, lines: list[str]) -> None:
+        """Copy the rendered details text to the system clipboard."""
+        chunks: list[str] = []
+        if title:
+            chunks.append(title.strip())
+        if lines:
+            chunks.append(
+                "\n".join(line.rstrip() for line in lines if line is not None)
+            )
+        payload = "\n\n".join(chunk for chunk in chunks if chunk)
+        if not payload:
+            return
+        try:
+            copy_to_clipboard(payload)
+        except ClipboardUnavailable as exc:
+            log_msg(f"[Clipboard] Unable to copy details: {exc}")
 
 
 class DetailsHelpScreen(ModalScreen[None]):
@@ -1026,7 +1044,9 @@ class EditorScreen(Screen):
             return False
         return True
 
-    def _live_parse_and_feedback(self, *, final: bool, refresh_from_widget: bool = False) -> None:
+    def _live_parse_and_feedback(
+        self, *, final: bool, refresh_from_widget: bool = False
+    ) -> None:
         """Non-throwing live parse + feedback for current cursor token."""
         if refresh_from_widget and self._text is not None:
             self.entry_text = self._text.text or ""
@@ -2967,9 +2987,7 @@ class DynamicViewApp(App):
         self.controller = controller
         self.current_start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
-        self._week_state_before_editor: (
-            tuple[datetime, tuple[int, int]] | None
-        ) = None
+        self._week_state_before_editor: tuple[datetime, tuple[int, int]] | None = None
         self.title = ""
         self.view_mode = "list"
         self.view = "weeks"
