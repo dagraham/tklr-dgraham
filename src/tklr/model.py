@@ -58,7 +58,7 @@ BIN_ROOTS = {
     "people",
     "places",
     "projects",
-    "seedbed",
+    "idea garden",
     "tags",
     "unlinked",
 }
@@ -69,11 +69,11 @@ BIN_PATHS = [
     ["series", "library"],
     ["poetry", "library"],
     ["quotations", "library"],
-    ["seed", "seedbed"],
-    ["germination", "seedbed"],
-    ["seedling", "seedbed"],
-    ["growing", "seedbed"],
-    ["flowering", "seedbed"],
+    ["1_seed", "idea garden"],
+    ["2_germinating", "idea garden"],
+    ["3_sprouting", "idea garden"],
+    ["4_growing", "idea garden"],
+    ["5_flowering", "idea garden"],
 ]
 
 

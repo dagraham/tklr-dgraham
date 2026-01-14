@@ -1516,6 +1516,19 @@ class Controller:
         # If you have a general helper that returns fields for a record, reuse it.
         # Here we replicate the important parts used by process_tag()
         core = self.get_record_core(record_id) or {}
+        record_dict = self.db_manager.get_record_as_dictionary(record_id) or {}
+
+        tokens_json = record_dict.get("tokens") or "[]"
+        entry_text = ""
+        try:
+            tokens_list = json.loads(tokens_json)
+            entry_text = " ".join(
+                tok.get("token", "").strip()
+                for tok in tokens_list
+                if isinstance(tok, dict) and tok.get("token")
+            ).strip()
+        except (json.JSONDecodeError, TypeError):
+            entry_text = ""
         itemtype = core.get("itemtype") or ""
         rruleset = core.get("rruleset") or ""
         all_prereqs = core.get("all_prereqs") or ""
@@ -1564,7 +1577,8 @@ class Controller:
             "instance_ts": instance_ts,
             "all_prereqs": all_prereqs,
             "pinned": bool(pinned_now),
-            "record": self.db_manager.get_record(record_id),
+            "record": record_dict,
+            "entry_text": entry_text,
         }
         self._last_details_meta = meta
 

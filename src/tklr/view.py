@@ -465,7 +465,7 @@ class ListWithDetails(Container):
         if self._details_visibility_callback:
             self._details_visibility_callback(True)
         self._set_footer_hint(True)
-        self._copy_details_to_clipboard(title, lines)
+        self._copy_details_to_clipboard(title, lines, meta)
 
     def hide_details(self) -> None:
         self.details_meta = {}  # clear meta on close
@@ -580,16 +580,21 @@ class ListWithDetails(Container):
             self._footer_hint_active = False
             self._footer_saved_text = None
 
-    def _copy_details_to_clipboard(self, title: str, lines: list[str]) -> None:
-        """Copy the rendered details text to the system clipboard."""
-        chunks: list[str] = []
-        if title:
-            chunks.append(title.strip())
-        if lines:
-            chunks.append(
-                "\n".join(line.rstrip() for line in lines if line is not None)
-            )
-        payload = "\n\n".join(chunk for chunk in chunks if chunk)
+    def _copy_details_to_clipboard(
+        self, title: str, lines: list[str], meta: dict | None
+    ) -> None:
+        """Copy the entry string derived from tokens to the system clipboard."""
+        entry_text = (meta or {}).get("entry_text", "")
+        payload = entry_text.strip() if isinstance(entry_text, str) else ""
+        if not payload:
+            chunks: list[str] = []
+            if title:
+                chunks.append(title.strip())
+            if lines:
+                chunks.append(
+                    "\n".join(line.rstrip() for line in lines if line is not None)
+                )
+            payload = "\n\n".join(chunk for chunk in chunks if chunk).strip()
         if not payload:
             return
         try:
@@ -659,6 +664,8 @@ class OptionPrompt(ModalScreen[Optional[str]]):
         self.message = message.strip()
         self.options = options
         self._olist: OptionList | None = None
+        self._hotkey_map: dict[str, str] = {}
+        self._build_hotkey_map()
 
     def compose(self):
         with Vertical(id="option_prompt"):
@@ -667,11 +674,19 @@ class OptionPrompt(ModalScreen[Optional[str]]):
             if self.message:
                 yield Static(self.message, id="option_message")
 
-            yield Static(
-                "Use ↑/↓ to move, [bold yellow]Enter[/bold yellow] to select, "
-                "[bold yellow]ESC[/bold yellow] to cancel.",
-                id="option_instructions",
-            )
+            if self._hotkey_map:
+                instructions = (
+                    "Either press an option's first letter to choose it "
+                    "or use ↑/↓ to select and then [bold yellow]Enter[/bold yellow] "
+                    "to choose. Pressing [bold yellow]ESC[/bold yellow] cancels."
+                )
+            else:
+                instructions = (
+                    "Use ↑/↓ to move, [bold yellow]Enter[/bold yellow] to select, "
+                    "[bold yellow]ESC[/bold yellow] to cancel."
+                )
+
+            yield Static(instructions, id="option_instructions")
 
             self._olist = OptionList(*self.options, id="option_list")
             yield self._olist
@@ -692,9 +707,48 @@ class OptionPrompt(ModalScreen[Optional[str]]):
 
     def on_key(self, event: events.Key) -> None:
         """Only handle ESC here; OptionList handles Enter itself."""
-        if event.key == "escape":
+        key = (event.key or "").lower()
+        if key == "escape":
             event.stop()
             self.dismiss(None)
+            return
+
+        if len(key) == 1:
+            target = self._hotkey_map.get(key)
+            if target:
+                event.stop()
+                # Highlight the option for visual feedback before dismissing
+                if self._olist:
+                    try:
+                        index = self.options.index(target)
+                        self._olist.highlighted = index  # type: ignore[attr-defined]
+                    except ValueError:
+                        pass
+                    except Exception:
+                        pass
+                self.dismiss(target)
+
+    def _build_hotkey_map(self) -> None:
+        """
+        Map unique first letters (case-insensitive) to option labels.
+        Duplicates remove the hotkey so ambiguous letters do nothing.
+        """
+        hotkeys: dict[str, str] = {}
+        duplicates: set[str] = set()
+        for option in self.options:
+            if not option:
+                continue
+            key = option.strip()[:1].lower()
+            if not key:
+                continue
+            if key in duplicates:
+                continue
+            if key in hotkeys:
+                duplicates.add(key)
+                hotkeys.pop(key, None)
+            else:
+                hotkeys[key] = option
+        self._hotkey_map = hotkeys
 
 
 class ChoicePrompt(ModalScreen[Optional[str]]):
@@ -1089,6 +1143,33 @@ class EditorScreen(Screen):
             return len(self.entry_text or "")
         return sum(len(l) for l in lines[:row]) + min(col, len(lines[row]))
 
+    def _format_schedule_preview(self, tok: dict[str, Any]) -> str | None:
+        """Return a weekday-inclusive preview for @s tokens if possible."""
+        item = getattr(self, "item", None)
+        if not item:
+            return None
+
+        raw = (tok.get("token") or "").strip()
+        if not raw.lower().startswith("@s"):
+            return None
+
+        value = raw[2:].strip()
+        if not value:
+            return None
+
+        try:
+            obj, kind, meta = item.parse_user_dt_for_s(value)
+        except Exception:
+            return None
+
+        if kind == "error" or obj is None:
+            return None
+
+        try:
+            return item.fmt_verbose(obj)
+        except Exception:
+            return None
+
     def _render_feedback(self) -> None:
         """Update the feedback panel using only screen state."""
         _AT_DESC = {
@@ -1194,6 +1275,10 @@ class EditorScreen(Screen):
             # panel.update(f"↳ @{k or '?'} {preview or raw}")
             key = tok.get("k", None)
             description = f"{_AT_DESC.get(key, '')}:" if key else "↳"
+            if key == "s":
+                formatted = self._format_schedule_preview(tok)
+                if formatted:
+                    preview = f"@s {formatted}"
             panel.update(f"{description} {preview or raw}")
         elif ttype == "&":
             key = tok.get("k", None)

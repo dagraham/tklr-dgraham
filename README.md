@@ -79,7 +79,7 @@ This introduction to *tklr* is best viewed at [GitHub.io](https://dagraham.githu
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-a.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
-Rather than filling out fields in a form to create or edit reminders, a simple text-based format is used with <i>just in time prompting</i>.
+Rather than filling out fields in a form to create or edit reminders, a simple entry field is provided for text input together with a prompt area which provides <i>instantaneous feedback</i>.
   </p>
 <p>
   Here a new reminder is being created. Below the entry area, the prompt indicates that the first step is to enter the type character for the reminder.
@@ -93,7 +93,7 @@ Rather than filling out fields in a form to create or edit reminders, a simple t
 After the type character is entered, the prompt changes to indicate that the next step is to enter the subject of the reminder.
   </p>
 <p>
-  These prompts are displayed <i>just in time</i> to assist with the creation of the reminder. They do not interfere with the entry process in any way and will increasingly be ignored as familiarity is gained.
+  The prompt is updated <i>just in time</i> to assist with the current development of the reminder. This does not interfere with the entry process but, like the speedometer in a car, ensures that the relevant information is there if you want it.
 </p>
 </div>
 <div style="clear: both;"></div>
@@ -168,7 +168,7 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 </div>
 <div style="clear: both;"></div>
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 ### 1.2. Support for wide variety of reminder types and attributes
 
@@ -189,17 +189,19 @@ Here are some illustrations of how the various types and attributes can be put t
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
-<code>* lunch with Ed @s 12p fri @e 1h @a 30m: n
+<code>* lunch with Ed
+  @s 12p fri @e 1h
+  @a 30m: n
 </code>
   </pre>
-<p>The <code>*</code> makes this reminder an <i>event</i> with whatever follows up to the next <code>@</code> character as the subject. The <code>@s</code> attribute sets the <i>scheduled</i> or starting time for 12pm on the first Friday after today and the <code>@e 1h</code> attribute sets the <i>extent</i> for one hour. This event will thus be displayed as occupying the period <code>12-1pm</code> on that Friday. The distinguishing feature of an <i>event</i> is that it occurs at a particular time and the <code>@s</code> attribute is therefore required.
+<p>The <code>*</code> makes this reminder an <i>event</i> with whatever follows until the next <code>@</code> character as the subject. The <code>@s</code> attribute sets the <i>scheduled</i> or starting time for 12pm on the first Friday after today and the <code>@e 1h</code> attribute sets the <i>extent</i> for one hour. This event will thus be displayed as occupying the period <code>12-1pm</code> on that Friday. The distinguishing feature of an <i>event</i> is that it occurs at a particular time and the <code>@s</code> attribute is therefore required.
 </p>
-<p>If the <em>tklr ui</em> is running, the addition of <code>@a 30m: n</code> will trigger a built-in <em>notify</em> alert thirty minutes before the start of the event that sounds a bell and posts a message on the <em>tklr</em> display showing the subject and time of the event.
+<p>Provided that <em>tklr ui</em> is running, <code>@a 30m: n</code> will trigger a built-in <em>notify</em> alert thirty minutes before the start of the event which sounds a bell and posts a message on the <em>tklr</em> display showing the subject and time of the event.
 </p>
 </div>
 <div style="clear:both;"></div>
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 #### 1.2.2. A _task_: pick up milk
 
@@ -211,12 +213,12 @@ Here are some illustrations of how the various types and attributes can be put t
   <p>The beginning <code>~</code> type character makes this reminder a <i>task</i> with the following <code>pick up milk</code> as the <i>subject</i>.
   </p>
 
-  <p>Using an <code>@s</code> attribute is optional and, when specified, it sets the time at which the task should be <em>completed</em>, not begun. The <code>@e</code> attribute is also optional and, when given, is intepreted as the estimated time period required for completion.
+  <p>Using an <code>@s</code> attribute is optional and, when specified, it sets the time at which the task should be <strong>completed</strong>, not begun. The <code>@e</code> attribute is also optional and, when given, is intepreted as the estimated time period required for completion.
   </p>
 </div>
 <div style="clear:both;"></div>
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 #### 1.2.3. A _repeating event_: trash pickup
 
@@ -230,7 +232,7 @@ Here are some illustrations of how the various types and attributes can be put t
 </div>
 <div style="clear:both;"></div>
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 #### 1.2.4. An _event that repeats irregularly_: dental appointment
 
@@ -250,7 +252,7 @@ Here are some illustrations of how the various types and attributes can be put t
 </div>
 <div style="clear:both;"></div>
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 #### 1.2.5. A _complicated_ but regularly repeating task: vote for president
 
@@ -270,7 +272,7 @@ Here are some illustrations of how the various types and attributes can be put t
 <div style="clear:both;"></div>
 
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 #### 1.2.6. An _offset task_: fill bird feeders
 
@@ -295,7 +297,7 @@ It is worth noting the different roles of two attributes in events and tasks.
 1. The <em>scheduled</em> datetime attribute describes when an event begins but when a task should be completed.
 2. The <em>notice</em> attribute provides an early warning for an event but postpones the disclosure of a task.
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 #### 1.2.7. A _note_: a favorite Churchill quotation
 
@@ -315,7 +317,7 @@ It is worth noting the different roles of two attributes in events and tasks.
 <div style="clear:both;"></div>
 
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 #### 1.2.8. A _project_: build a dog house with component tasks
 
@@ -334,7 +336,7 @@ It is worth noting the different roles of two attributes in events and tasks.
     </div>
 <div style="clear:both;"></div>
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 #### 1.2.9. A _goal_: interval training 3 times each week
 
@@ -355,7 +357,7 @@ When a *goal* is created, the attribute `@k 0` is automatically added to indicat
 
 In either case, `@k` is reset to zero and `@s` is reset to the previous value *plus* the period allowed for completion of the goal, i.e, to the *end* of the period originally allowed for completion.
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 #### 1.2.10. A _draft_ reminder: meet Alex for coffee - time to be determined
 
@@ -372,16 +374,37 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 </div>
 <div style="clear:both;"></div>
 
-↩︎ [Back to TOC](#table-of-contents)
+#### 1.2.11. Attributes
+
+##### `{XXX}`: Anniversary Substitution
+
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>* Max's {XXX} birthday
+  @s 2016-10-23
+  @r y &m 10 &d 23
+</code>
+  </pre>
+  <p>The <em>anniversary expression</em>, <code>{XXX}</code>, will be replaced in the listing of the reminder with an <code>@r</code> entry in Agenda, Next and Weeks views by the relevant number of the anniversary. For example, in the listing for October 23, 2026, the subject of this reminder would appear as <code>Max's 10th birthday</code>. Note that the appropriate suffix - st, nd, rd or th - is automatically applied.
+  </p>
+</div>
+<div style="clear:both;"></div>
+
+
+
+[↩︎](#table-of-contents)
 
 ### 1.3. Mouse-free navigation
 
-### 1.3. Useful attributes
+In the *tklr* views that display a vertical list of reminders, each row begins with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder. When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
 
-- {XXX} anniversary substitutions
-- @m
+On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. When the details of a reminder are being displayed, the key corresponding to the tag of another reminder can be pressed to switch the details display to that reminder, the upper case letter corresponding to another view or `escape` to close the details display.  The point of using tags to select and display reminders in this way is to minimize key presses. Any reminder on a page can be selected and its details displayed with a single key press.
+
+Additionally, various commands are available to modify the reminder whose details are being displayed. Press `enter` to display a menu of the available options and then press the first letter of the option or `enter` with an option selected to use it or `escape` to close the menu and return to the details display.
 
 
+
+### 1.4. What's happening: Agenda View
 
 ## 2. Views
 
@@ -393,7 +416,7 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
   The point of using tags to select and display reminders in this way is to minimize key presses. Any reminder on a page can be selected and its details displayed with a single key press.
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
   ### 2.1. Agenda View
 
@@ -419,7 +442,7 @@ Since there are more than 26 reminders to be displayed and only 26 available low
   <em>Agenda View: The second and last page</em>
 </p>
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 ### 2.2. Bins View
 
@@ -481,11 +504,11 @@ Pressing _a_ again, now the tag for _2025:11_, makes this the active parent:
 
 Notice in the _bread crumb_ header that there are integer tags going backward for each of the ancestors and the active parent is, as usual, the last element of the path. But it is listed here not using the alias, _11_, but the actual bin name, _2025:11_.
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 ### 2.3. Completed View - TO BE DONE
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 ### 2.4. Find View
 
@@ -509,7 +532,7 @@ When submitted, the matching reminders are listed:
   <em>Find: matching reminders</em>
 </p>
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 ### 2.5. Goals View
 
@@ -560,7 +583,7 @@ Pressing _g_ displays the details for that reminder.
   <em>Weeks View: details for the reminder tagged g</em>
 </p>
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 ### 2.6. Last View
 
@@ -573,11 +596,11 @@ The last instance of every scheduled reminder occurring before the current momen
   <em>Agenda View: The second and last page</em>
 </p>
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 ### 2.7. Modified View - TO BE DONE
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 ### 2.8. Next View
 
@@ -608,19 +631,19 @@ The reminders with case-insensitive matches will be highlighted:
   <em>Search: highlighted matches</em>
 </p>
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 ### 2.9. Query View - TO BE DONE
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 ### 2.10. Remaining Alerts View - TO BE DONE
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 ### 2.11. Tags View - TO BE DONE
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 ### 2.12. Weeks View
 
@@ -637,7 +660,7 @@ The _left_ and _right_ cursor keys shift the display backward and forward one we
 
 There are 5 cells in the _busy bar_ for each week day. The first (furthest left) displays a yellow square if an _all day event_ such as a holiday is scheduled for that date. The remaining 4 cells correspond to the 6-hour periods during the day:
 
-↩︎ [Back to TOC](#table-of-contents)
+[↩︎](#table-of-contents)
 
 ## Details
 

@@ -38,11 +38,11 @@ BINS = [
     "people:C/people/root",
     "places/root",
     "projects/root",
-    "seed/seedbed/root",
-    "germination/seedbed/root",
-    "seedling/seedbed/root",
-    "growth/seedbed/root",
-    "flowering/seedbed/root",
+    "1_seed/idea garden/root",
+    "2_germinating/idea garden/root",
+    "3_sprouting/idea garden/root",
+    "4_growing/idea garden/root",
+    "5_flowering/idea garden/root",
     "tags/root",
 ]
 
