@@ -3337,8 +3337,19 @@ class Controller:
     def move_bin_under(self, bin_id: int, new_parent_id: int) -> None:
         self.db_manager.move_bin_to_parent(bin_id, new_parent_id)
 
-    def delete_bin(self, bin_id: int) -> None:
+    def delete_bin(self, bin_id: int) -> str:
+        """
+        Delete a bin: purge it when empty, otherwise move it under 'unlinked'.
+
+        Returns:
+            'purged'   -> bin removed permanently (no children/reminders)
+            'archived' -> bin moved under the 'unlinked' container
+        """
+        removed = self.db_manager.delete_bin_if_empty(bin_id)
+        if removed:
+            return "purged"
         self.db_manager.mark_bin_deleted(bin_id)
+        return "archived"
 
     def is_protected_bin(self, bin_id: int) -> bool:
         return self.db_manager.is_system_bin(bin_id)

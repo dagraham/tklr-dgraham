@@ -20,6 +20,8 @@ This introduction to *tklr* is best viewed at [GitHub.io](https://dagraham.githu
 <strong>This README is a work-in-progress. This notice will be removed when all the major sections have been completed.</strong>
 
 <a id="table-of-contents"></a>
+The [↩︎](#table-of-contents) links at the end of major sections lead back to the following *Table of Contents*:
+
 <details>
   <summary><strong>Table of Contents</strong></summary>
   <ul>
@@ -72,9 +74,10 @@ This introduction to *tklr* is best viewed at [GitHub.io](https://dagraham.githu
   </ul>
 </details>
 
+
 ## 1. What makes tklr different
 
-### 1.1. Form-free entry
+### 1.1. Form-Free entry
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-a.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
@@ -93,7 +96,7 @@ Rather than filling out fields in a form to create or edit reminders, a simple e
 After the type character is entered, the prompt changes to indicate that the next step is to enter the subject of the reminder.
   </p>
 <p>
-  The prompt is updated <i>just in time</i> to assist with the current development of the reminder. This does not interfere with the entry process but, like the speedometer in a car, ensures that the relevant information is there if you want it.
+  The prompt is updated <i>as the entry changes</i> to assist with the editing of the reminder. This does not interfere with the entry process but, like the speedometer in a car, ensures that the relevant information is there if wanted.
 </p>
 </div>
 <div style="clear: both;"></div>
@@ -394,7 +397,7 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
 [↩︎](#table-of-contents)
 
-### 1.3. Mouse-free navigation
+### 1.3. Mouse-Free navigation
 
 In the *tklr* views that display a vertical list of reminders, each row begins with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder. When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
 
@@ -404,23 +407,23 @@ Additionally, various commands are available to modify the reminder whose detail
 
 
 
-### 1.4. What's happening: Agenda View
+### 1.4. One-Stop Daily Info: Agenda View
 
 ## 2. Views
 
-  Each of the views listed below can be opened by entering the first letter of the view's name, e.g., pressing `A` (`shift+a`) will open _Agenda View_.
+Each of the views listed below can be opened by entering the first letter of the view's name, e.g., pressing `A` (`shift+a`) will open _Agenda View_.
 
-  These views involve vertical lists of reminders, each row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder. When necessary, lists are split into pages so that no more than 26 reminders appear on any one page. The left and right cursor keys are used to move back and forth between pages.
+These views involve vertical lists of reminders, each row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder. When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
 
-  On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. When the details of reminder are being displayed, various commands are available to modify the reminder. Press `enter` to display a menu of the available options and `enter` again with an option selected to use it or `escape` to close the menu.   Additionally, the key corresponding to the tag of another reminder will switch the details display to that reminder, `escape` will close the details display and entering the upper case letter corresponding to another view will open that view.
+On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. This is worth emphasizing. *There is no need to select a reminder with the cursor keys or the mouse and then press enter to see its details - just press the key corresponding to its tag.*
 
-  The point of using tags to select and display reminders in this way is to minimize key presses. Any reminder on a page can be selected and its details displayed with a single key press.
+When the details of reminder are being displayed, pressing the key corresponding to the tag of another reminder will switch the details display to that reminder, pressing the upper case letter corresponding to another view will open that view or pressing `enter` will open a menu of various commands applicable to the selected reminder. Press the first letter of an option to select it or use the up and down cursor keys to move to an option and then `enter` to select it. Press `escape` to close this commands menu.
 
 [↩︎](#table-of-contents)
 
   ### 2.1. Agenda View
 
-  The next three days of _events_ together with _notices_ and _drafts_ followed by goals ordered by priority and then tasks ordered by urgency.
+  The next few days of _events_ together with _notices_ and _drafts_ followed by goals ordered by priority and then tasks ordered by urgency.
 
 The first day will always include any _notice_ or _drafts_ in addition to any scheduled events. In this case the reminber tagged _b_ indicates that there is an event beginning in 4 days (`+4d`) whose subject begins with "Quisquam" and which has a _notice_ entry, "@n INTERVAL" in which `INTERVAL > 4d`. This notice of the upcoming event will be displayed on the first day (current date) of Agenda View each day until the day of the event.
 

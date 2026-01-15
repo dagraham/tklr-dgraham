@@ -29,6 +29,7 @@ BINS = [
     "2026:01/2026/journal/root",
     "library/root",
     "books/library/root",
+    "ideas/library/root",
     "movies/library/root",
     "series/library/root",
     "poetry/library/root",
@@ -38,12 +39,6 @@ BINS = [
     "people:C/people/root",
     "places/root",
     "projects/root",
-    "1_seed/idea garden/root",
-    "2_germinating/idea garden/root",
-    "3_sprouting/idea garden/root",
-    "4_growing/idea garden/root",
-    "5_flowering/idea garden/root",
-    "tags/root",
 ]
 
 

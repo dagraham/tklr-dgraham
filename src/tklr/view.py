@@ -891,6 +891,9 @@ class TextPrompt(ModalScreen[Optional[str]]):
         event.stop()
 
     def on_key(self, event: events.Key) -> None:
+        if event.key in ("left", "right"):
+            event.stop()
+            return  # Trap nav keys so global bindings don’t fire while dialog is open.
         if event.key == "escape":
             event.stop()
             self.dismiss(None)
@@ -2496,12 +2499,10 @@ class TaggedHierarchyScreen(SearchableScreen):
             is_protected = self.controller.is_protected_bin(bin_id)
         except Exception:
             is_protected = False
-        deleted_id = self.controller.find_bin_id_by_name("deleted")
-        allow_children = deleted_id is None or bin_id != deleted_id
         return {
             "name": name,
             "is_protected": is_protected,
-            "allow_children": allow_children,
+            "allow_children": True,
         }
 
     def _handle_bin_action_shortcut(self, key: str) -> None:
@@ -2646,19 +2647,23 @@ class TaggedHierarchyScreen(SearchableScreen):
 
     def _prompt_delete_bin(self, bin_id: int, bin_name: str) -> None:
         message = (
-            f"Move [{TYPE_TO_COLOR['b']}]{bin_name}"
-            f"[/ {TYPE_TO_COLOR['b']}] (and its children) to 'deleted'?"
+            f"Delete [{TYPE_TO_COLOR['b']}]{bin_name}"
+            f"[/ {TYPE_TO_COLOR['b']}]?\n"
+            "Empty bins are removed permanently; others move under 'unlinked'."
         )
 
         def _after(result: Optional[bool]) -> None:
             if not result:
                 return
             try:
-                self.controller.delete_bin(bin_id)
+                outcome = self.controller.delete_bin(bin_id)
             except Exception as exc:
                 self._notify(str(exc), severity="error")
                 return
-            self._notify("Bin moved to 'deleted'.")
+            if outcome == "purged":
+                self._notify("Bin deleted.")
+            else:
+                self._notify("Bin moved to 'unlinked'.")
             self.refresh_hierarchy()
 
         self.app.push_screen(ConfirmPrompt(message), callback=_after)
@@ -2679,19 +2684,34 @@ class TaggedHierarchyScreen(SearchableScreen):
         • No box/branch glyphs.
         • Skip the root row (depth==0) so the current bin name is not repeated.
         • Insert inline tags for depth-1 nodes that are on the current page.
+        • If a child's name looks like "PARENT:SUFFIX" (where PARENT is the parent's
+          exact name), display only "SUFFIX" to avoid redundant prefixes.
         """
         rows: list[str] = []
+        last_name_at_depth: dict[int, str] = {}
+
         for bid, name, depth in flat_nodes:
             if depth == 0:
+                last_name_at_depth[0] = name
                 continue  # skip the current bin itself
-            indent = "    " * depth
+
+            last_name_at_depth[depth] = name
+            parent_name = last_name_at_depth.get(depth - 1, "")
+            display_name = name
+
+            if parent_name and ":" in name:
+                prefix, suffix = name.split(":", 1)
+                if prefix == parent_name:
+                    display_name = suffix
+
+            indent = "  " * depth
             tag_prefix = (
                 f"[dim]{child_tags[bid]}[/dim] "
                 if (depth == 1 and bid in child_tags)
                 else ""
             )
             rows.append(
-                f"{indent}{tag_prefix}[{TYPE_TO_COLOR['b']}]{name}[/ {TYPE_TO_COLOR['b']}]"
+                f"{indent}{tag_prefix}[{TYPE_TO_COLOR['b']}]{display_name}[/ {TYPE_TO_COLOR['b']}]"
             )
         return rows
 
@@ -2953,67 +2973,6 @@ class QueryScreen(SearchableScreen, SafeScreen):
         if hasattr(parent, "on_key"):
             return parent.on_key(event)
         return None
-
-    def _render_tree_rows(
-        self,
-        flat_nodes: list[tuple[int, str, int]],
-        child_tags: dict[int, str],
-    ) -> list[str]:
-        """
-        Render the pre-ordered subtree as simple indented lines.
-
-        • No box/branch glyphs.
-        • Skip the root row (depth==0) so the current bin name is not repeated.
-        • Insert inline tags for depth-1 nodes that are on the current page.
-        • If a child's name looks like "PARENT:SUFFIX" where PARENT == parent's name,
-          display only "SUFFIX".
-        """
-        rows: list[str] = []
-        # Track last seen name at each depth to know the parent name
-        last_name_at_depth: dict[int, str] = {}
-
-        for bid, name, depth in flat_nodes:
-            if depth == 0:
-                # Root row: remember its name but don't render it here
-                last_name_at_depth[0] = name
-                continue
-
-            # Remember this bin's name at its depth
-            last_name_at_depth[depth] = name
-
-            # Determine parent name (if any)
-            parent_name = last_name_at_depth.get(depth - 1, "")
-
-            # Default display name is the full name
-            display_name = name
-
-            # If "PARENT:rest" and PARENT matches parent_name, show only "rest"
-            if parent_name and ":" in name:
-                prefix, suffix = name.split(":", 1)
-                if prefix == parent_name:
-                    display_name = suffix
-
-            indent = "    " * depth
-            tag_prefix = (
-                f"[dim]{child_tags[bid]}[/dim] "
-                if (depth == 1 and bid in child_tags)
-                else ""
-            )
-            rows.append(
-                f"{indent}{tag_prefix}[{TYPE_TO_COLOR['b']}]{display_name}[/ {TYPE_TO_COLOR['b']}]"
-            )
-
-        return rows
-
-    def _render_reminder_label(self, r: ReminderRow) -> str:
-        # Example: "Fix itinerary  [dim]task[/dim]"
-        log_msg(f"view bins {r = }")
-        tclr = TYPE_TO_COLOR[r.itemtype]
-        return f"[{tclr}]{r.itemtype} {r.subject}[/ {tclr}]"
-
-
-###^^^ new for tagged bin screen
-
 
 class DynamicViewApp(App):
     """A dynamic app that supports temporary and permanent view changes."""

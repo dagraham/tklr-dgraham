@@ -58,22 +58,16 @@ BIN_ROOTS = {
     "people",
     "places",
     "projects",
-    "idea garden",
-    "tags",
     "unlinked",
 }
 
 BIN_PATHS = [
     ["books", "library"],
-    ["movies", "library"],
-    ["series", "library"],
+    ["ideas", "library"],
     ["poetry", "library"],
     ["quotations", "library"],
-    ["1_seed", "idea garden"],
-    ["2_germinating", "idea garden"],
-    ["3_sprouting", "idea garden"],
-    ["4_growing", "idea garden"],
-    ["5_flowering", "idea garden"],
+    ["series", "library"],
+    ["video", "library"],
 ]
 
 
@@ -519,7 +513,7 @@ class BinPathProcessor:
         log.append(f"Parsed leaf='{leaf_name}', ancestors={ancestors!r}")
 
         # Ensure system bins present
-        root_id, unlinked_id, _ = self.m.ensure_system_bins()
+        root_id, unlinked_id = self.m.ensure_system_bins()
 
         # Ensure leaf exists
         leaf_id = self.m.ensure_bin_exists(leaf_name)
@@ -1022,22 +1016,23 @@ class DatabaseManager:
         self.conn.create_function("REGEXP", 2, regexp)
         self.setup_database()
         self.compute_urgency = UrgencyComputer(env)
+        self._state_cache: dict[str, Any] = {}
+        self._bin_root_overrides: dict[str, str] = self._load_bin_root_overrides()
+        std_roots = self._build_standard_roots()
+        std_paths = self._build_standard_paths()
         self.binproc = BinPathProcessor(
             self,
             BinPathConfig(
                 allow_reparent=True,  # or False if you want conservative behavior
-                standard_roots=BIN_ROOTS,  # <— same set, all lowercase
+                standard_roots=std_roots,
+                standard_paths=std_paths,
             ),
         )
         self.bin_cache = BinCache(self.conn)
         self.root_bin_id = None
         self.unlinked_bin_id = None
-        self.deleted_bin_id = None
         self._system_bins_initialized = False
-        self.root_bin_id, self.unlinked_bin_id, self.deleted_bin_id = (
-            self.ensure_system_bins()
-        )
-        self._state_cache: dict[str, Any] = {}
+        self.root_bin_id, self.unlinked_bin_id = self.ensure_system_bins()
         self.after_save_needed: bool = True
 
         if auto_populate:
@@ -1074,6 +1069,91 @@ class DatabaseManager:
             (key, payload),
         )
         self._state_cache[key] = value
+
+    # ----- Standard root overrides -----
+
+    def _load_bin_root_overrides(self) -> dict[str, str]:
+        """
+        Return canonical-root overrides stored in DerivedState.
+        Keys are canonical names from BIN_ROOTS; values are the user-visible names.
+        """
+        raw = self._get_state_value("bin_root_overrides", {}) or {}
+        overrides: dict[str, str] = {}
+        if isinstance(raw, dict):
+            for canonical in BIN_ROOTS:
+                val = raw.get(canonical)
+                if isinstance(val, str):
+                    fixed = val.strip()
+                    if fixed and fixed.lower() != canonical.lower():
+                        overrides[canonical] = fixed
+        return overrides
+
+    def _persist_bin_root_overrides(self) -> None:
+        if not hasattr(self, "_bin_root_overrides"):
+            return
+        payload = {
+            canon: name
+            for canon, name in self._bin_root_overrides.items()
+            if name and name.strip() and name.strip().lower() != canon.lower()
+        }
+        self._set_state_value("bin_root_overrides", payload)
+
+    def _current_root_name(self, canonical: str) -> str:
+        overrides = getattr(self, "_bin_root_overrides", {}) or {}
+        return overrides.get(canonical, canonical)
+
+    def _build_standard_roots(self) -> set[str]:
+        return {self._current_root_name(name) for name in BIN_ROOTS}
+
+    def _build_standard_paths(self) -> list[list[str]]:
+        paths: list[list[str]] = []
+        overrides = getattr(self, "_bin_root_overrides", {}) or {}
+        for original in BIN_PATHS:
+            if not original:
+                continue
+            parts = list(original)
+            # Skip the leaf (index 0); ancestors should honor overrides.
+            for idx in range(1, len(parts)):
+                canonical = parts[idx]
+                if canonical in BIN_ROOTS and canonical in overrides:
+                    parts[idx] = overrides[canonical]
+            paths.append(parts)
+        return paths
+
+    def _canonical_root_for_name(self, actual_name: str) -> str | None:
+        name = (actual_name or "").strip().lower()
+        if not name:
+            return None
+        for canonical in BIN_ROOTS:
+            if self._current_root_name(canonical).lower() == name:
+                return canonical
+        return None
+
+    def _refresh_standard_root_runtime(self) -> None:
+        if not hasattr(self, "binproc"):
+            return
+        cfg = getattr(self.binproc, "cfg", None)
+        if not cfg:
+            return
+        cfg.standard_roots = self._build_standard_roots()
+        cfg.standard_paths = self._build_standard_paths()
+
+    def _handle_standard_root_rename(
+        self, canonical: str | None, old_name: str, new_name: str
+    ) -> None:
+        if not canonical:
+            return
+        actual = (new_name or "").strip()
+        if not actual:
+            return
+        if not hasattr(self, "_bin_root_overrides"):
+            self._bin_root_overrides = {}
+        if actual.lower() == canonical.lower():
+            self._bin_root_overrides.pop(canonical, None)
+        else:
+            self._bin_root_overrides[canonical] = actual
+        self._persist_bin_root_overrides()
+        self._refresh_standard_root_runtime()
 
     def _records_version(self) -> str:
         row = self.cursor.execute("SELECT MAX(modified) FROM Records").fetchone()
@@ -4278,7 +4358,7 @@ class DatabaseManager:
         If single-level, link under 'unlinked'.
         Returns the final (leaf) bin_id.
         """
-        root_id, unlinked_id, _ = self.ensure_system_bins()
+        root_id, unlinked_id = self.ensure_system_bins()
         parts = [p.strip() for p in path.split("/") if p.strip()]
         if not parts:
             return root_id
@@ -4302,7 +4382,7 @@ class DatabaseManager:
         return parent_id
 
     def ensure_bin_path(self, path: str) -> int:
-        root_id, unlinked_id, _ = self.ensure_system_bins()
+        root_id, unlinked_id = self.ensure_system_bins()
         parts = [p.strip() for p in path.split("/") if p.strip()]
         if not parts:
             return root_id
@@ -4332,13 +4412,12 @@ class DatabaseManager:
         self.commit()
         return parent_id
 
-    def ensure_system_bins(self) -> tuple[int, int, int]:
+    def ensure_system_bins(self) -> tuple[int, int]:
         if getattr(self, "_system_bins_initialized", False):
-            return self.root_bin_id, self.unlinked_bin_id, self.deleted_bin_id
+            return self.root_bin_id, self.unlinked_bin_id
 
         root_id = self.ensure_bin_exists("root")
         unlinked_id = self.ensure_bin_exists("unlinked")
-        deleted_id = self.ensure_bin_exists("deleted")
 
         # Ensure root has no parent (NULL)
         self.cursor.execute(
@@ -4353,23 +4432,55 @@ class DatabaseManager:
             "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
             (unlinked_id, root_id),
         )
-        # Link deleted → root
-        self.cursor.execute(
-            "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
-            (deleted_id, root_id),
-        )
 
         if hasattr(self, "bin_cache"):
             self.bin_cache.on_link(unlinked_id, root_id)
-            self.bin_cache.on_link(deleted_id, root_id)
 
         self.commit()
 
         self.root_bin_id = root_id
         self.unlinked_bin_id = unlinked_id
-        self.deleted_bin_id = deleted_id
         self._system_bins_initialized = True
-        return root_id, unlinked_id, deleted_id
+        self._retire_deleted_bin(unlinked_id)
+        return root_id, unlinked_id
+
+    def _retire_deleted_bin(self, unlinked_id: int) -> None:
+        """
+        Move any legacy 'deleted' bin contents under 'unlinked' and remove the bin.
+        """
+        deleted_id = self.get_bin_id_by_name("deleted")
+        if not deleted_id:
+            return
+
+        # Re-parent children of 'deleted' to 'unlinked'
+        children = self.cursor.execute(
+            "SELECT bin_id FROM BinLinks WHERE container_id = ?", (deleted_id,)
+        ).fetchall()
+        for (child_id,) in children:
+            try:
+                self.move_bin_to_parent(child_id, unlinked_id)
+            except ValueError:
+                # Ignore errors for bins that were already re-parented.
+                continue
+
+        # Re-link reminders that pointed directly to 'deleted'
+        reminder_rows = self.cursor.execute(
+            "SELECT reminder_id FROM ReminderLinks WHERE bin_id = ?", (deleted_id,)
+        ).fetchall()
+        self.cursor.execute("DELETE FROM ReminderLinks WHERE bin_id = ?", (deleted_id,))
+        self.commit()
+        for (rid,) in reminder_rows:
+            try:
+                self.link_record_to_bin(rid, unlinked_id)
+            except Exception:
+                continue
+
+        # Remove the 'deleted' bin entry itself.
+        self.cursor.execute("DELETE FROM BinLinks WHERE bin_id = ?", (deleted_id,))
+        self.cursor.execute("DELETE FROM Bins WHERE id = ?", (deleted_id,))
+        self.commit()
+        if hasattr(self, "bin_cache"):
+            self.bin_cache.on_delete(deleted_id)
 
     def get_bin_id_by_name(self, name: str) -> int | None:
         """Return the id for `name` (case-insensitive) or None if missing."""
@@ -4384,12 +4495,11 @@ class DatabaseManager:
         return int(row[0]) if row else None
 
     def is_system_bin(self, bin_id: int) -> bool:
-        """True if bin_id refers to root/unlinked/deleted."""
+        """True if bin_id refers to root or unlinked."""
         self.ensure_system_bins()
         protected = {
             self.root_bin_id,
             self.unlinked_bin_id,
-            self.deleted_bin_id,
         }
         return bin_id in protected
 
@@ -4440,6 +4550,7 @@ class DatabaseManager:
             raise ValueError("System bins cannot be renamed.")
 
         current = row[0]
+        canonical = self._canonical_root_for_name(current)
         if current.lower() == nm.lower():
             return  # no change
 
@@ -4455,6 +4566,8 @@ class DatabaseManager:
 
         if hasattr(self, "bin_cache"):
             self.bin_cache.on_rename(bin_id, nm)
+
+        self._handle_standard_root_rename(canonical, current, nm)
 
     def move_bin_to_parent(self, bin_id: int, new_parent_id: int) -> None:
         """Re-parent a bin (by id) under a new parent id."""
@@ -4495,14 +4608,52 @@ class DatabaseManager:
             self.bin_cache.on_link(bin_id, new_parent_id)
 
     def mark_bin_deleted(self, bin_id: int) -> None:
-        """Move a bin into the special 'deleted' container."""
+        """Move a bin into the 'unlinked' container when it cannot be removed."""
         self.ensure_system_bins()
         if self.is_system_bin(bin_id):
             raise ValueError("System bins cannot be deleted.")
-        deleted_id = self.deleted_bin_id
-        if deleted_id is None:
-            raise ValueError("Deleted bin is unavailable.")
-        self.move_bin_to_parent(bin_id, deleted_id)
+        unlinked_id = self.unlinked_bin_id
+        if unlinked_id is None:
+            raise ValueError("Unlinked bin is unavailable.")
+        self.move_bin_to_parent(bin_id, unlinked_id)
+
+    def _bin_is_empty(self, bin_id: int) -> bool:
+        """True when the bin has no child bins and no reminders."""
+        child = self.cursor.execute(
+            "SELECT 1 FROM BinLinks WHERE container_id = ? LIMIT 1", (bin_id,)
+        ).fetchone()
+        if child:
+            return False
+        reminder = self.cursor.execute(
+            "SELECT 1 FROM ReminderLinks WHERE bin_id = ? LIMIT 1", (bin_id,)
+        ).fetchone()
+        return reminder is None
+
+    def delete_bin_if_empty(self, bin_id: int) -> bool:
+        """
+        Permanently delete `bin_id` if it has no children or reminders.
+
+        Returns True when the bin was removed, False if it still has dependents
+        and should instead be moved under the 'unlinked' container.
+        """
+        self.ensure_system_bins()
+        row = self.cursor.execute(
+            "SELECT 1 FROM Bins WHERE id = ?", (bin_id,)
+        ).fetchone()
+        if not row:
+            raise ValueError(f"Bin #{bin_id} does not exist.")
+        if self.is_system_bin(bin_id):
+            raise ValueError("System bins cannot be deleted.")
+        if not self._bin_is_empty(bin_id):
+            return False
+
+        self.cursor.execute("DELETE FROM BinLinks WHERE bin_id = ?", (bin_id,))
+        self.cursor.execute("DELETE FROM Bins WHERE id = ?", (bin_id,))
+        self.commit()
+
+        if hasattr(self, "bin_cache"):
+            self.bin_cache.on_delete(bin_id)
+        return True
 
     def link_record_to_bin_path(self, record_id: int, path: str) -> None:
         """
@@ -4606,7 +4757,7 @@ class DatabaseManager:
 
     def ensure_root_exists(self) -> int:
         """Return id for 'root' (creating/anchoring it if needed)."""
-        root_id, _, _ = self.ensure_system_bins()
+        root_id, _ = self.ensure_system_bins()
         return root_id
 
     def ensure_root_children(self, names: list[str]) -> dict[str, int]:
@@ -4617,7 +4768,9 @@ class DatabaseManager:
         root_id = self.ensure_root_exists()
         out: dict[str, int] = {}
         for name in names:
-            nm = (name or "").strip().lower()  # ← roots are canonical lowercase
+            nm = (name or "").strip()
+            if not nm:
+                continue
             cid = self.ensure_bin_exists(nm)
 
             parent = self.get_parent_bin(cid)  # {'id','name'} or None
@@ -4628,7 +4781,7 @@ class DatabaseManager:
                 "INSERT OR IGNORE INTO BinLinks (bin_id, container_id) VALUES (?, ?)",
                 (cid, root_id),
             )
-            out[nm] = cid
+            out[nm.lower()] = cid
 
         self.commit()
         return out

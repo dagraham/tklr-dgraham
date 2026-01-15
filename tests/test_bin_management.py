@@ -53,13 +53,13 @@ def test_mark_bin_deleted_moves_bin(test_controller):
     db = test_controller.db_manager
     root_id = db.ensure_root_exists()
     bin_id = db.create_bin("ArchiveTest", root_id)
-    deleted_id = db.get_bin_id_by_name("deleted")
+    unlinked_id = db.get_bin_id_by_name("unlinked")
 
-    assert deleted_id is not None
+    assert unlinked_id is not None
 
     db.mark_bin_deleted(bin_id)
     parent = db.get_parent_bin(bin_id)
-    assert parent and parent["id"] == deleted_id
+    assert parent and parent["id"] == unlinked_id
 
     with pytest.raises(ValueError):
         db.mark_bin_deleted(root_id)

@@ -265,7 +265,7 @@ max = {{ urgency.project.max }}
 [bin_orders]
 # Specify custom ordering of children for a root bin.
 # Example:
-#   seedbed = ["seed", "germination", "seedling", "growth", "flowering"]
+#   seedbed = ["germinating", "sprouting", "growing", "flowering"]
 {% for root, order_list in bin_orders.items() %}
 {{ root }} = ["{{ order_list | join('","') }}"]
 {% endfor %}
