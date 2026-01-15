@@ -56,7 +56,7 @@ FINISH_CASES = [
     ),
     pytest.param(
         "~ test: offset @s 2025-12-04 12:00p  @o 4d @f 2025-12-08 9:00a",
-        "~ test: offset @s 2025-12-08 9:00a @o 4d",
+        "~ test: offset @s 2025-12-12 9:00a @o 4d",
         id="offset-fixed-interval",
     ),
     pytest.param(

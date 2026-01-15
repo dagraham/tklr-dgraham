@@ -3667,17 +3667,17 @@ Entry: {self.entry}
             completed_dt = self.completion
             raw_offset = offset_tok["token"].split(maxsplit=1)[1]
             td = td_str_to_td(raw_offset.lstrip("~"))
-            offset_val = offset_tok["token"][3:]
-            if offset_val.startswith("~") and due_dt:
+            offset_body = raw_offset.strip()
+            if offset_body.startswith("~") and due_dt:
                 actual = completed_dt - due_dt
                 td = self._smooth_interval(td, actual)
                 self._replace_or_add_token("o", f"~{td_to_td_str(td)}")
-                new_start = completed_dt + td
             else:
                 self._replace_or_add_token("o", td_to_td_str(td))
-                new_start = completed_dt
-            self._replace_or_add_token("s", self.fmt_user(new_start))
-            utc_next = self._instance_to_token_format_utc(new_start + td)
+
+            new_due = completed_dt + td
+            self._replace_or_add_token("s", self.fmt_user(new_due))
+            utc_next = self._instance_to_token_format_utc(new_due)
             self.rruleset = f"RDATE:{utc_next}"
             self.rdstart_str = f"RDATE:{utc_next}"
             self.dtstart = utc_next
