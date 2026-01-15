@@ -3697,12 +3697,17 @@ class DatabaseManager:
         return None
 
     def get_next_start_datetimes_for_record(
-        self, record_id: int, job_id: int | None = None
+        self,
+        record_id: int,
+        job_id: int | None = None,
+        *,
+        limit: int = 2,
     ) -> list[str]:
         """
         Return up to 2 upcoming start datetimes (as compact local-naive strings)
         for the given record (and optional job), sorted ascending.
         """
+        limit = max(1, int(limit)) if limit else 1
         sql = """
             SELECT start_datetime
             FROM DateTimes
@@ -3717,10 +3722,32 @@ class DatabaseManager:
             sql += " AND job_id = ?"
             params.append(job_id)
 
-        sql += " ORDER BY start_datetime ASC LIMIT 2"
+        sql += " ORDER BY start_datetime ASC LIMIT ?"
+        params.append(limit)
 
         self.cursor.execute(sql, params)
         return [row[0] for row in self.cursor.fetchall()]
+
+    def get_upcoming_instances_for_record(
+        self, record_id: int, *, limit: int = 20
+    ) -> list[tuple[str, str | None]]:
+        """
+        Return up to `limit` upcoming instances (start/end) for a record.
+        """
+        limit = max(1, int(limit)) if limit else 1
+        now_key = _fmt_naive(datetime.now())
+        self.cursor.execute(
+            """
+            SELECT start_datetime, end_datetime
+            FROM DateTimes
+            WHERE record_id = ?
+              AND start_datetime >= ?
+            ORDER BY start_datetime ASC
+            LIMIT ?
+            """,
+            (record_id, now_key, limit),
+        )
+        return [(row[0], row[1]) for row in self.cursor.fetchall()]
 
     def find_records(self, regex: str):
         regex_ci = f"(?i){regex}"  # force case-insensitive

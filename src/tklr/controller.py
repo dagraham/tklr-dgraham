@@ -1083,6 +1083,15 @@ class Controller:
 
         return self.apply_token_edit(record_id, edit_tokens)
 
+    def _record_completion_event(
+        self, record_id: int, completed_dt: datetime, due_dt: datetime | None
+    ) -> None:
+        """Best-effort persistence of completion history."""
+        try:
+            self.db_manager.add_completion(record_id, (completed_dt, due_dt))
+        except Exception as exc:
+            log_msg(f"Unable to record completion for {record_id}: {exc}")
+
     def finish_task(self, record_id: int, job_id: int | None, when: datetime) -> bool:
         stamp = self.fmt_user(when)
 
@@ -1092,6 +1101,17 @@ class Controller:
 
         # ---- Case 2: plain task (no job_id) ----
         upcoming = self.db_manager.get_next_start_datetimes_for_record(record_id) or []
+        completion_due: datetime | None = None
+        if upcoming:
+            try:
+                completion_due = self._instance_local_from_text(upcoming[0])
+            except Exception:
+                completion_due = None
+
+        def _return_with_completion(result: bool) -> bool:
+            if result:
+                self._record_completion_event(record_id, when, completion_due)
+            return result
 
         # Case 2a: No instances or only 1 instance → append @f
         if len(upcoming) <= 1:
@@ -1102,7 +1122,8 @@ class Controller:
             def edit_with_finish(text: str) -> str:
                 return text.rstrip() + f" @f {stamp}"
 
-            return self.apply_textual_edit(record_id, edit_with_finish)
+            changed = self.apply_textual_edit(record_id, edit_with_finish)
+            return _return_with_completion(changed)
 
         # Case 2b: 2+ instances → handle based on whether first is RDATE or RRULE
         first_instance_text = upcoming[0]
@@ -1116,7 +1137,8 @@ class Controller:
         rruleset_str = rec.get("rruleset") or ""
         if not rruleset_str:
             # No rruleset, just delete first instance
-            return self.delete_instance(record_id, first_instance_text)
+            res = self.delete_instance(record_id, first_instance_text)
+            return _return_with_completion(res)
 
         # Parse the first instance to get UTC datetime
         try:
@@ -1129,16 +1151,27 @@ class Controller:
 
         if is_from_rdate:
             # First instance is from @+ (RDATE) → remove it from @+
-            return self.delete_instance(record_id, first_instance_text)
+            res = self.delete_instance(record_id, first_instance_text)
+            return _return_with_completion(res)
         else:
             # First instance is from @r (RRULE) → update @s to second instance
             if not second_instance_text:
                 # Safety: shouldn't happen, but handle gracefully
-                return self.delete_instance(record_id, first_instance_text)
+                res = self.delete_instance(record_id, first_instance_text)
+                return _return_with_completion(res)
 
-            return self._advance_s_to_next_rrule_instance(
+            res = self._advance_s_to_next_rrule_instance(
                 record_id, second_instance_text
             )
+            return _return_with_completion(res)
+
+    def touch_item(self, record_id: int) -> None:
+        """Refresh the modified timestamp for a record."""
+        self.db_manager.touch_record(record_id)
+        try:
+            self.db_manager.populate_dependent_tables()
+        except Exception:
+            pass
 
     def schedule_new(self, record_id: int, job_id: int | None, when: datetime) -> bool:
         stamp = self.fmt_user(when)
@@ -2623,6 +2656,79 @@ class Controller:
                 lines.append(text)
             else:
                 lines.append(f"  {text}")
+
+        return title, lines
+
+    def get_record_repetitions(self, record_id: int, *, limit: int = 20):
+        """
+        Return (title, lines) describing the next few repetitions for a record.
+        """
+        record_dict = self.db_manager.get_record_as_dictionary(record_id) or {}
+        subject = record_dict.get("subject") or "(untitled)"
+        rruleset = (record_dict.get("rruleset") or "").strip()
+        tokens_raw = record_dict.get("tokens")
+        tokens_list: list[dict] = []
+        if isinstance(tokens_raw, str):
+            try:
+                tokens_list = json.loads(tokens_raw)
+            except Exception:
+                tokens_list = []
+        elif isinstance(tokens_raw, list):
+            tokens_list = tokens_raw
+
+        has_rrule = bool(rruleset) or any(
+            isinstance(tok, dict) and tok.get("t") == "@" and tok.get("k") == "r"
+            for tok in tokens_list
+        )
+
+        title = f"Repetitions for {subject}"
+        if not has_rrule:
+            return title, ["This reminder has no @r schedule."]
+
+        lines: list[str] = []
+        upcoming_rows = self.db_manager.get_upcoming_instances_for_record(
+            record_id, limit=limit
+        )
+
+        def _parse_dt(text: str | None) -> datetime | None:
+            if not text:
+                return None
+            try:
+                return self._instance_local_from_text(text)
+            except Exception:
+                return None
+
+        occurrences: list[tuple[datetime | None, datetime | None]] = [
+            (_parse_dt(start), _parse_dt(end)) for start, end in upcoming_rows
+        ]
+
+        if not occurrences and rruleset:
+            try:
+                rule = rrulestr(rruleset)
+                cursor = datetime.now()
+                for _ in range(limit):
+                    nxt = rule.after(cursor, inc=True)
+                    if not nxt:
+                        break
+                    occurrences.append((self._dt_local_naive(nxt), None))
+                    cursor = nxt + timedelta(seconds=1)
+            except Exception as exc:
+                return title, [f"Unable to parse rruleset: {exc}"]
+
+        if not occurrences:
+            return title, ["No upcoming repetitions were found."]
+
+        lines.append(f"Next {len(occurrences)} occurrence(s):")
+        for start_dt, end_dt in occurrences:
+            start_display = self.fmt_user(start_dt) if start_dt else "—"
+            if end_dt:
+                end_display = self.fmt_user(end_dt)
+                lines.append(f"  • {start_display} → {end_display}")
+            else:
+                lines.append(f"  • {start_display}")
+
+        if rruleset:
+            lines.extend(["", "rruleset:", *(f"  {line}" for line in rruleset.splitlines())])
 
         return title, lines
 

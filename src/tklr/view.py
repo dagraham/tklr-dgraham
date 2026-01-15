@@ -129,38 +129,14 @@ ONEWK = 7 * ONEDAY
 
 
 def build_details_help(meta: dict) -> list[str]:
-    is_task = meta.get("itemtype") == "~"
-    is_event = meta.get("itemtype") == "*"
-    is_goal = meta.get("itemtype") == "!"
-    is_recurring = bool(meta.get("rruleset"))
-    is_pinned = bool(meta.get("pinned")) if is_task else False
     subject = meta.get("subject")
 
-    left, rght = [], []
-    left.append("[bold],e[/bold] Edit             ")
-    left.append("[bold],c[/bold] Copy             ")
-    left.append("[bold],d[/bold] Delete           ")
-    rght.append("[bold],r[/bold] Reschedule       ")
-    rght.append("[bold],n[/bold] Schedule New     ")
-    rght.append("[bold],t[/bold] Touch            ")
-
-    if is_task:
-        left.append("[bold],f[/bold] Finish           ")
-        left.append("[bold],h[/bold] completions History  ")
-        rght.append("[bold],p[/bold] Toggle Pinned    ")
-    if is_recurring:
-        left.append("[bold]Ctrl+R[/bold] Show Repetitions ")
-
-    m = max(len(left), len(rght))
-    left += [""] * (m - len(left))
-    rght += [""] * (m - len(rght))
-
     lines = [
-        f"[bold {TITLE_COLOR}]{meta.get('subject', '- Details -')}[/bold {TITLE_COLOR}]",
+        f"[bold {TITLE_COLOR}]{subject or '- Details -'}[/bold {TITLE_COLOR}]",
         "",
+        "[bold]Enter[/bold] Open reminder menu",
+        "[bold]Esc[/bold] Close details view",
     ]
-    for l, r in zip(left, rght):
-        lines.append(f"{l}   {r}" if r else l)
     return lines
 
 
@@ -465,7 +441,6 @@ class ListWithDetails(Container):
         if self._details_visibility_callback:
             self._details_visibility_callback(True)
         self._set_footer_hint(True)
-        self._copy_details_to_clipboard(title, lines, meta)
 
     def hide_details(self) -> None:
         self.details_meta = {}  # clear meta on close
@@ -504,6 +479,7 @@ class ListWithDetails(Container):
             return
 
         k = event.key or ""
+        lower_k = k.lower()
 
         if k == "enter":
             if self._detail_key_handler:
@@ -582,7 +558,7 @@ class ListWithDetails(Container):
 
     def _copy_details_to_clipboard(
         self, title: str, lines: list[str], meta: dict | None
-    ) -> None:
+    ) -> tuple[bool, str | None]:
         """Copy the entry string derived from tokens to the system clipboard."""
         entry_text = (meta or {}).get("entry_text", "")
         payload = entry_text.strip() if isinstance(entry_text, str) else ""
@@ -596,11 +572,16 @@ class ListWithDetails(Container):
                 )
             payload = "\n\n".join(chunk for chunk in chunks if chunk).strip()
         if not payload:
-            return
+            return False, "Nothing to copy"
         try:
             copy_to_clipboard(payload)
         except ClipboardUnavailable as exc:
             log_msg(f"[Clipboard] Unable to copy details: {exc}")
+            return False, str(exc)
+        except Exception as exc:
+            log_msg(f"[Clipboard] Unexpected error: {exc}")
+            return False, "Unable to copy details"
+        return True, None
 
 
 class DetailsHelpScreen(ModalScreen[None]):
@@ -678,7 +659,7 @@ class OptionPrompt(ModalScreen[Optional[str]]):
                 instructions = (
                     "Either press an option's first letter to choose it "
                     "or use ↑/↓ to select and then [bold yellow]Enter[/bold yellow] "
-                    "to choose. Pressing [bold yellow]ESC[/bold yellow] cancels."
+                    "to choose or [bold yellow]ESC[/bold yellow] to cancel."
                 )
             else:
                 instructions = (
@@ -2974,6 +2955,7 @@ class QueryScreen(SearchableScreen, SafeScreen):
             return parent.on_key(event)
         return None
 
+
 class DynamicViewApp(App):
     """A dynamic app that supports temporary and permanent view changes."""
 
@@ -3218,6 +3200,27 @@ class DynamicViewApp(App):
             # instance-aware info
             instance_ts = meta.get("instance_ts")
             datetime_id = meta.get("datetime_id")
+            record_payload = meta.get("record") or {}
+            tokens_raw = record_payload.get("tokens")
+            tokens_list: list[dict] = []
+            if isinstance(tokens_raw, str):
+                try:
+                    tokens_list = json.loads(tokens_raw)
+                except Exception:
+                    tokens_list = []
+            elif isinstance(tokens_raw, list):
+                tokens_list = tokens_raw
+
+            def _has_token(token_type: str, key: str) -> bool:
+                return any(
+                    isinstance(tok, dict)
+                    and tok.get("t") == token_type
+                    and tok.get("k") == key
+                    for tok in tokens_list
+                )
+
+            has_links = _has_token("@", "g")
+            has_rrule = bool(meta.get("rruleset"))
 
             if not record_id:
                 return
@@ -3331,6 +3334,10 @@ class DynamicViewApp(App):
 
             def touch_item() -> None:
                 ctrl.touch_item(record_id)
+                if hasattr(app, "notify"):
+                    app.notify("Reminder touched ✓", severity="info", timeout=1.2)
+                if hasattr(app, "refresh_view"):
+                    app.refresh_view()
 
             def toggle_pin() -> None:
                 ctrl.toggle_pinned(record_id)
@@ -3343,7 +3350,24 @@ class DynamicViewApp(App):
                     app._screen_show_details(title, lines, meta, push_history=True)
 
             def show_repetitions() -> None:
-                ctrl.show_repetitions(record_id)
+                title, lines = ctrl.get_record_repetitions(record_id)
+                if hasattr(app, "_screen_show_details"):
+                    app._screen_show_details(title, lines, meta, push_history=True)
+
+            def copy_details_to_clipboard() -> None:
+                scr = getattr(app, "screen", None)
+                lwd = getattr(scr, "list_with_details", None)
+                if not lwd or not getattr(lwd, "_current_details", None):
+                    if hasattr(app, "notify"):
+                        app.notify("No details to copy", severity="warning", timeout=1.5)
+                    return
+                title, lines, meta_dict = lwd._current_details
+                ok, message = lwd._copy_details_to_clipboard(title, lines, meta_dict or {})
+                if hasattr(app, "notify"):
+                    if ok:
+                        app.notify("Details copied to clipboard ✓", severity="info", timeout=1.2)
+                    elif message:
+                        app.notify(message, severity="warning", timeout=2.0)
 
             def show_action_menu() -> None:
                 options: list[str] = []
@@ -3360,20 +3384,19 @@ class DynamicViewApp(App):
                 add_option("Finish", finish_item, enabled=itemtype in "~^!")
                 add_option("Edit", edit_item, enabled=True)
                 add_option("Clone", clone_item, enabled=True)
-                add_option("Delete…", delete_item, enabled=True)
-                add_option("Schedule new instance", schedule_new_instance, enabled=True)
-                add_option(
-                    "Reschedule instance" if instance_ts else "Reschedule",
-                    reschedule_item,
-                    enabled=True,
-                )
-                add_option("Open externally", goto_item, enabled=True)
+                add_option("Delete …", delete_item, enabled=True)
+                add_option("Place copy in system clipboard", copy_details_to_clipboard, enabled=True)
+                # add_option("Schedule new instance", schedule_new_instance, enabled=True)
+                # add_option(
+                #     "Reschedule instance" if instance_ts else "Reschedule",
+                #     reschedule_item,
+                #     enabled=True,
+                # )
+                add_option("Open link with default", goto_item, enabled=has_links)
                 add_option("Touch", touch_item, enabled=True)
                 add_option("Pin/Unpin", toggle_pin, enabled=itemtype == "~")
-                add_option("Show completions", show_completions, enabled=True)
-                add_option(
-                    "Show repetitions", show_repetitions, enabled=itemtype == "~"
-                )
+                add_option("History of completions", show_completions, enabled=itemtype in "~^")
+                add_option("Show repetitions", show_repetitions, enabled=has_rrule)
 
                 if not options:
                     app.notify(
@@ -3381,7 +3404,6 @@ class DynamicViewApp(App):
                     )
                     return
 
-                options.append("Cancel")
                 subj = subject or "Untitled"
                 color = "white"
                 if itemtype:
@@ -3391,7 +3413,7 @@ class DynamicViewApp(App):
                 message = f"[{color}]{subj}[/{color}]\nChoose an action:"
 
                 def _after(choice: str | None) -> None:
-                    if not choice or choice == "Cancel":
+                    if not choice:
                         return
                     cb = callbacks.get(choice)
                     if cb:
@@ -3433,7 +3455,7 @@ class DynamicViewApp(App):
             elif key == "comma,h":
                 show_completions()
             # keep ctrl+r for repetitions
-            elif key == "ctrl+r":
+            elif key == "ctrl+r" and has_rrule:
                 show_repetitions()
 
         return handler
