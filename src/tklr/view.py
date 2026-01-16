@@ -2441,7 +2441,9 @@ class TaggedHierarchyScreen(SearchableScreen):
                     if not added_bin_gap:
                         rows.append("")
                         added_bin_gap = True
-                    rows.append(self._render_bin_row(child, tag, parent_name=parent_name))
+                    rows.append(
+                        self._render_bin_row(child, tag, parent_name=parent_name)
+                    )
                 else:
                     record_id, job_id = data
                     reminder = rem_by_id.get(record_id)
@@ -3675,6 +3677,9 @@ class DynamicViewApp(App):
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
         if self.view == "weeks":
             self.update_table_and_list()
+            return
+        if self.view == "agenda":
+            self.action_show_agenda()
             return
 
         self.refresh_view()

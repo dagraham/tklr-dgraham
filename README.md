@@ -177,14 +177,14 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 
 *tklr* has six item types, each with a corresponding type character:
 
-| type    | character |
-| ------- | --------- |
-| event   | *         |
-| task    | ~         |
-| project | ^         |
-| goal    | !         |
-| note    | %         |
-| draft   | ?         |
+| item type | character |
+| --------- | :-------: |
+| event     |     *     |
+| task      |     ~     |
+| project   |     ^     |
+| goal      |     !     |
+| note      |     %     |
+| draft     |     ?     |
 
 Here are some illustrations of how the various types and attributes can be put to use.
 
