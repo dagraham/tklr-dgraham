@@ -399,51 +399,86 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
 ### 1.3. Mouse-Free navigation
 
-In the *tklr* views that display a vertical list of reminders, each row begins with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder. When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
+Each of the main views in *tklr* can be opened by entering the first letter of the view's name. 
 
-On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. When the details of a reminder are being displayed, the key corresponding to the tag of another reminder can be pressed to switch the details display to that reminder, the upper case letter corresponding to another view or `escape` to close the details display.  The point of using tags to select and display reminders in this way is to minimize key presses. Any reminder on a page can be selected and its details displayed with a single key press.
+| View      |  Key  | Displays                                       |
+| --------- | :---: | ---------------------------------------------- |
+| Agenda    |   A   | events, goals, tasks                           |
+| Bins      |   B   | Tree view of Bins                              |
+| Completed |   C   | Datetimes for completed tasks                  |
+| Find      |   F   | Case insenstive search in subjects and details |
+| Last      |   L   | The last instance of reminders before today    |
+| Modified  |   M   | All reminders sorted by the modified timestamp |
+| Next      |   N   | The next instance of reminders after today     |
+| Query     |   Q   | List matches for a specified query             |
+| Remaining |   R   | List remaining alerts for the today            |
+| Tags      |   T   | List reminders with tags grouped by tag        |
+| Weeks     |   W   | List scheduled reminders by week and weekday   |
 
-Additionally, various commands are available to modify the reminder whose details are being displayed. Press `enter` to display a menu of the available options and then press the first letter of the option or `enter` with an option selected to use it or `escape` to close the menu and return to the details display.
+
+Each of these views displays a vertical list of reminders, with each reminder row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder including its subject.  When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
+
+*These View keys and tags are the key to navigating tklr.* 
+
+On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. This is worth emphasizing. *You don't select a reminder with the cursor keys or the mouse and then press enter to see its details - just press the key corresponding to its tag.*
+
+When the details of reminder are being displayed, pressing `enter` will open a menu of various commands applicable to the selected reminder, pressing the key corresponding to the tag of another reminder will switch the details display to that reminder or pressing the upper case letter corresponding to another view will switch to that view. 
+
+Everything you might want to do to a reminder, to edit, finish, reschedule, delete or whatever is available by 
+
+1. pressing the key corresponding to the tag of the reminder you want to select
+2. pressing `enter` to open the menu of commands for the selected reminder
+3. pressing the first letter (any case) of the desired command or `escape` to cancel and close the details command menu
+
+### 1.4. What you need to know now: Agenda View
+
+Each of the main views in *tklr* can be opened by entering the first letter of the view's name, e.g., pressing `A` (`shift+a`) will open _Agenda View_, `B` (`shift+b`) will open _Bins View_ and so forth.
+
+Each of these views display vertical lists of reminders, with each reminder row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder including its subject. 
+When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
+
+*These tags are the key to navigating tklr. Please give the next two paragraphs your careful attention.* 
+
+On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. This is worth emphasizing. *You don't select a reminder with the cursor keys or the mouse and then press enter to see its details - just press the key corresponding to its tag.*
+
+When the details of reminder are being displayed, pressing the key corresponding to the tag of another reminder will switch the details display to that reminder, pressing the upper case letter corresponding to another view will open that view or pressing `enter` will open a menu of various commands applicable to the selected reminder. Everything you might want to do to a reminder, edit, finish, reschedule, delete, ... is available by 
+
+1. pressing the key corresponding to the tag of the reminder you want to select
+2. pressing `enter` to open the menu of commands for the selected reminder
+3. pressing the first letter (any case) of the desired command or `escape` to cancel and close the menu
 
 
 
-### 1.4. One-Stop Daily Info: Agenda View
+The *Agenda view* itself displays  
 
-## 2. Views
+1. the next few days of <em>events</em> begining today
+2. <em>goals</em> ordered by their priority 
+3. <em>tasks</em> ordered by their urgency
 
-Each of the views listed below can be opened by entering the first letter of the view's name, e.g., pressing `A` (`shift+a`) will open _Agenda View_.
-
-These views involve vertical lists of reminders, each row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder. When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
-
-On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. This is worth emphasizing. *There is no need to select a reminder with the cursor keys or the mouse and then press enter to see its details - just press the key corresponding to its tag.*
-
-When the details of reminder are being displayed, pressing the key corresponding to the tag of another reminder will switch the details display to that reminder, pressing the upper case letter corresponding to another view will open that view or pressing `enter` will open a menu of various commands applicable to the selected reminder. Press the first letter of an option to select it or use the up and down cursor keys to move to an option and then `enter` to select it. Press `escape` to close this commands menu.
-
-[↩︎](#table-of-contents)
-
-  ### 2.1. Agenda View
-
-  The next few days of _events_ together with _notices_ and _drafts_ followed by goals ordered by priority and then tasks ordered by urgency.
-
-The first day will always include any _notice_ or _drafts_ in addition to any scheduled events. In this case the reminber tagged _b_ indicates that there is an event beginning in 4 days (`+4d`) whose subject begins with "Quisquam" and which has a _notice_ entry, "@n INTERVAL" in which `INTERVAL > 4d`. This notice of the upcoming event will be displayed on the first day (current date) of Agenda View each day until the day of the event.
-
-There is also a draft entry displayed in red. This is simply a reminder whose item type is "?". This is used to flag a reminder as incomplete as would be the case, e.g., if a final datetime for the event had not yet been finalized. Draft reminders are displayed on the current, first day in Agenda view until the item type is changed.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/events_1_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Agenda View: Upcoming events and tasks ordered by urgency</em>
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/agenda_screenshot.svg"
+alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>While the listing of events begins with the current day, any all-day events or events whose ending times have already passed such as the one tagged <em>a</em> will be dimmed. Additionally an event, such as the one tagged <em>b</em> whose active period overlaps the current moment will be highlighted. 
 </p>
-
-Since there are more than 26 reminders to be displayed and only 26 available lower-case letters to use as tags, the reminders are spread over as many pages as necessary with _left_ and _right_ cursor keys to change pages. Here is the second page.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/events_2_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Agenda View: The second and last page</em>
+<p>The first day of events will always include any <em>notices</em> of upcomming events or <em>draft</em> reminders needing completion in addition to any scheduled events for today. In this case the reminder tagged <em>d</em> indicates that there is an event beginning in 5 days (`+5d`) with a subject beginning with "Quaerat amet ..." a <em>notice attribute</em>, <code>@n x</code>, in which <code>x > 5d</code>. This attribute is the reason this notice of the event is being displayed before its scheduled datetime - it will continue to be displayed on the first day (current date) of Agenda View each day until the day of the event.
 </p>
+<p>There is also a draft entry displayed in red. This is simply a reminder whose item type is <code>?</code>. This is used to flag a reminder as incomplete as would be the case, e.g., if a final datetime for the event had not yet been finalized. Draft reminders are also displayed on the current, first day in Agenda view until the item type is changed.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+The list for *goals* includes all goals which have not been completed on the current date, sorted and color coded by their *priorty*, which is listed in the first column after the tags. The details for precisely how *priority* is calculated will be described later but the basic idea involves comparing 
+
+1. the rate at which completions would currently need to occur to complete the goal 
+2. the rate originally specified in the goal
+ 
+The higher the current rate relative to the original, the higher the *priority*. 
+
+The list for *tasks* includes all tasks with the possible exception of tasks with both an `@s` (specifying a *due datetime*) and an `@n` entry (specifying a *notification period*).  Suppose, for example, that `@s 2026-01-30` and `@n 2d`. The role of these combined entries is to say that the task needs to be finished by `2026-01-30` but you don't want to be bothered about it until two days before that date. This task won't appear in the list until `2026-01-28`.
+
+Tasks are sorted by their *urgency*. This calculation is fairly complicated and will be described later. Many factors are involved including the priority of the task, its due datetime, how many tags it has, whether it has a details attribute and so forth. The *weights* attached to these and other characteristics are options which can be set in the user configuration file.
+
+*Agenda* is the default view and represents the place to go for what you need to know right now.
 
 [↩︎](#table-of-contents)
 
