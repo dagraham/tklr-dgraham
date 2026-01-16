@@ -32,6 +32,10 @@ from zoneinfo import ZoneInfo
 from dateutil.rrule import rrulestr
 from dateutil import tz
 
+# Item prefixes that should be coerced to draft ("?") when importing inbox entries.
+INBOX_ITEM_PREFIXES = {"*", "~", "^", "!", "%", "?"}
+INBOX_SPLIT_PATTERN = re.compile(r"\n\s*\n")
+
 # import sqlite3
 from .shared import (
     TYPE_TO_COLOR,
@@ -611,6 +615,120 @@ class Controller:
             self.db_manager.add_completion(record_id, item.completions)
 
         return record_id
+
+    # ── Inbox processing -------------------------------------------------
+    def _inbox_path(self) -> Path:
+        path = self.env.home / "inbox.txt"
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
+        if not path.exists():
+            try:
+                path.touch()
+            except Exception:
+                pass
+        return path
+
+    def _normalize_inbox_entry(self, entry: str) -> str:
+        text = entry.strip()
+        if not text:
+            return ""
+        leading = text.lstrip()
+        if not leading:
+            return ""
+        if leading[0] in INBOX_ITEM_PREFIXES:
+            body = leading[1:].lstrip()
+        else:
+            body = leading
+        if not body:
+            return ""
+        return f"? {body}"
+
+    def _ingest_inbox_entry(self, entry: str) -> tuple[bool, str | None]:
+        try:
+            item = Item(env=self.env, raw=entry, final=True)
+        except Exception as exc:
+            return False, f"Parse failed: {exc}"
+        if not getattr(item, "parse_ok", False) or not getattr(item, "itemtype", ""):
+            return False, f"Invalid entry: {entry}"
+        try:
+            self.db_manager.add_item(item)
+        except Exception as exc:
+            return False, f"Database error: {exc}"
+        return True, None
+
+    def sync_inbox(self) -> tuple[int, list[str]]:
+        """
+        Import draft reminders from inbox.txt.
+
+        Returns:
+            (added_count, error_messages)
+        """
+        path = self._inbox_path()
+        try:
+            size = path.stat().st_size
+        except FileNotFoundError:
+            return 0, []
+        except OSError as exc:
+            return 0, [f"Unable to read inbox: {exc}"]
+
+        if size == 0:
+            return 0, []
+
+        try:
+            raw = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            return 0, [f"Unable to read inbox: {exc}"]
+
+        chunks = [
+            chunk.strip()
+            for chunk in INBOX_SPLIT_PATTERN.split(raw.strip())
+            if chunk.strip()
+        ]
+        if not chunks:
+            try:
+                path.write_text("", encoding="utf-8")
+            except OSError:
+                pass
+            return 0, []
+
+        added = 0
+        errors: list[str] = []
+        leftovers: list[str] = []
+
+        for chunk in chunks:
+            normalized = self._normalize_inbox_entry(chunk)
+            if not normalized:
+                continue
+            ok, msg = self._ingest_inbox_entry(normalized)
+            if ok:
+                added += 1
+            else:
+                errors.append(msg or "Unknown inbox error.")
+                leftovers.append(chunk)
+
+        if added:
+            try:
+                self.db_manager.populate_dependent_tables()
+            except Exception as exc:
+                errors.append(f"Failed to refresh derived tables: {exc}")
+            self.db_manager.after_save_needed = True
+
+        remaining = "\n\n".join(leftovers).strip() if leftovers else ""
+        try:
+            path.write_text(
+                (remaining + "\n") if remaining else "",
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            errors.append(f"Failed to update inbox file: {exc}")
+
+        log_msg(
+            f"Inbox sync: added {added} draft{'s' if added != 1 else ''}, "
+            f"{len(errors)} warning{'s' if len(errors) != 1 else ''}."
+        )
+        return added, errors
 
     def apply_textual_edit(
         self,

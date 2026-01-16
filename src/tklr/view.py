@@ -3047,6 +3047,7 @@ class DynamicViewApp(App):
         self.year_offset = 0
         self.today: date | None = None
         self.run_daily_tasks(refresh=False)
+        self._last_inbox_check = datetime.min
         self._current_command_task: asyncio.Task | None = None
 
     async def on_mount(self):
@@ -3649,6 +3650,43 @@ class DynamicViewApp(App):
         self.save_screenshot(str(path))
         self.notify(f"Screenshot saved to: {path}", severity="info", timeout=3)
 
+    def _maybe_sync_inbox(self, now: datetime) -> None:
+        if (now - getattr(self, "_last_inbox_check", datetime.min)).total_seconds() < 900:
+            return
+        self._last_inbox_check = now
+        try:
+            added, errors = self.controller.sync_inbox()
+        except Exception as exc:
+            log_msg(f"Inbox sync failed: {exc}")
+            self.notify(
+                "Inbox sync failed — see log for details.",
+                severity="warning",
+                timeout=2.5,
+            )
+            return
+
+        if added:
+            plural = "s" if added != 1 else ""
+            self.notify(
+                f"Imported {added} draft{plural} from inbox.txt",
+                severity="info",
+                timeout=2.5,
+            )
+            try:
+                self.refresh_view()
+            except Exception:
+                pass
+
+        if errors:
+            issue_plural = "s" if len(errors) != 1 else ""
+            self.notify(
+                f"Inbox sync had {len(errors)} issue{issue_plural}; see log.",
+                severity="warning",
+                timeout=3.0,
+            )
+            for err in errors:
+                log_msg(f"Inbox sync warning: {err}")
+
     def _ensure_today_state(self, *, refresh: bool = True) -> bool:
         """Ensure internal today marker matches the calendar date."""
         current = date.today()
@@ -3698,6 +3736,7 @@ class DynamicViewApp(App):
     async def check_alerts(self):
         # called every 6 seconds
         now = datetime.now()
+        self._maybe_sync_inbox(now)
         today = now.date()
         if (
             now.hour == 0
