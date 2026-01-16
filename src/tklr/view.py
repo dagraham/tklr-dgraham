@@ -58,7 +58,7 @@ import re
 from rich.panel import Panel
 from textual.containers import Container
 
-from typing import List, Callable, Optional, Any, Iterable, Tuple
+from typing import List, Callable, Optional, Any, Iterable, Tuple, Sequence, Union
 
 # details_drawer.py
 from textual import events
@@ -640,10 +640,25 @@ class OptionPrompt(ModalScreen[Optional[str]]):
     Returns the chosen option label (string) or None on cancel (ESC).
     """
 
-    def __init__(self, message: str, options: List[str]):
+    def __init__(self, message: str, options: Sequence[Union[str, tuple[str, str]]]):
         super().__init__()
         self.message = message.strip()
-        self.options = options
+        processed: list[str] = []
+        self._raw_options: list[str] = []
+        self._explicit_hotkeys: list[tuple[str, str]] = []
+        for opt in options:
+            if isinstance(opt, tuple):
+                label, hotkey = opt
+                processed.append(label)
+                self._raw_options.append(label)
+                key = (hotkey or "").strip().lower()[:1]
+                if key:
+                    self._explicit_hotkeys.append((key, label))
+            else:
+                processed.append(opt)
+                self._raw_options.append(opt)
+
+        self.options = processed
         self._olist: OptionList | None = None
         self._hotkey_map: dict[str, str] = {}
         self._build_hotkey_map()
@@ -712,23 +727,35 @@ class OptionPrompt(ModalScreen[Optional[str]]):
     def _build_hotkey_map(self) -> None:
         """
         Map unique first letters (case-insensitive) to option labels.
-        Duplicates remove the hotkey so ambiguous letters do nothing.
+        Explicit hotkeys (if provided) take priority; duplicates are removed.
         """
-        hotkeys: dict[str, str] = {}
-        duplicates: set[str] = set()
-        for option in self.options:
-            if not option:
-                continue
-            key = option.strip()[:1].lower()
+
+        def register(key: str | None, label: str) -> None:
             if not key:
-                continue
+                return
+            key = key.lower()
             if key in duplicates:
-                continue
-            if key in hotkeys:
+                return
+            if key in hotkeys and hotkeys[key] != label:
                 duplicates.add(key)
                 hotkeys.pop(key, None)
             else:
-                hotkeys[key] = option
+                hotkeys[key] = label
+
+        hotkeys: dict[str, str] = {}
+        duplicates: set[str] = set()
+
+        for key, label in self._explicit_hotkeys:
+            register(key, label)
+
+        for label in self.options:
+            stripped = label.strip()
+            inferred = stripped[:1].lower() if stripped else ""
+            register(inferred, label)
+
+        for dup in duplicates:
+            hotkeys.pop(dup, None)
+
         self._hotkey_map = hotkeys
 
 
@@ -2123,18 +2150,15 @@ TAGS = [chr(ord("a") + i) for i in range(26)]  # single-letter tags per page
 
 class TaggedHierarchyScreen(SearchableScreen):
     """
-    Tagged hierarchy browser that mirrors BinView’s behavior:
+    Tagged hierarchy browser for bins:
 
       • Uses SearchableScreen + ListWithDetails.
-      • Shows the *entire subtree of bins* under the current bin (bins only; no reminders below).
-      • Only the current bin's *immediate children* + its *reminders* are taggable:
-          - children appear in the tree with inline tags (a..z) on depth-1 rows;
-          - reminders appear at the bottom with their tags.
-      • Tags are paged 26-per-page (children first, then reminders).
-      • a–z tags are handled by DynamicViewApp via show_details_for_tag(), exactly like BinView.
-      • / search highlights within the list.
-      • Digits 0..9 jump to breadcrumb ancestors (0=root, 1=child, etc.), current bin unnumbered.
-      • Left/Right change pages; ESC jumps to root.
+      • Shows only the current bin's immediate children (bins listed first) and reminders.
+      • Every visible row receives a tag so a–z keys always act on what you see.
+      • Breadcrumb header (with digits) lets you jump to ancestors; ESC jumps to root.
+      • a–z tags are handled by DynamicViewApp via show_details_for_tag().
+      • / search highlights within the current listing.
+      • Left/Right change pages when more than 26 rows exist.
     """
 
     def __init__(self, controller, bin_id: int, footer_content: str = ""):
@@ -2158,7 +2182,6 @@ class TaggedHierarchyScreen(SearchableScreen):
         self.list_with_details: Optional[ListWithDetails] = None
         self.tag_map: dict[str, tuple[str, object]] = {}
         self.crumb: list[tuple[int, str]] = []  # [(id, name), ...]
-        self.descendants: list[tuple[int, str, int]] = []  # (bin_id, name, depth)
         self._awaiting_bin_action_key: bool = False
         self._selection_kind: str = "bin"  # "bin" or "reminder"
 
@@ -2279,11 +2302,25 @@ class TaggedHierarchyScreen(SearchableScreen):
         self._selection_kind = "bin"
         self._refresh_page()
 
-    def _render_reminder_label(self, r: ReminderRow) -> str:
-        # Example: "Fix itinerary  [dim]task[/dim]"
-        log_msg(f"view bins {r = }")
+    def _render_bin_row(self, child: ChildBinRow, tag: str) -> str:
+        counts: list[str] = []
+        if child.child_ct:
+            noun = "bin" if child.child_ct == 1 else "bins"
+            counts.append(f"{child.child_ct} {noun}")
+        if child.rem_ct:
+            noun = "reminder" if child.rem_ct == 1 else "reminders"
+            counts.append(f"{child.rem_ct} {noun}")
+        counts_text = f" [dim]({', '.join(counts)})[/dim]" if counts else ""
+        name_color = TYPE_TO_COLOR["b"]
+        return (
+            f"  [dim]{tag}[/dim] "
+            f"[{name_color}]{child.name}[/ {name_color}]"
+            f"{counts_text}"
+        ).rstrip()
+
+    def _render_reminder_row(self, r: ReminderRow, tag: str) -> str:
         tclr = TYPE_TO_COLOR[r.itemtype]
-        return f"[{tclr}]{r.itemtype} {r.subject}[/ {tclr}]"
+        return f"  [dim]{tag}[/dim] [{tclr}]{r.itemtype} {r.subject}[/{tclr}]"
 
     def _refresh_page(self) -> None:
         rows, tag_map = self.pages[self.current_page] if self.pages else ([], {})
@@ -2315,10 +2352,7 @@ class TaggedHierarchyScreen(SearchableScreen):
         self,
     ) -> tuple[list[tuple[list[str], dict[str, tuple[str, object]]]], str]:
         """
-        Build pages:
-        - rows: breadcrumb line + tree (bins only) + reminders for that page
-        - tag_map: tags -> ("bin", bin_id) or ("rem", (record_id, job_id))
-        Returns (pages, title), where title is just the breadcrumb text (no page indicator).
+        Build pages limited to the current bin's immediate children and reminders.
         """
         # 1) Summary + breadcrumb
         children, reminders, crumb = self.controller.get_bin_summary(
@@ -2326,11 +2360,7 @@ class TaggedHierarchyScreen(SearchableScreen):
         )
         self.crumb = crumb
 
-        # 2) Full subtree (bins only)
-        self.descendants = self.controller.get_descendant_tree(self.bin_id)
-        log_msg(f"{self.descendants = }, {children = }")
-
-        # 3) Crumb text: ancestors numbered, last (current) unnumbered
+        # 2) Crumb text: ancestors numbered, last (current) unnumbered
         if crumb:
             parts: list[str] = []
             for i, (_bid, name) in enumerate(crumb):
@@ -2347,7 +2377,7 @@ class TaggedHierarchyScreen(SearchableScreen):
         else:
             crumb_txt = "root"
 
-        # 4) Build taggable items: children first, then reminders
+        # 3) Build taggable items: children first, then reminders
         taggable: list[tuple[str, object]] = []
         for ch in children:
             taggable.append(("bin", ch.bin_id))
@@ -2355,14 +2385,17 @@ class TaggedHierarchyScreen(SearchableScreen):
             taggable.append(("rem", (r.record_id, None)))  # job_id=None for now
 
         # Map reminders by ID for label rendering
+        child_by_id: dict[int, ChildBinRow] = {c.bin_id: c for c in children}
         rem_by_id: dict[int, ReminderRow] = {r.record_id: r for r in reminders}
 
         pages: list[tuple[list[str], dict[str, tuple[str, object]]]] = []
 
         if not taggable:
-            # No taggable items; show breadcrumb + tree as a single page
-            tree_rows = self._render_tree_rows(self.descendants, child_tags={})
-            rows = [crumb_txt] + tree_rows
+            rows = [
+                crumb_txt,
+                "",
+                "[dim]No child bins or reminders.[/dim]",
+            ]
             pages.append((rows, {}))
             return pages, crumb_txt  # title = crumb_txt
 
@@ -2375,39 +2408,40 @@ class TaggedHierarchyScreen(SearchableScreen):
             page_items = taggable[start:end]
 
             page_tag_map: dict[str, tuple[str, object]] = {}
-            child_tags: dict[int, str] = {}
 
             # Assign tags to taggable items for this page
             for i, (kind, data) in enumerate(page_items):
                 tag = TAGS[i]
                 if kind == "bin":
-                    bin_id = int(data)
-                    page_tag_map[tag] = ("bin", bin_id)
-                    child_tags[bin_id] = tag
-                else:  # "rem"
+                    page_tag_map[tag] = ("bin", int(data))
+                else:
                     record_id, job_id = data
                     page_tag_map[tag] = ("rem", (record_id, job_id))
 
-            # Tree rows (bins only) with inline tags on depth-1 nodes
-            rows: list[str] = self._render_tree_rows(self.descendants, child_tags)
+            rows: list[str] = [crumb_txt]
+            added_bin_gap = False
+            added_rem_gap = False
 
-            # Reminders for this page, appended below the tree
             for i, (kind, data) in enumerate(page_items):
                 tag = TAGS[i]
-                if kind != "rem":
-                    continue
-                record_id, job_id = data
-                r = rem_by_id.get(record_id)
-                if not r:
-                    continue
-                log_msg(f"view bins {r = }")
-                label = self._render_reminder_label(r)
-                rows.append(
-                    f"    [dim]{tag}[/dim] {label}"
-                )  # 4-space indent to align with depth-1
-
-            # Insert breadcrumb as FIRST row in the list (no page indicator here)
-            rows.insert(0, crumb_txt)
+                if kind == "bin":
+                    child = child_by_id.get(int(data))
+                    if not child:
+                        continue
+                    if not added_bin_gap:
+                        rows.append("")
+                        added_bin_gap = True
+                    rows.append(self._render_bin_row(child, tag))
+                else:
+                    record_id, job_id = data
+                    reminder = rem_by_id.get(record_id)
+                    if not reminder:
+                        continue
+                    if not added_rem_gap:
+                        if rows and rows[-1]:
+                            rows.append("")
+                        added_rem_gap = True
+                    rows.append(self._render_reminder_row(reminder, tag))
 
             pages.append((rows, page_tag_map))
 
@@ -2425,25 +2459,33 @@ class TaggedHierarchyScreen(SearchableScreen):
             return
 
         bin_name = ctx["name"]
-        action_options: list[str] = ["Open bin"]
+        action_options: list[tuple[str, str]] = []
+        if not ctx["is_root"]:
+            action_options.append(("Open bin", "o"))
         if ctx["allow_children"]:
-            action_options.append("Add child")
+            action_options.append(("Add child", "a"))
         if not ctx["is_protected"]:
-            action_options.extend(["Rename bin", "Move bin", "Delete bin"])
+            action_options.extend(
+                [
+                    ("Rename bin", "r"),
+                    ("Move bin", "m"),
+                    ("Delete bin", "d"),
+                ]
+            )
 
-        if len(action_options) == 1:
-            # Nothing extra to do; behave like legacy single-key navigation.
+        just_open = len(action_options) == 1 and action_options[0][0] == "Open bin"
+        if just_open:
             self._open_bin(target_bin_id)
             return
 
-        options = action_options + ["Cancel"]
+        options: list[Union[str, tuple[str, str]]] = action_options
         message = (
             f"[{TYPE_TO_COLOR['b']}]{bin_name}[/ {TYPE_TO_COLOR['b']}]\n"
             "Choose an action:"
         )
 
         def _after(choice: str | None) -> None:
-            if not choice or choice == "Cancel":
+            if not choice:
                 return
             if choice == "Open bin":
                 self._open_bin(target_bin_id)
@@ -2474,6 +2516,13 @@ class TaggedHierarchyScreen(SearchableScreen):
             return self.crumb[-1][1]
         return self.controller.get_bin_name(self.bin_id)
 
+    def _is_root_bin(self, bin_id: int) -> bool:
+        try:
+            root_id = self.controller.root_id
+        except Exception:
+            root_id = None
+        return root_id is not None and bin_id == root_id
+
     def _get_bin_action_context(self, bin_id: int) -> dict[str, object]:
         name = self.controller.get_bin_name(bin_id)
         try:
@@ -2483,6 +2532,7 @@ class TaggedHierarchyScreen(SearchableScreen):
         return {
             "name": name,
             "is_protected": is_protected,
+            "is_root": self._is_root_bin(bin_id),
             "allow_children": True,
         }
 
@@ -2523,6 +2573,8 @@ class TaggedHierarchyScreen(SearchableScreen):
 
     def _bin_supports_menu(self, bin_id: int) -> bool:
         try:
+            if self._is_root_bin(bin_id):
+                return True
             return not self.controller.is_protected_bin(bin_id)
         except Exception:
             return False
@@ -2653,48 +2705,6 @@ class TaggedHierarchyScreen(SearchableScreen):
         app = getattr(self, "app", None)
         if app and hasattr(app, "notify"):
             app.notify(message, severity=severity, timeout=timeout)
-
-    def _render_tree_rows(
-        self,
-        flat_nodes: list[tuple[int, str, int]],
-        child_tags: dict[int, str],
-    ) -> list[str]:
-        """
-        Render the pre-ordered subtree as simple indented lines.
-
-        • No box/branch glyphs.
-        • Skip the root row (depth==0) so the current bin name is not repeated.
-        • Insert inline tags for depth-1 nodes that are on the current page.
-        • If a child's name looks like "PARENT:SUFFIX" (where PARENT is the parent's
-          exact name), display only "SUFFIX" to avoid redundant prefixes.
-        """
-        rows: list[str] = []
-        last_name_at_depth: dict[int, str] = {}
-
-        for bid, name, depth in flat_nodes:
-            if depth == 0:
-                last_name_at_depth[0] = name
-                continue  # skip the current bin itself
-
-            last_name_at_depth[depth] = name
-            parent_name = last_name_at_depth.get(depth - 1, "")
-            display_name = name
-
-            if parent_name and ":" in name:
-                prefix, suffix = name.split(":", 1)
-                if prefix == parent_name:
-                    display_name = suffix
-
-            indent = "  " * depth
-            tag_prefix = (
-                f"[dim]{child_tags[bid]}[/dim] "
-                if (depth == 1 and bid in child_tags)
-                else ""
-            )
-            rows.append(
-                f"{indent}{tag_prefix}[{TYPE_TO_COLOR['b']}]{display_name}[/ {TYPE_TO_COLOR['b']}]"
-            )
-        return rows
 
 
 class QueryScreen(SearchableScreen, SafeScreen):
@@ -3125,17 +3135,16 @@ class DynamicViewApp(App):
         # Build options + message depending on whether this is a repeating item
         if is_repeating and instance_ts and itemtype in "~*":
             options = [
-                "Just this instance",
-                "This and all subsequent instances",
-                "The reminder itself",
-                "Cancel",
+                ("Just this instance", "j"),
+                ("This and all subsequent instances", "a"),
+                ("The reminder itself", "t"),
             ]
             msg = (
                 f"Delete [{LIGHT_SKY_BLUE}]{subject}[/{LIGHT_SKY_BLUE}]?\n\n"
                 "Choose what to delete:"
             )
         else:
-            options = ["Delete record", "Cancel"]
+            options = [("Delete record", "d")]
             msg = (
                 f"Delete [{LIGHT_SKY_BLUE}]{subject}[/{LIGHT_SKY_BLUE}]?\n\n"
                 "This cannot be undone."
@@ -3144,7 +3153,7 @@ class DynamicViewApp(App):
         def _after_choice(choice: str | None) -> None:
             log_msg(f"delete prompt returned {choice = }")
 
-            if not choice or choice == "Cancel":
+            if not choice:
                 return
 
             changed = False
@@ -3359,13 +3368,21 @@ class DynamicViewApp(App):
                 lwd = getattr(scr, "list_with_details", None)
                 if not lwd or not getattr(lwd, "_current_details", None):
                     if hasattr(app, "notify"):
-                        app.notify("No details to copy", severity="warning", timeout=1.5)
+                        app.notify(
+                            "No details to copy", severity="warning", timeout=1.5
+                        )
                     return
                 title, lines, meta_dict = lwd._current_details
-                ok, message = lwd._copy_details_to_clipboard(title, lines, meta_dict or {})
+                ok, message = lwd._copy_details_to_clipboard(
+                    title, lines, meta_dict or {}
+                )
                 if hasattr(app, "notify"):
                     if ok:
-                        app.notify("Details copied to clipboard ✓", severity="info", timeout=1.2)
+                        app.notify(
+                            "Details copied to clipboard ✓",
+                            severity="info",
+                            timeout=1.2,
+                        )
                     elif message:
                         app.notify(message, severity="warning", timeout=2.0)
 
@@ -3374,29 +3391,50 @@ class DynamicViewApp(App):
                 callbacks: dict[str, Callable[[], None]] = {}
 
                 def add_option(
-                    label: str, func: Callable[[], None], *, enabled: bool = True
+                    label: str,
+                    func: Callable[[], None],
+                    *,
+                    enabled: bool = True,
+                    hotkey: str | None = None,
                 ) -> None:
                     if not enabled:
                         return
-                    options.append(label)
+                    if hotkey:
+                        options.append((label, hotkey))
+                    else:
+                        options.append(label)
                     callbacks[label] = func
 
-                add_option("Finish", finish_item, enabled=itemtype in "~^!")
-                add_option("Edit", edit_item, enabled=True)
-                add_option("Clone", clone_item, enabled=True)
-                add_option("Delete …", delete_item, enabled=True)
-                add_option("Place copy in system clipboard", copy_details_to_clipboard, enabled=True)
+                add_option("Finish", finish_item, enabled=itemtype in "~^!", hotkey="f")
+                add_option("Edit", edit_item, enabled=True, hotkey="e")
+                add_option("Clone", clone_item, enabled=True, hotkey="c")
+                add_option("Delete …", delete_item, enabled=True, hotkey="d")
+                add_option(
+                    "Place copy in system clipboard",
+                    copy_details_to_clipboard,
+                    enabled=True,
+                    hotkey="p",
+                )
                 # add_option("Schedule new instance", schedule_new_instance, enabled=True)
                 # add_option(
                 #     "Reschedule instance" if instance_ts else "Reschedule",
                 #     reschedule_item,
                 #     enabled=True,
                 # )
-                add_option("Open link with default", goto_item, enabled=has_links)
-                add_option("Touch", touch_item, enabled=True)
-                add_option("Pin/Unpin", toggle_pin, enabled=itemtype == "~")
-                add_option("History of completions", show_completions, enabled=itemtype in "~^")
-                add_option("Show repetitions", show_repetitions, enabled=has_rrule)
+                add_option(
+                    "Open link with default", goto_item, enabled=has_links, hotkey="g"
+                )
+                add_option("Touch", touch_item, enabled=True, hotkey="t")
+                add_option("Pin/Unpin", toggle_pin, enabled=itemtype == "~", hotkey="u")
+                add_option(
+                    "History of completions",
+                    show_completions,
+                    enabled=itemtype in "~^",
+                    hotkey="h",
+                )
+                add_option(
+                    "Show repetitions", show_repetitions, enabled=has_rrule, hotkey="r"
+                )
 
                 if not options:
                     app.notify(
