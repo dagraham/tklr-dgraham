@@ -2302,7 +2302,9 @@ class TaggedHierarchyScreen(SearchableScreen):
         self._selection_kind = "bin"
         self._refresh_page()
 
-    def _render_bin_row(self, child: ChildBinRow, tag: str) -> str:
+    def _render_bin_row(
+        self, child: ChildBinRow, tag: str, *, parent_name: str | None = None
+    ) -> str:
         counts: list[str] = []
         if child.child_ct:
             noun = "bin" if child.child_ct == 1 else "bins"
@@ -2311,10 +2313,16 @@ class TaggedHierarchyScreen(SearchableScreen):
             noun = "reminder" if child.rem_ct == 1 else "reminders"
             counts.append(f"{child.rem_ct} {noun}")
         counts_text = f" [dim]({', '.join(counts)})[/dim]" if counts else ""
+        display_name = child.name
+        if parent_name and ":" in child.name:
+            prefix, suffix = child.name.split(":", 1)
+            if prefix == parent_name:
+                display_name = suffix
+
         name_color = TYPE_TO_COLOR["b"]
         return (
             f"  [dim]{tag}[/dim] "
-            f"[{name_color}]{child.name}[/ {name_color}]"
+            f"[{name_color}]{display_name}[/ {name_color}]"
             f"{counts_text}"
         ).rstrip()
 
@@ -2402,6 +2410,8 @@ class TaggedHierarchyScreen(SearchableScreen):
         total = len(taggable)
         num_pages = (total + 25) // 26  # 26 tags per page
 
+        parent_name = self._current_bin_name()
+
         for page_index in range(num_pages):
             start = page_index * 26
             end = min(start + 26, total)
@@ -2431,7 +2441,7 @@ class TaggedHierarchyScreen(SearchableScreen):
                     if not added_bin_gap:
                         rows.append("")
                         added_bin_gap = True
-                    rows.append(self._render_bin_row(child, tag))
+                    rows.append(self._render_bin_row(child, tag, parent_name=parent_name))
                 else:
                     record_id, job_id = data
                     reminder = rem_by_id.get(record_id)
