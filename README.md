@@ -379,7 +379,7 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
 #### 1.2.11. Attributes
 
-##### `{XXX}`: Anniversary Substitution
+##### {XXX}: Anniversary Substitution
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
@@ -392,7 +392,6 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
   </p>
 </div>
 <div style="clear:both;"></div>
-
 
 
 [↩︎](#table-of-contents)
@@ -418,42 +417,25 @@ Each of the main views in *tklr* can be opened by entering the first letter of t
 
 Each of these views displays a vertical list of reminders, with each reminder row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder including its subject.  When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
 
-*These View keys and tags are the key to navigating tklr.* 
+*The view keys and the list tags are the key to navigating tklr.* 
 
 On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. This is worth emphasizing. *You don't select a reminder with the cursor keys or the mouse and then press enter to see its details - just press the key corresponding to its tag.*
 
 When the details of reminder are being displayed, pressing `enter` will open a menu of various commands applicable to the selected reminder, pressing the key corresponding to the tag of another reminder will switch the details display to that reminder or pressing the upper case letter corresponding to another view will switch to that view. 
 
-Everything you might want to do to a reminder, to edit, finish, reschedule, delete or whatever is available by 
+Everything you might want to do to a reminder, to edit, finish, reschedule, delete or whatever is available using these steps:
 
-1. pressing the key corresponding to the tag of the reminder you want to select
-2. pressing `enter` to open the menu of commands for the selected reminder
-3. pressing the first letter (any case) of the desired command or `escape` to cancel and close the details command menu
+1. press the key corresponding to the tag of the reminder you want to select
+2. press `enter` to open the menu of commands for the selected reminder
+3. press the first letter (any case) of the desired command or `escape` to cancel and close the commands menu
 
 ### 1.4. What you need to know now: Agenda View
 
-Each of the main views in *tklr* can be opened by entering the first letter of the view's name, e.g., pressing `A` (`shift+a`) will open _Agenda View_, `B` (`shift+b`) will open _Bins View_ and so forth.
+The *Agenda view* displays  
 
-Each of these views display vertical lists of reminders, with each reminder row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder including its subject. 
-When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
-
-*These tags are the key to navigating tklr. Please give the next two paragraphs your careful attention.* 
-
-On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. This is worth emphasizing. *You don't select a reminder with the cursor keys or the mouse and then press enter to see its details - just press the key corresponding to its tag.*
-
-When the details of reminder are being displayed, pressing the key corresponding to the tag of another reminder will switch the details display to that reminder, pressing the upper case letter corresponding to another view will open that view or pressing `enter` will open a menu of various commands applicable to the selected reminder. Everything you might want to do to a reminder, edit, finish, reschedule, delete, ... is available by 
-
-1. pressing the key corresponding to the tag of the reminder you want to select
-2. pressing `enter` to open the menu of commands for the selected reminder
-3. pressing the first letter (any case) of the desired command or `escape` to cancel and close the menu
-
-
-
-The *Agenda view* itself displays  
-
-1. the next few days of <em>events</em> begining today
-2. <em>goals</em> ordered by their priority 
-3. <em>tasks</em> ordered by their urgency
+1. the next few days of <em>events</em> beginning with today
+2. <em>goals</em> ordered by their *priority* 
+3. <em>tasks</em> ordered by their *urgency*
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/agenda_screenshot.svg"
