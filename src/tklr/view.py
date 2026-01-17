@@ -3718,7 +3718,17 @@ class DynamicViewApp(App):
         self.refresh_view()
 
     def _daily_rollover_guard(self):
-        """Timer callback that notices day changes even if alerts are idle."""
+        """
+        Timer callback that notices day changes even if alerts are idle.
+
+        Previously this fired every minute and always called `run_daily_tasks`,
+        which in turn kicked the UI back to Agenda because that action refreshes
+        the Weeks/Agenda views. Guard it so we only refresh when the calendar
+        day has actually advanced.
+        """
+        current = date.today()
+        if getattr(self, "today", None) == current:
+            return
         self.run_daily_tasks(refresh=True)
 
     def play_bells(self) -> None:
