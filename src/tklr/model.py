@@ -1461,6 +1461,22 @@ class DatabaseManager:
         self.cursor.execute("DROP TABLE IF EXISTS BusyWeeks")
         self.cursor.execute("DROP TABLE IF EXISTS BusyUpdateQueue")
 
+        # Reset DerivedState entry so busy caches get rebuilt after the drop.
+        # Otherwise `_maybe_refresh_busy_tables` would skip the regeneration
+        # because it still sees the prior "seeded" flag.
+        try:
+            self.cursor.execute(
+                """
+                INSERT INTO DerivedState(key, value)
+                VALUES ('busy', ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (json.dumps({"seeded": False}),),
+            )
+        except sqlite3.OperationalError:
+            # Table will be created moments later; nothing to do.
+            pass
+
         # Recreate BusyWeeks (aggregate per week)
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS BusyWeeks (

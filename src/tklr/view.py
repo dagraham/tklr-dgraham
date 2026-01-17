@@ -3689,14 +3689,6 @@ class DynamicViewApp(App):
             for err in errors:
                 log_msg(f"Inbox sync warning: {err}")
 
-    def _ensure_today_state(self, *, refresh: bool = True) -> bool:
-        """Ensure internal today marker matches the calendar date."""
-        current = date.today()
-        if self.today == current:
-            return False
-        self.run_daily_tasks(refresh=refresh)
-        return True
-
     def run_daily_tasks(self, *, refresh: bool = True):
         created, kept, removed = self.controller.rotate_daily_backups()
         if created:
@@ -3727,7 +3719,7 @@ class DynamicViewApp(App):
 
     def _daily_rollover_guard(self):
         """Timer callback that notices day changes even if alerts are idle."""
-        self._ensure_today_state(refresh=True)
+        self.run_daily_tasks(refresh=True)
 
     def play_bells(self) -> None:
         """An action to ring the bell."""
@@ -3850,7 +3842,6 @@ class DynamicViewApp(App):
             method()
 
     def action_show_weeks(self):
-        self._ensure_today_state(refresh=False)
         self.view = "weeks"
         log_msg(f"{self.selected_week = }")
         title, table, details = self.controller.get_table_and_list(
@@ -3881,7 +3872,6 @@ class DynamicViewApp(App):
         self.show_screen(screen)
 
     def action_show_agenda(self):
-        self._ensure_today_state(refresh=False)
         self.view = "agenda"
         details, title = self.controller.get_agenda()
         # footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"

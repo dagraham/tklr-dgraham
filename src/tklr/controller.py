@@ -1893,6 +1893,12 @@ class Controller:
                 log_msg(
                     f"[weeks] extended/generated around {year}-W{week:02d} (+cushion)"
                 )
+                try:
+                    self.db_manager.populate_dependent_tables()
+                except Exception as refresh_exc:
+                    log_msg(
+                        f"[weeks] populate_dependent_tables failed after extension: {refresh_exc}"
+                    )
         except Exception as e:
             log_msg(f"[weeks] ensure_week_generated_with_topup error: {e}")
 

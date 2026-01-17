@@ -369,7 +369,7 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 <code>? Coffee with Alex @s fri @e 1h
 </code>
   </pre>
-  <p>The beginning <code>?</code> type character makes this a <i>draft</i> reminder. This can be changed to an event when the details are confirmed by replacing the <cold>?</code> with an <code>*</code> and adding the time to <code>@s fri</code>.
+  <p>The beginning <code>?</code> type character makes this a <i>draft</i> reminder. This can be changed to an event when the details are confirmed by replacing the <code>?</code> with an <code>*</code> and adding the time to <code>@s fri</code>.
   </p>
   <p>
   This is a reminder that is not yet finished and, in almost every respect, will be ignored by <em>tklr</em>. The exception is that it will appear highlighted on the current day in <em>Agenda View</em> until it is revised. It can be changed to an <em>event</em> when the details are confirmed by replacing the <code>?</code> with an <code>*</code> and adding the time to <code>@s</code>.
@@ -400,19 +400,19 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
 Each of the main views in *tklr* can be opened by entering the first letter of the view's name.
 
-| View        |  Key  | Displays                                       |
-| ----------- | :---: | ---------------------------------------------- |
-| Agenda      |   A   | events, goals, tasks                           |
-| Bins        |   B   | Tree view of Bins                              |
-| Completions |   C   | Completion datetimes for tasks                 |
-| Find        |   F   | Case insenstive search in subjects and details |
-| Last        |   L   | The last instance of reminders before today    |
-| Modified    |   M   | All reminders sorted by the modified timestamp |
-| Next        |   N   | The next instance of reminders after today     |
-| Query       |   Q   | List matches for a specified query             |
-| Remaining   |   R   | List remaining alerts for the today            |
-| Tags        |   T   | List reminders with tags grouped by tag        |
-| Weeks       |   W   | List scheduled reminders by week and weekday   |
+| View      |  Key  | Displays                                       |
+| --------- | :---: | ---------------------------------------------- |
+| Agenda    |   A   | events, goals, tasks                           |
+| Bins      |   B   | Tree view of Bins                              |
+| Completed |   C   | Completion datetimes for completed tasks       |
+| Find      |   F   | Case insenstive search in subjects and details |
+| Last      |   L   | The last instance of reminders before today    |
+| Modified  |   M   | All reminders sorted by the modified timestamp |
+| Next      |   N   | The next instance of reminders after today     |
+| Query     |   Q   | List matches for a specified query             |
+| Remaining |   R   | List remaining alerts for the today            |
+| Tags      |   T   | List reminders with tags grouped by tag        |
+| Weeks     |   W   | List scheduled reminders by week and weekday   |
 
 
 Each of these views displays a vertical list of reminders, with each reminder row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder including its subject.  When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
