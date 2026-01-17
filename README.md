@@ -500,7 +500,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 <ol>
   <li>Use the tag for a bin to open the bin </li>
   <li>Use the tag for a reminder to display the details of the reminder</li>
-  <li>Use the tag, 0, for <em>root</em> in the <em>bread crumb trail</em> to up to that bin</li>
+  <li>Use the tag, 0, for <em>root</em> in the <em>bread crumb trail</em> to go up to that bin</li>
 </ol>
 </p>
 
@@ -517,8 +517,8 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 <p>Press <em>e</em>, to open the <em>quotations</em> bin with its tagged list of children which now includes only reminders.
 <ol>
   <li>Use the tag for a reminder to display the details of the reminder</li>
-  <li>Use the tag, 1, for <em>library</em> in the <em>bread crumb trail</em> to up to that bin</li>
-  <li>Use the tag, 0, for <em>root</em> in the <em>bread crumb trail</em> to up to that bin</li>
+  <li>Use the tag, 1, for <em>library</em> in the <em>bread crumb trail</em> to go up to that bin</li>
+  <li>Use the tag, 0, for <em>root</em> in the <em>bread crumb trail</em> to go up to that bin</li>
 </ol>
 </p>
 
