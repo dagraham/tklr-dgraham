@@ -464,9 +464,9 @@ Tasks are sorted by their *urgency*. This calculation is fairly complicated and 
 
 [↩︎](#table-of-contents)
 
-### 2.2. Bins View
+### 1.5. Built in filing system: Bins View
 
-Hierarchical display of bins and reminders.
+Hierarchical, collapsible tree view of bins and reminders. Think of bins as directories and reminders as files. The main difference is that reminders can belong to more than one bin or to no bins at all.
 
 Many note taking applications provide a means for establishing links between notes. The terms _Zettelkasten_ and _Second Brain_ come to mind. A different approach is taken in _tklr_ where _bins_ serve as containers for both reminders and other bins. While a system of links between reminders might be broken by the removal of a reminder, when a reminder is removed from _tklr_, it simply disappears from the relevant bin membership lists. Bins themselves and their membership lists are otherwise unaffected.
 
@@ -476,6 +476,19 @@ These are the important facts:
 2. A bin can contain **many** other bins (children)
 3. A bin can belong to **at most one** other bin (parent).
 4. A reminder can belong to **many** bins.
+
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_root_screenshot.svg"
+alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>While the listing of events begins with the current day, any all-day events or events whose ending times have already passed such as the one tagged <em>a</em> will be dimmed. Additionally an event, such as the one tagged <em>b</em> whose active period overlaps the current moment will be highlighted.
+</p>
+<p>The first day of events will always include any <em>notices</em> of upcomming events or <em>draft</em> reminders needing completion in addition to any scheduled events for today. In this case the reminder tagged <em>d</em> indicates that there is an event beginning in 5 days (`+5d`) with a subject beginning with "Quaerat amet ..." a <em>notice attribute</em>, <code>@n x</code>, in which <code>x > 5d</code>. This attribute is the reason this notice of the event is being displayed before its scheduled datetime - it will continue to be displayed on the first day (current date) of Agenda View each day until the day of the event.
+</p>
+<p>There is also a draft entry displayed in red. This is simply a reminder whose item type is <code>?</code>. This is used to flag a reminder as incomplete as would be the case, e.g., if a final datetime for the event had not yet been finalized. Draft reminders are also displayed on the current, first day in Agenda view until the item type is changed.
+  </p>
+</div>
+<div style="clear: both;"></div>
 
 The first three are illustrated by _Bins_ view:
 
