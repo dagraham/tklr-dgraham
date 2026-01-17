@@ -527,44 +527,12 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 Many note taking applications provide a means for establishing links between notes. The terms _Zettelkasten_ and _Second Brain_ come to mind. A different approach is taken in _tklr_ where _bins_ serve as containers for both reminders and other bins. While a system of links between reminders might be broken by the removal of a reminder, when a reminder is removed from _tklr_, it simply disappears from the relevant bin membership lists. Bins themselves and their membership lists are otherwise unaffected.
 
-
-You may think in the _journal_ branch the years _2025_, _2026_ and so forth may be unique, but surely the months _11_, _12_, and so forth, will be repeated. Similarly, under _people_, the children names _A_, _B_, ... might be needed for other purposes as well. How is uniqueness to be maintained? The solution is that _11_, _12_, _A_, _B_, ... are aliases for the actual bin names which are, in fact, _2025:11_, _2025:12_, _people:A_, _people:B_, .... The general rule is this: whenever a bin named _XXX:YYY_ is the child of a bin named _XXX_, the child will be displayed using the alias _YYY_. Why this insistence upon uniqueness? It means that specifying membership in the bin _root / journal / 2025 / 2025:11_ can be done by just specifying `@b 2025:11`.
-
 As an illustration of the power of being able to place a reminder in many bins consider a note describing a visit to Lille, France on November 11, 2025 which involved meeting a dear friend, Mary Smith for lunch. Bins to which this might belong:
 
 - _travel_ (in _activities_)
 - _2025:11_ (in _journal_)
 - _Smith,Mary_ (in _people_)
 - _Lille_ (in _places_)
-
-As with the other views, key presses corresponding to _tags_ control the action. Note that the children of _root_ are tagged. Pressing the tag for _journal_, _b_, makes it the active parent:
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_journal_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Bins: journal is the active parent</em>
-</p>
-
-Note the _bread crumb_ header, `0 root / journal`, in which _root_ now has the tag _0_ and is followed by _journal_ which is now the active parent with its children now displayed with tags. Pressing _0_ would restore _root_ as the active parent and pressing the tag for one of the children would make that the active parent. Here's the view that results from pressing _a_, the tag for _2025_:
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_2025_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Bins: 2025 is the active parent</em>
-</p>
-
-Pressing _a_ again, now the tag for _2025:11_, makes this the active parent:
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_202511_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Bins: 2025 is the active parent</em>
-</p>
-
-Notice in the _bread crumb_ header that there are integer tags going backward for each of the ancestors and the active parent is, as usual, the last element of the path. But it is listed here not using the alias, _11_, but the actual bin name, _2025:11_.
 
 [↩︎](#table-of-contents)
 
