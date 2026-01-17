@@ -398,30 +398,30 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
 ### 1.3. Mouse-Free navigation
 
-Each of the main views in *tklr* can be opened by entering the first letter of the view's name. 
+Each of the main views in *tklr* can be opened by entering the first letter of the view's name.
 
-| View      |  Key  | Displays                                       |
-| --------- | :---: | ---------------------------------------------- |
-| Agenda    |   A   | events, goals, tasks                           |
-| Bins      |   B   | Tree view of Bins                              |
-| Completed |   C   | Datetimes for completed tasks                  |
-| Find      |   F   | Case insenstive search in subjects and details |
-| Last      |   L   | The last instance of reminders before today    |
-| Modified  |   M   | All reminders sorted by the modified timestamp |
-| Next      |   N   | The next instance of reminders after today     |
-| Query     |   Q   | List matches for a specified query             |
-| Remaining |   R   | List remaining alerts for the today            |
-| Tags      |   T   | List reminders with tags grouped by tag        |
-| Weeks     |   W   | List scheduled reminders by week and weekday   |
+| View        |  Key  | Displays                                       |
+| ----------- | :---: | ---------------------------------------------- |
+| Agenda      |   A   | events, goals, tasks                           |
+| Bins        |   B   | Tree view of Bins                              |
+| Completions |   C   | Completion datetimes for tasks                 |
+| Find        |   F   | Case insenstive search in subjects and details |
+| Last        |   L   | The last instance of reminders before today    |
+| Modified    |   M   | All reminders sorted by the modified timestamp |
+| Next        |   N   | The next instance of reminders after today     |
+| Query       |   Q   | List matches for a specified query             |
+| Remaining   |   R   | List remaining alerts for the today            |
+| Tags        |   T   | List reminders with tags grouped by tag        |
+| Weeks       |   W   | List scheduled reminders by week and weekday   |
 
 
 Each of these views displays a vertical list of reminders, with each reminder row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder including its subject.  When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
 
-*The view keys and the list tags are the key to navigating tklr.* 
+*The view keys and the list tags are the key to navigating tklr.*
 
 On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. This is worth emphasizing. *You don't select a reminder with the cursor keys or the mouse and then press enter to see its details - just press the key corresponding to its tag.*
 
-When the details of reminder are being displayed, pressing `enter` will open a menu of various commands applicable to the selected reminder, pressing the key corresponding to the tag of another reminder will switch the details display to that reminder or pressing the upper case letter corresponding to another view will switch to that view. 
+When the details of reminder are being displayed, pressing `enter` will open a menu of various commands applicable to the selected reminder, pressing the key corresponding to the tag of another reminder will switch the details display to that reminder or pressing the upper case letter corresponding to another view will switch to that view.
 
 Everything you might want to do to a reminder, to edit, finish, reschedule, delete or whatever is available using these steps:
 
@@ -431,16 +431,16 @@ Everything you might want to do to a reminder, to edit, finish, reschedule, dele
 
 ### 1.4. What you need to know now: Agenda View
 
-The *Agenda view* displays  
+The *Agenda view* displays
 
 1. the next few days of <em>events</em> beginning with today
-2. <em>goals</em> ordered by their *priority* 
+2. <em>goals</em> ordered by their *priority*
 3. <em>tasks</em> ordered by their *urgency*
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/agenda_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>While the listing of events begins with the current day, any all-day events or events whose ending times have already passed such as the one tagged <em>a</em> will be dimmed. Additionally an event, such as the one tagged <em>b</em> whose active period overlaps the current moment will be highlighted. 
+  <p>While the listing of events begins with the current day, any all-day events or events whose ending times have already passed such as the one tagged <em>a</em> will be dimmed. Additionally an event, such as the one tagged <em>b</em> whose active period overlaps the current moment will be highlighted.
 </p>
 <p>The first day of events will always include any <em>notices</em> of upcomming events or <em>draft</em> reminders needing completion in addition to any scheduled events for today. In this case the reminder tagged <em>d</em> indicates that there is an event beginning in 5 days (`+5d`) with a subject beginning with "Quaerat amet ..." a <em>notice attribute</em>, <code>@n x</code>, in which <code>x > 5d</code>. This attribute is the reason this notice of the event is being displayed before its scheduled datetime - it will continue to be displayed on the first day (current date) of Agenda View each day until the day of the event.
 </p>
@@ -449,12 +449,12 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 </div>
 <div style="clear: both;"></div>
 
-The list for *goals* includes all goals which have not been completed on the current date, sorted and color coded by their *priorty*, which is listed in the first column after the tags. The details for precisely how *priority* is calculated will be described later but the basic idea involves comparing 
+The list for *goals* includes all goals which have not been completed on the current date, sorted and color coded by their *priorty*, which is listed in the first column after the tags. The details for precisely how *priority* is calculated will be described later but the basic idea involves comparing
 
-1. the rate at which completions would currently need to occur to complete the goal 
+1. the rate at which completions would currently need to occur to complete the goal
 2. the rate originally specified in the goal
- 
-The higher the current rate relative to the original, the higher the *priority*. 
+
+The higher the current rate relative to the original, the higher the *priority*.
 
 The list for *tasks* includes all tasks with the possible exception of tasks with both an `@s` (specifying a *due datetime*) and an `@n` entry (specifying a *notification period*).  Suppose, for example, that `@s 2026-01-30` and `@n 2d`. The role of these combined entries is to say that the task needs to be finished by `2026-01-30` but you don't want to be bothered about it until two days before that date. This task won't appear in the list until `2026-01-28`.
 

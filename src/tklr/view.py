@@ -177,7 +177,7 @@ HelpText = f"""\
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
  [bold]A[/bold]    Agenda              [bold]M[/bold]    Modified
  [bold]B[/bold]    Bins                [bold]N[/bold]    Next
- [bold]C[/bold]    Completed           [bold]Q[/bold]    Query
+ [bold]C[/bold]    Completions         [bold]Q[/bold]    Query
  [bold]F[/bold]    Find                [bold]R[/bold]    Remaining Alerts
  [bold]G[/bold]    Goals               [bold]T[/bold]    Tags
  [bold]L[/bold]    Last                [bold]W[/bold]    Weeks
@@ -3651,7 +3651,9 @@ class DynamicViewApp(App):
         self.notify(f"Screenshot saved to: {path}", severity="info", timeout=3)
 
     def _maybe_sync_inbox(self, now: datetime) -> None:
-        if (now - getattr(self, "_last_inbox_check", datetime.min)).total_seconds() < 900:
+        if (
+            now - getattr(self, "_last_inbox_check", datetime.min)
+        ).total_seconds() < 900:
             return
         self._last_inbox_check = now
         try:
@@ -3717,6 +3719,7 @@ class DynamicViewApp(App):
             self.update_table_and_list()
             return
         if self.view == "agenda":
+            bug_msg(f"Refreshing agenda view for new day")
             self.action_show_agenda()
             return
 
@@ -3765,15 +3768,12 @@ class DynamicViewApp(App):
 
     async def _maybe_run_current_command(self) -> None:
         command = getattr(self.controller, "current_command", "").strip()
-        log_msg(f"maybe_run_current_command: {command = }")
         if not command:
             return
         if self._current_command_task and not self._current_command_task.done():
-            log_msg(f"maybe_run_current_command: skipping {command = }")
             return ()
         payload = self.controller.consume_after_save_command()
         if not payload:
-            log_msg("maybe_run_current_command: no payload")
             return
         args, display = payload
         self._current_command_task = asyncio.create_task(

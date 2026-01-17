@@ -2850,8 +2850,12 @@ class Controller:
 
         return title, lines
 
-    def get_agenda(self, now: datetime = datetime.now(), yield_rows: bool = False):
+    def get_agenda(
+        self, now: datetime | None = None, yield_rows: bool = False
+    ):
         """Return agenda rows/pages combining events, goals, and tasks."""
+        if now is None:
+            now = datetime.now()
         header = "Agenda"
         divider = [
             {
@@ -2904,7 +2908,7 @@ class Controller:
         pages = page_tagger(events_goals_tasks)
         return pages, header
 
-    def get_agenda_events(self, now: datetime = datetime.now()):
+    def get_agenda_events(self, now: datetime | None = None):
         """
         Build agenda event rows for the configured number of days.
         Rules:
@@ -2912,6 +2916,9 @@ class Controller:
         • Also include TODAY if it has notice/drafts even with no events.
         • If nothing to display at all, return [].
         """
+        if now is None:
+            now = datetime.now()
+
         notice_records = (
             self.db_manager.get_notice_for_events()
         )  # (record_id, days_remaining, subject)
