@@ -496,17 +496,30 @@ This is the opening, root level in <em>Bins view</em>.
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_library_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 
-<p>Press <em>c</em>, the tag for the <em>library bin</em> to open that bin.
+<p>Press <em>c</em>, to open the <em>library</em> bin with its tagged list of children which now includes both bins and reminders.
 <ol>
-  <li>Bin names are unique</li>
-  <li>A bin can contain many other bins (children)</li>
-  <li>A bin can belong to at most one other bin (parent)</li>
-  <li>A reminder can belong to many bins</li>
+  <li>Use the tag for a bin to open the bin </li>
+  <li>Use the tag for a reminder to display the details of the reminder</li>
+  <li>Use the tag, 0, for <em>root</em> in the <em>bread crumb trail</em> to up to that bin</li>
 </ol>
 </p>
 
-<p>
-This is the opening, root level in <em>Bins view</em>
+</div>
+<div style="clear: both;"></div>
+
+</div>
+<div style="clear: both;"></div>
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_quotations_screenshot.svg"
+alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+
+<p>Press <em>e</em>, to open the <em>quotations</em> bin with its tagged list of children which now includes only reminders.
+<ol>
+  <li>Use the tag for a reminder to display the details of the reminder</li>
+  <li>Use the tag, 1, for <em>library</em> in the <em>bread crumb trail</em> to up to that bin</li>
+  <li>Use the tag, 0, for <em>root</em> in the <em>bread crumb trail</em> to up to that bin</li>
+</ol>
 </p>
 
 </div>
