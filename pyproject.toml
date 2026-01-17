@@ -1,6 +1,6 @@
 [project]
 name = "tklr-dgraham"
-version = "0.0.19"
+version = "0.0.20"
 description = "Reminders Tickler / CLI and Textual UI"
 authors = [{ name = "Daniel Graham", email = "dnlgrhm@gmail.com" }]
 readme = "README.md"
