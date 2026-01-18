@@ -3918,7 +3918,7 @@ class DynamicViewApp(App):
 
     def action_show_goals(self):
         self.view = "goals"
-        pages, title, header = self.controller.get_goals()
+        pages, title, header = self.controller.get_goals(include_future=True)
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
         self.show_screen(FullScreenList(pages, title, header, footer))
 

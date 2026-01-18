@@ -2218,9 +2218,12 @@ class Controller:
         pages = page_tagger(rows)
         return pages, header
 
-    def get_goals(self, yield_rows: bool = False):
+    def get_goals(self, yield_rows: bool = False, *, include_future: bool = False):
         """
         Build the data needed for Goals View: priority-sorted goals with progress.
+
+        When `include_future` is True, also include inactive goals whose next @s
+        start time is in the future and sort the result by that datetime.
         """
 
         def _get_at_value(tokens: list[dict], key: str) -> str:
@@ -2372,7 +2375,7 @@ class Controller:
             if tokens_dirty:
                 self.db_manager.update_record_tokens(record_id, raw_tokens)
 
-            if now < start_dt:
+            if (not include_future) and now < start_dt:
                 continue
 
             remaining_seconds_raw = int((end_dt - now).total_seconds())
@@ -2408,6 +2411,10 @@ class Controller:
                     "num_completed": num_completed,
                     "subject": self.apply_flags(record_id, subject or "(no subject)"),
                     "time_display": remaining_display,
+                    "start_dt": start_dt,
+                    "start_display": self.fmt_user(
+                        start_dt.date() if start_is_date_only else start_dt
+                    ),
                 }
             )
 
@@ -2446,13 +2453,21 @@ class Controller:
             )
             return _rgb_to_hex(rgb)
 
-        goals.sort(
-            key=lambda g: (
-                -g["priority"],
-                g["remaining_seconds"],
-                g["subject"].lower(),
+        if include_future:
+            goals.sort(
+                key=lambda g: (
+                    g["start_dt"],
+                    g["subject"].lower(),
+                )
             )
-        )
+        else:
+            goals.sort(
+                key=lambda g: (
+                    -g["priority"],
+                    g["remaining_seconds"],
+                    g["subject"].lower(),
+                )
+            )
 
         rows = []
         goal_count = len(goals)
@@ -2462,11 +2477,19 @@ class Controller:
             progress_display = f"{goal['remaining_instances']}/{goal['num_required']}"
             time_display = goal["time_display"]
             row_color = _priority_color(goal["priority"])
-            text = (
-                f"[{row_color}]{priority_display:>3} "
-                f"{progress_display:>4} {time_display:^6} "
-                f"{goal['subject']}[/{row_color}]"
-            )
+            if include_future:
+                start_display = goal["start_display"]
+                text = (
+                    f"[{row_color}]{start_display:>16} "
+                    f"{progress_display:>4} {time_display:^6} "
+                    f"{goal['subject']}[/{row_color}]"
+                )
+            else:
+                text = (
+                    f"[{row_color}]{priority_display:>3} "
+                    f"{progress_display:>4} {time_display:^6} "
+                    f"{goal['subject']}[/{row_color}]"
+                )
             rows.append(
                 {
                     "record_id": goal["record_id"],
@@ -2873,7 +2896,9 @@ class Controller:
             },
         ]
         events_by_date = self.get_agenda_events(now=now)
-        goals_rows, goal_count, goals_header = self.get_goals(yield_rows=True)
+        goals_rows, goal_count, goals_header = self.get_goals(
+            yield_rows=True, include_future=False
+        )
         tasks_by_urgency = self.get_agenda_tasks()
 
         goals_section: list[dict] = []

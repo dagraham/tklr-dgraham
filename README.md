@@ -49,6 +49,9 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
           </li>
           <li><a href="#13-mouse-free-navigation">1.3. Mouse-Free navigation</a></li>
           <li><a href="#14-what-you-need-to-know-now:-agenda-view">1.4. What you need to know now: Agenda View</a></li>
+          <li><a href="#15 ">1.5. Built in filing system: Bins View</a></li>
+          <li><a href="#16 ">1.6 What's happening and when: Weeks View and Friends </a></li>
+          <li><a href="#17 ">1.7 Where's Waldo: Find and Query Views</a></li>
         </ul>
       </details>
     </li>
@@ -67,7 +70,7 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
           <li><a href="#29-query-view---to-be-done">2.9. Query View</a></li>
           <li><a href="#210-remaining-alerts-view---to-be-done">2.10. Remaining Alerts View</a></li>
           <li><a href="#211-tags-view---to-be-done">2.11. Tags View</a></li>
-          <li><a href="#212-weeks-view">2.12. Weeks View</a></li>
+          <li><a href="#212-weeks-view">2.12. What's happening and when: Weeks View and Friends</a></li>
         </ul>
       </details>
     </li>
@@ -437,7 +440,7 @@ The *Agenda view* displays
 2. <em>goals</em> ordered by their *priority*
 3. <em>tasks</em> ordered by their *urgency*
 
-Times are displayed in the screenshots using 24-hour notation. An option can be set to use am/pm notation instead. 
+Times are displayed in the screenshots using 24-hour notation. An option can be set to use am/pm notation instead.
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/agenda_screenshot.svg"
@@ -546,44 +549,57 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 <p>Press <em>W</em> to open the <em>Weeks View</em> on the current week or press <em>J</em> and enter a date to open the view on the week containing that date. The header displays the date range, year and week number for the displayed week. Left and right cursor keys shift the displayed week backward or forward by one week. Pressing the shift key at the same time increases the shift from one to four weeks. Pressing <code>J</code> and entering a date will jump to the week containing the date. Pressing the space key will jump back to the current week.
 </p>
 
-<p> The <em>busy bar</em> underneath the header provides graphical illustration of the busy times for <em>events</em> during the week. The area under each weekday name has spaces for five blocks. The first (furthest to the left) will be colored green if one or more <em>all day</em> events are scheduled for that day. The next four blocks correspond to the four 6-hour periods during the day beginning with 00:00 - 05:59 and ending with 18:00 - 23:59. 
+<p> The <em>busy bar</em> underneath the header provides graphical illustration of the busy times for <em>events</em> during the week. The area under each weekday name has spaces for five blocks. The first (furthest to the left) will be colored green if one or more <em>all day</em> events are scheduled for that day. The next four blocks correspond to the four 6-hour periods during the day beginning with 00:00 - 05:59 and ending with 18:00 - 23:59.
 </p>
 <p>The block corresponding to a period will be green if the scheduled time for an event occupies any part of the period. E.g., a single event scheduled for 05:00 - 07:00 would cause both the first and second blocks for that day to be colored green. A block is changed from green to red if the busy periods for two or more events overlap and thus <em>conflict</em>. The red block for Thursday, e.g., reflects the conflict during 19:30 - 20:00 by the events tagged <em>g</em> and <em>h</em>.
 </p>
 
-<p>Note that only <em>events</em> with an <em>extent</em> contribute to the *busy bar*. Tuesday, for example, shows no busy times despite two <em>tasks</em> being scheduled for that day. Similarly the <em>event</em> tagged <em>m</em> on Sunday has no extent and would not iself lead to a block being colored green.  
+<p>Note that only <em>events</em> with an <em>extent</em> contribute to the <em>busy bar</em>. Tuesday, for example, shows no busy times despite two <em>tasks</em> being scheduled for that day. Similarly the <em>event</em> tagged <em>m</em> on Sunday has no extent and thus no effect on the <em>busy bar</em>.
+</p>
+
+</div>
+<div style="clear: both;"></div>
+
+### 1.7 Where's Waldo: Find and Query Views
+
+What is the name of that plumber we used and liked so much? If the word "plumber" was used in either the *subject* or the *details* of the reminder then *Find View* will find it.
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_entry_screenshot.svg"
+alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>Just press <code>F</code> to open the prompt and enter "plumber". Don't worry about upper or lower case, the matching is case-insensitive.
 </p>
 
 </div>
 <div style="clear: both;"></div>
 
 
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_results_screenshot.svg"
+alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>Now press <code>Enter</code> and Voila! The plumber has been found. Press the key of the tag to see the details.
+</p>
+
+</div>
+<div style="clear: both;"></div>
+
 
 ### 2.3. Completed View - TO BE DONE
 
-[↩︎](#table-of-contents)
-
-### 2.4. Find View
-
-Reminders whose subject or detail entries contain a case-insensitive match for an entered expression.
-
-When you need an exhaustive search across all reminders for a case-insensitive match in either the subject or the details, this is the view. Just press "F" in any view to activate the search bar:
-
-<p align="center">
+<div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_entry_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Find: initializing the search</em>
+alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
 </p>
 
-When submitted, the matching reminders are listed:
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_matches_screenshot.svg"
-       alt="Agenda view in Tklr" width="540">
-  <br>
-  <em>Find: matching reminders</em>
+<p>
 </p>
+<p>
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+[↩︎](#table-of-contents)
 
 [↩︎](#table-of-contents)
 
