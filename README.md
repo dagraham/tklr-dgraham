@@ -47,8 +47,8 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
               </ul>
             </details>
           </li>
-          <li><a href="#13-mouse-free-navigation">1.3. Mouse-free navigation</a></li>
-          <li><a href="#14-agenda-view">1.4. Agenda View</a></li>
+          <li><a href="#13-mouse-free-navigation">1.3. Mouse-Free navigation</a></li>
+          <li><a href="#14-what-you-need-to-know-now:-agenda-view">1.4. What you need to know now: Agenda View</a></li>
         </ul>
       </details>
     </li>
@@ -477,16 +477,15 @@ Think of _bins_ as directories, _reminders_ as files and *Bin View* as a file br
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 
 <p>These are the important facts:
-<ol>
+</p>
+<ul>
   <li>Bin names are unique</li>
   <li>A bin can contain many other bins (children)</li>
   <li>A bin can belong to at most one other bin (parent)</li>
   <li>A reminder can belong to many bins</li>
-</ol>
-</p>
+</ul>
 
-<p>
-This is the opening, root level in <em>Bins view</em>.
+<p> This is the opening, root level in <em>Bins view</em>.
 </p>
 
 </div>
@@ -496,45 +495,61 @@ This is the opening, root level in <em>Bins view</em>.
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_library_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 
-<p>Press <em>c</em>, to open the <em>library</em> bin with its tagged list of children which now includes both bins and reminders.
-<ol>
-  <li>Use the tag for a bin to open the bin </li>
-  <li>Use the tag for a reminder to display the details of the reminder</li>
-  <li>Use the tag, 0, for <em>root</em> in the <em>bread crumb trail</em> to go up to that bin</li>
-</ol>
+<p>Press <em>c</em> to open the <em>library</em> bin with its tagged list of children which now includes both bins and reminders.
 </p>
 
+<ul>
+  <li>Use the tag for a bin to open the bin </li>
+  <li>Use the tag for a reminder to display the details of the reminder</li>
+  <li>Use tag <em>0</em>, <em>root</em>,in the <em>bread crumb trail</em> to go up to that bin</li>
+</ul>
 </div>
 <div style="clear: both;"></div>
 
-</div>
-<div style="clear: both;"></div>
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_quotations_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 
-<p>Press <em>e</em>, to open the <em>quotations</em> bin with its tagged list of children which now includes only reminders.
-<ol>
-  <li>Use the tag for a reminder to display the details of the reminder</li>
-  <li>Use the tag, 1, for <em>library</em> in the <em>bread crumb trail</em> to go up to that bin</li>
-  <li>Use the tag, 0, for <em>root</em> in the <em>bread crumb trail</em> to go up to that bin</li>
-</ol>
+<p>Press <em>e</em> to open the <em>quotations</em> bin with its tagged list of children which now includes only reminders.
 </p>
+<ul>
+  <li>Use the tag for a reminder to display the details of the reminder</li>
+  <li>Use tag <em>1</em>, <em>library</em>, in the <em>bread crumb trail</em> to go up to that bin</li>
+  <li>Use tag <em>0</em>, <em>root</em>, in the <em>bread crumb trail</em> to go up to that bin</li>
+</ul>
 
 </div>
 <div style="clear: both;"></div>
 
 Many note taking applications provide a means for establishing links between notes. The terms _Zettelkasten_ and _Second Brain_ come to mind. A different approach is taken in _tklr_ where _bins_ serve as containers for both reminders and other bins. While a system of links between reminders might be broken by the removal of a reminder, when a reminder is removed from _tklr_, it simply disappears from the relevant bin membership lists. Bins themselves and their membership lists are otherwise unaffected.
 
-As an illustration of the power of being able to place a reminder in many bins consider a note describing a visit to Lille, France on November 11, 2025 which involved meeting a dear friend, Mary Smith for lunch. Bins to which this might belong:
+As an illustration of the power of being able to place a reminder in many bins consider a note describing a visit to Lille, France on November 11, 2025 which involved meeting a dear friend, Mary Smith for lunch. This might belong to all of these bins:
 
 - _travel_ (in _activities_)
 - _2025:11_ (in _journal_)
-- _Smith,Mary_ (in _people_)
-- _Lille_ (in _places_)
+- _Mary Smith_ (in _people:S_)
+- _Lille_ (in _places:France_)
 
 [↩︎](#table-of-contents)
+
+### 1.6 What's happening and when: Weeks View and Friends
+
+Scheduled reminders are those with an `@s` *scheduled* attribute. Such reminders can repeat because of  `@r` and/or `@+` attributes. *Weeks View* is dedicated to displaying each instance of these reminders one week at a time. Two related view are limited to listing a single instance of each scheduled reminders. *Next View* lists the *first* instance occurring on or after the current date in ascending order and *Last View* lists the most recent instance occurring *before* the current date in *descending* order. When did you last have your car serviced? *Last View* is the place to look. When is your next appointment to visit your dentist? *Next View* has the answer.
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/weeks_screenshot.svg"
+alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+
+<p>Press <em>W</em> to open the <em>Weeks View</em> on the current week or press <em>J</em> and enter a date to open the view on the week containing that date.
+</p>
+
+<p> The header displays the date range and week number for the displayed week. The *busy bar* follows with a graphical illustration of the busy times for each day in the week.
+</p>
+</div>
+<div style="clear: both;"></div>
+
+
 
 ### 2.3. Completed View - TO BE DONE
 
