@@ -437,6 +437,8 @@ The *Agenda view* displays
 2. <em>goals</em> ordered by their *priority*
 3. <em>tasks</em> ordered by their *urgency*
 
+Times are displayed in the screenshots using 24-hour notation. An option can be set to use am/pm notation instead. 
+
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/agenda_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
@@ -535,17 +537,23 @@ As an illustration of the power of being able to place a reminder in many bins c
 
 ### 1.6 What's happening and when: Weeks View and Friends
 
-Scheduled reminders are those with an `@s` *scheduled* attribute. Such reminders can repeat because of  `@r` and/or `@+` attributes. *Weeks View* is dedicated to displaying each instance of these reminders one week at a time. Two related view are limited to listing a single instance of each scheduled reminders. *Next View* lists the *first* instance occurring on or after the current date in ascending order and *Last View* lists the most recent instance occurring *before* the current date in *descending* order. When did you last have your car serviced? *Last View* is the place to look. When is your next appointment to visit your dentist? *Next View* has the answer.
+Scheduled reminders are those with an `@s` *scheduled* attribute. Such reminders can repeat because of  `@r` and/or `@+` attributes. *Weeks View* is dedicated to displaying each instance of these reminders one week at a time. Two related views are limited to listing a single instance of each scheduled reminders. *Next View* lists the *first* instance occurring on or after the current date in *ascending* order and *Last View* lists the most recent instance occurring *before* the current date in *descending* order. When did you last have your car serviced? *Last View* is the place to look. When is your next appointment to visit your dentist? *Next View* has the answer.
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/weeks_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 
-<p>Press <em>W</em> to open the <em>Weeks View</em> on the current week or press <em>J</em> and enter a date to open the view on the week containing that date.
+<p>Press <em>W</em> to open the <em>Weeks View</em> on the current week or press <em>J</em> and enter a date to open the view on the week containing that date. The header displays the date range, year and week number for the displayed week. Left and right cursor keys shift the displayed week backward or forward by one week. Pressing the shift key at the same time increases the shift from one to four weeks. Pressing <code>J</code> and entering a date will jump to the week containing the date. Pressing the space key will jump back to the current week.
 </p>
 
-<p> The header displays the date range and week number for the displayed week. The *busy bar* follows with a graphical illustration of the busy times for each day in the week.
+<p> The <em>busy bar</em> underneath the header provides graphical illustration of the busy times for <em>events</em> during the week. The area under each weekday name has spaces for five blocks. The first (furthest to the left) will be colored green if one or more <em>all day</em> events are scheduled for that day. The next four blocks correspond to the four 6-hour periods during the day beginning with 00:00 - 05:59 and ending with 18:00 - 23:59. 
 </p>
+<p>The block corresponding to a period will be green if the scheduled time for an event occupies any part of the period. E.g., a single event scheduled for 05:00 - 07:00 would cause both the first and second blocks for that day to be colored green. A block is changed from green to red if the busy periods for two or more events overlap and thus <em>conflict</em>. The red block for Thursday, e.g., reflects the conflict during 19:30 - 20:00 by the events tagged <em>g</em> and <em>h</em>.
+</p>
+
+<p>Note that only <em>events</em> with an <em>extent</em> contribute to the *busy bar*. Tuesday, for example, shows no busy times despite two <em>tasks</em> being scheduled for that day. Similarly the <em>event</em> tagged <em>m</em> on Sunday has no extent and would not iself lead to a block being colored green.  
+</p>
+
 </div>
 <div style="clear: both;"></div>
 
