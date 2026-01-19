@@ -407,8 +407,8 @@ Everything you might want to do to a reminder, to edit, finish, reschedule, dele
 The *Agenda view* displays
 
 1. the next few days of <em>events</em> beginning with today
-2. <em>goals</em> ordered by their *priority*
-3. <em>tasks</em> ordered by their *urgency*
+2. Active <em>goals</em> ordered by their *priority*
+3. Available <em>tasks</em> ordered by their *urgency*
 
 Times are displayed in the screenshots using _24-hour_ notation. An option can be set to display times using _am/pm_ notation instead.
 
@@ -520,7 +520,8 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 [↩︎](#table-of-contents)
 
-#### 1.5.2 Tags TBD
+
+#### 1.5.2 Tags
 
 
 ### 1.6 What's happening: Weeks View and Friends
