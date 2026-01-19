@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD033 -->
 <table>
   <tr>
     <td style="vertical-align: top; width: 75%;">
@@ -446,6 +447,11 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 ### 1.5. Flagging reminders for later reference: Bins and Tags
 
 It will often be useful to *flag* a reminder so that it can *easily* be found later. *Tklr* provides two complementary methods:
+
+<ol>
+  <li>Using <code>@b XYZ</code> to attach the reminder to the <em>bin</em> named <em>XYZ</em> and the related <em>Bins View</em></li>
+  <li>Using a <em>hash tag</em>, i.e., <code>&#x23;</code> followed without spaces by an arbitrary word, in either the <em>subject</em> or the <em>details</em> attribute to attach the hash tag <em>ABC</em> and the related <em>Tags View</em></li>
+</ol>
 
 
 #### 1.5.1 Bins
@@ -905,7 +911,7 @@ This guide walks you through setting up a development environment for `tklr` usi
 
 #### ✅ Step 1: Clone/Update the repository
 
-This step will create a directory named _tklr-dgrham_ in your current working directory that contains a clone of the github repository for _tklr_.
+This step will create a directory named _tklr-dgraham_ in your current working directory that contains a clone of the github repository for _tklr_.
 
 ```bash
 git clone https://github.com/dagraham/tklr-dgraham.git
