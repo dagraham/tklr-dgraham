@@ -762,7 +762,7 @@ This option is particularly useful for irregular recurrences such as annual doct
   @r y &m 10 &d 23
 </code>
   </pre>
-  <p>Reminders that repeat using an <code>@r</code> attribute can automatically display the number of the anniversary. The <em>anniversary expression</em>, <code>{XXX}</code>, when placed in the <em>subject</em> will be replaced in the listing of the reminder in Agenda, Next and Weeks views by the relevant number of the anniversary. For example, in the listing for October 23, 2026, the subject of this reminder would appear as <code>Max's 10th birthday</code>. Note that the appropriate suffix from [st, nd, rd or th] is automatically applied.
+  <p>Reminders that repeat using an <code>@r</code> attribute can automatically display the number of the anniversary. The <em>anniversary expression</em>, <code>{XXX}</code>, when placed in the <em>subject</em> will be replaced in the listing of the reminder in Agenda, Next and Weeks views by the relevant number of the anniversary. For example, in the listing for October 23, 2026, the subject of this reminder would appear as <code>Max's 10th birthday</code>. Note that the appropriate suffix from [st, nd, rd or th] is automatically applied and, because of the yearly frequency specified by <code>@r y</code>, the count represents the number of years separate the instance from the <em>scheduled</em> datetime. 
   </p>
 </div>
 <div style="clear:both;"></div>
@@ -854,37 +854,47 @@ Thus positive contributions _always_ increase urgency and negative contributions
 
 ### 2.12. Priority
 
-How is *priority* calculated for *goals*?  Suppose, for example, `@t 3/1w` is specified in a goal, then `n = 3` is the specified number of completions and `t = 1w` is the time period allowed for their completion. Further suppose that at a particular moment, `n'` is the number of instances remaining unfinished and `t'` is the time remaining in the period for their completion.  Initially, the needed rate of completions to satisfy the goal is `n/t`. At the moment being considered, the needed rate of completions goal is `n'/t'`.
+How is *priority* calculated for *goals*?  Consider a goal a goal with the target `@t n/t` so that `n` is the number of completions intended for the period `t`. Suppose further that `n'` is the number of instances remaining to be completed this period and that `t'` is the time remaining in the period for their completion. 
 
 Now consider these possibilities:
 
-- ` n'/t' > n/t `:
+- `n'/t' > n/t`:
     the needed completion rate has increased - completions are *behind* schedule
-- ` n'/t' = n/t `:
+- `n'/t' = n/t`:
     the needed completion rate is unchanged - completions are *on* schedule
-- ` n'/t' < n/t `:
+- `n'/t' < n/t`:
     the needed completion rate has decreased - completions are *ahead* of schedule
 
-If *priority* is defined the current rate of completion as a percentage of the original rate,  `100 (n' / t') / (n / t) = 100 (n' t) / (t' n)`, then these possibilites can be restated as
+If <em>priority</em> is defined by ratio 
+```
+  priority = 100 * (n' * t) / (n * t')
+``` 
+then it indicates the completion rate currently needed as a percentage of the original rate and the possibilities can be stated as:
 
-- `priority > 100`:
-    the needed completion rate has increased  - completions are *behind* schedule
-- `priority = 100`:
-    the needed completion rate is unchanged - completions are *on* schedule
-- `priority < 100`:
-    the needed completion rate has decreased - completions are *ahead* of schedule
-
-
-Consider a goal a goal with the target `@t n/t` so that `n` is the number of completions intended for the period `t`, `n'` the number of instances remaining this period, and `t'` the time remaining before the period ends. The ratio `priority = 100 * (n' * t) / (n * t')` indicates how far ahead or behind the schedule you are:
-
-- `priority > 100`: the goal is behind schedule, so it floats to the top of the view.
+- `priority > 100`: the goal is behind schedule.
 - `priority = 100`: you are on schedule.
 - `priority < 100`: you are ahead of schedule.
 
 
 ## 3. Getting Started
 
-### 3.1. Installing _tklr_ TBD
+### 3.1. Installing _tklr_ 
+
+As usual with <em>python</em> applications, <em>tklr</em> can be install in the usual way from <em>PyPI</em> using either <code>pip</code> or <code>pipx</code>. This <code>pip</code> command can be used either install for the first time or to upgrade an existing installation:
+
+```
+pip install -U tklr-dgraham 
+```
+
+With <code>pipx</code>, two different commands are needed. For the initial installation:
+```
+pipx install tklr-dgraham
+```
+
+To upgrade an existing installation:
+```
+pipx upgrade tklr-dgraham
+```
 
 ### 3.2 Starting tklr for the first time
 
