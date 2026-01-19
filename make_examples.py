@@ -45,6 +45,8 @@ BINS = [
 # in_one_hour = (
 #     datetime.now().replace(second=0, microsecond=0) + timedelta(hours=1)
 # ).strftime("%Y-%m-%d %H:%M00")
+
+
 def monday():
     return (parse("monday") - ONEWEEK).strftime("%Y-%m-%d")
 
@@ -177,7 +179,7 @@ num_items = 0
 types = ["*", "*", "*", "*", "*", "%"]
 
 contexts = ["errands", "home", "office", "shop"]
-tags = ["red", "green", "blue"]
+tags = ["amber", "cyan", "blue"]
 dates = [0, 0, 0, 1, 0, 0, 0]  # dates 1/7 of the time
 repeat = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0]  # repeat 1/10 of the time
 # duration = [to_tdstr(x) for x in range(6, 2 * 60 * 60, 6)]
@@ -331,7 +333,7 @@ while len(items) < num_items:
     bin = f" @b {random.choice(BINS)}"
     if random.choice(repeat):
         items.append(
-            f"{t} {name} @d {description} @s {dtstart}{extent} @r {random.choice(freq)} {bin}"
+            f"{t} {name} @d {description} #{random.choice(tags)}  @s {dtstart}{extent} @r {random.choice(freq)} {bin}"
         )
     else:
         items.append(f"{t} {name} @d {description} @s {dtstart}{extent} {bin}")
