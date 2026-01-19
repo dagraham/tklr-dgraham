@@ -449,7 +449,7 @@ It will often be useful to *flag* a reminder so that it can *easily* be found la
 
 <ol>
   <li>Using <code>@b XYZ</code> to attach the reminder to the <em>bin</em> named <em>XYZ</em> and the related <em>Bins View</em>
-  <li>Using <code>&#x23;ABC</code> in either the <em>subject</em> or the <em>details</em> attribute to attach the hash tag <em>ABC</em> and the related <em>Tags View</em>
+  <li>Using <code>&#x23;ABC</code> in either the <em>subject</em> or the <em>details</em> attribute to attach the hash tag <em>ABC</em> and the related <em>Tags View</em></li>
 </ol>
 
 
