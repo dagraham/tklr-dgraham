@@ -157,18 +157,20 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 Here are some illustrations of how the various types and attributes can be put to use.
 
 <a id="reminder-types"></a>
-<ul>
-  <li><a href="#121-an-event-lunch-with-ed-extended">1.2.1. An <em>event</em>: lunch with Ed (extended)</a></li>
-  <li><a href="#122-a-task-pick-up-milk">1.2.2. A <em>task</em>: pick up milk</a></li>
-  <li><a href="#123-a-repeating-event-trash-pickup">1.2.3. A <em>repeating event</em>: trash pickup</a></li>
-  <li><a href="#124-an-event-that-repeats-irregularly-dental-appointment">1.2.4. An <em>event that repeats irregularly</em>: dental appointment</a></li>
-  <li><a href="#125-a-complicated-but-regularly-repeating-task-vote-for-president">1.2.5. A <em>complicated</em> but regularly repeating task: vote for president</a></li>
-  <li><a href="#126-an-offset-task-fill-bird-feeders">1.2.6. An <em>offset task</em>: fill bird feeders</a></li>
-  <li><a href="#127-a-note-a-favorite-churchill-quotation">1.2.7. A <em>note</em>: a favorite Churchill quotation</a></li>
-  <li><a href="#128-a-project-build-a-dog-house-with-component-tasks">1.2.8. A <em>project</em>: build a dog house with component tasks</a></li>
-  <li><a href="#129-a-goal-interval-training-3-times-each-week">1.2.9. A <em>goal</em>: interval training 3 times each week</a></li>
-  <li><a href="#1210-a-draft-reminder-meet-alex-for-coffee---time-to-be-determined">1.2.10. A <em>draft</em> reminder: meet Alex for coffee - time to be determined</a></li>
-</ul>
+<details>
+  <ul>
+    <li><a href="#121-an-event-lunch-with-ed-extended">1.2.1. An <em>event</em>: lunch with Ed (extended)</a></li>
+    <li><a href="#122-a-task-pick-up-milk">1.2.2. A <em>task</em>: pick up milk</a></li>
+    <li><a href="#123-a-repeating-event-trash-pickup">1.2.3. A <em>repeating event</em>: trash pickup</a></li>
+    <li><a href="#124-an-event-that-repeats-irregularly-dental-appointment">1.2.4. An <em>event that repeats irregularly</em>: dental appointment</a></li>
+    <li><a href="#125-a-complicated-but-regularly-repeating-task-vote-for-president">1.2.5. A <em>complicated</em> but regularly repeating task: vote for president</a></li>
+    <li><a href="#126-an-offset-task-fill-bird-feeders">1.2.6. An <em>offset task</em>: fill bird feeders</a></li>
+    <li><a href="#127-a-note-a-favorite-churchill-quotation">1.2.7. A <em>note</em>: a favorite Churchill quotation</a></li>
+    <li><a href="#128-a-project-build-a-dog-house-with-component-tasks">1.2.8. A <em>project</em>: build a dog house with component tasks</a></li>
+    <li><a href="#129-a-goal-interval-training-3-times-each-week">1.2.9. A <em>goal</em>: interval training 3 times each week</a></li>
+    <li><a href="#1210-a-draft-reminder-meet-alex-for-coffee---time-to-be-determined">1.2.10. A <em>draft</em> reminder: meet Alex for coffee - time to be determined</a></li>
+  </ul>
+</details>
 
 #### 1.2.1. An _event_: lunch with Ed (extended)
 
