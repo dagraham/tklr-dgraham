@@ -480,10 +480,10 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
     <li>A reminder can belong to one or more bins by adding an <code>@b NAME</code> attribute with a unique <em>NAME</em> for each</li>
   </ul>
 
-  <p> This is the opening, root level in <em>Bins view</em>.
+  <p>This is the opening, root level in <em>Bins view</em>.
   </p>
-
 </div>
+
 <div style="clear: both;"></div>
 
 <div style="overflow: auto;">
