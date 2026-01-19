@@ -523,6 +523,17 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 #### 1.5.2 Tags
 
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/tags_screenshot.svg"
+alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+
+<p>Press <em>T</em> to open the <em>Tags View</em> which lists reminders with <em>hash tag</em> entries grouped by the <em>tag name</em>.
+</p>
+
+
+</div>
+<div style="clear: both;"></div>
+
 
 ### 1.6 What's happening: Weeks View and Friends
 

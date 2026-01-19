@@ -3673,15 +3673,17 @@ class Controller:
             for rec in records:
                 rid = rec["id"]
                 subj = rec.get("subject") or ""
+                itemtype = rec.get("itemtype", "")
                 flags = rec.get("flags") or ""
                 # subject + flags
                 display = subj + flags
+                type_color = TYPE_TO_COLOR.get(itemtype, "white")
 
                 rows.append(
                     {
                         "record_id": rid,
                         "job_id": None,
-                        "text": f"{display}",
+                        "text": f"[{type_color}]{itemtype} {display}[/{type_color}]",
                     }
                 )
 
