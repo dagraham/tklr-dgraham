@@ -30,7 +30,7 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
         <summary><a href="#1-what-makes-tklr-different">1. What makes <em>tklr</em> different</a></summary>
         <ul>
           <li><a href="#11-form-free-entry">1.1. Form-free entry</a></li>
-          <li><summary><a href="#12-support-for-wide-variety-of-reminder-types-and-attributes">1.2. Support for wide variety of reminder types and attributes</a></li>
+          <li><summary><a href="#12-support-for-wide-variety-of-reminder-types">1.2. Support for wide variety of reminder types</a></li>
           <li><a href="#13-mouse-free-navigation">1.3. Mouse-Free navigation</a></li>
           <li><a href="#14-what-you-need-to-know-now-agenda-view">1.4. What you need to know now: Agenda View</a></li>
           <li><a href="#15-built-in-filing-system-bins-view">1.5. Built in filing system: Bins View</a></li>
@@ -141,7 +141,7 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 
 [↩︎](#table-of-contents)
 
-### 1.2. Support for wide variety of reminder types and attributes
+### 1.2. Support for wide variety of reminder types
 
 *tklr* has six item types, each with a corresponding type character:
 
