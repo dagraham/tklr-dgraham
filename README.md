@@ -471,17 +471,17 @@ Many note taking applications provide a means for establishing links between not
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_root_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 
-<p>These are the important facts about <em>Bins</em>:
-</p>
-<ul>
-  <li>Bin names are unique</li>
-  <li>A bin can contain many other bins (children)</li>
-  <li>A bin can belong to at most one other bin (parent)</li>
-  <li>A reminder can belong to one or more bins by adding an <code>@b NAME</code> attribute with a unique <em>NAME</em> for each</li>
-</ul>
+  <p>These are the important facts about <em>Bins</em>:
+  </p>
+  <ul>
+    <li>Bin names are unique</li>
+    <li>A bin can contain many other bins (children)</li>
+    <li>A bin can belong to at most one other bin (parent)</li>
+    <li>A reminder can belong to one or more bins by adding an <code>@b NAME</code> attribute with a unique <em>NAME</em> for each</li>
+  </ul>
 
-<p> This is the opening, root level in <em>Bins view</em>.
-</p>
+  <p> This is the opening, root level in <em>Bins view</em>.
+  </p>
 
 </div>
 <div style="clear: both;"></div>
@@ -527,8 +527,8 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/tags_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 
-<p>Press <em>T</em> to open the <em>Tags View</em> which lists reminders with <em>hash tag</em> entries grouped by the <em>tag name</em>.
-</p>
+  <p>Press <em>T</em> to open the <em>Tags View</em> which lists reminders with <em>hash tag</em> entries grouped by the <em>tag name</em>.
+  </p>
 
 </div>
 <div style="clear: both;"></div>
