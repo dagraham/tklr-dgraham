@@ -40,20 +40,22 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
           <li><a href="#16-whats-happening-weeks-view-and-friends">1.6 What's happening and when: Weeks View and Friends </a></li>
           <li><a href="#17-wheres-waldo-find-and-query-views">1.7 Where's Waldo: Find and Query Views</a></li>
         </ul>
+      </details>
+      <details>
         <summary><a href="#2-details">2. Details</a></summary>
         <ul>
           <li><a href="#21-datetimes">2.1. Datetimes</a></li>
-          <li><a href="#22-datetimes">2.1. Datetimes</a></li>
-          <li><a href="#23-datetimes">2.1. Datetimes</a></li>
-          <li><a href="#24-datetimes">2.1. Datetimes</a></li>
-          <li><a href="#25-datetimes">2.1. Datetimes</a></li>
-          <li><a href="#26-datetimes">2.1. Datetimes</a></li>
-          <li><a href="#27-datetimes">2.1. Datetimes</a></li>
-          <li><a href="#28-datetimes">2.1. Datetimes</a></li>
-          <li><a href="#29-datetimes">2.1. Datetimes</a></li>
-          <li><a href="#210-datetimes">2.1. Datetimes</a></li>
-          <li><a href="#211-datetimes">2.1. Datetimes</a></li>
-          <li><a href="#212-datetimes">2.1. Datetimes</a></li>
+          <li><a href="#22-timedeltas">2.2. TimeDeltas</a></li>
+          <li><a href="#23-scheduled-datetime">2.3. Scheduled datetime</a></li>
+          <li><a href="#24-extent-timedelta">2.4. Extent timedelta</a></li>
+          <li><a href="#25-notice">2.5. Notice</a></li>
+          <li><a href="#26-wrap">2.6. Wrap</a></li>
+          <li><a href="#27-alert">2.7. Alert</a></li>
+          <li><a href="#28-recurrence">2.8. Recurrence</a></li>
+          <li><a href="#29-anniversaries">2.9. Anniversaries</a></li>
+          <li><a href="#210-timezones">2.10. Timezones</a></li>
+          <li><a href="#211-urgency">2.11. Urgency</a></li>
+          <li><a href="#212-priority">2.12. priority</a></li>
         </ul>
       </details>
     </li>
@@ -767,7 +769,7 @@ This option is particularly useful for irregular recurrences such as annual doct
 
 
 
-### 2.10. Timezone considerations
+### 2.10. Timezones
 
 When a datetime is specified without an `z` component, the timezone is assumed to be aware and represented using the local timezone. The datetime is converted to UTC for storage in the database. When an awared datetime is displayed, it is displayed using the local timezone of the computer.
 
@@ -790,7 +792,7 @@ With this entry, the rruleset and datetimes generated show the effect of the tra
   Mon 2025-11-03 13:00 EST -0500
 ```
 
-### 2.11. Urgency calculation for tasks
+### 2.11. Urgency
 
 Since urgency values are used ultimately to give an ordinal ranking of tasks, all that matters is the relative values used to compute the urgency scores. Accordingly, all urgency scores are constrained to fall within the interval from -1.0 to 1.0. The default urgency is 0.0 for a task with no urgency components.
 
@@ -850,9 +852,9 @@ Observations from the weighted average perspective and the fact that `Wn >= 1` a
 
 Thus positive contributions _always_ increase urgency and negative contributions _always_ decrease urgency. The fact that the urgency derived from contributions is always less than `1.0` means that _pinned_ tasks with `urgency = 1` will always be listed first.
 
-### 2.12. Priority calculation for goals
+### 2.12. Priority
 
-How is *priority* calculated?  Suppose, for example, `@t 3/1w` is specified in a goal, then `n = 3` is the specified number of completions and `t = 1w` is the time period allowed for their completion. Further suppose that at a particular moment, `n'` is the number of instances remaining unfinished and `t'` is the time remaining in the period for their completion.  Initially, the needed rate of completions to satisfy the goal is `n/t`. At the moment being considered, the needed rate of completions goal is `n'/t'`.
+How is *priority* calculated for *goals*?  Suppose, for example, `@t 3/1w` is specified in a goal, then `n = 3` is the specified number of completions and `t = 1w` is the time period allowed for their completion. Further suppose that at a particular moment, `n'` is the number of instances remaining unfinished and `t'` is the time remaining in the period for their completion.  Initially, the needed rate of completions to satisfy the goal is `n/t`. At the moment being considered, the needed rate of completions goal is `n'/t'`.
 
 Now consider these possibilities:
 
