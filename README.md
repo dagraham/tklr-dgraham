@@ -392,24 +392,26 @@ The *Agenda view* displays
 2. <em>goals</em> ordered by their *priority*
 3. <em>tasks</em> ordered by their *urgency*
 
-Times are displayed in the screenshots using 24-hour notation. An option can be set to use am/pm notation instead.
+Times are displayed in the screenshots using _24-hour_ notation. An option can be set to display times using _am/pm_ notation instead.
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/agenda_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>While the listing of events begins with the current day, any all-day events or events whose ending times have already passed such as the one tagged <em>a</em> will be dimmed. Additionally an event, such as the one tagged <em>b</em> whose active period overlaps the current moment will be highlighted.
-</p>
-<p>The first day of events will always include any <em>notices</em> of upcomming events or <em>draft</em> reminders needing completion in addition to any scheduled events for today. In this case the reminder tagged <em>d</em> indicates that there is an event beginning in 5 days (`+5d`) with a subject beginning with "Quaerat amet ..." a <em>notice attribute</em>, <code>@n x</code>, in which <code>x > 5d</code>. This attribute is the reason this notice of the event is being displayed before its scheduled datetime - it will continue to be displayed on the first day (current date) of Agenda View each day until the day of the event.
-</p>
-<p>There is also a draft entry displayed in red. This is simply a reminder whose item type is <code>?</code>. This is used to flag a reminder as incomplete as would be the case, e.g., if a final datetime for the event had not yet been finalized. Draft reminders are also displayed on the current, first day in Agenda view until the item type is changed.
+  </p>
+  <p>The first day of events will always include any <em>notices</em> of upcomming events or <em>draft</em> reminders needing completion in addition to any scheduled events for today. In this case the reminder tagged <em>d</em> indicates that there is an event beginning in 5 days (+5d</code>) with a subject beginning with "Quaerat amet ..." a <em>notice attribute</em>, <code>@n x</code>, in which <code>x > 5d</code>. This attribute is the reason this notice of the event is being displayed before its scheduled datetime - it will continue to be displayed on the first day (current date) of Agenda View each day until the day of the event.
+  </p>
+  <p>There is also a draft entry displayed in red. This is simply a reminder whose item type is <code>?</code>. This is used to flag a reminder as incomplete as would be the case, e.g., if a final datetime for the event had not yet been finalized. Draft reminders are also displayed on the current, first day in Agenda view until the item type is changed.
   </p>
 </div>
 <div style="clear: both;"></div>
 
 The list for *goals* includes all goals which have not been completed on the current date, sorted and color coded by their *priorty*, which is listed in the first column after the tags. The details for precisely how *priority* is calculated will be described later but the basic idea involves comparing
 
-1. the rate at which completions would currently need to occur to complete the goal
-2. the rate originally specified in the goal
+<ol>
+  <li>the rate at which completions would currently need to occur to complete the goal</li>
+  <li>the rate originally specified in the goal</li>
+</ol>
 
 The higher the current rate relative to the original, the higher the *priority*.
 
@@ -419,14 +421,15 @@ Tasks are sorted by their *urgency*. This calculation is fairly complicated and 
 
 *Agenda* is the default view and represents the place to go for what you need to know right now.
 
+
 [↩︎](#table-of-contents)
+
 
 ### 1.5. Built in filing system: Bins View
 
 The _Bins View_ displays a hierarchical, tree view of _bins_ and _reminders_.
 
-Think of _bins_ as directories, _reminders_ as files and *Bin View* as a file browser. The main difference is that _reminders_ can belong to more than one _bin_ or to none at all.
-
+Think of _bins_ as directories, _reminders_ as files and _Bin View_ as a file browser. The main difference is that _reminders_ can belong to more than one _bin_ or to none at all.
 
 
 <div style="overflow: auto;">
@@ -536,6 +539,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 </div>
 <div style="clear: both;"></div>
+
 
 
 ## 2. Details
