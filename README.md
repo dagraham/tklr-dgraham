@@ -39,25 +39,6 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
         </ul>
       </details>
     </li>
-    <li>
-      <details>
-        <summary><a href="#2-views">2. Views</a></summary>
-        <ul>
-          <li><a href="#21-agenda-view">2.1. Agenda View</a></li>
-          <li><a href="#22-bins-view">2.2. Bins View</a></li>
-          <li><a href="#23-completed-view---to-be-done">2.3. Completed View</a></li>
-          <li><a href="#24-find-view">2.4. Find View</a></li>
-          <li><a href="#25-goals-view">2.5. Goals View</a></li>
-          <li><a href="#26-last-view">2.6. Last View</a></li>
-          <li><a href="#27-modified-view---to-be-done">2.7. Modified View</a></li>
-          <li><a href="#28-next-view">2.8. Next View</a></li>
-          <li><a href="#29-query-view---to-be-done">2.9. Query View</a></li>
-          <li><a href="#210-remaining-alerts-view---to-be-done">2.10. Remaining Alerts View</a></li>
-          <li><a href="#211-tags-view---to-be-done">2.11. Tags View</a></li>
-          <li><a href="#212-weeks-view">2.12. What's happening and when: Weeks View and Friends</a></li>
-        </ul>
-      </details>
-    </li>
   </ul>
 </details>
 
