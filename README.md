@@ -449,8 +449,8 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 It will often be useful to *flag* a reminder so that it can *easily* be found later. *Tklr* provides two complementary methods:
 
 <ol>
-  <li>Using <code>@b XYZ</code> to attach the reminder to the <em>bin</em> named <em>XYZ</em> and the related <em>Bins View</em></li>
-  <li>Using a <em>hash tag</em>, i.e., <code>&#x23;</code> followed without spaces by an arbitrary word, in either the <em>subject</em> or the <em>details</em> attribute to attach the hash tag <em>ABC</em> and the related <em>Tags View</em></li>
+  <li>Using the attribute <code>@b</code> to attach the the name of a bin to a reminder and the related <em>Bins View</em></li>
+  <li>Using a <em>hash tag</em>, i.e., <code>&#x23;</code> followed without spaces by an arbitrary word, in either the <em>subject</em> or the <em>details</em> attribute of reminders and the related <em>Tags View</em></li>
 </ol>
 
 
