@@ -490,14 +490,14 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_library_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 
-<p>Press <em>c</em> to open the <em>library</em> bin with its tagged list of children which now includes both bins and reminders.
-</p>
+  <p>Press <em>c</em> to open the <em>library</em> bin with its tagged list of children which now includes both bins and reminders.
+  </p>
 
-<ul>
-  <li>Use the tag for a bin to open the bin </li>
-  <li>Use the tag for a reminder to display the details of the reminder</li>
-  <li>Use tag <em>0</em>, <em>root</em>,in the <em>bread crumb trail</em> to go up to that bin</li>
-</ul>
+  <ul>
+    <li>Use the tag for a bin to open the bin </li>
+    <li>Use the tag for a reminder to display the details of the reminder</li>
+    <li>Use tag <em>0</em>, <em>root</em>,in the <em>bread crumb trail</em> to go up to that bin</li>
+  </ul>
 </div>
 <div style="clear: both;"></div>
 
@@ -506,13 +506,13 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/bin_quotations_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 
-<p>Press <em>e</em> to open the <em>quotations</em> bin with its tagged list of children which now includes only reminders.
-</p>
-<ul>
-  <li>Use the tag for a reminder to display the details of the reminder</li>
-  <li>Use tag <em>1</em>, <em>library</em>, in the <em>bread crumb trail</em> to go up to that bin</li>
-  <li>Use tag <em>0</em>, <em>root</em>, in the <em>bread crumb trail</em> to go up to that bin</li>
-</ul>
+  <p>Press <em>e</em> to open the <em>quotations</em> bin with its tagged list of children which now includes only reminders.
+  </p>
+  <ul>
+    <li>Use the tag for a reminder to display the details of the reminder</li>
+    <li>Use tag <em>1</em>, <em>library</em>, in the <em>bread crumb trail</em> to go up to that bin</li>
+    <li>Use tag <em>0</em>, <em>root</em>, in the <em>bread crumb trail</em> to go up to that bin</li>
+  </ul>
 
 </div>
 <div style="clear: both;"></div>
@@ -530,7 +530,6 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 <p>Press <em>T</em> to open the <em>Tags View</em> which lists reminders with <em>hash tag</em> entries grouped by the <em>tag name</em>.
 </p>
 
-
 </div>
 <div style="clear: both;"></div>
 
@@ -547,16 +546,16 @@ Scheduled reminders are those with an `@s` *scheduled* attribute. Such reminders
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/weeks_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 
-<p>Press <em>W</em> to open the <em>Weeks View</em> on the current week or press <em>J</em> and enter a date to open the view on the week containing that date. The header displays the date range, year and week number for the displayed week. Left and right cursor keys shift the displayed week backward or forward by one week. Pressing the shift key at the same time increases the shift from one to four weeks. Pressing <code>J</code> and entering a date will jump to the week containing the date. Pressing the space key will jump back to the current week.
-</p>
+  <p>Press <em>W</em> to open the <em>Weeks View</em> on the current week or press <em>J</em> and enter a date to open the view on the week containing that date. The header displays the date range, year and week number for the displayed week. Left and right cursor keys shift the displayed week backward or forward by one week. Pressing the shift key at the same time increases the shift from one to four weeks. Pressing <code>J</code> and entering a date will jump to the week containing the date. Pressing the space key will jump back to the current week.
+  </p>
 
-<p> The <em>busy bar</em> underneath the header provides graphical illustration of the busy times for <em>events</em> during the week. The area under each weekday name has spaces for five blocks. The first (furthest to the left) will be colored green if one or more <em>all day</em> events are scheduled for that day. The next four blocks correspond to the four 6-hour periods during the day beginning with 00:00 - 05:59 and ending with 18:00 - 23:59.
-</p>
-<p>The block corresponding to a period will be green if the scheduled time for an event occupies any part of the period. E.g., a single event scheduled for 05:00 - 07:00 would cause both the first and second blocks for that day to be colored green. A block is changed from green to red if the busy periods for two or more events overlap and thus <em>conflict</em>. The red block for Thursday, e.g., reflects the conflict during 19:30 - 20:00 by the events tagged <em>g</em> and <em>h</em>.
-</p>
+  <p> The <em>busy bar</em> underneath the header provides graphical illustration of the busy times for <em>events</em> during the week. The area under each weekday name has spaces for five blocks. The first (furthest to the left) will be colored green if one or more <em>all day</em> events are scheduled for that day. The next four blocks correspond to the four 6-hour periods during the day beginning with 00:00 - 05:59 and ending with 18:00 - 23:59.
+  </p>
+  <p>The block corresponding to a period will be green if the scheduled time for an event occupies any part of the period. E.g., a single event scheduled for 05:00 - 07:00 would cause both the first and second blocks for that day to be colored green. A block is changed from green to red if the busy periods for two or more events overlap and thus <em>conflict</em>. The red block for Thursday, e.g., reflects the conflict during 19:30 - 20:00 by the events tagged <em>g</em> and <em>h</em>.
+  </p>
 
-<p>Note that only <em>events</em> with an <em>extent</em> contribute to the <em>busy bar</em>. Tuesday, for example, shows no busy times despite two <em>tasks</em> being scheduled for that day. Similarly the <em>event</em> tagged <em>m</em> on Sunday has no extent and thus no effect on the <em>busy bar</em>.
-</p>
+  <p>Note that only <em>events</em> with an <em>extent</em> contribute to the <em>busy bar</em>. Tuesday, for example, shows no busy times despite two <em>tasks</em> being scheduled for that day. Similarly the <em>event</em> tagged <em>m</em> on Sunday has no extent and thus no effect on the <em>busy bar</em>.
+  </p>
 
 </div>
 <div style="clear: both;"></div>
@@ -571,7 +570,7 @@ What is the name of that plumber we used and liked so much? If the word "plumber
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_entry_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>Just press <code>F</code> to open the <em>Find</em> prompt and enter "plumber". Don't worry about upper or lower case, the matching is case-insensitive.
-</p>
+  </p>
 
 </div>
 <div style="clear: both;"></div>
@@ -581,7 +580,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_result_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>Now press <code>Enter</code> and Voila! A match for "plumber" has been found.
-</p>
+  </p>
 
 </div>
 <div style="clear: both;"></div>
