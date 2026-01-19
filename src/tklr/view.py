@@ -551,7 +551,9 @@ class ListWithDetails(Container):
         else:
             if not self._footer_hint_active:
                 return
-            base_text = self._footer_saved_text or getattr(screen, "footer_content", "")
+            base_text = getattr(screen, "footer_content", "")
+            if not base_text:
+                base_text = self._footer_saved_text or ""
             footer.update(base_text)
             self._footer_hint_active = False
             self._footer_saved_text = None
@@ -2733,11 +2735,17 @@ class QueryScreen(SearchableScreen, SafeScreen):
         self.pages: list[tuple[list[str], dict[str, object]]] = []
         self.current_page: int = 0
         self.matches: list[QueryMatch] = []
-        self.footer_content = (
-            f"[bold {FOOTER}]?[/bold {FOOTER}] Help "
-            f"[bold {FOOTER}]Enter[/bold {FOOTER}] Run query "
-            f"[bold {FOOTER}]Esc[/bold {FOOTER}] Edit query "
+        self._footer_default = (
+            f"[bold {FOOTER}]?[/bold {FOOTER}] Help  "
+            f"[bold {FOOTER}]Enter[/bold {FOOTER}] Run query  "
+            f"[bold {FOOTER}]Tab[/bold {FOOTER}] query ↔ list"
         )
+        self._footer_list_only = (
+            f"[bold {FOOTER}]?[/bold {FOOTER}] Help  "
+            f"[bold {FOOTER}]Tab[/bold {FOOTER}] query ↔ list  "
+            f"[bold {FOOTER}]Esc[/bold {FOOTER}] close details"
+        )
+        self.footer_content = self._footer_default
 
     def compose(self) -> ComposeResult:
         yield Static("Query", id="query_title", classes="title-class")
@@ -2755,6 +2763,9 @@ class QueryScreen(SearchableScreen, SafeScreen):
         self.list_with_details = ListWithDetails(id="query_results")
         self.list_with_details.set_detail_key_handler(
             self.app.make_detail_key_handler(view_name="query")
+        )
+        self.list_with_details.set_details_visibility_callback(
+            self._on_details_visibility_change
         )
         yield self.list_with_details
 
@@ -2957,10 +2968,8 @@ class QueryScreen(SearchableScreen, SafeScreen):
         if event.key == "escape":
             if self.list_with_details and self.list_with_details.has_details_open():
                 self.list_with_details.hide_details()
-            else:
-                self._focus_query_input()
-            event.stop()
-            return
+                event.stop()
+                return
         if (
             event.key in ("up", "down")
             and self.query_input
@@ -2976,6 +2985,17 @@ class QueryScreen(SearchableScreen, SafeScreen):
         if hasattr(parent, "on_key"):
             return parent.on_key(event)
         return None
+
+    def _on_details_visibility_change(self, visible: bool) -> None:
+        new_text = self._footer_list_only if visible else self._footer_default
+        if self.footer_content == new_text:
+            return
+        self.footer_content = new_text
+        try:
+            footer = self.query_one("#custom_footer", Static)
+            footer.update(new_text)
+        except Exception:
+            pass
 
 
 class DynamicViewApp(App):

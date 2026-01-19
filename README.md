@@ -19,9 +19,9 @@ This introduction to *tklr* is best viewed at [GitHub.io](https://dagraham.githu
 
 <strong>This README is a work-in-progress. This notice will be removed when all the major sections have been completed.</strong>
 
-<a id="table-of-contents"></a>
 The [↩︎](#table-of-contents) links at the end of major sections lead back to the following *Table of Contents*:
 
+<a id="table-of-contents"></a>
 <details>
   <summary><strong>Table of Contents</strong></summary>
   <ul>
@@ -30,28 +30,12 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
         <summary><a href="#1-what-makes-tklr-different">1. What makes <em>tklr</em> different</a></summary>
         <ul>
           <li><a href="#11-form-free-entry">1.1. Form-free entry</a></li>
-          <li>
-            <details>
-              <summary><a href="#12-support-for-wide-variety-of-reminder-types-and-attributes">1.2. Support for wide variety of reminder types and attributes</a></summary>
-              <ul>
-                <li><a href="#121-an-event-lunch-with-ed-extended">1.2.1. An <em>event</em>: lunch with Ed (extended)</a></li>
-                <li><a href="#122-a-task-pick-up-milk">1.2.2. A <em>task</em>: pick up milk</a></li>
-                <li><a href="#123-a-repeating-event-trash-pickup">1.2.3. A <em>repeating event</em>: trash pickup</a></li>
-                <li><a href="#124-an-event-that-repeats-irregularly-dental-appointment">1.2.4. An <em>event that repeats irregularly</em>: dental appointment</a></li>
-                <li><a href="#125-a-complicated-but-regularly-repeating-task-vote-for-president">1.2.5. A <em>complicated</em> but regularly repeating task: vote for president</a></li>
-                <li><a href="#126-an-offset-task-fill-bird-feeders">1.2.6. An <em>offset task</em>: fill bird feeders</a></li>
-                <li><a href="#127-a-note-a-favorite-churchill-quotation">1.2.7. A <em>note</em>: a favorite Churchill quotation</a></li>
-                <li><a href="#128-a-project-build-a-dog-house-with-component-tasks">1.2.8. A <em>project</em>: build a dog house with component tasks</a></li>
-                <li><a href="#129-a-goal-interval-training-3-times-each-week">1.2.9. A <em>goal</em>: interval training 3 times each week</a></li>
-                <li><a href="#1210-a-draft-reminder-meet-alex-for-coffee---time-to-be-determined">1.2.10. A <em>draft</em> reminder: meet Alex for coffee - time to be determined</a></li>
-              </ul>
-            </details>
-          </li>
+          <li><summary><a href="#12-support-for-wide-variety-of-reminder-types-and-attributes">1.2. Support for wide variety of reminder types and attributes</a></li>
           <li><a href="#13-mouse-free-navigation">1.3. Mouse-Free navigation</a></li>
-          <li><a href="#14-what-you-need-to-know-now:-agenda-view">1.4. What you need to know now: Agenda View</a></li>
-          <li><a href="#15 ">1.5. Built in filing system: Bins View</a></li>
-          <li><a href="#16 ">1.6 What's happening and when: Weeks View and Friends </a></li>
-          <li><a href="#17 ">1.7 Where's Waldo: Find and Query Views</a></li>
+          <li><a href="#14-what-you-need-to-know-now-agenda-view">1.4. What you need to know now: Agenda View</a></li>
+          <li><a href="#15-built-in-filing-system-bins-view">1.5. Built in filing system: Bins View</a></li>
+          <li><a href="#16-whats-happening-and-when-weeks-view-and-friends">1.6 What's happening and when: Weeks View and Friends </a></li>
+          <li><a href="#17-wheres-waldo-find-and-query-views">1.7 Where's Waldo: Find and Query Views</a></li>
         </ul>
       </details>
     </li>
@@ -191,6 +175,20 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 
 Here are some illustrations of how the various types and attributes can be put to use.
 
+<a id="reminder-types"></a>
+<ul>
+  <li><a href="#121-an-event-lunch-with-ed-extended">1.2.1. An <em>event</em>: lunch with Ed (extended)</a></li>
+  <li><a href="#122-a-task-pick-up-milk">1.2.2. A <em>task</em>: pick up milk</a></li>
+  <li><a href="#123-a-repeating-event-trash-pickup">1.2.3. A <em>repeating event</em>: trash pickup</a></li>
+  <li><a href="#124-an-event-that-repeats-irregularly-dental-appointment">1.2.4. An <em>event that repeats irregularly</em>: dental appointment</a></li>
+  <li><a href="#125-a-complicated-but-regularly-repeating-task-vote-for-president">1.2.5. A <em>complicated</em> but regularly repeating task: vote for president</a></li>
+  <li><a href="#126-an-offset-task-fill-bird-feeders">1.2.6. An <em>offset task</em>: fill bird feeders</a></li>
+  <li><a href="#127-a-note-a-favorite-churchill-quotation">1.2.7. A <em>note</em>: a favorite Churchill quotation</a></li>
+  <li><a href="#128-a-project-build-a-dog-house-with-component-tasks">1.2.8. A <em>project</em>: build a dog house with component tasks</a></li>
+  <li><a href="#129-a-goal-interval-training-3-times-each-week">1.2.9. A <em>goal</em>: interval training 3 times each week</a></li>
+  <li><a href="#1210-a-draft-reminder-meet-alex-for-coffee---time-to-be-determined">1.2.10. A <em>draft</em> reminder: meet Alex for coffee - time to be determined</a></li>
+</ul>
+
 #### 1.2.1. An _event_: lunch with Ed (extended)
 
 <div style="overflow:auto;">
@@ -208,6 +206,7 @@ Here are some illustrations of how the various types and attributes can be put t
 <div style="clear:both;"></div>
 
 [↩︎](#table-of-contents)
+[←](#reminder-types)
 
 #### 1.2.2. A _task_: pick up milk
 
@@ -225,6 +224,7 @@ Here are some illustrations of how the various types and attributes can be put t
 <div style="clear:both;"></div>
 
 [↩︎](#table-of-contents)
+[←](#reminder-types)
 
 #### 1.2.3. A _repeating event_: trash pickup
 
@@ -239,6 +239,7 @@ Here are some illustrations of how the various types and attributes can be put t
 <div style="clear:both;"></div>
 
 [↩︎](#table-of-contents)
+[←](#reminder-types)
 
 #### 1.2.4. An _event that repeats irregularly_: dental appointment
 
@@ -259,6 +260,7 @@ Here are some illustrations of how the various types and attributes can be put t
 <div style="clear:both;"></div>
 
 [↩︎](#table-of-contents)
+[←](#reminder-types)
 
 #### 1.2.5. A _complicated_ but regularly repeating task: vote for president
 
@@ -279,6 +281,7 @@ Here are some illustrations of how the various types and attributes can be put t
 
 
 [↩︎](#table-of-contents)
+[←](#reminder-types)
 
 #### 1.2.6. An _offset task_: fill bird feeders
 
@@ -304,6 +307,7 @@ It is worth noting the different roles of two attributes in events and tasks.
 2. The <em>notice</em> attribute provides an early warning for an event but postpones the disclosure of a task.
 
 [↩︎](#table-of-contents)
+[←](#reminder-types)
 
 #### 1.2.7. A _note_: a favorite Churchill quotation
 
@@ -324,6 +328,7 @@ It is worth noting the different roles of two attributes in events and tasks.
 
 
 [↩︎](#table-of-contents)
+[←](#reminder-types)
 
 #### 1.2.8. A _project_: build a dog house with component tasks
 
@@ -343,6 +348,7 @@ It is worth noting the different roles of two attributes in events and tasks.
 <div style="clear:both;"></div>
 
 [↩︎](#table-of-contents)
+[←](#reminder-types)
 
 #### 1.2.9. A _goal_: interval training 3 times each week
 
@@ -364,6 +370,7 @@ When a *goal* is created, the attribute `@k 0` is automatically added to indicat
 In either case, `@k` is reset to zero and `@s` is reset to the previous value *plus* the period allowed for completion of the goal, i.e, to the *end* of the period originally allowed for completion.
 
 [↩︎](#table-of-contents)
+[←](#reminder-types)
 
 #### 1.2.10. A _draft_ reminder: meet Alex for coffee - time to be determined
 
@@ -381,6 +388,8 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 <div style="clear:both;"></div>
 
 #### 1.2.11. Attributes
+
+[←](#reminder-types)
 
 ##### {XXX}: Anniversary Substitution
 
@@ -560,6 +569,8 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 </div>
 <div style="clear: both;"></div>
 
+[↩︎](#table-of-contents)
+
 ### 1.7 Where's Waldo: Find and Query Views
 
 What is the name of that plumber we used and liked so much? If the word "plumber" was used in either the *subject* or the *details* of the reminder then *Find View* will find it.
@@ -567,7 +578,7 @@ What is the name of that plumber we used and liked so much? If the word "plumber
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_entry_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>Just press <code>F</code> to open the prompt and enter "plumber". Don't worry about upper or lower case, the matching is case-insensitive.
+  <p>Just press <code>F</code> to open the <em>Find</em> prompt and enter "plumber". Don't worry about upper or lower case, the matching is case-insensitive.
 </p>
 
 </div>
@@ -575,31 +586,23 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_results_screenshot.svg"
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_result_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>Now press <code>Enter</code> and Voila! The plumber has been found. Press the key of the tag to see the details.
+  <p>Now press <code>Enter</code> and Voila! A match for "plumber" has been found.
 </p>
 
 </div>
 <div style="clear: both;"></div>
 
-
-### 2.3. Completed View - TO BE DONE
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_entry_screenshot.svg"
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_details_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>
+  <p>Now press <code>a</code>, the key of the tag, to display the details of the match.
 </p>
 
-<p>
-</p>
-<p>
-  </p>
 </div>
 <div style="clear: both;"></div>
-
-[↩︎](#table-of-contents)
 
 [↩︎](#table-of-contents)
 
