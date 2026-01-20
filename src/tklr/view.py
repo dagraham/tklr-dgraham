@@ -210,16 +210,16 @@ QueryHelpText = f"""\
 [bold][{TITLE_COLOR}]Query Builder[{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Syntax[/{HEADER_COLOR}][/bold]
  command field [args]
- Fields → itemtype, subject, or any @-key (b, d, s, etc.)
+ Fields → itemtype, subject or any @-key (b, d, s, ...)
  Commands:
-   begins field RGX      · value begins with regex
-   includes fields RGX   · any listed field matches regex
+   begins field RGX      · value begins with RGX
+   in(cludes) fields RGX · any listed field matches RGX
    equals field VALUE    · exact match
    more/less field VALUE · numeric/string comparisons
    exists field          · field present
    any/all/one field LST · list membership tests
    info ID               · open record by id
-   dt field EXP          · date/time queries (? date, ? time, >2024-01-01-09-00)
+   dt field EXP          · date/time queries (e.g. dt s > 2024-01-01-09-00)
  Prefix a command with '~' to negate it. Combine clauses with 'and' / 'or'.
 
 [bold][{HEADER_COLOR}]Examples[/{HEADER_COLOR}][/bold]
@@ -4054,6 +4054,14 @@ class DynamicViewApp(App):
             self.show_screen(FullScreenList(results, title, "", footer))
 
         elif event.input.id == "search":
+            if search_term:
+                try:
+                    copy_to_clipboard(search_term)
+                    self.notify(
+                        "Search copied to clipboard ✓", severity="info", timeout=1.2
+                    )
+                except ClipboardUnavailable as exc:
+                    self.notify(str(exc), severity="warning", timeout=2.5)
             self.perform_search(search_term)
 
     def action_start_search(self):
