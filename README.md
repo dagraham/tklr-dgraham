@@ -578,34 +578,22 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 What is the name of that plumber we used and liked so much? If the word "plumber" was used in either the *subject* or the *details* of the reminder then *Query View* will find it.
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/query_entry_screenshot.svg"
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/query_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>Just press <code>Q</code> to open the <em>Query View</em> and enter your query at the prompt.
+  <p>Just press <code>Q</code> to open the <em>Query View</em>, enter your query at the prompt and press <code>Enter</code>.
   </p>
-  <p>This query asks for reminders that <em>include</em> in their <em>summary</em> or their <em>d</em> (details) attributes a match for <em>plumber</em>.
+  <p>This query asks for reminders that <em>include</em> in their <em>subject</em> or their <em>d</em> (details) attributes a match for <em>plumber</em>.
+  </p>
+  <p>In the screenshot, <code>a</code> was pressed to display the details of the first and only match.  Note that <em>Plumber</em> was found in the details but capitalized and that the matching is, in fact, case-insensitive.
   </p>
 
 </div>
 <div style="clear: both;"></div>
-
-
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/query_result_screenshot.svg"
-alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>Now press <code>Enter</code> and Voila! A match for "plumber" has been found.
-  </p>
-  <p>In the screenshot, <code>a</code> was pressed to display the details of the first and only match.  Note that the <em>Plumber</em> was found in the details and that the match was, in fact, case-insensitive.
-  </p>
-</div>
-<div style="clear: both;"></div>
-
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/query_exists_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>Now press <code>Enter</code> and Voila! A match for "plumber" has been found.
-  </p>
-  <p>In the screenshot, <code>a</code> was pressed to display the details of the first and only match.  Note that the <em>Plumber</em> was found in the details and that the match was, in fact, case-insensitive.
+  <p>Here the query asks for reminders that pass the <em>exists</em> test fthe attribute <em>r</em> exists, i.e., all reminders that have an <code>@r</code> attribute.
   </p>
 </div>
 <div style="clear: both;"></div>
@@ -614,17 +602,18 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/query_help_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>Now press <code>Enter</code> and Voila! A match for "plumber" has been found.
-  </p>
-  <p>In the screenshot, <code>a</code> was pressed to display the details of the first and only match.  Note that the <em>Plumber</em> was found in the details and that the match was, in fact, case-insensitive.
+  <p>Pressing <code>?</code> reveals the <em>help</em> information for constructing <em>queries</em>.
   </p>
 </div>
 <div style="clear: both;"></div>
 
 
-
-
-*Query View* is more powerful but slightly more complicated to use than *Find View*.
+<p><em>Find View</em>. Looking for a case-insensitive match for a word in either the <em>subject</em> or the <em>details</em> is such a common request that <em>tklr</em> provides a short-cut for this query - <em>Find View</em>. Instead of pressing <code>Q</code> and entering
+</p>
+<pre>includes subject d plumber</pre>
+<p>you can instead press <code>F</code> to open the prompt for <em>Find View</em> and just enter
+</p>
+<pre>plumber</pre>
 
 
 ## 2. Details
