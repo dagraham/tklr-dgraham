@@ -62,7 +62,10 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
         <summary><a href="#3-getting-started">3. Getting Started</a></summary>
       </details>
       <details>
-        <summary><a href="#4-developer-guide">4. Developer Guide</a></summary>
+        <summary><a href="#4-using-the-command-line-interface">4. Using the Command Line Interface</a></summary>
+      </details>
+      <details>
+        <summary><a href="#5-developer-guide">5. Developer Guide</a></summary>
       </details>
     </li>
   </ul>
@@ -948,7 +951,11 @@ The default settings are in _config.toml_ in your _tklr_ home directory together
 
 [↩︎](#table-of-contents)
 
-## 4. Developer Guide
+## 4. Using the Command Line Interface
+
+To Be Done
+
+## 5. Developer Guide
 
 This guide walks you through setting up a development environment for `tklr` using [`uv`](https://github.com/astral-sh/uv) and a local virtual environment. Eventually the normal python installation procedures using pip or pipx will be available.
 
