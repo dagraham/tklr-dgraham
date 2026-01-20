@@ -219,8 +219,9 @@ QueryHelpText = f"""\
    exists field          · field present
    any/all/one field LST · list membership tests
    info ID               · open record by id
-   dt field EXP          · date/time queries (e.g. dt s > 2024-01-01-09-00)
- Prefix a command with '~' to negate it. Combine clauses with 'and' / 'or'.
+   dt field EXP          · date/time queries
+ Prefix a command with '~' to negate it.
+ Combine clauses with 'and' / 'or'.
 
 [bold][{HEADER_COLOR}]Examples[/{HEADER_COLOR}][/bold]
  begins subject waldo
