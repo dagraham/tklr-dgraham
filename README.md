@@ -590,7 +590,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_result_screenshot.svg"
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/query_result_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>Now press <code>Enter</code> and Voila! A match for "plumber" has been found.
   </p>
@@ -599,7 +599,30 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 </div>
 <div style="clear: both;"></div>
 
-#### 1.7.2 Query View TBD
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/query_exists_screenshot.svg"
+alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>Now press <code>Enter</code> and Voila! A match for "plumber" has been found.
+  </p>
+  <p>In the screenshot, <code>a</code> was pressed to display the details of the first and only match.  Note that the <em>Plumber</em> was found in the details and that the match was, in fact, case-insensitive.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/query_help_screenshot.svg"
+alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>Now press <code>Enter</code> and Voila! A match for "plumber" has been found.
+  </p>
+  <p>In the screenshot, <code>a</code> was pressed to display the details of the first and only match.  Note that the <em>Plumber</em> was found in the details and that the match was, in fact, case-insensitive.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+
+
 
 *Query View* is more powerful but slightly more complicated to use than *Find View*.
 
