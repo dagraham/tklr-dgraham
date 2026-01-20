@@ -650,6 +650,8 @@ When an `@s` scheduled entry specifies a date without a time, i.e., a date inste
 
 Note that times can only be specified, stored and displayed in hours and minutes - seconds and microseconds are not supported. Internally datetimes are interpreted as having seconds equal to 0.
 
+[↩︎](#table-of-contents)
+
 ### 2.2. TimeDeltas
 
 An <em>timedelta</em> is just a period of time and is entered in _tklr_ using expressions such as
@@ -668,11 +670,15 @@ Note that w (weeks), d (days), h (hours), m (minutes) and s (seconds) are the av
 
 One example of this arithmetic is that an event with `@s 10a fri @e 1h30m` will span the period <em>10:00 - 11:30</em> on Friday, the ending datetime corresponding to the sum of the <em>scheduled</em> datetime and the <em>extent</em> timedelta.
 
+[↩︎](#table-of-contents)
+
 ### 2.3. Scheduled datetime
 
 For the discussion that follows, it will be assumed that the current date is `2025-10-01` and that the _scheduled datetime_ for the illustrative reminder is
 
     @s 2025-10-21 10:00am
+
+[↩︎](#table-of-contents)
 
 ### 2.4. Extent timedelta
 
@@ -684,6 +690,8 @@ For a task, this same entry would indicate that attention to completing the task
 
 For a project, this same entry would similarly indicate that attention to completing the project should begin no later than 10am and that two hours and 30 minutes is estimated for completion subject to additional times specified in the jobs. A job entry containing `&s 2d &e 3h`, for example, would set the scheduled time for this job to be two days _after_ the `@s` entry for the project and would add three hours to the estimate of total time required for the project.
 
+[↩︎](#table-of-contents)
+
 ### 2.5. Notice timedelta
 
 The entry `@n XYZ` where `XYZ` is a _positive_ timedelta specifies that a notice for the reminder should begin to be *noticed* on the date in which `scheduled - XYZ` falls. For the example, adding `@n 1d12h` would cause the reminder to be *noticed* beginning on
@@ -693,6 +701,8 @@ The entry `@n XYZ` where `XYZ` is a _positive_ timedelta specifies that a notice
 If the reminder is an event, then the agenda view would display an notice for the event beginning on `25-10-19` and continuing on the `25-10-20`, i.e., from the date of the notice through the date before the scheduled datetime. For an _event_ think of this notice as a visual alert of the proximity of the event.
 
 If the reminder is a task, then the task would _not_ appear in the agenda view until `25-10-19`, i.e., it would be hidden before that date.
+
+[↩︎](#table-of-contents)
 
 ### 2.6. Wrap
 
@@ -705,6 +715,8 @@ The entry `@w BEFORE, AFTER`, where `BEFORE` and `AFTER` are _timedeltas_, can b
 | @w , 30m   | None   | 30 minutes |
 
 Consider an event with `@s 2025-10-21 10am @e 2h30m`, which starts at 10am and ends at 12:30pm and suppose that it will take an hour to travel to the location of the event and 30 minutes to travel from the event to the next location. The entry `@w 1h, 30m` could be used to indicate these travel periods from 9am until 10am before the event begins and from 12:30pm until 1pm after the event ends. The event will be displayed with its actual starting and ending times but the entire period including the <em>wrap</em> will be treated as <em>busy</em>.
+
+[↩︎](#table-of-contents)
 
 ### 2.7. Alert
 
@@ -723,6 +735,8 @@ The command `n` in the example is *built into tklr* - it sounds a bell and pops 
 # the alert entry "@a 30m, 15m: v" would trigger this command 30
 # minutes before and again 15 minutes before the scheduled datetime.
 ```
+
+[↩︎](#table-of-contents)
 
 ### 2.8. Recurrence
 
@@ -800,6 +814,8 @@ This option is particularly useful for irregular recurrences such as annual doct
 <div style="clear:both;"></div>
 
 
+[↩︎](#table-of-contents)
+
 ### 2.10. Timezones
 
 When a datetime is specified without an `z` component, the timezone is assumed to be aware and represented using the local timezone. The datetime is converted to UTC for storage in the database. When an awared datetime is displayed, it is displayed using the local timezone of the computer.
@@ -822,6 +838,8 @@ With this entry, the rruleset and datetimes generated show the effect of the tra
   Sun 2025-11-02 13:00 EST -0500
   Mon 2025-11-03 13:00 EST -0500
 ```
+
+[↩︎](#table-of-contents)
 
 ### 2.11. Urgency
 
@@ -882,6 +900,8 @@ Observations from the weighted average perspective and the fact that `Wn >= 1` a
 - `urgency` approaches `-1.0` as `Wp/Wn` approaches `0.0` - as `Wn` increases relative to `Wp`
 
 Thus positive contributions _always_ increase urgency and negative contributions _always_ decrease urgency. The fact that the urgency derived from contributions is always less than `1.0` means that _pinned_ tasks with `urgency = 1` will always be listed first.
+
+[↩︎](#table-of-contents)
 
 ### 2.12. Priority
 
