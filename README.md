@@ -38,7 +38,7 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
 ">1.5. Flagging reminders for later reference: Bins and Tags
 </a></li>
           <li><a href="#16-whats-happening-weeks-view-and-friends">1.6 What's happening and when: Weeks View and Friends </a></li>
-          <li><a href="#17-wheres-waldo-find-and-query-views">1.7 Where's Waldo: Find and Query Views</a></li>
+          <li><a href="#17-wheres-waldo-query-and-find-views">1.7 Where's Waldo: Query and Find Views</a></li>
         </ul>
       </details>
       <details>
