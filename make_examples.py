@@ -309,6 +309,7 @@ one_off = [
     # f"~ {phrase()} @p 2 @d undated task test #lorem",
     # f"~ {phrase()} @p 4 @d undated task test #lorem",
     # f"~ {phrase()} @p 3 @d undated task test #lorem",
+    "% Waldo Jones @d Plumber who fixed drain, June 2025, very good. Mobile 1 919 123-4567 @b people:J/people",
 ]
 
 items = []

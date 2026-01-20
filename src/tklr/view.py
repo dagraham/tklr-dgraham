@@ -642,6 +642,10 @@ class OptionPrompt(ModalScreen[Optional[str]]):
     Returns the chosen option label (string) or None on cancel (ESC).
     """
 
+    BINDINGS = [
+        ("ctrl+s", "take_screenshot", "Take Screenshot"),
+    ]
+
     def __init__(self, message: str, options: Sequence[Union[str, tuple[str, str]]]):
         super().__init__()
         self.message = message.strip()
@@ -705,6 +709,11 @@ class OptionPrompt(ModalScreen[Optional[str]]):
 
     def on_key(self, event: events.Key) -> None:
         """Only handle ESC here; OptionList handles Enter itself."""
+        if (event.key or "").lower() == "ctrl+s":
+            self.action_take_screenshot()
+            event.stop()
+            return
+
         key = (event.key or "").lower()
         if key == "escape":
             event.stop()
@@ -759,6 +768,12 @@ class OptionPrompt(ModalScreen[Optional[str]]):
             hotkeys.pop(dup, None)
 
         self._hotkey_map = hotkeys
+
+    def action_take_screenshot(self) -> None:
+        """Delegate Ctrl+S to the main app so screenshots work inside the menu."""
+        app = getattr(self, "app", None)
+        if app and hasattr(app, "action_take_screenshot"):
+            app.action_take_screenshot()
 
 
 class ChoicePrompt(ModalScreen[Optional[str]]):

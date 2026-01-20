@@ -58,6 +58,12 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
           <li><a href="#212-priority">2.12. priority</a></li>
         </ul>
       </details>
+      <details>
+        <summary><a href="#3-getting-started">3. Getting Started</a></summary>
+      </details>
+      <details>
+        <summary><a href="#4-developer-guide">4. Developer Guide</a></summary>
+      </details>
     </li>
   </ul>
 </details>
@@ -567,14 +573,16 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 [↩︎](#table-of-contents)
 
-### 1.7 Where's Waldo: Find and Query Views
+### 1.7 Where's Waldo: Query and Find Views
 
-What is the name of that plumber we used and liked so much? If the word "plumber" was used in either the *subject* or the *details* of the reminder then *Find View* will find it.
+What is the name of that plumber we used and liked so much? If the word "plumber" was used in either the *subject* or the *details* of the reminder then *Query View* will find it.
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/find_entry_screenshot.svg"
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/query_entry_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>Just press <code>F</code> to open the <em>Find</em> prompt and enter "plumber". Don't worry about upper or lower case, the matching is case-insensitive.
+  <p>Just press <code>Q</code> to open the <em>Query View</em> and enter your query at the prompt.
+  </p>
+  <p>This query asks for reminders that <em>include</em> in their <em>summary</em> or their <em>d</em> (details) attributes a match for <em>plumber</em>.
   </p>
 
 </div>
@@ -586,10 +594,14 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>Now press <code>Enter</code> and Voila! A match for "plumber" has been found.
   </p>
-
+  <p>In the screenshot, <code>a</code> was pressed to display the details of the first and only match.  Note that the <em>Plumber</em> was found in the details and that the match was, in fact, case-insensitive.
+  </p>
 </div>
 <div style="clear: both;"></div>
 
+#### 1.7.2 Query View TBD
+
+*Query View* is more powerful but slightly more complicated to use than *Find View*.
 
 
 ## 2. Details
@@ -632,9 +644,9 @@ An <em>timedelta</em> is just a period of time and is entered in _tklr_ using ex
 
 Note that w (weeks), d (days), h (hours), m (minutes) and s (seconds) are the available _units_ for entering _intervals_. Seconds are ignored save for their use in alerts - more on alerts later.
 
-<em>Arithmetic</em>. An interval, `I`, can be added to a datetime, `T`, to get a datetime, `T + I`, that will be after `T` if `I > 0` and before `T` if `I < 0`. Similarly, one datetime, `A`, can be subtracted from another, `B`, to get an interval, `I = B - A`, with `I > 0` if `B` is after (greater than) `A` and `I < 0` if `B` is before (less than) `A`.
+<em>Arithmetic</em>. A timedelta, `D`, can be added to a datetime, `T`, to get a datetime, `T + D`, that will be after `T` if `D > 0` and before `T` if `D < 0`. Similarly, one datetime, `A`, can be subtracted from another, `B`, to get a timedelta, `T = B - A`, with `T > 0` if `B` is after (greater than) `A` and `T < 0` if `B` is before (less than) `A`.
 
-One example of this is that an event with `@s 10a fri @e 1h30m` will span the period <em>10:00 - 11:30</em> on Friday, the ending datetime corresponding to the sum of the <em>scheduled</em> datetime and the <em>extent</em> timedelta.
+One example of this arithmetic is that an event with `@s 10a fri @e 1h30m` will span the period <em>10:00 - 11:30</em> on Friday, the ending datetime corresponding to the sum of the <em>scheduled</em> datetime and the <em>extent</em> timedelta.
 
 ### 2.3. Scheduled datetime
 
@@ -652,9 +664,9 @@ For a task, this same entry would indicate that attention to completing the task
 
 For a project, this same entry would similarly indicate that attention to completing the project should begin no later than 10am and that two hours and 30 minutes is estimated for completion subject to additional times specified in the jobs. A job entry containing `&s 2d &e 3h`, for example, would set the scheduled time for this job to be two days _after_ the `@s` entry for the project and would add three hours to the estimate of total time required for the project.
 
-### 2.5. Notice
+### 2.5. Notice timedelta
 
-The entry `@n XYZ` where `XYZ` is a _positive_ interval specifies that a notice for the reminder should begin to be *noticed* on the date in which `scheduled - XYZ` falls. For the example, adding `@n 1d12h` would cause the reminder to be *noticed* beginning on
+The entry `@n XYZ` where `XYZ` is a _positive_ timedelta specifies that a notice for the reminder should begin to be *noticed* on the date in which `scheduled - XYZ` falls. For the example, adding `@n 1d12h` would cause the reminder to be *noticed* beginning on
 
       2025-10-21 10am - 1d12h = 2025-10-19 10pm
 
@@ -664,9 +676,9 @@ If the reminder is a task, then the task would _not_ appear in the agenda view u
 
 ### 2.6. Wrap
 
-The entry `@w BEFORE, AFTER`, where `BEFORE` and `AFTER` are _intervals_, can be used to wrap the _scheduled_ datetime of a reminder. Possible entries and the resulting values of BEFORE and AFTER are illustrated below:
+The entry `@w BEFORE, AFTER`, where `BEFORE` and `AFTER` are _timedeltas_, can be used to wrap the _scheduled_ datetime of a reminder. Possible entries and the resulting values of BEFORE and AFTER are illustrated below:
 
-| entry      | before | after      |
+| wrap      | before | after      |
 | ---------- | ------ | ---------- |
 | @w 1h, 30m | 1 hour | 30 minutes |
 | @w 1h,     | 1 hour | None       |
@@ -762,11 +774,10 @@ This option is particularly useful for irregular recurrences such as annual doct
   @r y &m 10 &d 23
 </code>
   </pre>
-  <p>Reminders that repeat using an <code>@r</code> attribute can automatically display the number of the anniversary. The <em>anniversary expression</em>, <code>{XXX}</code>, when placed in the <em>subject</em> will be replaced in the listing of the reminder in Agenda, Next and Weeks views by the relevant number of the anniversary. For example, in the listing for October 23, 2026, the subject of this reminder would appear as <code>Max's 10th birthday</code>. Note that the appropriate suffix from [st, nd, rd or th] is automatically applied and, because of the yearly frequency specified by <code>@r y</code>, the count represents the number of years separate the instance from the <em>scheduled</em> datetime. 
+  <p>Reminders that repeat using an <code>@r</code> attribute can automatically display the number of the anniversary. The <em>anniversary expression</em>, <code>{XXX}</code>, when placed in the <em>subject</em> will be replaced in the listing of the reminder in Agenda, Next and Weeks views by the relevant number of the anniversary. For example, in the listing for October 23, 2026, the subject of this reminder would appear as <code>Max's 10th birthday</code>. Note that the appropriate suffix from [st, nd, rd or th] is automatically applied and, because of the yearly frequency specified by <code>@r y</code>, the count represents the number of years separate the instance from the <em>scheduled</em> datetime.
   </p>
 </div>
 <div style="clear:both;"></div>
-
 
 
 ### 2.10. Timezones
@@ -854,7 +865,7 @@ Thus positive contributions _always_ increase urgency and negative contributions
 
 ### 2.12. Priority
 
-How is *priority* calculated for *goals*?  Consider a goal a goal with the target `@t n/t` so that `n` is the number of completions intended for the period `t`. Suppose further that `n'` is the number of instances remaining to be completed this period and that `t'` is the time remaining in the period for their completion. 
+How is *priority* calculated for *goals*?  Consider a goal a goal with the target `@t n/t` so that `n` is the number of completions intended for the period `t`. Suppose further that `n'` is the number of instances remaining to be completed this period and that `t'` is the time remaining in the period for their completion.
 
 Now consider these possibilities:
 
@@ -865,10 +876,10 @@ Now consider these possibilities:
 - `n'/t' < n/t`:
     the needed completion rate has decreased - completions are *ahead* of schedule
 
-If <em>priority</em> is defined by ratio 
+If <em>priority</em> is defined by ratio
 ```
   priority = 100 * (n' * t) / (n * t')
-``` 
+```
 then it indicates the completion rate currently needed as a percentage of the original rate and the possibilities can be stated as:
 
 - `priority > 100`: the goal is behind schedule.
@@ -878,12 +889,12 @@ then it indicates the completion rate currently needed as a percentage of the or
 
 ## 3. Getting Started
 
-### 3.1. Installing _tklr_ 
+### 3.1. Installing _tklr_
 
 As usual with <em>python</em> applications, <em>tklr</em> can be install in the usual way from <em>PyPI</em> using either <code>pip</code> or <code>pipx</code>. This <code>pip</code> command can be used either install for the first time or to upgrade an existing installation:
 
 ```
-pip install -U tklr-dgraham 
+pip install -U tklr-dgraham
 ```
 
 With <code>pipx</code>, two different commands are needed. For the initial installation:
