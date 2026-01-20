@@ -210,7 +210,7 @@ QueryHelpText = f"""\
 [bold][{TITLE_COLOR}]Query Builder[{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Syntax[/{HEADER_COLOR}][/bold]
  command field [args]
- Fields → itemtype, subject, tags, or any @-key (b, d, s, etc.)
+ Fields → itemtype, subject, or any @-key (b, d, s, etc.)
  Commands:
    begins field RGX      · value begins with regex
    includes fields RGX   · any listed field matches regex
