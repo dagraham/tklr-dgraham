@@ -55,7 +55,7 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
           <li><a href="#29-anniversaries">2.9. Anniversaries</a></li>
           <li><a href="#210-timezones">2.10. Timezones</a></li>
           <li><a href="#211-urgency">2.11. Urgency</a></li>
-          <li><a href="#212-priority">2.12. priority</a></li>
+          <li><a href="#212-priority">2.12. Priority</a></li>
         </ul>
       </details>
       <details>
@@ -411,6 +411,8 @@ Everything you might want to do to a reminder, to edit, finish, reschedule, dele
 2. press `enter` to open the menu of commands for the selected reminder
 3. press the first letter (any case) of the desired command or `escape` to cancel and close the commands menu
 
+[↩︎](#table-of-contents)
+
 ### 1.4. What you need to know now: Agenda View
 
 The *Agenda view* displays
@@ -544,6 +546,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 </div>
 <div style="clear: both;"></div>
 
+[↩︎](#table-of-contents)
 
 ### 1.6 What's happening: Weeks View and Friends
 
@@ -615,6 +618,8 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 </p>
 <pre>plumber</pre>
 
+
+[↩︎](#table-of-contents)
 
 ## 2. Details
 
@@ -898,6 +903,7 @@ then it indicates the completion rate currently needed as a percentage of the or
 - `priority = 100`: you are on schedule.
 - `priority < 100`: you are ahead of schedule.
 
+[↩︎](#table-of-contents)
 
 ## 3. Getting Started
 
@@ -939,6 +945,8 @@ Any directory can be used for _home_. These are the options:
 ### 3.3. Configuration
 
 The default settings are in _config.toml_ in your _tklr_ home directory together with detailed explanations for each setting.
+
+[↩︎](#table-of-contents)
 
 ## 4. Developer Guide
 
