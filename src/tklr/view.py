@@ -228,11 +228,6 @@ QueryHelpText = f"""\
  ~includes subject waldo
  includes subject d projectX
  dt s < 2024-07-01 and equals itemtype *
-
-[bold][{HEADER_COLOR}]Tips[/{HEADER_COLOR}][/bold]
- • Enter runs the query; Esc edits the query (or closes details).
- • ↑ / ↓ cycle through query history.
- • Use result tags (a–z) to open details; Enter shows the actions menu there.
 """.splitlines()
 
 
