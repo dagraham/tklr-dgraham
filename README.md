@@ -808,7 +808,7 @@ This option is particularly useful for irregular recurrences such as annual doct
   @r y &m 10 &d 23
 </code>
   </pre>
-  <p>Reminders that repeat using an <code>@r</code> attribute can automatically display the number of the anniversary. The <em>anniversary expression</em>, <code>{XXX}</code>, when placed in the <em>subject</em> will be replaced in the listing of the reminder in Agenda, Next and Weeks views by the relevant number of the anniversary. For example, in the listing for October 23, 2026, the subject of this reminder would appear as <code>Max's 10th birthday</code>. Note that the appropriate suffix from [st, nd, rd or th] is automatically applied and, because of the yearly frequency specified by <code>@r y</code>, the count represents the number of years separate the instance from the <em>scheduled</em> datetime.
+  <p>Reminders that repeat using an <code>@r</code> attribute can automatically display the number of the anniversary. The <em>anniversary expression</em>, <code>{XXX}</code>, when placed in the <em>subject</em> will be replaced in the listing of the reminder in Agenda, Next and Weeks views by the relevant number of the anniversary. For example, in the listing for October 23, 2026, the subject of this reminder would appear as <code>Max's 10th birthday</code>. Note that the appropriate suffix from [st, nd, rd or th] is automatically applied and, because of the yearly frequency specified by <code>@r y</code>, the count represents the number of years separating the instance from the <em>scheduled</em> datetime.
   </p>
 </div>
 <div style="clear:both;"></div>
@@ -922,9 +922,15 @@ If <em>priority</em> is defined by ratio
 ```
 then it indicates the completion rate currently needed as a percentage of the original rate and the possibilities can be stated as:
 
-- `priority > 100`: the goal is behind schedule.
-- `priority = 100`: you are on schedule.
-- `priority < 100`: you are ahead of schedule.
+- `priority > 100`: behind schedule.
+- `priority = 100`: on schedule.
+- `priority < 100`: ahead of schedule.
+
+[↩︎](#table-of-contents)
+
+### 2.13. Masked Information
+
+A <code>@m</code> attribute can be used to record information in a reminder that will be stored in an obfuscated format. Only someone running *tklr* with the *secret* from the configuration file used to create the entry will see the clear value. Useful for passwords, account numbers or whatever.
 
 [↩︎](#table-of-contents)
 
