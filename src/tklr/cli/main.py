@@ -10,6 +10,8 @@ from collections import defaultdict
 from rich.console import Console
 # from rich.table import Table
 
+from dateutil import parser as dt_parser
+
 from tklr.item import Item
 from tklr.controller import Controller
 from tklr.model import DatabaseManager
@@ -288,8 +290,13 @@ def check(ctx, entry):
     is_flag=True,
     help="Use Rich colors/styling (default output is plain).",
 )
+@click.option(
+    "--ids",
+    is_flag=True,
+    help="Append record ids in parentheses for each reminder row.",
+)
 @click.pass_context
-def agenda(ctx, width, rich):
+def agenda(ctx, width, rich, ids):
     """
     Display the current agenda: events for the next 3 days with drafts and notices along with tasks ordered by urgency.
 
@@ -344,10 +351,21 @@ def agenda(ctx, width, rich):
         else:
             truncated = display_text
 
+        record_id = row.get("record_id")
+        append_id = ids and (record_id is not None) and not is_header
+
         if rich:
-            console.print(truncated)
+            output_text = truncated
+            if append_id:
+                suffix_style = "dim"
+                output_text = output_text.copy()
+                output_text.append(f" ({record_id})", style=suffix_style)
+            console.print(output_text)
         else:
-            console.print(truncated.plain, markup=False, highlight=False)
+            output_plain = truncated.plain
+            if append_id:
+                output_plain = f"{output_plain} ({record_id})"
+            console.print(output_plain, markup=False, highlight=False)
 
 
 def _parse_local_text_dt(s: str) -> datetime | date:
@@ -506,8 +524,13 @@ def _group_instances_by_date_for_weeks(
     is_flag=True,
     help="Use Rich colors/styling (default output is plain).",
 )
+@click.option(
+    "--ids",
+    is_flag=True,
+    help="Append record ids in parentheses for each reminder row.",
+)
 @click.pass_context
-def weeks(ctx, start_opt, end_opt, width, rich):
+def weeks(ctx, start_opt, end_opt, width, rich, ids):
     """
     weeks(start: date = today(), end: date|int = 4, width: int = 40)
 
@@ -612,6 +635,8 @@ def weeks(ctx, start_opt, end_opt, width, rich):
                     if time_str
                     else f"{itemtype} {subject}"
                 )
+                record_id = row.get("record_id")
+                append_id = ids and (record_id is not None)
 
                 if rich:
                     from rich.text import Text
@@ -621,10 +646,15 @@ def weeks(ctx, start_opt, end_opt, width, rich):
                     display = row_text.copy()
                     if len(display.plain) > width:
                         display.truncate(width, overflow="ellipsis")
+                    if append_id:
+                        display.append(f" ({record_id})", style="dim")
                     console.print(display)
                 else:
                     base = f"  {body}"
-                    console.print(_wrap_or_truncate(base, width))
+                    trimmed = _wrap_or_truncate(base, width)
+                    if append_id:
+                        trimmed = f"{trimmed} ({record_id})"
+                    console.print(trimmed)
 
             # console.print()  # blank line between days
 
@@ -654,8 +684,13 @@ def weeks(ctx, start_opt, end_opt, width, rich):
     is_flag=True,
     help="Use Rich colors/styling (default output is plain).",
 )
+@click.option(
+    "--ids",
+    is_flag=True,
+    help="Append record ids in parentheses for each reminder row.",
+)
 @click.pass_context
-def days(ctx, start_opt, end_opt, width, rich):
+def days(ctx, start_opt, end_opt, width, rich, ids):
     """
     days(start: date = today(), end: date|int = 7, width: int = 40)
 
@@ -738,6 +773,8 @@ def days(ctx, start_opt, end_opt, width, rich):
                     if time_str
                     else f"{itemtype} {subject}"
                 )
+                record_id = row.get("record_id")
+                append_id = ids and (record_id is not None)
 
                 if rich:
                     from rich.text import Text
@@ -747,10 +784,15 @@ def days(ctx, start_opt, end_opt, width, rich):
                     display = row_text.copy()
                     if len(display.plain) > width:
                         display.truncate(width, overflow="ellipsis")
+                    if append_id:
+                        display.append(f" ({record_id})", style="dim")
                     console.print(display)
                 else:
                     base = f"  {body}"
-                    console.print(_wrap_or_truncate(base, width))
+                    trimmed = _wrap_or_truncate(base, width)
+                    if append_id:
+                        trimmed = f"{trimmed} ({record_id})"
+                    console.print(trimmed)
 
         current_date += timedelta(days=1)
 
@@ -762,12 +804,29 @@ def days(ctx, start_opt, end_opt, width, rich):
     type=click.IntRange(1, 500),
     help="Maximum number of matches to display.",
 )
+@click.option(
+    "--ids",
+    is_flag=True,
+    help="Append record ids in parentheses for each matching reminder.",
+)
+@click.option(
+    "--rich",
+    is_flag=True,
+    help="Use Rich colors/styling (default output is plain).",
+)
 @click.pass_context
-def query(ctx, query_parts, limit):
+def query(ctx, query_parts, limit, ids, rich):
     """Run an advanced query and list matching reminders."""
     query_text = " ".join(query_parts).strip()
+    is_tty = sys.stdout.isatty()
+    console = Console(
+        force_terminal=rich and is_tty,
+        no_color=not rich,
+        markup=rich,
+        highlight=False,
+    )
     if not query_text:
-        print("Enter a query string.")
+        console.print("Enter a query string.")
         ctx.exit(1)
 
     env = ctx.obj["ENV"]
@@ -777,7 +836,10 @@ def query(ctx, query_parts, limit):
     try:
         response = controller.run_query(query_text)
     except QueryError as exc:
-        print(f"[red]Query error:[/red] {exc}")
+        if rich:
+            console.print(f"[red]Query error:[/red] {exc}")
+        else:
+            console.print(f"Query error: {exc}")
         ctx.exit(1)
 
     if response.info_id is not None:
@@ -785,9 +847,8 @@ def query(ctx, query_parts, limit):
         try:
             title, lines, _ = controller.get_details_for_record(record_id)
         except Exception:
-            print(f"No record found with id {record_id}.")
+            console.print(f"No record found with id {record_id}.")
             ctx.exit(1)
-        console = Console(highlight=False)
         console.print(title)
         for line in lines:
             console.print(line)
@@ -796,7 +857,7 @@ def query(ctx, query_parts, limit):
     matches = response.matches
     total = len(matches)
     if total == 0:
-        print("No results.")
+        console.print("No results.")
         return
 
     if limit is not None and limit < total:
@@ -805,14 +866,93 @@ def query(ctx, query_parts, limit):
         display_matches = matches
 
     for match in display_matches:
-        subject = match.summary or "(untitled)"
-        print(f"{match.itemtype} {subject} (id {match.record_id})")
+        subject = match.subject or "(untitled)"
+        if rich:
+            from rich.text import Text
+
+            color = TYPE_TO_COLOR.get(match.itemtype, "white")
+            line = Text()
+            line.append(f"{match.itemtype} {subject}", style=color)
+            if ids:
+                line.append(f" ({match.record_id})", style="dim")
+            console.print(line)
+        else:
+            line = f"{match.itemtype} {subject}"
+            if ids:
+                line = f"{line} ({match.record_id})"
+            console.print(line)
 
     if limit is not None and limit < total:
-        print(f"Showing first {limit} of {total} matches.")
+        console.print(f"Showing first {limit} of {total} matches.")
     else:
         suffix = "" if total == 1 else "es"
-        print(f"{total} match{suffix}.")
+        console.print(f"{total} match{suffix}.")
+
+
+@cli.command()
+@click.argument("finish_parts", nargs=-1)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Apply finish without prompting for confirmation.",
+)
+@click.pass_context
+def finish(ctx, finish_parts, yes):
+    """
+    Mark a reminder finished, providing the id and, optionally, the completion datetime.
+    """
+    if not finish_parts:
+        print("[red]Enter the record id to finish.[/red]")
+        ctx.exit(1)
+
+    id_text = finish_parts[0]
+    try:
+        record_id = int(id_text)
+    except ValueError:
+        print(f"[red]Invalid record id:[/red] {id_text!r}")
+        ctx.exit(1)
+
+    when_text = " ".join(finish_parts[1:]).strip()
+    if when_text:
+        try:
+            finish_dt = dt_parser.parse(when_text)
+        except (ValueError, dt_parser.ParserError) as exc:
+            print(f"[red]Could not parse finish datetime:[/red] {exc}")
+            ctx.exit(1)
+    else:
+        finish_dt = datetime.now()
+
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+    controller = Controller(db_path, env)
+
+    record = controller.db_manager.get_record_as_dictionary(record_id)
+    if not record:
+        print(f"[red]No record found with id {record_id}.[/red]")
+        ctx.exit(1)
+
+    subject = record.get("subject") or "(untitled)"
+    finish_label = controller.fmt_user(finish_dt)
+
+    if not yes:
+        prompt = f"Finish {record_id}: {subject!r} at {finish_label}?"
+        if not click.confirm(prompt, default=False):
+            print("[yellow]Finish cancelled.[/yellow]")
+            return
+
+    try:
+        changed = controller.finish_task(record_id, job_id=None, when=finish_dt)
+    except Exception as exc:
+        print(f"[red]Finish failed:[/red] {exc}")
+        ctx.exit(1)
+
+    if not changed:
+        print("[yellow]No changes made; task may already be finished.[/yellow]")
+        return
+
+    controller.db_manager.populate_dependent_tables()
+    print(f"[green]✔ Finished[/green] {subject!r} ({record_id}) at {finish_label}")
 
 
 @cli.command()
