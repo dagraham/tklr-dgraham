@@ -8,6 +8,7 @@ from typing import Dict, List, Tuple, Optional
 from collections import defaultdict
 
 from rich.console import Console
+from rich.text import Text
 # from rich.table import Table
 
 from dateutil import parser as dt_parser
@@ -77,6 +78,31 @@ def ensure_database(db_path: str, env: TklrEnvironment):
 
 def format_tokens(tokens, width=80):
     return " ".join([f"{t['token'].strip()}" for t in tokens])
+
+
+def _plain_from_markup(text: str) -> str:
+    try:
+        return Text.from_markup(text).plain
+    except Exception:
+        return text
+
+
+def _print_markup_or_plain(console: Console, text: str, rich: bool) -> None:
+    if rich:
+        console.print(text)
+    else:
+        console.print(_plain_from_markup(text), markup=False, highlight=False)
+
+
+def _print_detail_lines(console: Console, lines: list[str], rich: bool) -> None:
+    last_was_blank = False
+    for line in lines:
+        plain = _plain_from_markup(line)
+        is_blank = not plain.strip()
+        if is_blank and last_was_blank:
+            continue
+        _print_markup_or_plain(console, line, rich)
+        last_was_blank = is_blank
 
 
 def get_raw_from_file(path: str) -> str:
@@ -849,9 +875,7 @@ def query(ctx, query_parts, limit, ids, rich):
         except Exception:
             console.print(f"No record found with id {record_id}.")
             ctx.exit(1)
-        console.print(title)
-        for line in lines:
-            console.print(line)
+        _print_detail_lines(console, lines, rich)
         return
 
     matches = response.matches
@@ -936,7 +960,7 @@ def finish(ctx, finish_parts, yes):
     finish_label = controller.fmt_user(finish_dt)
 
     if not yes:
-        prompt = f"Finish {record_id}: {subject!r} at {finish_label}?"
+        prompt = f"Finish {record_id}: {subject!r}\nat {finish_label}?"
         if not click.confirm(prompt, default=False):
             print("[yellow]Finish cancelled.[/yellow]")
             return
@@ -952,7 +976,7 @@ def finish(ctx, finish_parts, yes):
         return
 
     controller.db_manager.populate_dependent_tables()
-    print(f"[green]✔ Finished[/green] {subject!r} ({record_id}) at {finish_label}")
+    print(f"[green]✔ Finished[/green] {subject!r} ({record_id})\nat {finish_label}")
 
 
 @cli.command()
@@ -985,6 +1009,39 @@ def find(ctx, regex_parts):
 
     suffix = "" if len(matches) == 1 else "es"
     print(f"{len(matches)} match{suffix}.")
+
+
+@cli.command()
+@click.argument("record_id", type=int)
+@click.option(
+    "--rich",
+    is_flag=True,
+    help="Use Rich colors/styling (default output is plain).",
+)
+@click.pass_context
+def details(ctx, record_id, rich):
+    """
+    Display the details for a reminder with the provided id.
+    """
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+    controller = Controller(db_path, env)
+
+    try:
+        title, lines, _ = controller.get_details_for_record(record_id)
+    except Exception:
+        print(f"[red]No record found with id {record_id}.[/red]")
+        ctx.exit(1)
+
+    is_tty = sys.stdout.isatty()
+    console = Console(
+        force_terminal=rich and is_tty,
+        no_color=not rich,
+        markup=rich,
+        highlight=False,
+    )
+
+    _print_detail_lines(console, lines, rich)
 
 
 @cli.command()

@@ -979,7 +979,81 @@ The default settings are in _config.toml_ in your _tklr_ home directory together
 
 ## 4. Using the Command Line Interface
 
-To Be Done
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>% tklr --help                              ⏱ 13:31:53
+Usage: tklr [OPTIONS] COMMAND [ARGS]...
+
+  Tklr CLI – manage your reminders from the command
+  line.
+
+Options:
+  --version      Show the version and exit.
+  --home TEXT    Override the Tklr workspace
+                 directory (equivalent to setting
+                 $TKLR_HOME).
+  -v, --verbose  Enable verbose output
+  --help         Show this message and exit.
+
+Commands:
+  add
+  agenda   Display the current agenda: events...
+  check    Check whether an entry is valid...
+  days     days(start: date = today(), end:...
+  details  Display the details for a reminder...
+  find     Search reminders whose subject or @d...
+  finish   Mark a reminder finished, providing...
+  migrate  Convert ETM reminders into a Tklr...
+  query    Run an advanced query and list...
+  ui       Launch the Tklr Textual interface.
+  weeks    weeks(start: date = today(), end:...
+</code>
+</pre>
+
+<p>Here is the main <em>tklr</em> help message. All the <em>Commands</em> other than <code>ui</code> belong to the CLI.
+</p>
+</div>
+<div style="clear:both;"></div>
+
+
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>% tklr agenda --help                       ⏱ 13:34:29
+Usage: tklr agenda [OPTIONS]
+
+  Display the current agenda: events for the next 3
+  days with drafts and notices along with tasks
+  ordered by urgency.
+
+  Examples:   tklr agenda   tklr agenda --width 60
+  tklr agenda --rich
+
+Options:
+  --width INTEGER RANGE  Maximum line width (good
+                         for small screens).
+                         [10<=x<=200]
+  --rich                 Use Rich colors/styling
+                         (default output is plain).
+  --ids                  Append record ids in
+                         parentheses for each
+                         reminder row.
+  --help                 Show this message and exit.
+</code>
+</pre>
+
+<p>For the help information on a particular command, enter the name of the command and then append <code>--help</code>. E.g., here is the help for the <em>agenda</em> command.
+</p>
+</div>
+<div style="clear:both;"></div>
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/agenda_rich.png"
+alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>The <code>--rich</code> option is probably the least apparent. Using it adds <em>rich<em> colors to the format of the display. Here are examples of <em>agenda<em> with and without this argument.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
 
 ## 5. Developer Guide
 
