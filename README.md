@@ -20,7 +20,7 @@ This introduction to *tklr* is best viewed at [GitHub.io](https://dagraham.githu
 
 <strong>This README is a work-in-progress. This notice will be removed when all the major sections have been completed.</strong>
 
-The [↩︎](#table-of-contents) links at the end of major sections lead back to the following *Table of Contents*:
+The [↩︎](#table-of-contents) links at the end of major sections lead back to this **expandable** *Table of Contents*. 
 
 <a id="table-of-contents"></a>
 <details>
@@ -427,7 +427,7 @@ The *Agenda view* displays
 Times are displayed in the screenshots using _24-hour_ notation. An option can be set to display times using _am/pm_ notation instead.
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/agenda_screenshot.svg"
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/agenda_screensh ot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>While the listing of events begins with the current day, any all-day events or events whose ending times have already passed such as the one tagged <em>a</em> will be dimmed. Additionally an event, such as the one tagged <em>b</em> whose active period overlaps the current moment will be highlighted.
   </p>
