@@ -2095,7 +2095,6 @@ class WeeksScreen(SearchableScreen, SafeScreen):
             record_id, job_id, datetime_id, instance_ts
         )
         if self.list_with_details:
-            bug_msg(f"{self.list_with_details.text_color = }")
             self.list_with_details.show_details(title, lines, meta)
 
 

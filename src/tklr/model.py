@@ -40,6 +40,8 @@ from .shared import (
     parse_utc_z,
     fmt_user,
     get_anchor,
+    has_zero_time_component,
+    is_all_day_text,
 )
 
 import re
@@ -353,17 +355,16 @@ def fine_busy_bits_for_event(
     (7 days × (1 all-day + 96 fifteen-minute blocks))
     """
     start = parse(start_str)
+    end = parse(end_str) if end_str else None
+
+    is_all_day = is_all_day_text(start_str, end_str)
+
     if isinstance(start, date) and not isinstance(start, datetime):
         start = datetime.combine(start, datetime.min.time())
-
-    # --- handle end rules ---
-    end = parse(end_str) if end_str else None
     if isinstance(end, date) and not isinstance(end, datetime):
-        end = datetime.combine(end, datetime.min.time())
+        end = datetime.combine(end, datetime.min.time()) if end else None
 
-    # if end is None and (start.hour != 0 or start.minute != 0):
-    if end is None or not isinstance(start, datetime):
-        # zero-extent event: contributes nothing
+    if end is None and not is_all_day:
         return {}
 
     slot_minutes = 15
@@ -377,6 +378,17 @@ def fine_busy_bits_for_event(
 
     cur = start
     busy_count = 0
+    all_day_last_date: date | None = None
+    if is_all_day:
+        start_day = start.date()
+        all_day_last_date = start_day
+        if end:
+            end_day = end.date()
+            candidate = end_day
+            if has_zero_time_component(end_str) and end_day > start_day:
+                candidate = end_day - timedelta(days=1)
+            all_day_last_date = max(start_day, candidate)
+
     while True:
         yw = yw_key(cur)
         if yw not in weeks:
@@ -385,24 +397,25 @@ def fine_busy_bits_for_event(
         day_index = cur.weekday()  # Mon=0
         base = day_index * (1 + slots_per_day)
 
-        if end is None:
-            # all-day flag only
+        if is_all_day:
             weeks[yw][base] = 1
         else:
             day_start = datetime.combine(cur.date(), datetime.min.time())
             day_end = datetime.combine(cur.date(), datetime.max.time())
-            # print(f"{start = }, {end = }")
             s = max(start, day_start)
             e = min(end, day_end)
 
             s_idx = (s.hour * 60 + s.minute) // slot_minutes
             e_idx = (e.hour * 60 + e.minute) // slot_minutes
-            # log_msg(f"{s_idx = }, {e_idx = }, {e_idx - s_idx = } ")
             weeks[yw][base + 1 + s_idx : base + 1 + e_idx + 1] = 1
             busy_count += np.count_nonzero(weeks[yw])
 
-        if end is None or cur.date() >= end.date():
-            break
+        if is_all_day:
+            if cur.date() >= all_day_last_date:
+                break
+        else:
+            if end is None or cur.date() >= end.date():
+                break
         cur += timedelta(days=1)
     # log_msg(f"{start_str = }, {end_str = }, {busy_count = }")
     return weeks

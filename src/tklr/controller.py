@@ -58,6 +58,7 @@ from .shared import (
     get_previous_yrwk,
     get_next_yrwk,
     calculate_4_week_start,
+    is_all_day_text,
 )
 from tklr.tklr_env import TklrEnvironment
 from tklr.view import ChildBinRow, ReminderRow
@@ -102,7 +103,8 @@ TOMATO = "#FF6347"
 # Colors for UI elements
 DAY_COLOR = LEMON_CHIFFON
 FRAME_COLOR = KHAKI
-HEADER_COLOR = LIGHT_SKY_BLUE
+# HEADER_COLOR = LIGHT_SKY_BLUE
+HEADER_COLOR = LEMON_CHIFFON
 DIM_COLOR = DARK_GRAY
 ALLDAY_COLOR = SANDY_BROWN
 EVENT_COLOR = LIME_GREEN
@@ -141,7 +143,8 @@ SELECTED_COLOR = "yellow"
 # SELECTED_COLOR = "bold yellow"
 
 HEADER_COLOR = LEMON_CHIFFON
-HEADER_STYLE = f"bold {LEMON_CHIFFON}"
+# HEADER_STYLE = f"bold {LEMON_CHIFFON}"
+HEADER_STYLE = f"{LEMON_CHIFFON}"
 FIELD_COLOR = LIGHT_SKY_BLUE
 
 ONEDAY = timedelta(days=1)
@@ -575,7 +578,7 @@ class Controller:
         else:
             label_color = css_named_colors["lightskyblue"]
             type_color = css_named_colors["goldenrod"]
-            HEADER_COLOR = LIGHT_SKY_BLUE
+            HEADER_COLOR = LEMON_CHIFFON
             at_color = css_named_colors["goldenrod"]
             am_color = css_named_colors["goldenrod"]
 
@@ -1976,9 +1979,10 @@ class Controller:
         if conflict_color is None:
             conflict_color = "red" if theme == "dark" else "#c62828"
         if allday_color is None:
-            allday_color = "yellow" if theme == "dark" else "#b8860b"
+            allday_color = "#ffbf00" if theme == "dark" else "#ff9100"
         if header_color is None:
-            header_color = "cyan" if theme == "dark" else "#1f395a"
+            # header_color = "cyan" if theme == "dark" else "#1f395a"
+            header_color = LEMON_CHIFFON if theme == "dark" else "#1f395a"
 
         # --- Header line
         header = "│".join(f" {d:^3} " for d in DAYS)
@@ -1986,6 +1990,7 @@ class Controller:
 
         # --- Busy row
         day_segments = []
+        vertical_bar = f"[{header_color}]│[/{header_color}]"
         for day in range(7):
             start = day * 5
             all_day_bit = bits[start]
@@ -1993,7 +1998,7 @@ class Controller:
 
             # --- all-day symbol
             if all_day_bit:
-                all_day_char = f"[{allday_color}]■[/{allday_color}]"
+                all_day_char = f"[{allday_color}]█[/{allday_color}]"
             else:
                 all_day_char = " "
 
@@ -2009,7 +2014,7 @@ class Controller:
 
             day_segments.append(all_day_char + blocks)
 
-        lines.append(f"│{'│'.join(day_segments)}│")
+        lines.append(f"{vertical_bar}{'│'.join(day_segments)}{vertical_bar}")
         return "\n".join(lines)
 
     def get_week_details(self, yr_wk):
@@ -2126,7 +2131,8 @@ class Controller:
                         "job_id": None,
                         "datetime_id": dt_id,
                         "instance_ts": start_ts,
-                        "text": f"[bold][{HEADER_COLOR}]{day.strftime('%a, %b %-d')}{flag}[/{HEADER_COLOR}][/bold]",
+                        # "text": f"[bold][{HEADER_COLOR}]{day.strftime('%a, %b %-d')}{flag}[/{HEADER_COLOR}][/bold]",
+                        "text": f"[{HEADER_COLOR}]{day.strftime('%a, %b %-d')}{flag}[/{HEADER_COLOR}]",
                     }
                 )
                 for event in events:
@@ -3055,11 +3061,17 @@ class Controller:
                         record_id, subject, start_dt
                     )
                 subject = self.apply_flags(record_id, subject)
-                end_ts = end_ts or start_ts
-                label = format_time_range(start_ts, end_ts, self.AMPM).strip()
-                if start_ts.endswith("T000000") and start_ts == end_ts:
+                raw_end_ts = end_ts
+                effective_end_ts = raw_end_ts or start_ts
+                is_all_day = is_all_day_text(start_ts, raw_end_ts)
+                label = (
+                    format_time_range(start_ts, effective_end_ts, self.AMPM).strip()
+                    if not is_all_day
+                    else ""
+                )
+                if is_all_day:
                     color = ALLDAY_COLOR
-                elif end_ts <= now_ts:
+                elif effective_end_ts <= now_ts:
                     color = PASSED_EVENT
                 elif start_ts <= now_ts:
                     color = ACTIVE_EVENT

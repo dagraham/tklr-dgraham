@@ -121,6 +121,46 @@ def _apply_type_color_overrides() -> None:
 
 _apply_type_color_overrides()
 
+
+def _normalize_ts(value: str | None) -> str:
+    if not value:
+        return ""
+    return value.strip().rstrip("Z")
+
+
+def has_zero_time_component(value: str | None) -> bool:
+    """
+    Return True when the timestamp lacks an explicit time component or when its
+    time portion resolves to midnight (supports HHMM and HHMMSS encodings).
+    """
+    text = _normalize_ts(value)
+    if not text:
+        return False
+    if "T" not in text:
+        return True
+    _, time_part = text.split("T", 1)
+    if not time_part:
+        return True
+    return time_part.strip("0") == ""
+
+
+def is_all_day_text(start_text: str | None, end_text: str | None) -> bool:
+    """
+    Return True when a DateTimes start/end pair represents an all-day event.
+    Considers date-only strings (YYYYMMDD) and midnight start/end pairs.
+    """
+    start = _normalize_ts(start_text)
+    if not start:
+        return False
+    if not has_zero_time_component(start):
+        return False
+
+    end = _normalize_ts(end_text)
+    if not end:
+        return True
+
+    return has_zero_time_component(end)
+
 # class datetimeChar:
 #     VSEP = "⏐"  # U+23D0  this will be a de-emphasized color
 #     FREE = "─"  # U+2500  this will be a de-emphasized color
