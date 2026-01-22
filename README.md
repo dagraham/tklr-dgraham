@@ -1031,7 +1031,6 @@ Usage: tklr agenda [OPTIONS]
 Options:
   --width INTEGER RANGE  Maximum line width (good
                          for small screens).
-                         [10<=x<=200]
   --rich                 Use Rich colors/styling
                          (default output is plain).
   --ids                  Append record ids in
