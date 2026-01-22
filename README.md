@@ -1048,7 +1048,7 @@ Options:
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/agenda_rich.png"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>The <code>--rich</code> option is probably the least apparent. Using it adds <em>rich<em> colors to the format of the display. Here are examples of <em>agenda<em> with and without this argument.
+  <p>The <code>--rich</code> option is probably the least apparent. Using it adds <em>rich</em> colors to the format of the display. Here are examples of <em>agenda</em> with and without this argument.
   </p>
 </div>
 <div style="clear: both;"></div>
