@@ -309,7 +309,7 @@ def check(ctx, entry):
     "--width",
     type=click.IntRange(10, 200),
     default=40,
-    help="Maximum line width (good for small screens).",
+    help="Maximum line width.",
 )
 @click.option(
     "--rich",

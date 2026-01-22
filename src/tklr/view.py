@@ -170,7 +170,7 @@ def _make_rows(lines: list[str]) -> list[str]:
 
 
 HelpText = f"""\
-[bold][{TITLE_COLOR}]TKLR {VERSION}[/{TITLE_COLOR}][/bold]
+[bold][{TITLE_COLOR}]tklr {VERSION}[/{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
 [bold]^Q[/bold]    Quit               [bold]^S[/bold]    Screenshot
 [bold] +[/bold]    New Reminder       [bold] Y[/bold]    Yearly Calendar
