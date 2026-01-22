@@ -1,0 +1,238 @@
+/* ── Screen ───────────────────────────────────────── */
+Screen {
+  layout: vertical;
+  background: #f7f7f7 100%;
+  opacity: 100%;
+}
+
+/* ── Titles ───────────────────────────────────────── */
+#table_title,
+#week_title,
+#scroll_title,
+#details_title,
+#list_title,
+#events_title,
+#tasks_title,
+#dt_title,
+#ed_title,
+#bins_title {
+  color: #1f1f1f;
+  border-bottom: solid #c7c7c7;
+  text-style: bold;
+  text-align: center;
+  padding: 1 1 0 1;
+}
+
+/* ── ScrollView defaults (plain) ──────────────────── */
+ScrollView {
+  padding: 0;
+  margin: 0;
+}
+
+/* Hidden utility */
+.hidden {
+  display: none;
+}
+
+#custom_footer {
+  color: #1f1f1f;
+  text-style: bold;
+  border-top: #c7c7c7;
+  padding: 0 1 1 1;
+}
+
+/* ── Details Pane ───────────────────────────── */
+#details-pane {
+  dock: bottom;
+  layout: vertical;
+  border-top: heavy #c7c7c7;
+  height: 14;
+  padding: 0 1 1 1;
+  background: #fdfdfd;
+}
+
+#details-pane.hidden {
+  display: none;
+}
+
+#details-title {
+  width: 1fr;
+  max-width: 1fr;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 1;
+  color: #222222;
+}
+
+#details-body {
+  height: 1fr;
+  border: none;
+  color: #333333;
+}
+
+#details-body-content {
+  border: none;
+}
+
+/* Help panel */
+#help_panel {
+  width: 100%;
+  height: 100%;
+  border: solid #c7c7c7;
+  background: #f7f7f7;
+}
+#help_layout {
+  height: 1fr;
+}
+#help_scroll {
+  height: 1fr;
+}
+
+.dim-rule {
+  color: #b0b0b0;
+  background: #f2f2f2;
+  height: 1;
+}
+
+/* ---- DatetimePrompt Layout ---- */
+.title-class {
+  text-align: center;
+  color: #1f1f1f;
+  text-style: bold;
+  border-bottom: solid #c7c7c7;
+}
+
+#dt_feedback {
+  color: #1f7a1f;
+  padding: 0 1;
+}
+
+#dt_message {
+  color: #4a4a4a;
+  background: #f0f0f0;
+  padding: 0 1 1 1;
+}
+
+#dt_entry:focus {
+  border: solid #a0a0a0;
+  background: #ffffff;
+  color: #1c1c1c;
+}
+
+#dt_instructions {
+  color: #555555;
+  background: #f4f4f4;
+  padding: 0 1;
+  text-align: center;
+}
+
+#ed_prompt {
+  layout: vertical;
+  padding: 0 1;
+}
+
+#ed_instructions {
+  color: #555555;
+  background: #f4f4f4;
+  padding: 0 1;
+  text-align: center;
+}
+
+#ed_message {
+  color: #4a4a4a;
+  background: #f0f0f0;
+  padding: 0 1;
+}
+
+#ed_entry:focus {
+  border: solid #a0a0a0;
+  background: #ffffff;
+  color: #1c1c1c;
+  height: auto;
+  padding: 0 0;
+}
+
+#ed_feedback {
+  height: auto;
+  color: #1f7a1f;
+  padding: 0 1 0 1;
+}
+
+ListWithDetails {
+  layout: vertical;
+}
+
+ListWithDetails > #main-list {
+  height: 1fr;
+}
+
+ListWithDetails > #details-list {
+  height: auto;
+  max-height: 14;
+  border-top: solid #c7c7c7;
+}
+
+ListWithDetails > #details_text {
+  color: #1f1f1f;
+  padding: 1 0;
+}
+
+ListWithDetails > #details-list.hidden {
+  display: none;
+}
+
+.busy-bar {
+  text-style: bold;
+  text-align: center;
+  height: auto;
+  border-bottom: #c7c7c7;
+  color: #1f1f1f;
+}
+
+/* ── BinHierarchyScreen ───────────────────────────── */
+#bins-tree {
+  height: 1fr;
+  margin: 0;
+  padding: 0 1;
+  background: #fafafa;
+  color: #1f1f1f;
+  overflow: auto;
+}
+
+#bins-tree:focus {
+  background: #ffffff;
+}
+
+BinHierarchyScreen > Header,
+BinHierarchyScreen > Footer {
+  background: #f7f7f7;
+  color: #1f1f1f;
+  border: none;
+}
+
+#bins-tree .tree--guides {
+  color: #c0c0c0;
+}
+
+#bins-tree .tree--cursor {
+  background: #eaeaea;
+  color: #000000;
+  text-style: bold;
+}
+
+#bins-tree .tree--label {
+  color: #1f1f1f;
+}
+
+#bins-tree .tree--label.-expanded {
+  text-style: bold;
+}
+
+#bins-tree .-disabled .tree--label {
+  color: #b5b5b5;
+}
+
+#bins-tree {
+  scrollbar-gutter: stable;
+  scrollbar-color: #b5b5b5 #f2f2f2;
+}

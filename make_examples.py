@@ -1,6 +1,8 @@
 #! /usr/bin/env python3
 # To illustrate tklr
 import random
+import shutil
+from pathlib import Path
 
 from datetime import datetime, timedelta
 from rich import print
@@ -172,7 +174,7 @@ def week(dt: datetime) -> Union[datetime, datetime]:
 
 
 env = TklrEnvironment()
-ctrl = Controller("./examples/tklr.db", env, reset=True)
+ctrl = Controller("./examples_dark/tklr.db", env, reset=True)
 # Insert the UTC records into the database
 
 num_items = 0
@@ -359,3 +361,14 @@ except Exception as e:
     print(f"Error: {e}")
 
 print(f"Inserted {count} records into the database, last_id {id}.")
+
+# Duplicate the generated DB for the light-themed example home.
+src_db = Path("./examples_dark/tklr.db")
+dst_home = Path("./examples_light")
+dst_db = dst_home / "tklr.db"
+try:
+    dst_home.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src_db, dst_db)
+    print(f"Copied database to {dst_db}")
+except Exception as exc:
+    print(f"[red]Failed to copy database to examples_light:[/red] {exc}")

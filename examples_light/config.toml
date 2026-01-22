@@ -6,7 +6,7 @@ secret = "i1ZRbCKE8uv2TLoSjh5B0O3FrTBBz1uQ"
 
 [ui]
 # theme: str = 'dark' | 'light'
-theme = "dark"
+theme = "light"
 
 # ampm: bool = true | false
 # Use 12 hour AM/PM when true else 24 hour

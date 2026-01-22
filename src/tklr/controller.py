@@ -75,7 +75,7 @@ am_color = css_named_colors["goldenrod"]
 # am_color = css_named_colors["burlywood"]
 label_color = css_named_colors["lightskyblue"]
 
-# The overall background color of the app is #2e2e2e - set in view_textual.css
+# The overall background color of the app is theme-driven (see view_dark.css / view_light.css)
 CORNSILK = "#FFF8DC"
 DARK_GRAY = "#A9A9A9"
 DARK_GREY = "#A9A9A9"  # same as DARK_GRAY
@@ -383,7 +383,10 @@ Page = Tuple[List[str], Dict[str, Tuple[str, object]]]
 
 
 def page_tagger(
-    items: List[dict], page_size: int = 26
+    items: List[dict],
+    page_size: int = 26,
+    *,
+    dim_style: str = "dim",
 ) -> List[Tuple[List[str], Dict[str, Tuple[int, int | None, int | None]]]]:
     """
     Split 'items' into pages. Each item is a dict:
@@ -450,7 +453,7 @@ def page_tagger(
         tag_map[tag] = (record_id, job_id, datetime_id, instance_ts)
 
         # Display text unchanged
-        page_rows.append(f" [dim]{tag}[/dim]  {item.get('text', '')}")
+        page_rows.append(f" [{dim_style}]{tag}[/{dim_style}]  {item.get('text', '')}")
         tag_counter += 1
 
     if page_rows or tag_map:
@@ -536,6 +539,10 @@ class Controller:
 
         self.datetimefmt = f"{self.datefmt} {self.timefmt}"
         self.query_engine = QueryEngine()
+        ui = getattr(self.env.config, "ui", None) if self.env else None
+        self.ui_theme = getattr(ui, "theme", "dark") if ui else "dark"
+        self.dim_style = "dim" if self.ui_theme == "dark" else "#4a4a4a"
+        self._apply_theme_colors()
 
     def fmt_user(self, dt: date | datetime) -> str:
         """
@@ -551,6 +558,26 @@ class Controller:
         if isinstance(dt, date):
             return dt.strftime(self.datefmt)
         raise ValueError(f"Error: {dt} must either be a date or datetime")
+
+    def _paginate(
+        self, rows: List[dict], page_size: int = 26
+    ) -> List[Tuple[List[str], Dict[str, Tuple[int, int | None, int | None]]]]:
+        return page_tagger(rows, page_size=page_size, dim_style=self.dim_style)
+
+    def _apply_theme_colors(self) -> None:
+        global label_color, type_color, HEADER_COLOR, at_color, am_color
+        if self.ui_theme == "light":
+            label_color = "#1f4b7a"
+            type_color = "#1f1f1f"
+            HEADER_COLOR = "#1f4b7a"
+            at_color = "#1f4b7a"
+            am_color = "#a44700"
+        else:
+            label_color = css_named_colors["lightskyblue"]
+            type_color = css_named_colors["goldenrod"]
+            HEADER_COLOR = LIGHT_SKY_BLUE
+            at_color = css_named_colors["goldenrod"]
+            am_color = css_named_colors["goldenrod"]
 
     @property
     def root_id(self) -> int:
@@ -1508,7 +1535,8 @@ class Controller:
         """Produce the next tag (with the pre-chosen width) and register it."""
         fill = self.afill_by_view[view]
         tag = indx_to_tag(indx, fill)  # uses your existing function
-        tag_fmt = f" [dim]{tag}[/dim] "
+        dim = self.dim_style
+        tag_fmt = f" [{dim}]{tag}[/{dim}] "
         self.list_tag_to_id.setdefault(view, {})[tag] = {
             "record_id": record_id,
             "job_id": job_id,
@@ -1525,7 +1553,8 @@ class Controller:
         """Produce the next tag (with the pre-chosen width) and register it."""
         fill = self.afill_by_week[yr_wk]
         tag = indx_to_tag(indx, fill)  # uses your existing function
-        tag_fmt = f" [dim]{tag}[/dim] "
+        dim = self.dim_style
+        tag_fmt = f" [{dim}]{tag}[/{dim}] "
         self.week_tag_to_id.setdefault(yr_wk, {})[tag] = {
             "record_id": record_id,
             "job_id": job_id,
@@ -1572,7 +1601,8 @@ class Controller:
 
         tokens, rruleset, created, modified = result[0]
 
-        entry = format_tokens(tokens, self.width)
+        highlight_tokens = self.ui_theme != "light"
+        entry = format_tokens(tokens, self.width, highlight=highlight_tokens)
         entry = f"[bold {type_color}]{entry[0]}[/bold {type_color}]{entry[1:]}"
 
         log_msg(f"{rruleset = }")
@@ -1714,7 +1744,8 @@ class Controller:
         first, second = (_dts + [None, None])[:2]
         log_msg(f"setting meta {first = }, {second = }")
 
-        title = f"[bold]{subject:^{self.width}}[/bold]"
+        # title = f"[bold]{subject:^{self.width}}[/bold]"
+        title = f"[green]{subject:^{self.width}}[/green]"
 
         meta = {
             "record_id": record_id,
@@ -1849,7 +1880,8 @@ class Controller:
         start_width = 7 if self.AMPM else 6
         alert_width = trigger_width + 3
         name_width = width - 35
-        header = f"[bold][dim]{'tag':^3}[/dim] {'alert':^{alert_width}}   {'for':^{start_width}}    {'subject':<{name_width}}[/bold]"
+        dim = self.dim_style
+        header = f"[bold][{dim}]{'tag':^3}[/{dim}] {'alert':^{alert_width}}   {'for':^{start_width}}    {'subject':<{name_width}}[/bold]"
 
         rows = []
         log_msg(f"processing {len(alerts)} alerts")
@@ -1878,7 +1910,7 @@ class Controller:
                 + f" [{AVAILABLE_COLOR}]{subject:<{name_width}}[/{AVAILABLE_COLOR}]"
             )
             rows.append({"record_id": record_id, "job_id": None, "text": text})
-        pages = page_tagger(rows)
+        pages = self._paginate(rows)
         log_msg(f"{header = }\n{rows = }\n{pages = }")
         return pages, header
 
@@ -1916,13 +1948,14 @@ class Controller:
         self,
         bits: list[int],
         *,
-        busy_color: str = "green",
-        conflict_color: str = "red",
-        allday_color: str = "yellow",
+        busy_color: str | None = None,
+        conflict_color: str | None = None,
+        allday_color: str | None = None,
+        header_color: str | None = None,
     ) -> str:
         """
-        Render 35 busy bits (7×[1 all-day + 4×6h blocks])
-        as a compact single-row week bar with color markup.
+        Render 35 busy bits (7×[1 all-day + 4×6h blocks]) as a compact single-row
+        week bar with color markup.
 
         Layout:
             | Mon | Tue | Wed | Thu | Fri | Sat | Sun |
@@ -1937,9 +1970,19 @@ class Controller:
         DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         assert len(bits) == 35, "expected 35 bits (7×5)"
 
+        theme = getattr(self, "ui_theme", "dark")
+        if busy_color is None:
+            busy_color = "green" if theme == "dark" else "#1f7a1f"
+        if conflict_color is None:
+            conflict_color = "red" if theme == "dark" else "#c62828"
+        if allday_color is None:
+            allday_color = "yellow" if theme == "dark" else "#b8860b"
+        if header_color is None:
+            header_color = "cyan" if theme == "dark" else "#1f395a"
+
         # --- Header line
         header = "│".join(f" {d:^3} " for d in DAYS)
-        lines = [f"│{header}│"]
+        lines = [f"[{header_color}]│{header}│[/{header_color}]"]
 
         # --- Busy row
         day_segments = []
@@ -2004,7 +2047,7 @@ class Controller:
                     "text": f" [{HEADER_COLOR}]Nothing scheduled for this week[/{HEADER_COLOR}]",
                 }
             )
-            pages = page_tagger(rows)
+            pages = self._paginate(rows)
             return pages
 
         weekday_to_events = {}
@@ -2088,7 +2131,7 @@ class Controller:
                 )
                 for event in events:
                     rows.append(event)
-        pages = page_tagger(rows)
+        pages = self._paginate(rows)
         self.yrwk_to_pages[yr_wk] = pages
         # log_msg(f"{len(pages) = }, {pages[0] = }, {pages[-1] = }")
         return pages
@@ -2161,7 +2204,7 @@ class Controller:
                     rows.append(event)
 
         # build 'rows' as a list of dicts with record_id and text
-        pages = page_tagger(rows)
+        pages = self._paginate(rows)
         return pages, header
 
     def get_modified(self, yield_rows: bool = False):
@@ -2215,7 +2258,7 @@ class Controller:
         if yield_rows:
             return rows
 
-        pages = page_tagger(rows)
+        pages = self._paginate(rows)
         return pages, header
 
     def get_goals(self, yield_rows: bool = False, *, include_future: bool = False):
@@ -2279,7 +2322,7 @@ class Controller:
                     "text": f"[{HEADER_COLOR}]No goals available[/{HEADER_COLOR}]",
                 }
             ]
-            return page_tagger(rows), "Goals (0)", header
+            return self._paginate(rows), "Goals (0)", header
 
         now = datetime.now()
         goals: list[dict[str, object]] = []
@@ -2430,7 +2473,7 @@ class Controller:
                     "text": f"[{HEADER_COLOR}]No goals available[/{HEADER_COLOR}]",
                 }
             ]
-            return page_tagger(rows), "Goals (0)", header
+            return self._paginate(rows), "Goals (0)", header
 
         def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
             hex_color = hex_color.lstrip("#")
@@ -2503,7 +2546,7 @@ class Controller:
         if yield_rows:
             return rows, goal_count, header
 
-        pages = page_tagger(rows)
+        pages = self._paginate(rows)
         title = f"Goals ({goal_count})"
         return pages, title, header
 
@@ -2596,7 +2639,7 @@ class Controller:
                 )
                 for event in events:
                     rows.append(event)
-        pages = page_tagger(rows)
+        pages = self._paginate(rows)
         return pages, header
 
     def find_records(self, search_str: str):
@@ -2645,7 +2688,7 @@ class Controller:
                     "text": f"[{type_color}]{itemtype} {subject} {escaped_next}[/{type_color}]",
                 }
             )
-        pages = page_tagger(rows)
+        pages = self._paginate(rows)
         return pages, header
 
     def group_events_by_date_and_time(self, events):
@@ -2691,7 +2734,7 @@ class Controller:
         records = self.db_manager.get_all_completions()
         header = f"Completions ({len(records)})"
         items = self._build_completion_items(records)
-        pages = page_tagger(items)
+        pages = self._paginate(items)
         return pages, header
 
     def _build_completion_items(
@@ -2779,7 +2822,7 @@ class Controller:
             records,
             empty_message=f"No completions recorded for {subject}",
         )
-        pages = page_tagger(items)
+        pages = self._paginate(items)
         return pages, header
 
     def get_record_completions(self, record_id: int):
@@ -2875,13 +2918,13 @@ class Controller:
                 lines.append(f"  • {start_display}")
 
         if rruleset:
-            lines.extend(["", "rruleset:", *(f"  {line}" for line in rruleset.splitlines())])
+            lines.extend(
+                ["", "rruleset:", *(f"  {line}" for line in rruleset.splitlines())]
+            )
 
         return title, lines
 
-    def get_agenda(
-        self, now: datetime | None = None, yield_rows: bool = False
-    ):
+    def get_agenda(self, now: datetime | None = None, yield_rows: bool = False):
         """Return agenda rows/pages combining events, goals, and tasks."""
         if now is None:
             now = datetime.now()
@@ -2936,7 +2979,7 @@ class Controller:
         if yield_rows:
             return events_goals_tasks
 
-        pages = page_tagger(events_goals_tasks)
+        pages = self._paginate(events_goals_tasks)
         return pages, header
 
     def get_agenda_events(self, now: datetime | None = None):
@@ -3690,7 +3733,7 @@ class Controller:
         if not rows:
             header = "Hash Tags (0)"
             return (
-                page_tagger(
+                self._paginate(
                     [
                         {
                             "record_id": None,
@@ -3702,6 +3745,6 @@ class Controller:
                 header,
             )
 
-        pages = page_tagger(rows)
+        pages = self._paginate(rows)
         title = f"Hash Tags ({len(tag_groups)})"
         return pages, title

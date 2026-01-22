@@ -89,7 +89,6 @@ GOLD = "#FFD700"
 ORANGE_RED = "#FF4500"
 TOMATO = "#FF6347"
 CORNSILK = "#FFF8DC"
-FOOTER = "#FF8C00"
 DARK_SALMON = "#E9967A"
 
 # App version
@@ -117,6 +116,14 @@ TITLE_COLOR = CORNSILK
 BIN_COLOR = TOMATO
 NOTE_COLOR = DARK_SALMON
 NOTICE_COLOR = GOLD
+
+# Styles that differ by theme (mutated at runtime)
+FOOTER_DARK = "#FF8C00"
+FOOTER_LIGHT = "#1660a0"
+FOOTER = FOOTER_DARK
+DIM_STYLE_DARK = "dim"
+DIM_STYLE_LIGHT = "#4a4a4a"
+DIM_STYLE = DIM_STYLE_DARK
 
 # This one appears to be a Rich/Textual style string
 SELECTED_COLOR = "bold yellow"
@@ -282,16 +289,17 @@ class BusyWeekBar(Widget):
     day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     colors = {0: "grey35", 1: "yellow", 2: "red"}
 
-    def __init__(self, segments: list[int]):
+    def __init__(self, segments: list[int], *, label_style: str | None = None):
         assert len(segments) == 35, "Expected 35 slots (7×5)"
         super().__init__()
         self.segments = segments
+        self.label_style = label_style or "bold cyan"
 
     def render(self) -> Text:
         # Row 1: labels
         text = Text()
         for d, lbl in enumerate(self.day_labels):
-            text.append(f"| {lbl} |", style="bold cyan")
+            text.append(f"| {lbl} |", style=self.label_style)
             if d < 6:
                 text.append(" ")  # space between columns
         text.append("\n")
@@ -336,10 +344,15 @@ class ListWithDetails(Container):
         self._footer_saved_text: str | None = None
 
     def on_mount(self):
+        bg_color = getattr(self.app, "list_bg_color", "#373737")
         # 1) Set the widget backgrounds (outer)
         for w in (self._main, self._details):
-            if w and hasattr(w, "styles"):
-                w.styles.background = "#373737"
+            if not w:
+                continue
+            if hasattr(w, "set_background_color"):
+                w.set_background_color(bg_color)
+            elif hasattr(w, "styles"):
+                w.styles.background = bg_color
 
         # 2) Try to set the internal viewport background too (inner)
         def force_scroller_bg(scroller, color: str):
@@ -355,12 +368,12 @@ class ListWithDetails(Container):
                     except Exception:
                         pass
 
-        force_scroller_bg(self._main, "#373737")
-        force_scroller_bg(self._details, "#373737")
+        force_scroller_bg(self._main, bg_color)
+        force_scroller_bg(self._details, bg_color)
 
         # 3) (Optional) make the container itself non-transparent
         if hasattr(self, "styles"):
-            self.styles.background = "#373737"
+            self.styles.background = bg_color
 
         def _dump_chain(widget):
             w = widget
@@ -382,8 +395,15 @@ class ListWithDetails(Container):
     def compose(self):
         # Background filler behind the lists
         # yield Static("", id="list-bg")
-        self._main = ScrollableList([], id="main-list")
-        self._details = ScrollableList([], id="details-list")
+        bg_color = getattr(self.app, "list_bg_color", "#373737")
+        text_color = getattr(self.app, "list_text_color", None)
+        bug_msg(f"ListWithDetails composing with text_color={text_color}")
+        self._main = ScrollableList(
+            [], id="main-list", bg_color=bg_color, text_color=text_color
+        )
+        self._details = ScrollableList(
+            [], id="details-list", bg_color=bg_color, text_color=text_color
+        )
         self._details.add_class("hidden")
         yield self._main
         yield self._details
@@ -999,10 +1019,6 @@ class DatetimePrompt(ModalScreen[datetime | None]):
                 event.stop()
 
 
-ORANGE_RED = "red3"
-FOOTER = "yellow"
-
-
 class EditorScreen(Screen):
     """
     Single-Item editor with live, token-aware feedback.
@@ -1541,9 +1557,16 @@ class HelpScreen(Screen):
         self.add_class("panel-bg-help")  # HelpScreen
 
     def compose(self):
+        bg_color = getattr(self.app, "list_bg_color", "#373737")
+        text_color = getattr(self.app, "list_text_color", None)
         yield Vertical(
             Static(self._title, id="details_title", classes="title-class"),
-            ScrollableList(self._lines, id="help_list"),
+            ScrollableList(
+                self._lines,
+                id="help_list",
+                bg_color=bg_color,
+                text_color=text_color,
+            ),
             Static(self._footer, id="custom_footer"),
             id="help_layout",
         )
@@ -1554,10 +1577,12 @@ class HelpScreen(Screen):
         self.query_one("#help_layout").styles.height = "100%"
 
         help_list = self.query_one("#help_list", ScrollableList)
+        bg_color = getattr(self.app, "list_bg_color", "#373737")
+        help_list.set_background_color(bg_color)
         for attr in ("_viewport", "_window", "_scroll_view", "_view", "_content"):
             vp = getattr(help_list, attr, None)
             if vp and hasattr(vp, "styles"):
-                vp.styles.background = "#373737"
+                vp.styles.background = bg_color
                 try:
                     vp.refresh()
                 except Exception:
@@ -1579,30 +1604,69 @@ class ScrollableList(ScrollView):
 
     DEFAULT_CSS = """
     ScrollableList {
-        background: #373737 90%;
+        background: transparent;
     }
     """
 
-    def __init__(self, lines: List[str], *, match_color: str = MATCH_COLOR, **kwargs):
+    def __init__(
+        self,
+        lines: List[str],
+        *,
+        match_color: str = MATCH_COLOR,
+        bg_color: str | None = None,
+        text_color: str | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
-        self.console = Console()
+        self._text_color = text_color
+        base_style = Style(color=self._text_color) if self._text_color else None
+        self.console = Console(style=base_style)
         self.match_color = match_color
-        self.row_bg = Style(bgcolor="#373737")  # ← row background color
+        self._bg_color = bg_color or "#373737"
+        self.row_bg = Style(bgcolor=self._bg_color)  # ← row background color
+        self.styles.background = self._bg_color
 
-        self.lines: List[Text] = [Text.from_markup(line) for line in lines]
+        self._base_style = Style(color=self._text_color) if self._text_color else None
+        self.lines: List[Text] = [
+            Text.from_markup(line, style=self._base_style) for line in lines
+        ]
         width = shutil.get_terminal_size().columns - 3
         self.virtual_size = Size(width, len(self.lines))
 
         self.search_term: Optional[str] = None
         self.matches: List[int] = []
         self.current_match_idx: int = -1
+        bug_msg(f"ScrollableList {self._text_color = }")
+
+    def on_mount(self):
+        self._apply_background_styles()
+
+    def _apply_background_styles(self):
+        for attr in ("_viewport", "_window", "_scroll_view", "_view", "_content"):
+            vp = getattr(self, attr, None)
+            if vp and hasattr(vp, "styles"):
+                vp.styles.background = self._bg_color
+                if self._text_color:
+                    vp.styles.color = self._text_color
+                try:
+                    vp.refresh()
+                except Exception:
+                    pass
+
+    def set_background_color(self, color: str) -> None:
+        self._bg_color = color
+        self.row_bg = Style(bgcolor=color)
+        self.styles.background = color
+        self._apply_background_styles()
 
     # ... update_list / search methods unchanged ...
 
     def update_list(self, new_lines: List[str]) -> None:
         """Replace the list content and refresh."""
         # log_msg(f"{new_lines = }")
-        self.lines = [Text.from_markup(line) for line in new_lines if line]
+        self.lines = [
+            Text.from_markup(line, style=self._base_style) for line in new_lines if line
+        ]
         # log_msg(f"{self.lines = }")
         width = shutil.get_terminal_size().columns - 3
         self.virtual_size = Size(width, len(self.lines))
@@ -1677,7 +1741,7 @@ class ScrollableList(ScrollView):
         segments = Segment.adjust_line_length(
             segments, self.size.width, style=self.row_bg
         )
-
+        bug_msg(f"{segments = }")
         return Strip(segments, self.size.width)
 
 
@@ -2031,6 +2095,7 @@ class WeeksScreen(SearchableScreen, SafeScreen):
             record_id, job_id, datetime_id, instance_ts
         )
         if self.list_with_details:
+            bug_msg(f"{self.list_with_details.text_color = }")
             self.list_with_details.show_details(title, lines, meta)
 
 
@@ -2325,7 +2390,9 @@ class TaggedHierarchyScreen(SearchableScreen):
         if child.rem_ct:
             noun = "reminder" if child.rem_ct == 1 else "reminders"
             counts.append(f"{child.rem_ct} {noun}")
-        counts_text = f" [dim]({', '.join(counts)})[/dim]" if counts else ""
+        counts_text = (
+            f" [{DIM_STYLE}]({', '.join(counts)})[/{DIM_STYLE}]" if counts else ""
+        )
         display_name = child.name
         if parent_name and ":" in child.name:
             prefix, suffix = child.name.split(":", 1)
@@ -2333,15 +2400,17 @@ class TaggedHierarchyScreen(SearchableScreen):
                 display_name = suffix
 
         name_color = TYPE_TO_COLOR["b"]
+        tag_style = DIM_STYLE
         return (
-            f"  [dim]{tag}[/dim] "
+            f"  [{tag_style}]{tag}[/{tag_style}] "
             f"[{name_color}]{display_name}[/ {name_color}]"
             f"{counts_text}"
         ).rstrip()
 
     def _render_reminder_row(self, r: ReminderRow, tag: str) -> str:
         tclr = TYPE_TO_COLOR[r.itemtype]
-        return f"  [dim]{tag}[/dim] [{tclr}]{r.itemtype} {r.subject}[/{tclr}]"
+        tag_style = DIM_STYLE
+        return f"  [{tag_style}]{tag}[/{tag_style}] [{tclr}]{r.itemtype} {r.subject}[/{tclr}]"
 
     def _refresh_page(self) -> None:
         rows, tag_map = self.pages[self.current_page] if self.pages else ([], {})
@@ -2387,7 +2456,7 @@ class TaggedHierarchyScreen(SearchableScreen):
             for i, (_bid, name) in enumerate(crumb):
                 if i < len(crumb) - 1:
                     parts.append(
-                        f"[dim]{i}[/dim] [{TYPE_TO_COLOR['b']}]{name}[/{TYPE_TO_COLOR['b']}]"
+                        f"[{DIM_STYLE}]{i}[/{DIM_STYLE}] [{TYPE_TO_COLOR['b']}]{name}[/{TYPE_TO_COLOR['b']}]"
                     )
                 else:
                     parts.append(
@@ -2415,7 +2484,7 @@ class TaggedHierarchyScreen(SearchableScreen):
             rows = [
                 crumb_txt,
                 "",
-                "[dim]No child bins or reminders.[/dim]",
+                f"[{DIM_STYLE}]No child bins or reminders.[/{DIM_STYLE}]",
             ]
             pages.append((rows, {}))
             return pages, crumb_txt  # title = crumb_txt
@@ -2866,7 +2935,7 @@ class QueryScreen(SearchableScreen, SafeScreen):
             tag = TAGS[idx % len(TAGS)]
             subject = match.subject or "(untitled)"
             rows.append(
-                f" [dim]{tag}[/dim] {match.itemtype} {subject} (id {match.record_id})"
+                f" [{DIM_STYLE}]{tag}[/{DIM_STYLE}] {match.itemtype} {subject} (id {match.record_id})"
             )
             tag_map[tag] = {
                 "record_id": match.record_id,
@@ -2886,12 +2955,10 @@ class QueryScreen(SearchableScreen, SafeScreen):
         self._refresh_page()
 
     def _set_status(self, message: str, severity: str = "info") -> None:
-        colors = {
-            "info": "white",
-            "warning": "yellow",
-            "error": "red",
-        }
-        color = colors.get(severity, "white")
+        palette = getattr(self.app, "status_colors", None)
+        if palette is None:
+            palette = {"info": "white", "warning": "yellow", "error": "red"}
+        color = palette.get(severity, "white")
         if self.status_label:
             self.status_label.update(f"[{color}]{message}[/]")
 
@@ -3012,7 +3079,7 @@ class QueryScreen(SearchableScreen, SafeScreen):
 class DynamicViewApp(App):
     """A dynamic app that supports temporary and permanent view changes."""
 
-    CSS_PATH = "view_textual.css"
+    CSS_PATH = None
     VIEW_REFRESHERS = {
         "weeks": "action_show_weeks",
         "agenda": "action_show_agenda",
@@ -3062,8 +3129,44 @@ class DynamicViewApp(App):
     ]
 
     def __init__(self, controller) -> None:
+        theme = getattr(getattr(controller, "env", None), "config", None)
+        theme = getattr(getattr(theme, "ui", None), "theme", "dark")
+        self._theme = theme if theme in {"dark", "light"} else "dark"
+        palette = {
+            "dark": {
+                "list_bg": "#373737",
+                "list_text": "white",
+                "footer": FOOTER,
+                "title": TITLE_COLOR,
+            },
+            "light": {
+                "list_bg": "#fdfdfd",
+                "list_text": "#1f1f1f",
+                "footer": FOOTER_LIGHT,
+                "title": "#204060",
+            },
+        }
+        colors = palette[self._theme]
+        self.list_bg_color = colors["list_bg"]
+        self.list_text_color = colors["list_text"]
+        self.footer_color = colors["footer"]
+        self.title_color = colors["title"]
+        if self._theme == "light":
+            self.status_colors = {
+                "info": "#1f1f1f",
+                "warning": "#a65c00",
+                "error": "#b00020",
+            }
+        else:
+            self.status_colors = {
+                "info": "white",
+                "warning": "yellow",
+                "error": "red",
+            }
+        self.CSS_PATH = f"view_{self._theme}.css"
         super().__init__()
         self.controller = controller
+        self._update_footer_color()
         self.current_start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
         self._week_state_before_editor: tuple[datetime, tuple[int, int]] | None = None
@@ -3073,7 +3176,12 @@ class DynamicViewApp(App):
         self.saved_lines = []
         self.afill = 1
         self.leader_mode = False
-        self.details_footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search  [bold yellow]Enter[/bold yellow] Reminder menu "
+        footer_color = getattr(self, "footer_color", FOOTER)
+        self.details_footer = (
+            f"[bold {footer_color}]?[/bold {footer_color}] Help "
+            f"[bold {footer_color}]/[/bold {footer_color}] Search  "
+            f"[bold {footer_color}]Enter[/bold {footer_color}] Reminder menu "
+        )
         self.details_drawer: DetailsDrawer | None = None
         self.year_offset = 0
         self.today: date | None = None
@@ -3081,23 +3189,12 @@ class DynamicViewApp(App):
         self._last_inbox_check = datetime.min
         self._current_command_task: asyncio.Task | None = None
 
+    def _update_footer_color(self) -> None:
+        global FOOTER, DIM_STYLE
+        FOOTER = self.footer_color
+        DIM_STYLE = DIM_STYLE_LIGHT if self._theme == "light" else DIM_STYLE_DARK
+
     async def on_mount(self):
-        self.styles.background = "#373737"
-        try:
-            screen = self.screen
-            # screen.styles.background = "#2e2e2e"
-            screen.styles.background = "#373737 100%"
-            screen.styles.opacity = "100%"
-            # optional: explicitly make some known child widgets transparent
-            for sel in ("#list", "#main-list", "#details-list", "#table"):
-                try:
-                    w = screen.query_one(sel)
-                    w.styles.background = "#373737 100%"
-                    w.styles.opacity = "100%"
-                except Exception:
-                    pass
-        except Exception:
-            pass
         # open default screen
         self.action_show_agenda()
 

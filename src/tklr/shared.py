@@ -91,6 +91,36 @@ TYPE_TO_COLOR = {
     "B": ACTIVE_BIN,
 }
 
+_TYPE_COLOR_ALIASES = {
+    "event": "*",
+    "task": "~",
+    "available": "~",
+    "finished": "x",
+    "project": "^",
+    "waiting": "+",
+    "note": "%",
+    "pastdue": "<",
+    "notice": ">",
+    "goal": "!",
+    "draft": "?",
+    "bin": "b",
+    "active_bin": "B",
+}
+
+
+def _apply_type_color_overrides() -> None:
+    overrides = getattr(env.config.ui, "colors", {}) or {}
+    for key, value in overrides.items():
+        if not value:
+            continue
+        normalized = key.strip()
+        lookup = _TYPE_COLOR_ALIASES.get(normalized.lower(), normalized)
+        if lookup in TYPE_TO_COLOR:
+            TYPE_TO_COLOR[lookup] = value.strip()
+
+
+_apply_type_color_overrides()
+
 # class datetimeChar:
 #     VSEP = "⏐"  # U+23D0  this will be a de-emphasized color
 #     FREE = "─"  # U+2500  this will be a de-emphasized color
