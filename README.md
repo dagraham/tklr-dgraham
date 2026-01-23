@@ -468,10 +468,10 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
   <p> The <em>busy bar</em> underneath the header provides graphical illustration of the busy times for <em>events</em> during the week. The area under each weekday name has spaces for five blocks. The first (furthest to the left) will be colored orange if one or more <em>all day</em> events are scheduled for that day. The next four blocks correspond to the four 6-hour periods during the day beginning with 00:00 - 05:59 and ending with 18:00 - 23:59 - night, morning, afternoon and evening.
   </p>
-  <p>The block corresponding to a period will be green if the scheduled time for an event occupies any part of the period. E.g., a single event scheduled for 05:00 - 07:00 would cause both the first and second blocks for that day to be colored green. A block is changed from green to red if the busy periods for two or more events overlap and thus <em>conflict</em>. The red block for Tuesday, e.g., reflects the conflict during 11:00 - 11:15 by the events tagged <em>b</em> and <em>c</em>.
+  <p>The block corresponding to a period will be green if the scheduled time for an event occupies any part of the period. E.g., a single event scheduled for 05:00 - 07:00 would cause both the first and second blocks for that day to be colored green. A block is changed from green to red if the busy periods for two or more events overlap and thus <em>conflict</em>. The red block for Tuesday, e.g., reflects the conflict during the period 11:00 - 11:15 by the events tagged <em>b</em> and <em>c</em>.
   </p>
 
-  <p>Note that only <em>events</em> with an <em>extent</em> contribute to the <em>busy bar</em>. E.g., the <em>event</em> tagged <em>i</em> on Friday has no extent and thus no effect on the <em>busy bar</em> "morning" slot for that day.
+  <p>Note that only <em>events</em> with an <em>extent</em> contribute to the <em>busy bar</em>. E.g., the <em>event</em> tagged <em>i</em> on Friday has no extent and thus no effect on the <em>busy bar</em> "morning" slot for that day. Similarly, the <em>task</em> tagged <em>j</em> whose details are displayed, is scheduled for 10:15 - 11:15 and yet, being a task, also has no effect on Friday's "morning" slot.
   </p>
 
 </div>
