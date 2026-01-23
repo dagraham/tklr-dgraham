@@ -20,7 +20,7 @@ This introduction to *tklr* is best viewed at [GitHub.io](https://dagraham.githu
 
 <strong>This README is a work-in-progress. This notice will be removed when all the major sections have been completed.</strong>
 
-The [↩︎](#table-of-contents) links at the end of major sections lead back to this **expandable** *Table of Contents*. 
+The [↩︎](#table-of-contents) links at the end of major sections lead back to this **expandable** *Table of Contents*.
 
 <a id="table-of-contents"></a>
 <details>
@@ -30,15 +30,13 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
       <details>
         <summary><a href="#1-what-makes-tklr-different">1. What makes <em>tklr</em> different</a></summary>
         <ul>
-          <li><a href="#11-form-free-entry">1.1. Form-free entry</a></li>
-          <li><a href="#12-support-for-wide-variety-of-reminder-types">1.2. Support for wide variety of reminder types</a></li>
+          <li><a href="#11-form-free-entry">1.1. Form-Free entry</a></li>
+          <li><a href="#12-reminders-to-suit-the-purpose">1.2. Reminders to suit the purpose</a></li>
           <li><a href="#13-mouse-free-navigation">1.3. Mouse-Free navigation</a></li>
-          <li><a href="#14-what-you-need-to-know-now-agenda-view">1.4. What you need to know now: Agenda View</a></li>
-          <li><a href="#15-flagging-reminders-for-later-reference-bins-and-tags
-">1.5. Flagging reminders for later reference: Bins and Tags
-</a></li>
-          <li><a href="#16-whats-happening-weeks-view-and-friends">1.6 What's happening and when: Weeks View and Friends </a></li>
-          <li><a href="#17-wheres-waldo-query-and-find-views">1.7 Where's Waldo: Query and Find Views</a></li>
+          <li><a href="#14-agenda-view-your-daily-brief">1.4. Agenda View: Your daily brief</a></li>
+          <li><a href="#15-weeks-next-and-last-views-whats-happening-and-when">1.6. Weeks, Next and Last Views: What's happening and when</a></li>
+          <li><a href="#16-bins-and-tags-organizing-your-reminders">1.5. Bins and Tags: Organizing your reminders</a></li>
+          <li><a href="#17-query-and-find-views-where-did-i-put-waldo">1.7 Query and Find Views: Where did I put Waldo</a></li>
         </ul>
       </details>
       <details>
@@ -56,6 +54,7 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
           <li><a href="#210-timezones">2.10. Timezones</a></li>
           <li><a href="#211-urgency">2.11. Urgency</a></li>
           <li><a href="#212-priority">2.12. Priority</a></li>
+          <li><a href="#213-masked-information">2.13. Masked Information</a></li>
         </ul>
       </details>
       <details>
@@ -170,9 +169,9 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 
 [↩︎](#table-of-contents)
 
-### 1.2. Support for wide variety of reminder types
+### 1.2. Reminders to suit the purpose
 
-*tklr* has six item types, each with a corresponding type character:
+*tklr* has six types of reminders, each with a corresponding type character:
 
 | item type | character |
 | --------- | :-------: |
@@ -383,7 +382,7 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
 ### 1.3. Mouse-Free navigation
 
-Each of the main views in *tklr* can be opened by entering the first letter of the view's name.
+Each of the main views in *tklr* can be opened by pressing a single key - the first letter of the view's name.
 
 | View      |  Key  | Displays                                       |
 | --------- | :---: | ---------------------------------------------- |
@@ -404,7 +403,7 @@ Each of these views displays a vertical list of reminders, with each reminder ro
 
 *The view keys and the list tags are the key to navigating tklr.*
 
-On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. This is worth emphasizing. *You don't select a reminder with the cursor keys or the mouse and then press enter to see its details - just press the key corresponding to its tag.*
+On any page, pressing the key corresponding to a tag will open a display with all the details of the corresponding reminder. This is worth emphasizing. *You don't need the cursor keys or the mouse to select a reminder - just press the key corresponding to its tag.*
 
 When the details of reminder are being displayed, pressing `enter` will open a menu of various commands applicable to the selected reminder, pressing the key corresponding to the tag of another reminder will switch the details display to that reminder or pressing the upper case letter corresponding to another view will switch to that view.
 
@@ -416,18 +415,18 @@ Everything you might want to do to a reminder, to edit, finish, reschedule, dele
 
 [↩︎](#table-of-contents)
 
-### 1.4. What you need to know now: Agenda View
+### 1.4. Agenda View: Your daily brief
 
-The *Agenda view* displays
+*Agenda view* displays
 
-1. the next few days of <em>events</em> beginning with today
+1. The next few days of <em>events</em> beginning with today
 2. Active <em>goals</em> ordered by their *priority*
 3. Available <em>tasks</em> ordered by their *urgency*
 
 Times are displayed in the screenshots using _24-hour_ notation. An option can be set to display times using _am/pm_ notation instead.
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/agenda_screensh ot.svg"
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/agenda_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>While the listing of events begins with the current day, any all-day events or events whose ending times have already passed such as the one tagged <em>a</em> will be dimmed. Additionally an event, such as the one tagged <em>b</em> whose active period overlaps the current moment will be highlighted.
   </p>
@@ -456,10 +455,35 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 [↩︎](#table-of-contents)
 
+### 1.5 Weeks, Next and Last Views: What's happening and when
 
-### 1.5. Flagging reminders for later reference: Bins and Tags
+*Weeks View* is dedicated to displaying each instance of your scheduled reminders one week at a time with a *busy bar* at the top to show the busy days during the week at a glance followed by a day by day listing of the scheduled reminders.
 
-It will often be useful to *flag* a reminder so that it can *easily* be found later. *Tklr* provides two complementary methods:
+Two supporting views are limited to displayin a single instance of each scheduled reminder. *Next View*, bound to <code>N</code>, lists the *first* instance occurring on or after the current date in *ascending* order and *Last View*, bound to <code>L</code>, lists the most recent instance occurring *before* the current date in *descending* order. When did you last have your car serviced? *Last View* is the place to look. When is your next dental appointment? *Next View* has the answer.
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/weeks_screenshot.svg"
+alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+
+  <p>Press <em>W</em> to open the <em>Weeks View</em> on the current week or press <em>J</em> and enter a date to open the view on the week containing that date. The header displays the date range, year and week number for the displayed week. Left and right cursor keys shift the displayed week backward or forward by one week. Pressing the shift key at the same time increases the shift from one to four weeks. Pressing <code>J</code> and entering a date will jump to the week containing the date. Pressing the space key will jump back to the current week.
+  </p>
+
+  <p> The <em>busy bar</em> underneath the header provides graphical illustration of the busy times for <em>events</em> during the week. The area under each weekday name has spaces for five blocks. The first (furthest to the left) will be colored green if one or more <em>all day</em> events are scheduled for that day. The next four blocks correspond to the four 6-hour periods during the day beginning with 00:00 - 05:59 and ending with 18:00 - 23:59.
+  </p>
+  <p>The block corresponding to a period will be green if the scheduled time for an event occupies any part of the period. E.g., a single event scheduled for 05:00 - 07:00 would cause both the first and second blocks for that day to be colored green. A block is changed from green to red if the busy periods for two or more events overlap and thus <em>conflict</em>. The red block for Thursday, e.g., reflects the conflict during 19:30 - 20:00 by the events tagged <em>g</em> and <em>h</em>.
+  </p>
+
+  <p>Note that only <em>events</em> with an <em>extent</em> contribute to the <em>busy bar</em>. Tuesday, for example, shows no busy times despite two <em>tasks</em> being scheduled for that day. Similarly the <em>event</em> tagged <em>m</em> on Sunday has no extent and thus no effect on the <em>busy bar</em>.
+  </p>
+
+</div>
+<div style="clear: both;"></div>
+
+[↩︎](#table-of-contents)
+
+### 1.6. Bins and Tags: Organizing your reminders
+
+*Tklr* provides two complementary methods for organizing your reminders:
 
 <ol>
   <li>Using the attribute <code>@b</code> to attach the the name of a bin to a reminder and the related <em>Bins View</em></li>
@@ -467,7 +491,7 @@ It will often be useful to *flag* a reminder so that it can *easily* be found la
 </ol>
 
 
-#### 1.5.1 Bins
+#### 1.6.1 Bins
 
 The _Bins View_ displays a hierarchical, tree view of _bins_ and _reminders_.
 
@@ -537,7 +561,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 [↩︎](#table-of-contents)
 
 
-#### 1.5.2 Tags
+#### 1.6.2 Tags
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/tags_screenshot.svg"
@@ -551,33 +575,6 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 [↩︎](#table-of-contents)
 
-### 1.6 What's happening: Weeks View and Friends
-
-Scheduled reminders are those with an `@s` *scheduled* attribute. Such reminders can repeat because of  `@r` and/or `@+` attributes.
-
-*Weeks View* is dedicated to displaying each instance of these reminders one week at a time.
-
-*Friends*. Two related views are limited to listing a single instance of each scheduled reminder. *Next View*, bound to <code>N</code>, lists the *first* instance occurring on or after the current date in *ascending* order and *Last View*, bound to <code>L</code>, lists the most recent instance occurring *before* the current date in *descending* order. When did you last have your car serviced? *Last View* is the place to look. When is your next dental appointment? *Next View* has the answer.
-
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/weeks_screenshot.svg"
-alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-
-  <p>Press <em>W</em> to open the <em>Weeks View</em> on the current week or press <em>J</em> and enter a date to open the view on the week containing that date. The header displays the date range, year and week number for the displayed week. Left and right cursor keys shift the displayed week backward or forward by one week. Pressing the shift key at the same time increases the shift from one to four weeks. Pressing <code>J</code> and entering a date will jump to the week containing the date. Pressing the space key will jump back to the current week.
-  </p>
-
-  <p> The <em>busy bar</em> underneath the header provides graphical illustration of the busy times for <em>events</em> during the week. The area under each weekday name has spaces for five blocks. The first (furthest to the left) will be colored green if one or more <em>all day</em> events are scheduled for that day. The next four blocks correspond to the four 6-hour periods during the day beginning with 00:00 - 05:59 and ending with 18:00 - 23:59.
-  </p>
-  <p>The block corresponding to a period will be green if the scheduled time for an event occupies any part of the period. E.g., a single event scheduled for 05:00 - 07:00 would cause both the first and second blocks for that day to be colored green. A block is changed from green to red if the busy periods for two or more events overlap and thus <em>conflict</em>. The red block for Thursday, e.g., reflects the conflict during 19:30 - 20:00 by the events tagged <em>g</em> and <em>h</em>.
-  </p>
-
-  <p>Note that only <em>events</em> with an <em>extent</em> contribute to the <em>busy bar</em>. Tuesday, for example, shows no busy times despite two <em>tasks</em> being scheduled for that day. Similarly the <em>event</em> tagged <em>m</em> on Sunday has no extent and thus no effect on the <em>busy bar</em>.
-  </p>
-
-</div>
-<div style="clear: both;"></div>
-
-[↩︎](#table-of-contents)
 
 ### 1.7 Where's Waldo: Query and Find Views
 

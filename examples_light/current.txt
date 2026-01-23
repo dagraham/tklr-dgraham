@@ -1,4 +1,4 @@
-✅ Updated /Users/dag/Projects/tklr-uv/examples/config.toml with any missing defaults.
+🔔 No records with alerts found.
 ⚠️ No event DateTimes entries found.
 ⚠️ No data to aggregate.
 
