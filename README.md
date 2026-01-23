@@ -35,7 +35,7 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
           <li><a href="#13-mouse-free-navigation">1.3. Mouse-Free navigation</a></li>
           <li><a href="#14-agenda-view-your-daily-brief">1.4. Agenda View: Your daily brief</a></li>
           <li><a href="#15-weeks-next-and-last-views-whats-happening-and-when">1.6. Weeks, Next and Last Views: What's happening and when</a></li>
-          <li><a href="#16-bins-and-tags-organizing-your-reminders">1.5. Bins and Tags: Organizing your reminders</a></li>
+          <li><a href="#16-bins-and-tags-views-organizing-your-reminders">1.5. Bins and Tags: Organizing your reminders</a></li>
           <li><a href="#17-query-and-find-views-where-did-i-put-waldo">1.7 Query and Find Views: Where did I put Waldo</a></li>
         </ul>
       </details>
@@ -481,7 +481,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 [↩︎](#table-of-contents)
 
-### 1.6. Bins and Tags: Organizing your reminders
+### 1.6. Bins and Tags Views: Organizing your reminders
 
 *Tklr* provides two complementary methods for organizing your reminders:
 
@@ -491,7 +491,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 </ol>
 
 
-#### 1.6.1 Bins
+#### 1.6.1 Bins View
 
 The _Bins View_ displays a hierarchical, tree view of _bins_ and _reminders_.
 
@@ -561,7 +561,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 [↩︎](#table-of-contents)
 
 
-#### 1.6.2 Tags
+#### 1.6.2 Tags View
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/tags_screenshot.svg"
