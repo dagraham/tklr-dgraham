@@ -18,8 +18,6 @@
 
 This introduction to *tklr* is best viewed at [GitHub.io](https://dagraham.github.io/tklr-dgraham/) - *tklr* itself is available from [PyPi](https://pypi.org/project/tklr-dgraham/) and [GitHub](https://github.com/dagraham/tklr-dgraham) and further information at [Tklr Discussions](https://github.com/dagraham/tklr-dgraham/discussions).
 
-<strong>This README is a work-in-progress. This notice will be removed when all the major sections have been completed.</strong>
-
 The [↩︎](#table-of-contents) links at the end of major sections lead back to this **expandable** *Table of Contents*.
 
 <a id="table-of-contents"></a>
