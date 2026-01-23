@@ -35,7 +35,7 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
           <li><a href="#13-mouse-free-navigation">1.3. Mouse-Free navigation</a></li>
           <li><a href="#14-agenda-view-your-daily-brief">1.4. Agenda View: Your daily brief</a></li>
           <li><a href="#15-weeks-next-and-last-views-whats-happening-and-when">1.6. Weeks, Next and Last Views: What's happening and when</a></li>
-          <li><a href="#16-bins-and-tags-views-organizing-your-reminders">1.5. Bins and Tags: Organizing your reminders</a></li>
+          <li><a href="#16-bins-and-tags-views-organizing-your-reminders">1.5. Bins and Tags Views: Organizing your reminders</a></li>
           <li><a href="#17-query-and-find-views-where-did-i-put-waldo">1.7 Query and Find Views: Where did I put Waldo</a></li>
         </ul>
       </details>
