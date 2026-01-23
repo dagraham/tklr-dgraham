@@ -570,11 +570,13 @@ class Controller:
     def _apply_theme_colors(self) -> None:
         global label_color, type_color, HEADER_COLOR, at_color, am_color
         if self.ui_theme == "light":
-            label_color = "#1f4b7a"
-            type_color = "#1f1f1f"
+            # Use a warm accent that's still readable on light backgrounds.
+            accent = css_named_colors.get("darkgoldenrod", "#b8860b")
+            label_color = accent
+            type_color = accent
             HEADER_COLOR = "#1f4b7a"
-            at_color = "#1f4b7a"
-            am_color = "#a44700"
+            at_color = accent
+            am_color = accent
         else:
             label_color = css_named_colors["lightskyblue"]
             type_color = css_named_colors["goldenrod"]
@@ -1604,7 +1606,9 @@ class Controller:
 
         tokens, rruleset, created, modified = result[0]
 
-        highlight_tokens = self.ui_theme != "light"
+        # Preserve helpful highlighting even in the light theme; colors are adjusted earlier
+        # in _apply_theme_colors() so contrast remains readable.
+        highlight_tokens = True
         entry = format_tokens(tokens, self.width, highlight=highlight_tokens)
         entry = f"[bold {type_color}]{entry[0]}[/bold {type_color}]{entry[1:]}"
 

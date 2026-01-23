@@ -1,4 +1,3 @@
-🔔 No records with alerts found.
 ⚠️ No event DateTimes entries found.
 ⚠️ No data to aggregate.
 
