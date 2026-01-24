@@ -926,11 +926,21 @@ then it indicates the completion rate currently needed as a percentage of the or
 
 ### 2.13. Masked Information
 
-A <code>@m</code> attribute can be used to record information in a reminder that will be stored in an obfuscated format. Only someone running *tklr* with the *secret* from the configuration file used to create the entry will see the clear value. Useful for passwords, account numbers or whatever.
+A <code>@m</code> attribute can be used to record information in a reminder that will be stored in an obfuscated format. Only someone running *tklr* with the *secret* from the configuration file used to create the entry will see the clear value. Useful for passwords, account numbers, diary entries or whatever.
 
-### 2.14. Open with default
+For example, this entry:
+<pre>@m This is a masked entry - it should be readable in the details view of the UI but otherwise obfuscated.</pre>
+would be displayed in the SQLite3 database as
+<pre>{
+    "token": "@m wrnClsOSwprDmMKKwrrDnGTDiGTCpsK0w5_CnMOPwq9twr3DlMOEwrXDjMKDecKNw4_DqHHCqcOgw4jCp8Kuw45Rw4fDj3HDm8Kpw4jCqMKawrXDmMKWworCtMK7eMOawrjCqHPDh8Kxw6HDh8Odwr3CqcKYw4_Cm8Knw6FRw5TDkHHDncKsw4xkwo7CnMKMwpPDn8K_bcOHw5rCuMKow4XDmsK1w6DDi8KUw4DCmMOew47CpcKlw4vCpcOKw45_
+    "t": "@",
+    "k": "m",
+    "masked": true
+}</pre>
 
 [↩︎](#table-of-contents)
+
+### 2.14. Open with default
 
 A <code>@g</code> attribute can be used to enter a URL, file or whatever which can the be "opened" using your system default application by selecting the item and using the menu command "Open with default". Example entries:
 
@@ -946,6 +956,8 @@ A <code>@g</code> attribute can be used to enter a URL, file or whatever which c
   Open the SQLite3 file using the system default agent for <code>.db</code> files. (<em>SQLPro Studio</em>?)
 - File: <code>@g ~/Projects/tklr-uv/mouse_with_watch.png</code>
   Open the image file using the system default agent for <code>.png</code> files. (<em>Preview</em>?)
+
+Maybe an event involves a zoom meeting? Add an <code>@g</code> attribute with the URL for the meeting.
 
 [↩︎](#table-of-contents)
 

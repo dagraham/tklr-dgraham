@@ -341,6 +341,7 @@ notice = [
 
 items = [
     f"* {{XXX}} anniversary @s {five_years_ago()} @r y",
+    f"% masked entry @m This is a masked entry - it should be readable in the details view of the UI but otherwise obfuscated. @s {today_date}",
     f"* first of the month @d all day event @s {first_of_month}",
     f"* event in 2 days with 1d notice @s {in_two_days()} @n 1d",
     f"~ task in 5 days with 1w notice @s {in_five_days()} @n 1w",
