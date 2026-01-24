@@ -30,7 +30,7 @@ from rich.table import Table
 from rich.text import Text
 from rich.rule import Rule
 from rich.style import Style
-from textual.app import App, ComposeResult
+from textual.app import App, ComposeResult, ScreenStackError
 from textual.containers import Horizontal, Vertical, Grid
 from textual.geometry import Size
 from textual.reactive import reactive
@@ -3187,6 +3187,7 @@ class DynamicViewApp(App):
         (">", "next_match", "Next Match"),
         ("<", "previous_match", "Previous Match"),
         ("ctrl+z", "copy_search", "Copy Search"),
+        ("ctrl+u", "check_updates", "Check updates"),
         ("ctrl-b", "show_bin", "Bin"),
     ]
 
@@ -3229,12 +3230,7 @@ class DynamicViewApp(App):
         self.CSS_PATH = f"view_{self._theme}.css"
         super().__init__()
         self.controller = controller
-        if check_update_available(VERSION):
-            indicator = "\U0001D566"
-            footer_color = self.footer_color
-            self.update_indicator_text = (
-                f" [bold {footer_color}]{indicator}[/bold {footer_color}]"
-            )
+        self._apply_update_indicator(check_update_available(VERSION))
         self._update_footer_color()
         self.current_start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
@@ -3263,6 +3259,28 @@ class DynamicViewApp(App):
         FOOTER = self.footer_color
         DIM_STYLE = DIM_STYLE_LIGHT if self._theme == "light" else DIM_STYLE_DARK
 
+    def _apply_update_indicator(self, has_update: bool) -> None:
+        color = getattr(self, "footer_color", FOOTER)
+        self.update_indicator_text = (
+            f" [bold {color}]\U0001D566[/bold {color}]" if has_update else ""
+        )
+        self._refresh_footer_indicator()
+
+    def _refresh_footer_indicator(self) -> None:
+        try:
+            screen = self.screen
+        except ScreenStackError:
+            return
+        if screen is None:
+            return
+        try:
+            for footer in screen.query(FooterDisplay):
+                current = getattr(footer, "renderable", "")
+                if isinstance(current, str):
+                    footer.update(current)
+        except ScreenStackError:
+            return
+
     async def on_mount(self):
         # open default screen
         self.action_show_agenda()
@@ -3274,6 +3292,21 @@ class DynamicViewApp(App):
         self.set_interval(6, self.check_alerts)
         # Fallback guard: once per minute ensure we notice a missed day rollover.
         self.set_interval(60, self._daily_rollover_guard)
+
+    async def action_check_updates(self) -> None:
+        """Manually check PyPI for a newer release and refresh the footer indicator."""
+        loop = asyncio.get_running_loop()
+
+        def _check():
+            return check_update_available(VERSION)
+
+        self.notify("Checking for updates…", severity="info", timeout=1.5)
+        has_update = await loop.run_in_executor(None, _check)
+        self._apply_update_indicator(has_update)
+        if has_update:
+            self.notify("Update available on PyPI ✔︎", severity="warning", timeout=2.5)
+        else:
+            self.notify("Already up to date.", severity="info", timeout=2.0)
 
     def _return_focus_to_active_screen(self) -> None:
         screen = self.screen
