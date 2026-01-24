@@ -932,7 +932,11 @@ For example, this entry:
 <pre>@m This is a masked entry - it should be readable in the details view of the UI but otherwise obfuscated.</pre>
 would be displayed in the SQLite3 database as
 <pre>{
-    "token": "@m wrnClsOSwprDmMKKwrrDnGTDiGTCpsK0w5_CnMOPwq9twr3DlMOEwrXDjMKDecKNw4_DqHHCqcOgw4jCp8Kuw45Rw4fDj3HDm8Kpw4jCqMKawrXDmMKWworCtMK7eMOawrjCqHPDh8Kxw6HDh8Odwr3CqcKYw4_Cm8Knw6FRw5TDkHHDncKsw4xkwo7CnMKMwpPDn8K_bcOHw5rCuMKow4XDmsK1w6DDi8KUw4DCmMOew47CpcKlw4vCpcOKw45_
+    "token": "@m 
+    wrnClsOSwprDmMKKwrrDnGTDiGTCpsK0w5_CnMOPwq9twr3DlMOEwrXDjMKDecKNw4_Dq
+    HHCqcOgw4jCp8Kuw45Rw4fDj3HDm8Kpw4jCqMKawrXDmMKWworCtMK7eMOawrjCqHPDh8
+    Kxw6HDh8Odwr3CqcKYw4_Cm8Knw6FRw5TDkHHDncKsw4xkwo7CnMKMwpPDn8K_bcOHw5r
+    CuMKow4XDmsK1w6DDi8KUw4DCmMOew47CpcKlw4vCpcOKw45_
     "t": "@",
     "k": "m",
     "masked": true
