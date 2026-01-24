@@ -53,6 +53,7 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
           <li><a href="#211-urgency">2.11. Urgency</a></li>
           <li><a href="#212-priority">2.12. Priority</a></li>
           <li><a href="#213-masked-information">2.13. Masked Information</a></li>
+          <li><a href="#214-open-with-default">2.14. Open with default</a></li>
         </ul>
       </details>
       <details>
@@ -929,7 +930,20 @@ A <code>@m</code> attribute can be used to record information in a reminder that
 
 ### 2.14. Open with default
 
-A <code>@g</code> attribute can be used to enter a URL or a file path
+A <code>@g</code> attribute can be used to enter a URL, file or whatever which can the be "opened" using your system default application by selecting the item and using the menu command "Open with default". Example entries:
+
+- URL: <code>@g https://dagraham.github.io/tklr-dgraham/</code>
+  Open the URL in the default browser.
+- Mail: <code>@g mailto:dnlgrhm@gmail.com</code>
+  Open a new email to the provided address using the default email agent.
+- File: <code>@g ~/Projects/tklr-uv/README.md</code>
+  Open the markdown file using the system default agent for markdown files. (<em>Marked 2</em>?)
+- File: <code>@g ~/Projects/tklr-uv/make_items.py</code>
+  Open the markdown file using the system default agent for python files. (<em>Neovide</em>?)
+- File: <code>@g ~/Projects/tklr-uv/items/tklr.db</code>
+  Open the markdown file using the system default agent for SQLite3 files. (<em>SQLPro Studio</em>?)
+- File: <code>@g ~/Projects/tklr-uv/mouse_with_watch.png</code>
+  Open the image file using the system default agent for png files. (<em>Preview</em>?)
 
 [↩︎](#table-of-contents)
 

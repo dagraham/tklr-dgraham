@@ -270,7 +270,9 @@ in_one_week = (now + ONEWEEK).strftime("%Y-%m-%d")
 links = [
     f"* https link @s {today_date} 18h @g https://dagraham.github.io/tklr-dgraham/",
     f"* mailto link @s {today_date} 19h @g mailto:dnlgrhm@gmail.com",
-    f"* naked file link @s {today_date} 20h @g /Users/dag/Projects/tklr-uv/README.md",
+    f"* markdown file link @s {today_date} 20h @g /Users/dag/Projects/tklr-uv/README.md",
+    f"* sqlite file link @s {today_date} 20h @g /Users/dag/Projects/tklr-uv/items/tklr.db",
+    f"* png file link @s {today_date} 20h @g /Users/dag/Projects/tklr-uv/mouse_with_pocket_watch.png",
 ]
 
 busy = [
