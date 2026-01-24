@@ -1710,6 +1710,7 @@ class Controller:
         entry_text = ""
         try:
             tokens_list = json.loads(tokens_json)
+            tokens_list = reveal_mask_tokens(tokens_list, self.mask_secret)
             entry_text = " ".join(
                 tok.get("token", "").strip()
                 for tok in tokens_list

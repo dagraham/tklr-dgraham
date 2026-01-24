@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 # To test tklr
 import random
+import os
 
 from datetime import datetime, date, timedelta
 from rich import print
@@ -20,6 +21,8 @@ from dateutil.parser import parse
 
 ONEDAY = timedelta(days=1)
 ONEWEEK = timedelta(days=7)
+
+os.environ["TKLR_HOME"] = "/Users/dag/Projects/tklr-uv/items"
 
 
 # in_one_hour = (

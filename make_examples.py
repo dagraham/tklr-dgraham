@@ -3,6 +3,7 @@
 import random
 import shutil
 from pathlib import Path
+import os
 
 from datetime import datetime, timedelta
 from rich import print
@@ -19,6 +20,7 @@ from dateutil import rrule
 from dateutil.rrule import rruleset, rrulestr
 from dateutil.parser import parse
 
+os.environ["TKLR_HOME"] = "/Users/dag/Projects/tklr-uv/examples_dark"
 
 ONEDAY = timedelta(days=1)
 ONEWEEK = timedelta(days=7)
