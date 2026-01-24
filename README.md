@@ -939,11 +939,11 @@ A <code>@g</code> attribute can be used to enter a URL, file or whatever which c
 - File: <code>@g ~/Projects/tklr-uv/README.md</code>
   Open the markdown file using the system default agent for markdown files. (<em>Marked 2</em>?)
 - File: <code>@g ~/Projects/tklr-uv/make_items.py</code>
-  Open the markdown file using the system default agent for python files. (<em>Neovide</em>?)
+  Open the python file using the system default agent for <code>.py</code> files. (<em>Neovide</em>?)
 - File: <code>@g ~/Projects/tklr-uv/items/tklr.db</code>
-  Open the markdown file using the system default agent for SQLite3 files. (<em>SQLPro Studio</em>?)
+  Open the SQLite3 file using the system default agent for <code>.db</code> files. (<em>SQLPro Studio</em>?)
 - File: <code>@g ~/Projects/tklr-uv/mouse_with_watch.png</code>
-  Open the image file using the system default agent for png files. (<em>Preview</em>?)
+  Open the image file using the system default agent for <code>.png</code> files. (<em>Preview</em>?)
 
 [↩︎](#table-of-contents)
 
