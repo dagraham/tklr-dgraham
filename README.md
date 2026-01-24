@@ -930,6 +930,8 @@ A <code>@m</code> attribute can be used to record information in a reminder that
 
 ### 2.14. Open with default
 
+[↩︎](#table-of-contents)
+
 A <code>@g</code> attribute can be used to enter a URL, file or whatever which can the be "opened" using your system default application by selecting the item and using the menu command "Open with default". Example entries:
 
 - URL: <code>@g https://dagraham.github.io/tklr-dgraham/</code>
