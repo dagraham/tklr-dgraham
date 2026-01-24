@@ -3,6 +3,7 @@ from __future__ import annotations
 # import tklr
 import os
 import time
+import urllib.request
 
 import asyncio
 from pathlib import Path
@@ -124,6 +125,42 @@ FOOTER = FOOTER_DARK
 DIM_STYLE_DARK = "dim"
 DIM_STYLE_LIGHT = "#4a4a4a"
 DIM_STYLE = DIM_STYLE_DARK
+UPDATE_CHECK_PACKAGE = "tklr-dgraham"
+UPDATE_CHECK_TIMEOUT = 2.0
+
+
+def check_update_available(
+    current_version, package: str = UPDATE_CHECK_PACKAGE, timeout: float = UPDATE_CHECK_TIMEOUT
+) -> bool:
+    """
+    Query PyPI for the latest published version and return True when a newer
+    release is available. Failures are silent so the UI never blocks startup.
+    """
+    if os.environ.get("TKLR_SKIP_UPDATE_CHECK"):
+        return False
+
+    url = f"https://pypi.org/pypi/{package}/json"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
+            payload = json.load(response)
+    except Exception as exc:  # pragma: no cover - network best effort
+        log_msg(f"[update-check] Unable to reach PyPI: {exc}")
+        return False
+
+    latest_str = (payload.get("info") or {}).get("version")
+    if not latest_str:
+        return False
+
+    try:
+        latest_version = parse_version(latest_str)
+    except Exception as exc:
+        log_msg(f"[update-check] Invalid PyPI version '{latest_str}': {exc}")
+        return False
+
+    try:
+        return latest_version > current_version
+    except Exception:
+        return False
 
 # This one appears to be a Rich/Textual style string
 SELECTED_COLOR = "bold yellow"
@@ -324,6 +361,35 @@ class SafeScreen(Screen):
         if hasattr(self, "after_mount"):
             # Run a tiny delay to ensure all widgets are fully realized
             self.set_timer(0.01, self.after_mount)
+
+
+class FooterDisplay(Static):
+    """
+    Static footer widget that appends the update indicator when available.
+    """
+
+    def __init__(self, text: str, **kwargs):
+        kwargs.setdefault("id", "custom_footer")
+        super().__init__(text, **kwargs)
+
+    def _decorate(self, text: str) -> str:
+        app = getattr(self, "app", None)
+        suffix = getattr(app, "update_indicator_text", "") if app else ""
+        if suffix:
+            # Remove any previously-inserted indicator so we can keep it at the end.
+            sanitized = text.replace(suffix, "")
+            return f"{sanitized}{suffix}"
+        return text
+
+    def on_mount(self) -> None:
+        current = getattr(self, "renderable", None)
+        if isinstance(current, str):
+            super().update(self._decorate(current))
+
+    def update(self, renderable):
+        if isinstance(renderable, str):
+            renderable = self._decorate(renderable)
+        return super().update(renderable)
 
 
 class ListWithDetails(Container):
@@ -1566,7 +1632,7 @@ class HelpScreen(Screen):
                 bg_color=bg_color,
                 text_color=text_color,
             ),
-            Static(self._footer, id="custom_footer"),
+            FooterDisplay(self._footer),
             id="help_layout",
         )
 
@@ -1902,7 +1968,7 @@ class WeeksScreen(SearchableScreen, SafeScreen):
         self.app.detail_handler = self.list_with_details._detail_key_handler
         yield self.list_with_details
 
-        yield Static(self.footer_content, id="custom_footer")
+        yield FooterDisplay(self.footer_content)
 
     # Called once layout is up
     def after_mount(self) -> None:
@@ -2187,7 +2253,7 @@ class FullScreenList(SearchableScreen):
             self.app.make_detail_key_handler(view_name="next")
         )
         yield self.list_with_details
-        yield Static(self.footer_content, id="custom_footer")
+        yield FooterDisplay(self.footer_content)
 
     def on_mount(self) -> None:
         if self.list_with_details:
@@ -2274,7 +2340,7 @@ class TaggedHierarchyScreen(SearchableScreen):
         )
         yield self.list_with_details
 
-        yield Static(self.footer_content, id="custom_footer")
+        yield FooterDisplay(self.footer_content)
 
     # ----- Lifecycle -----
     def on_mount(self) -> None:
@@ -2845,7 +2911,7 @@ class QueryScreen(SearchableScreen, SafeScreen):
         )
         yield self.list_with_details
 
-        yield Static(self.footer_content, id="custom_footer")
+        yield FooterDisplay(self.footer_content)
 
     def after_mount(self) -> None:
         self._focus_query_input()
@@ -3147,6 +3213,7 @@ class DynamicViewApp(App):
         self.list_text_color = colors["list_text"]
         self.footer_color = colors["footer"]
         self.title_color = colors["title"]
+        self.update_indicator_text = ""
         if self._theme == "light":
             self.status_colors = {
                 "info": "#1f1f1f",
@@ -3162,6 +3229,12 @@ class DynamicViewApp(App):
         self.CSS_PATH = f"view_{self._theme}.css"
         super().__init__()
         self.controller = controller
+        if check_update_available(VERSION):
+            indicator = "\U0001D566"
+            footer_color = self.footer_color
+            self.update_indicator_text = (
+                f" [bold {footer_color}]{indicator}[/bold {footer_color}]"
+            )
         self._update_footer_color()
         self.current_start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
