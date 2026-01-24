@@ -56,25 +56,6 @@ yearfirst = true
 # 25 instead of 2025.
 two_digit_year = true
 
-[ui.colors]
-# Optional overrides for item-type colors used across the CLI/UI.
-# Keys may be the literal symbol ("*", "~", "%", etc.) or a friendly alias:
-#   event="*"
-#   task="~"
-#   finished="x"
-#   project="^"
-#   waiting="+"
-#   note="%"
-#   pastdue="<"
-#   notice=">"
-#   goal="!"
-#   draft="?"
-#   bin="b"
-#   active_bin="B"
-# Example:
-# "*" = "#32CD32"
-# "finished" = "#888888"
-
 [alerts]
 # dict[str, str]: character -> command_str.
 # E.g., this entry

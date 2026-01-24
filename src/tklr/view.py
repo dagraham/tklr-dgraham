@@ -397,7 +397,6 @@ class ListWithDetails(Container):
         # yield Static("", id="list-bg")
         bg_color = getattr(self.app, "list_bg_color", "#373737")
         text_color = getattr(self.app, "list_text_color", None)
-        bug_msg(f"ListWithDetails composing with text_color={text_color}")
         self._main = ScrollableList(
             [], id="main-list", bg_color=bg_color, text_color=text_color
         )
@@ -1636,7 +1635,6 @@ class ScrollableList(ScrollView):
         self.search_term: Optional[str] = None
         self.matches: List[int] = []
         self.current_match_idx: int = -1
-        bug_msg(f"ScrollableList {self._text_color = }")
 
     def on_mount(self):
         self._apply_background_styles()
@@ -1741,7 +1739,6 @@ class ScrollableList(ScrollView):
         segments = Segment.adjust_line_length(
             segments, self.size.width, style=self.row_bg
         )
-        bug_msg(f"{segments = }")
         return Strip(segments, self.size.width)
 
 
@@ -3838,7 +3835,6 @@ class DynamicViewApp(App):
             self.update_table_and_list()
             return
         if self.view == "agenda":
-            bug_msg(f"Refreshing agenda view for new day")
             self.action_show_agenda()
             return
 
@@ -4475,6 +4471,7 @@ class DynamicViewApp(App):
 
         # Finally, delegate to your OS opener
         try:
+            bug_msg(f"Opening {goto_value = } with default application...")
             open_with_default(goto_value)
         except Exception as e:
             self.notify(f"Failed to open {goto_value!r}: {e}", severity="error")

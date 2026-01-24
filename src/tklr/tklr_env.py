@@ -26,7 +26,6 @@ class UIConfig(BaseModel):
     history_weight: int = 3
     agenda_days: int = Field(3, ge=1)
     current_command: str = ""
-    colors: dict[str, str] = Field(default_factory=dict)
 
 
 class DueConfig(BaseModel):
@@ -170,25 +169,6 @@ yearfirst = {{ ui.yearfirst | lower }}
 # If true, years are displayed using the last two digits, e.g.,
 # 25 instead of 2025.
 two_digit_year = {{ ui.two_digit_year | lower }}
-
-[ui.colors]
-# Optional overrides for item-type colors used across the CLI/UI.
-# Keys may be the literal symbol ("*", "~", "%", etc.) or a friendly alias:
-#   event="*"
-#   task="~"
-#   finished="x"
-#   project="^"
-#   waiting="+"
-#   note="%"
-#   pastdue="<"
-#   notice=">"
-#   goal="!"
-#   draft="?"
-#   bin="b"
-#   active_bin="B"
-# Example:
-# "*" = "#32CD32"
-# "finished" = "#888888"
 
 [alerts]
 # dict[str, str]: character -> command_str.

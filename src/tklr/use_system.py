@@ -1,15 +1,37 @@
-import os
-import sys
-import platform
-import subprocess
 import contextlib
 import io
+import os
+import platform
+import subprocess
+import sys
 from importlib import resources
 from pathlib import Path
+from typing import Union
+from urllib.parse import urlparse
 
 
-def open_with_default(path: Path) -> None:
-    path = Path(path).expanduser().resolve()
+def _looks_like_url(target: str) -> bool:
+    parsed = urlparse(target)
+    if not parsed.scheme:
+        return False
+    if parsed.netloc:
+        return True
+    return parsed.scheme in {"mailto", "tel"}
+
+
+def open_with_default(target: Union[str, Path]) -> None:
+    """
+    Launch the target (file/path or URL) with the OS default handler.
+    """
+    if isinstance(target, Path):
+        command_target = str(target.expanduser().resolve())
+    else:
+        raw = target.strip()
+        if _looks_like_url(raw):
+            command_target = raw
+        else:
+            command_target = str(Path(raw).expanduser().resolve())
+
     system = platform.system()
     # Redirect stderr to capture any “Exception ignored” warnings
     output = io.StringIO()
@@ -17,22 +39,22 @@ def open_with_default(path: Path) -> None:
         try:
             if system == "Darwin":
                 subprocess.Popen(
-                    ["open", str(path)],
+                    ["open", command_target],
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
             elif system == "Windows":
-                os.startfile(str(path))
+                os.startfile(command_target)  # type: ignore[arg-type]
             else:
                 subprocess.Popen(
-                    ["xdg-open", str(path)],
+                    ["xdg-open", command_target],
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
         except Exception as e:
-            print(f"Error opening {path}: {e}", file=sys.stderr)
+            print(f"Error opening {command_target}: {e}", file=sys.stderr)
 
         res = output.getvalue()
         if res:

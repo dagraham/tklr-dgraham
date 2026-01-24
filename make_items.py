@@ -267,6 +267,12 @@ in_one_week = (now + ONEWEEK).strftime("%Y-%m-%d")
 # type, name, details, rrulestr, extent, alerts, location
 
 
+links = [
+    f"* https link @s {today_date} 18h @g https://dagraham.github.io/tklr-dgraham/",
+    f"* mailto link @s {today_date} 19h @g mailto:dnlgrhm@gmail.com",
+    f"* naked file link @s {today_date} 20h @g /Users/dag/Projects/tklr-uv/README.md",
+]
+
 busy = [
     f"* all-day yesterday @d all day event @s {yesterday_date}",
     f"* all-day today @d all day event @s {today_date}",
@@ -423,7 +429,7 @@ while len(items) < num_items:
 id = 0
 # for entry in items:  # + alerts:
 # for entry in busy + items:
-for entry in items + bins + finish + goals + notice + alerts + sixpm + busy:
+for entry in items + bins + finish + goals + links + notice + alerts + sixpm + busy:
     id += 1
     try:
         item = Item(raw=entry, env=env, final=True, controller=ctrl)  # .to_dict()

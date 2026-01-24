@@ -927,9 +927,9 @@ then it indicates the completion rate currently needed as a percentage of the or
 
 A <code>@m</code> attribute can be used to record information in a reminder that will be stored in an obfuscated format. Only someone running *tklr* with the *secret* from the configuration file used to create the entry will see the clear value. Useful for passwords, account numbers or whatever.
 
-### 2.14. Open with default links
+### 2.14. Open with default
 
-A <code>@g</code> attribute can be used to enter a URL or a file path 
+A <code>@g</code> attribute can be used to enter a URL or a file path
 
 [↩︎](#table-of-contents)
 
