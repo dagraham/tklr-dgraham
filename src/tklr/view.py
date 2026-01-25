@@ -1130,7 +1130,7 @@ class EditorScreen(Screen):
     """
 
     BINDINGS = [
-        ("shift+enter", "save_and_close", "Commit"),
+        ("ctrl+enter", "save_and_close", "Commit"),
         ("escape", "close", "Back"),
     ]
 
@@ -1166,7 +1166,7 @@ class EditorScreen(Screen):
         with Vertical(id="ed_prompt"):
             instructions = [
                 "Edit the entry below as desired, then press",
-                f"[bold {FOOTER}]Shift+Enter[/bold {FOOTER}] to save or [bold {FOOTER}]Esc[/bold {FOOTER}] to cancel",
+                f"[bold {FOOTER}]Ctrl+Enter[/bold {FOOTER}] to save or [bold {FOOTER}]Esc[/bold {FOOTER}] to cancel",
             ]
             self._instructions = Static("\n".join(instructions), id="ed_instructions")
             self._feedback = Static("", id="ed_feedback")
