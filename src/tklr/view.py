@@ -147,7 +147,9 @@ def check_update_available(
 
     url = f"https://pypi.org/pypi/{package}/json"
     try:
-        with urllib.request.urlopen(url, timeout=timeout, context=_TLS_CONTEXT) as response:
+        with urllib.request.urlopen(
+            url, timeout=timeout, context=_TLS_CONTEXT
+        ) as response:
             payload = json.load(response)
     except Exception as exc:  # pragma: no cover - network best effort
         log_msg(f"[update-check] Unable to reach PyPI: {exc}")
@@ -373,32 +375,53 @@ class SafeScreen(Screen):
 
 
 class FooterDisplay(Static):
-    """
-    Static footer widget that appends the update indicator when available.
-    """
+    """Primary footer text block used in dialogs/modals."""
 
     def __init__(self, text: str, **kwargs):
+        self._base_text = text
         kwargs.setdefault("id", "custom_footer")
         super().__init__(text, **kwargs)
 
-    def _decorate(self, text: str) -> str:
-        app = getattr(self, "app", None)
-        suffix = getattr(app, "update_indicator_text", "") if app else ""
-        if suffix:
-            # Remove any previously-inserted indicator so we can keep it at the end.
-            sanitized = text.replace(suffix, "")
-            return f"{sanitized}{suffix}"
-        return text
+    def update(self, renderable):
+        if isinstance(renderable, str):
+            self._base_text = renderable
+        return super().update(renderable)
 
-    def on_mount(self) -> None:
-        current = getattr(self, "renderable", None)
-        if isinstance(current, str):
-            super().update(self._decorate(current))
+
+class FooterNoticeBar(Static):
+    """Footer with main text on the left and an indicator on the right."""
+
+    def __init__(self, text: str, **kwargs):
+        self._text = text
+        kwargs.setdefault("id", "custom_footer")
+        super().__init__("", **kwargs)
+        self.can_focus = False
+
+    def _build_renderable(self) -> Table:
+        indicator = ""
+        app = getattr(self, "app", None)
+        if app:
+            indicator = getattr(app, "update_indicator_text", "") or ""
+        table = Table.grid(padding=(0, 0), expand=True)
+        table.add_column(ratio=1)
+        table.add_column(no_wrap=True, justify="right")
+        table.add_row(
+            Text.from_markup(self._text),
+            Text.from_markup(indicator) if indicator else Text(""),
+        )
+        return table
 
     def update(self, renderable):
         if isinstance(renderable, str):
-            renderable = self._decorate(renderable)
+            self._text = renderable
+            renderable = self._build_renderable()
         return super().update(renderable)
+
+    def on_mount(self) -> None:
+        self.update(self._build_renderable())
+
+    def refresh_indicator(self) -> None:
+        self.update(self._build_renderable())
 
 
 class ListWithDetails(Container):
@@ -1977,7 +2000,7 @@ class WeeksScreen(SearchableScreen, SafeScreen):
         self.app.detail_handler = self.list_with_details._detail_key_handler
         yield self.list_with_details
 
-        yield FooterDisplay(self.footer_content)
+        yield FooterNoticeBar(self.footer_content)
 
     # Called once layout is up
     def after_mount(self) -> None:
@@ -2262,7 +2285,7 @@ class FullScreenList(SearchableScreen):
             self.app.make_detail_key_handler(view_name="next")
         )
         yield self.list_with_details
-        yield FooterDisplay(self.footer_content)
+        yield FooterNoticeBar(self.footer_content)
 
     def on_mount(self) -> None:
         if self.list_with_details:
@@ -3283,10 +3306,8 @@ class DynamicViewApp(App):
         if screen is None:
             return
         try:
-            for footer in screen.query(FooterDisplay):
-                current = getattr(footer, "renderable", "")
-                if isinstance(current, str):
-                    footer.update(current)
+            for bar in screen.query(FooterNoticeBar):
+                bar.refresh_indicator()
         except ScreenStackError:
             return
 
