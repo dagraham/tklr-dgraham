@@ -74,6 +74,7 @@ from dataclasses import dataclass
 import json
 
 from .query import QueryMatch, QueryError
+from tklr.tklr_env import collapse_home
 
 
 tklr_version = get_version()
@@ -224,8 +225,14 @@ def _make_rows(lines: list[str]) -> list[str]:
     return new_lines
 
 
-HelpText = f"""\
-[bold][{TITLE_COLOR}]tklr {VERSION}[/{TITLE_COLOR}][/bold]
+def build_help_text(home: str | None = None) -> list[str]:
+    home_suffix = f" — {home}" if home else ""
+    text = f"""\
+[bold][{TITLE_COLOR}]tklr {VERSION}{home_suffix}[/{TITLE_COLOR}][/bold]
+The current version of tklr is given above. When
+a newer version is available, a "[bold]𝕦[/bold]" will appear
+in the footer area of the main views. You can check
+for updates at any time by pressing [bold]^U[/bold].
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
 [bold]^Q[/bold]    Quit               [bold]^S[/bold]    Screenshot
 [bold] +[/bold]    New Reminder       [bold] Y[/bold]    Yearly Calendar
@@ -259,7 +266,9 @@ HelpText = f"""\
    or enter nothing to clear search highlighting.
  While search is active, press "[bold]<[/bold]" and "[bold]>[/bold]"
    to step through matches.
-""".splitlines()
+"""
+    return text.splitlines()
+
 
 QueryHelpText = f"""\
 [bold][{TITLE_COLOR}]Query Builder[{TITLE_COLOR}][/bold]
@@ -4468,7 +4477,16 @@ class DynamicViewApp(App):
         elif self.view == "query":
             self.push_screen(HelpScreen(QueryHelpText))
         else:
-            self.push_screen(HelpScreen(HelpText))
+            env = getattr(self.controller, "env", None)
+            home_display = None
+            if env is not None:
+                home_path = getattr(env, "home", None)
+                if home_path:
+                    try:
+                        home_display = collapse_home(home_path)
+                    except Exception:
+                        home_display = str(home_path)
+            self.push_screen(HelpScreen(build_help_text(home_display)))
 
     def action_detail_edit(self):
         self._dispatch_detail_key("/e")
