@@ -1131,7 +1131,7 @@ class EditorScreen(Screen):
 
     BINDINGS = [
         ("ctrl+enter", "save_and_close", "Commit"),
-        ("escape", "close", "Back"),
+        ("ctrl+escape", "close", "Back"),
     ]
 
     def __init__(
@@ -1166,7 +1166,7 @@ class EditorScreen(Screen):
         with Vertical(id="ed_prompt"):
             instructions = [
                 "Edit the entry below as desired, then press",
-                f"[bold {FOOTER}]Ctrl+Enter[/bold {FOOTER}] to save or [bold {FOOTER}]Esc[/bold {FOOTER}] to cancel",
+                f"[bold {FOOTER}]Ctrl+Enter[/bold {FOOTER}] to save or [bold {FOOTER}]Ctrl+Esc[/bold {FOOTER}] to cancel",
             ]
             self._instructions = Static("\n".join(instructions), id="ed_instructions")
             self._feedback = Static("", id="ed_feedback")
@@ -3334,9 +3334,13 @@ class DynamicViewApp(App):
         has_update = await loop.run_in_executor(None, _check)
         self._apply_update_indicator(has_update)
         if has_update:
-            self.notify("Update available on PyPI ✔︎", severity="warning", timeout=2.5)
+            self.notify("Update available on PyPI ✔︎", severity="warning", timeout=3.0)
         else:
-            self.notify("Already up to date.", severity="info", timeout=2.0)
+            self.notify(
+                f"The installed version, {VERSION}, is the latest available.",
+                severity="info",
+                timeout=3.0,
+            )
 
     def _return_focus_to_active_screen(self) -> None:
         screen = self.screen
