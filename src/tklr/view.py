@@ -231,8 +231,8 @@ def build_help_text(home: str | None = None) -> list[str]:
 [bold][{TITLE_COLOR}]tklr {VERSION}{home_suffix}[/{TITLE_COLOR}][/bold]
 The current version of tklr is given above. When
 a newer version is available, a "[bold]𝕦[/bold]" will appear
-in the footer area of the main views. You can check
-for updates at any time by pressing [bold]^U[/bold].
+in the footer area of the main views. You can also
+check for updates manually by pressing [bold]^U[/bold].
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
 [bold]^Q[/bold]    Quit               [bold]^S[/bold]    Screenshot
 [bold] +[/bold]    New Reminder       [bold] Y[/bold]    Yearly Calendar
