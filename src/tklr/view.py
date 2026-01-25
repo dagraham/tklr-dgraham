@@ -130,12 +130,15 @@ UPDATE_CHECK_TIMEOUT = 2.0
 
 
 def check_update_available(
-    current_version, package: str = UPDATE_CHECK_PACKAGE, timeout: float = UPDATE_CHECK_TIMEOUT
+    current_version,
+    package: str = UPDATE_CHECK_PACKAGE,
+    timeout: float = UPDATE_CHECK_TIMEOUT,
 ) -> bool:
     """
     Query PyPI for the latest published version and return True when a newer
     release is available. Failures are silent so the UI never blocks startup.
     """
+    bug_msg(f"[update-check] Current version: {current_version}")
     if os.environ.get("TKLR_SKIP_UPDATE_CHECK"):
         return False
 
@@ -148,11 +151,13 @@ def check_update_available(
         return False
 
     latest_str = (payload.get("info") or {}).get("version")
+    bug_msg(f"[update-check] Latest version string from PyPI: {latest_str}")
     if not latest_str:
         return False
 
     try:
         latest_version = parse_version(latest_str)
+        bug_msg(f"[update-check] Latest version on PyPI: {latest_version = }")
     except Exception as exc:
         log_msg(f"[update-check] Invalid PyPI version '{latest_str}': {exc}")
         return False
@@ -161,6 +166,7 @@ def check_update_available(
         return latest_version > current_version
     except Exception:
         return False
+
 
 # This one appears to be a Rich/Textual style string
 SELECTED_COLOR = "bold yellow"
@@ -3262,7 +3268,7 @@ class DynamicViewApp(App):
     def _apply_update_indicator(self, has_update: bool) -> None:
         color = getattr(self, "footer_color", FOOTER)
         self.update_indicator_text = (
-            f" [bold {color}]\U0001D566[/bold {color}]" if has_update else ""
+            f" [bold {color}]\U0001d566[/bold {color}]" if has_update else ""
         )
         self._refresh_footer_indicator()
 
