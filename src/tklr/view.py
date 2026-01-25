@@ -4,6 +4,8 @@ from __future__ import annotations
 import os
 import time
 import urllib.request
+import ssl
+import certifi
 
 import asyncio
 from pathlib import Path
@@ -127,6 +129,7 @@ DIM_STYLE_LIGHT = "#4a4a4a"
 DIM_STYLE = DIM_STYLE_DARK
 UPDATE_CHECK_PACKAGE = "tklr-dgraham"
 UPDATE_CHECK_TIMEOUT = 2.0
+_TLS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
 
 def check_update_available(
@@ -144,7 +147,7 @@ def check_update_available(
 
     url = f"https://pypi.org/pypi/{package}/json"
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:
+        with urllib.request.urlopen(url, timeout=timeout, context=_TLS_CONTEXT) as response:
             payload = json.load(response)
     except Exception as exc:  # pragma: no cover - network best effort
         log_msg(f"[update-check] Unable to reach PyPI: {exc}")
