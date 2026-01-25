@@ -3941,6 +3941,7 @@ class DynamicViewApp(App):
         self.controller.new_day()
         self.controller.populate_alerts()
         self.controller.populate_notice()
+        self._apply_update_indicator(check_update_available(VERSION))
         if not refresh:
             return
 
