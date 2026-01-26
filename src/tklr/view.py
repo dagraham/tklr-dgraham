@@ -118,6 +118,13 @@ SELECTED_BACKGROUND = "#dcdcdc"
 MATCH_COLOR = GOLD
 TITLE_COLOR = CORNSILK
 BIN_COLOR = TOMATO
+
+# SCREENSHOT_BINDING = "ctrl+shift+s"
+SCREENSHOT_BINDING = "ctrl+r"
+SAVE_BINDING = "ctrl+s"
+SAVE_LABEL = "^s"
+CANCEL_BINDING = "ctrl+escape"
+CANCEL_LABEL = "^esc"
 NOTE_COLOR = DARK_SALMON
 NOTICE_COLOR = GOLD
 
@@ -230,11 +237,12 @@ def build_help_text(home: str | None = None) -> list[str]:
     text = f"""\
 [bold][{TITLE_COLOR}]tklr {VERSION}{home_suffix}[/{TITLE_COLOR}][/bold]
 The current version of tklr is given above. When
-a newer version is available, a "[bold]𝕦[/bold]" will appear
+a newer version is available, a "𝕦" will appear
 in the footer area of the main views. You can also
-check for updates manually by pressing [bold]^U[/bold].
+check for updates manually by pressing [bold]^u[/bold], i.e.,
+pressing [bold]control[/bold] and [bold]u[/bold] simultaneously.
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
-[bold]^Q[/bold]    Quit               [bold]^S[/bold]    Screenshot
+[bold]^q[/bold]    Quit               [bold]^r[/bold]    Record Screenshot
 [bold] +[/bold]    New Reminder       [bold] Y[/bold]    Yearly Calendar
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
  [bold]A[/bold]    Agenda              [bold]M[/bold]    Modified
@@ -765,7 +773,7 @@ class OptionPrompt(ModalScreen[Optional[str]]):
     """
 
     BINDINGS = [
-        ("ctrl+s", "take_screenshot", "Take Screenshot"),
+        (SCREENSHOT_BINDING, "take_screenshot", "Take Screenshot"),
     ]
 
     def __init__(self, message: str, options: Sequence[Union[str, tuple[str, str]]]):
@@ -831,7 +839,7 @@ class OptionPrompt(ModalScreen[Optional[str]]):
 
     def on_key(self, event: events.Key) -> None:
         """Only handle ESC here; OptionList handles Enter itself."""
-        if (event.key or "").lower() == "ctrl+s":
+        if (event.key or "").lower() == SCREENSHOT_BINDING:
             self.action_take_screenshot()
             event.stop()
             return
@@ -892,7 +900,7 @@ class OptionPrompt(ModalScreen[Optional[str]]):
         self._hotkey_map = hotkeys
 
     def action_take_screenshot(self) -> None:
-        """Delegate Ctrl+S to the main app so screenshots work inside the menu."""
+        """Delegate the screenshot binding to the main app so it works inside the menu."""
         app = getattr(self, "app", None)
         if app and hasattr(app, "action_take_screenshot"):
             app.action_take_screenshot()
@@ -1139,8 +1147,8 @@ class EditorScreen(Screen):
     """
 
     BINDINGS = [
-        ("ctrl+enter", "save_and_close", "Commit"),
-        ("ctrl+escape", "close", "Back"),
+        (SAVE_BINDING, "save_and_close", "Save"),
+        (CANCEL_BINDING, "close", "Back"),
     ]
 
     def __init__(
@@ -1175,7 +1183,10 @@ class EditorScreen(Screen):
         with Vertical(id="ed_prompt"):
             instructions = [
                 "Edit the entry below as desired, then press",
-                f"[bold {FOOTER}]Ctrl+Enter[/bold {FOOTER}] to save or [bold {FOOTER}]Ctrl+Esc[/bold {FOOTER}] to cancel",
+                (
+                    f"[bold {FOOTER}]{SAVE_LABEL}[/bold {FOOTER}] to save"
+                    f" or [bold {FOOTER}]{CANCEL_LABEL}[/bold {FOOTER}] to cancel"
+                ),
             ]
             self._instructions = Static("\n".join(instructions), id="ed_instructions")
             self._feedback = Static("", id="ed_feedback")
@@ -3203,7 +3214,7 @@ class DynamicViewApp(App):
         ("space", "current_period", ""),
         ("shift+left", "previous_period", ""),
         ("shift+right", "next_period", ""),
-        ("ctrl+s", "take_screenshot", "Take Screenshot"),
+        (SCREENSHOT_BINDING, "take_screenshot", "Take Screenshot"),
         ("escape", "close_details", "Close details"),
         ("R", "show_alerts", "Show Alerts"),
         ("A", "show_agenda", "Show Agenda"),
@@ -3748,39 +3759,6 @@ class DynamicViewApp(App):
             if key == "ENTER":
                 show_action_menu()
                 return
-
-            # ---------- ,f : FINISH ----------
-            if key == "comma,f" and itemtype in "~^!":
-                finish_item()
-            # ---------- ,e : EDIT ----------
-            elif key == "comma,e":
-                edit_item()
-            # ---------- ,c : CLONE ----------
-            elif key == "comma,c":
-                clone_item()
-            # ---------- ,d : DELETE ----------
-            elif key == "comma,d":
-                delete_item()
-            # ---------- ,n : SCHEDULE NEW INSTANCE ----------
-            elif key == "comma,n":
-                schedule_new_instance()
-            # ---------- ,r : RESCHEDULE INSTANCE ----------
-            elif key == "comma,r":
-                reschedule_item()
-            # ---------- ,g : GOTO (open_with_default) ----------
-            elif key == "comma,g":
-                goto_item()
-            # ---------- ,t : TOUCH ----------
-            elif key == "comma,t":
-                touch_item()
-            # ---------- ,p : PIN / UNPIN ----------
-            elif key == "comma,p" and itemtype == "~":
-                toggle_pin()
-            elif key == "comma,h":
-                show_completions()
-            # keep ctrl+r for repetitions
-            elif key == "ctrl+r" and has_rrule:
-                show_repetitions()
 
         return handler
 
