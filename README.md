@@ -54,6 +54,7 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
           <li><a href="#212-priority">2.12. Priority</a></li>
           <li><a href="#213-masked-information">2.13. Masked Information</a></li>
           <li><a href="#214-open-with-default">2.14. Open with default</a></li>
+          <li><a href="#215-away-from-your-computer-use-the-cloud">2.15. Away from your computer? Use the cloud</a></li>
         </ul>
       </details>
       <details>
@@ -975,7 +976,7 @@ With this entry in <em>config.toml></em> in your home directory:
 
 <code>current_command = "!tklr agenda --width 46"</code>
 
-<em>tklr</em> will automatically output the result of the <code>agenda</code> command to the file <em>current.txt</em> in your home directory, creating the file if necessary and otherwise overwriting it whenever it needs to be updated. With a link to your home directory in <em>iCloud</em>, your agenda, trimmed to 46 characters to fit comfortably on your <em>iPhone</em> screen in portrait mode, will always be available to you. The application <em>Textastic</em> is ideal for displaying monospaced output such as this and is designed to work well with <em>iCloud</em>.
+<em>tklr</em> will automatically output the result of the <code>agenda</code> command to the file <em>current.txt</em> in your home directory, creating the file if necessary and otherwise overwriting it whenever it needs to be updated. With a link to your home directory in <em>iCloud</em>, your agenda, trimmed to 46 characters to fit comfortably on your <em>iPhone</em> screen in portrait mode, will always be available to you. The same approach could be used with <code>weeks</code>, <code>days</code> or any other <em>tklr</em> command. The application <em>Textastic</em> is ideal for displaying monospaced output such as this and is designed to work well with <em>iCloud</em>.
 
 #### 2.15.2. To record reminders
 
