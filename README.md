@@ -932,7 +932,7 @@ For example, this entry:
 <pre>@m This is a masked entry - it should be readable in the details view of the UI but otherwise obfuscated.</pre>
 would be displayed in the SQLite3 database as
 <pre>{
-    "token": "@m 
+    "token": "@m
     wrnClsOSwprDmMKKwrrDnGTDiGTCpsK0w5_CnMOPwq9twr3DlMOEwrXDjMKDecKNw4_Dq
     HHCqcOgw4jCp8Kuw45Rw4fDj3HDm8Kpw4jCqMKawrXDmMKWworCtMK7eMOawrjCqHPDh8
     Kxw6HDh8Odwr3CqcKYw4_Cm8Knw6FRw5TDkHHDncKsw4xkwo7CnMKMwpPDn8K_bcOHw5r
@@ -964,6 +964,22 @@ A <code>@g</code> attribute can be used to enter a URL, file or whatever which c
 Maybe an event involves a zoom meeting? Add an <code>@g</code> attribute with the URL for the meeting.
 
 [↩︎](#table-of-contents)
+
+### 2.15. Away from your computer? Use the cloud
+
+There are two ways in which *tklr* supports remote usage through the the <em>cloud</em>. The examples here involve the use of <em>iCloud</em>, an <em>iPhone</em> and an app called <em>Textastic</em>, but these are just examples and a similar setup could be made using, e.g., <em>Google Drive</em>.
+
+#### 2.15.1. To access to your schedule
+
+With this entry in <em>config.toml></em> in your home directory:
+
+<code>current_command = "!tklr agenda --width 46"</code>
+
+<em>tklr</em> will automatically output the result of the <code>agenda</code> command to the file <em>current.txt</em> in your home directory, creating the file if necessary and otherwise overwriting it whenever it needs to be updated. With a link to your home directory in <em>iCloud</em>, your agenda, trimmed to 46 characters to fit comfortably on your <em>iPhone</em> screen in portrait mode, will always be available to you. The application <em>Textastic</em> is ideal for displaying monospaced output such as this and is designed to work well with <em>iCloud</em>.
+
+#### 2.15.2. To record reminders
+
+The key here is another file, <em>inbox.txt</em> in your home directory. Normally this file has zero length, but if you edit it using, say, <em>Textastic</em> and record one or more reminders using exacly the same format that you would use with <em>tklr</em> and being careful to leave a blank line between reminders, then the next time <em>tklr</em> checks the length of this file and notices that it is greater than zero, it will import each of the reminders, prefixing each with a <code>?</code> character so that it will be treated as a <em>draft</em> reminder until you remove the <code>?</code> prefix.  During this process, the reminders are automatically removed from <em>inbox.txt</em> so its length will be restored to zero when the process ends. The, when you next open <em>tklr</em>, you can make any edits you like to each of the "drafts" while removing its <code>?</code> prefix - they will all be list together on the current day of the events listing in <em>Agenda View</em>.
 
 ## 3. Getting Started
 
