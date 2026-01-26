@@ -126,7 +126,7 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-f.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
-<i>Fuzzy parsing</i> is supported for entering dates or datetimes in <i>tklr</i>. Since it was January 25, 2026 when this entry was made, the interpretation is that <code>12p</code> means 12:00pm on Jan 25.
+<i>Fuzzy parsing</i> is supported for entering dates or datetimes in <i>tklr</i>. Since it was January 26, 2026 when this entry was made, the interpretation is that <code>12p</code> means 12:00pm on Jan 26.
   </p>
 </div>
 <div style="clear: both;"></div>
@@ -134,7 +134,7 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-g.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
-  Adding <code>fri</code> changes the interpretation to Friday of the coming week.
+  Adding <code>fri</code> changes the interpretation to Friday of this week.
   </p>
 </div>
 <div style="clear: both;"></div>
