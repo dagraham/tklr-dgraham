@@ -149,7 +149,7 @@ def check_update_available(
     Query PyPI for the latest published version and return True when a newer
     release is available. Failures are silent so the UI never blocks startup.
     """
-    bug_msg(f"[update-check] Current version: {current_version}")
+    # bug_msg(f"[update-check] Current version: {current_version}")
     if os.environ.get("TKLR_SKIP_UPDATE_CHECK"):
         return False
 
@@ -164,13 +164,13 @@ def check_update_available(
         return False
 
     latest_str = (payload.get("info") or {}).get("version")
-    bug_msg(f"[update-check] Latest version string from PyPI: {latest_str}")
+    # bug_msg(f"[update-check] Latest version string from PyPI: {latest_str}")
     if not latest_str:
         return False
 
     try:
         latest_version = parse_version(latest_str)
-        bug_msg(f"[update-check] Latest version on PyPI: {latest_version = }")
+        # bug_msg(f"[update-check] Latest version on PyPI: {latest_version = }")
     except Exception as exc:
         log_msg(f"[update-check] Invalid PyPI version '{latest_str}': {exc}")
         return False
@@ -3282,7 +3282,7 @@ class DynamicViewApp(App):
         self.CSS_PATH = f"view_{self._theme}.css"
         super().__init__()
         self.controller = controller
-        self._apply_update_indicator(check_update_available(VERSION))
+        # self._apply_update_indicator(check_update_available(VERSION))
         self._update_footer_color()
         self.current_start_date = calculate_4_week_start()
         self.selected_week = tuple(datetime.now().isocalendar()[:2])
@@ -3953,7 +3953,7 @@ class DynamicViewApp(App):
         self.controller.new_day()
         self.controller.populate_alerts()
         self.controller.populate_notice()
-        self._apply_update_indicator(check_update_available(VERSION))
+        # self._apply_update_indicator(check_update_available(VERSION))
         if not refresh:
             return
 
@@ -3994,6 +3994,7 @@ class DynamicViewApp(App):
         now = datetime.now()
         self._maybe_sync_inbox(now)
         today = now.date()
+        ## Run daily tasks at midnight
         if (
             now.hour == 0
             and now.minute == 0
@@ -4001,8 +4002,15 @@ class DynamicViewApp(App):
             or self.today != today
         ):
             self.run_daily_tasks()
+        ## Check for updates every 8 hours
+        if now.hour % 8 == 0 and now.minute == 0 and 0 <= now.second < 6:
+            bug_msg(
+                f"checking for updates: {now.hour = }, {now.minute = }, {now.second = }"
+            )
+            self._apply_update_indicator(check_update_available(VERSION))
+
+        ## Check alerts every 10 minutes
         if now.minute % 10 == 0 and now.second == 0:
-            # check alerts every 10 minutes
             self.notify(
                 "Checking for scheduled alerts...", severity="info", timeout=1.2
             )
