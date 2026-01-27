@@ -1,6 +1,5 @@
-Mon Jan 26
-  15-16:30 Labore sed velit velit dolorem
-  +3d Numquam neque dolor magnam
+Tue Jan 27
+  +2d Numquam neque dolor magnam
    ? Neque consectetur sed etincidunt dolor
 Wed Jan 28
   Est dolore sed neque
@@ -11,15 +10,15 @@ Thu Jan 29
   18:30-19:45 Sit adipisci etincidunt
 
 Goals (6)
-  220  3/3  6d8h  Quisquam dolore consectetur…
-  147  2/3  6d8h  Aliquam non dolorem
-  110  3/3  6d8h  Est quaerat neque
-  110  3/3  6d8h  Porro eius velit modi
-  110  3/3  6d8h  Ut sed voluptatem magnam
-   73  1/3  6d8h  Ut etincidunt amet sed quis…
+  246  3/3 5d16h  Quisquam dolore consectetur…
+  164  2/3 5d16h  Aliquam non dolorem
+  123  3/3 5d16h  Est quaerat neque
+  123  3/3 5d16h  Porro eius velit modi
+  123  3/3 5d16h  Ut sed voluptatem magnam
+   82  1/3 5d16h  Ut etincidunt amet sed quis…
 
 Tasks (11)
-   56  Velit voluptatem est
+   54  Velit voluptatem est
    51  Non quaerat dolor
    51  Eius neque neque est
    44  Dolorem aliquam sed
@@ -27,6 +26,6 @@ Tasks (11)
    37  Magnam numquam etincidunt amet
    37  Quaerat est quiquia
    25  Modi non ut sed
-   20  Quiquia dolore quiquia labore voluptat…
+   18  Quiquia dolore quiquia labore voluptat…
    18  Ut quisquam amet
     1  Tempora ipsum ipsum quisquam adipisci

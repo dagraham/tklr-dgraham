@@ -135,6 +135,14 @@ def cli(ctx, home, verbose):
         )
 
     env = TklrEnvironment()
+
+    if home and not env.home.exists():
+        click.confirm(
+            f"The Tklr home directory '{env.home}' does not exist. Create it now?",
+            default=True,
+            abort=True,
+        )
+
     env.ensure(init_config=True, init_db_fn=lambda path: ensure_database(path, env))
     env.load_config()
 

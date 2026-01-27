@@ -149,7 +149,8 @@ def check_update_available(
     Query PyPI for the latest published version and return True when a newer
     release is available. Failures are silent so the UI never blocks startup.
     """
-    # bug_msg(f"[update-check] Current version: {current_version}")
+    bug_msg(f"[update-check] Current version: {current_version}")
+    log_msg(f"[update-check] Current version: {current_version}")
     if os.environ.get("TKLR_SKIP_UPDATE_CHECK"):
         return False
 

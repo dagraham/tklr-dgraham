@@ -2,6 +2,7 @@ import inspect
 import textwrap
 import shutil
 import re
+import os
 from rich import print as rich_print
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal, Tuple
@@ -567,7 +568,25 @@ def indx_to_tag(index: int, fill: int = 1) -> str:
     return decimal_to_base26(index).rjust(fill, "a")
 
 
-def log_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = False):
+def _get_runtime_home() -> Path:
+    override = os.environ.get("TKLR_HOME")
+    if override:
+        return Path(override).expanduser()
+    return env.home
+
+
+def _resolve_log_file_path(file_path: str | Path) -> Path:
+    path = Path(file_path)
+    if path.is_absolute():
+        return path
+    return _get_runtime_home() / path
+
+
+def log_msg(
+    msg: str,
+    file_path: str | Path = "log_msg.md",
+    print_output: bool = False,
+):
     """
     Log a message and save it directly to a specified file.
 
@@ -609,8 +628,11 @@ def log_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = False)
     lines.append("\n\n")
 
     # Best-effort file logging; fall back to console when the file is unwritable.
+    log_path = _resolve_log_file_path(file_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
     try:
-        with open(file_path, "a") as f:
+        with open(log_path, "a") as f:
             f.writelines(lines)
     except OSError:
         print_output = True
@@ -619,7 +641,11 @@ def log_msg(msg: str, file_path: str = "log_msg.md", print_output: bool = False)
         print("".join(lines))
 
 
-def bug_msg(msg: str, file_path: str = "bug_msg.md", print_output: bool = False):
+def bug_msg(
+    msg: str,
+    file_path: str | Path = "bug_msg.md",
+    print_output: bool = False,
+):
     """
     A different name for log_msg for temp debugging usage - easier to find and remove.
     By default writes to "bug_msg.md" instead of "log_msg.md"
@@ -656,8 +682,11 @@ def bug_msg(msg: str, file_path: str = "bug_msg.md", print_output: bool = False)
     )
     lines.append("\n\n")
 
+    log_path = _resolve_log_file_path(file_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
     try:
-        with open(file_path, "a") as f:
+        with open(log_path, "a") as f:
             f.writelines(lines)
     except OSError:
         print_output = True
