@@ -528,7 +528,10 @@ type_keys = {
     "x": "finished",
     # '✓': 'finished',  # more a property of a task than an item type
 }
-common_methods = list("cdgblmnstxz") + ["k", "#"]
+# common_methods = list("cdgblmnstxz") + ["k", "#"]
+common_methods = list("cdgblmnstxz") + [
+    "k",
+]
 
 repeating_methods = list("o") + [
     "r",
@@ -820,7 +823,7 @@ class Item:
         # "~u": ["used time", "timeperiod: datetime", "do_usedtime"],
         "~?": ["job &-key", "enter &-key", "do_ampj"],
         "k": ["konnection", "not implemented", "do_nothing"],
-        "#": ["etm record number", "not implemented", "do_nothing"],
+        # "#": ["etm record number", "not implemented", "do_nothing"],
     }
 
     wkd_list = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"]
