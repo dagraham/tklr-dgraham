@@ -35,6 +35,7 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
           <li><a href="#15-weeks-next-and-last-views-whats-happening-and-when">1.5. Weeks, Next and Last Views: What's happening and when</a></li>
           <li><a href="#16-bins-and-tags-views-organizing-your-reminders">1.6. Bins and Tags Views: Organizing your reminders</a></li>
           <li><a href="#17-query-and-find-views-wheres-waldo">1.7 Query and Find Views: Where's Waldo</a></li>
+          <li><a href="#18-sqlite3-data-store">1.8 SQLite3 Data Store</a></li>
         </ul>
       </details>
       <details>
@@ -64,7 +65,10 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
         <summary><a href="#4-using-the-command-line-interface">4. Using the Command Line Interface</a></summary>
       </details>
       <details>
-        <summary><a href="#5-developer-guide">5. Developer Guide</a></summary>
+        <summary><a href="#5-coming-from-etm">5. Coming from <em>etm</em></a></summary>
+      </details>
+      <details>
+        <summary><a href="#6-developer-guide">6. Developer Guide</a></summary>
       </details>
     </li>
   </ul>
@@ -323,6 +327,8 @@ It is worth noting the different roles of two attributes in events and tasks.
 <div style="clear:both;"></div>
 
 
+
+<a id="doghouse-example"></a>
 
 #### 1.2.8. A _project_: build a dog house with component tasks
 
@@ -621,6 +627,9 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 </p>
 <pre>plumber</pre>
 
+### 1.8. <em>SQLite3</em> Data Store
+
+SQLite offers tangible advantages over TinyDB’s JSON store which - used for *tklr*'s predecessor - especially at the required scale. The embedded SQL engine keeps queries fast even as data grows, thanks to indexed storage and compiled query plans rather than repeatedly parsing whole JSON file. Reliability improves because SQLite wraps writes in ACID transactions so crashes or concurrent edits won’t corrupt the data, whereas TinyDB depends on rewriting the JSON blob. Finally, SQLite’s standard file format means other tools (command-line clients, BI dashboards, scripting languages) can open the same .db directly or even run read-only analytics in parallel, something that’s awkward with a bespoke JSON structure.
 
 [↩︎](#table-of-contents)
 
@@ -708,7 +717,7 @@ If the reminder is a task, then the task would _not_ appear in the agenda view u
 
 The entry `@w BEFORE, AFTER`, where `BEFORE` and `AFTER` are _timedeltas_, can be used to wrap the _scheduled_ datetime of a reminder. Possible entries and the resulting values of BEFORE and AFTER are illustrated below:
 
-| wrap      | before | after      |
+| wrap       | before | after      |
 | ---------- | ------ | ---------- |
 | @w 1h, 30m | 1 hour | 30 minutes |
 | @w 1h,     | 1 hour | None       |
@@ -971,25 +980,25 @@ Maybe an event involves a zoom meeting? Add an <code>@g</code> attribute with th
 
 ### 2.15. Away from your computer? Use the cloud
 
-There are two ways in which *tklr* supports remote usage through the the <em>cloud</em>. The examples here involve the use of <em>iCloud</em>, an <em>iPhone</em> and an app called <em>Textastic</em>, but these are just examples and a similar setup could be made using, e.g., <em>Google Drive</em>.
+There are two ways in which *tklr* supports remote usage through the the <em>cloud</em>. The examples here involve the use of <em>iCloud</em>, an <em>iPhone</em> and an <em>iPhone</em> app called <em>Textastic</em>, but these are just examples and a similar setup could be made using, e.g., <em>Google Drive</em>.
 
 #### 2.15.1. To access to your schedule
 
-With this entry in <em>config.toml></em> in your home directory:
+With this entry in <em>config.toml</em> in your home directory:
 
 <code>current_command = "!tklr agenda --width 46"</code>
 
-<em>tklr</em> will automatically output the result of the <code>agenda</code> command to the file <em>current.txt</em> in your home directory, creating the file if necessary and otherwise overwriting it whenever it needs to be updated. With a link to your home directory in <em>iCloud</em>, your agenda, trimmed to 46 characters to fit comfortably on your <em>iPhone</em> screen in portrait mode, will always be available to you. The same approach could be used with <code>weeks</code>, <code>days</code> or any other <em>tklr</em> command. The application <em>Textastic</em> is ideal for displaying monospaced output such as this and is designed to work well with <em>iCloud</em>.
+<em>tklr</em> will automatically output the result of the <code>agenda</code> command to the file <em>current.txt</em> in your home directory, creating the file if necessary and otherwise overwriting it whenever it needs to be updated. With a link to your home directory in <em>iCloud</em>, your agenda, trimmed to 46 characters to fit comfortably on your <em>iPhone</em> screen in portrait mode, will always be available to you. The same approach could be used with <code>weeks</code>, <code>days</code> or any other <em>tklr</em> command. The application <em>Textastic</em> is ideal for displaying the monospaced output and works well with <em>iCloud</em> files.
 
 #### 2.15.2. To record reminders
 
-The key here is another file, <em>inbox.txt</em> in your home directory. Normally this file has zero length, but if you edit it using, say, <em>Textastic</em> and record one or more reminders using exacly the same format that you would use with <em>tklr</em> and being careful to leave a blank line between reminders, then the next time <em>tklr</em> checks the length of this file and notices that it is greater than zero, it will import each of the reminders, prefixing each with a <code>?</code> character so that it will be treated as a <em>draft</em> reminder until you remove the <code>?</code> prefix.  During this process, the reminders are automatically removed from <em>inbox.txt</em> so its length will be restored to zero when the process ends. Then, when you next open <em>tklr</em>, you can make any edits you like to each of the "drafts" while removing its <code>?</code> prefix - all the drafts will be listed together on the current day of the events listing in <em>Agenda View</em>.
+The key here is parallel file, <em>inbox.txt</em> in your home directory. Normally this file has zero length, but if you edit it using, say, <em>Textastic</em> and record one or more reminders using exacly the same format that you would use with <em>tklr</em> and being careful to leave a blank line between reminders, then the next time <em>tklr</em> checks the length of this file and notices that it is greater than zero, it will import each of the reminders, prefixing each with a <code>?</code> character so that it will be treated as a <em>draft</em> reminder until you remove the <code>?</code> prefix.  When this process finishes, the reminders are automatically removed from <em>inbox.txt</em> so that its length is restored to zero - ready for subsequent additions. When you next open <em>tklr</em>, all the drafts will be listed together on the current day of the events listing in <em>Agenda View</em> ready for you to make any edits you like to the "drafts" and remove the <code>?</code> prefixes.
 
 ## 3. Getting Started
 
 ### 3.1. Installing _tklr_
 
-As usual with <em>python</em> applications, <em>tklr</em> can be install in the usual way from <em>PyPI</em> using either <code>pip</code> or <code>pipx</code>. This <code>pip</code> command can be used either install for the first time or to upgrade an existing installation:
+As usual with <em>python</em> applications, <em>tklr</em> can be installed in the usual way from <em>PyPI</em> using either <code>pip</code> or <code>pipx</code>. This <code>pip</code> command can be used either to install for the first time or to upgrade an existing installation:
 
 ```
 pip install -U tklr-dgraham
@@ -1104,8 +1113,62 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 </div>
 <div style="clear: both;"></div>
 
+## 5. Coming from <em>etm</em>
 
-## 5. Developer Guide
+The basic entry format is essentially the same in *tklr* as it was in *etm*. There are a few changes to reminder types, attributes (specified with <code>@-keys</code>) and their modifiers (specified with <code>&-keys</code>) - these are documented below.
+
+### 5.1 Datetime entry and <code>@z</code>
+
+The attribute <code>@z</code> to specify the timezone for datetime entries in a reminder is no longer supported. The same purpose is now achieved by appending <code>z TIMEZONE</code> to the scheduled datetime attribute. E.g.,
+
+<code>@s 9a fri z US/Pacific</code>
+
+would indicate that "9a fri" is to be interpreted as an <em>aware</em> datetime in the "US/Pacific" timezone. Similarly <code>z none</code> would indicate that the preceeding datetime is to be interpreted as a <em>naive</em> datetime.
+
+### 5.2. Type Changes
+
+|    etm    |   tklr    |
+| :-------: | :-------: |
+|  * event  | unchanged |
+|  - task   |  ~ task   |
+|  ~ goal   |  ! goal   |
+|  ! inbox  |  ? draft  |
+| - project | ^ project |
+| % journal |  % note   |
+
+
+
+### 5.3. Attribute Changes
+
+|     etm     |         tklr          |
+| :---------: | :-------------------: |
+| @b beginby  |       @n notify       |
+| @c calendar |                       |
+|  @i index   |        @b bin         |
+|   @j job    |   @~ task (project)   |
+| @k connect  |                       |
+|             | @k completions (goal) |
+| @l location |      @c context       |
+| @n attendee |                       |
+|   @t tag    |       #hashtag        |
+|             |   @t target (goal)    |
+
+### 5.4. <code>@r</code> modifier changes
+
+|     etm      |     tklr     |
+| :----------: | :----------: |
+|   &h hours   |   &H hours   |
+|  &n minutes  |  &M minutes  |
+|  &M months   |  &m months   |
+| &m monthdays | &d monthdays |
+
+The *tklr* settings mirror standard usage in <code>strftime</code>.
+
+### 5.5. <code>@~</code> project task/job modifier changes
+
+The modifers used in <code>@~</code> <em>project task</em> entries are significantly changed from the <em>etm</em> <code>@j</code> <em>job</em> entries. In <em>tklr</em>, the optional <code>&r</code> <em>requires</em> modifier replaces both the <code>&i</code> <em>id</em> and the <code>&p</code> <em>prerequisite</em> modifiers. See [doghouse project](#doghouse-example) for an example of the new usage.
+
+## 6. Developer Guide
 
 This guide walks you through setting up a development environment for `tklr` using [`uv`](https://github.com/astral-sh/uv) and a local virtual environment. Eventually the normal python installation procedures using pip or pipx will be available.
 

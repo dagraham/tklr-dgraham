@@ -529,7 +529,7 @@ type_keys = {
     # '✓': 'finished',  # more a property of a task than an item type
 }
 # common_methods = list("cdgblmnstxz") + ["k", "#"]
-common_methods = list("cdgblmnstxz") + [
+common_methods = list("cdgblmnstx") + [
     "k",
 ]
 
@@ -754,11 +754,6 @@ class Item:
             "do_priority",
         ],
         "w": ["wrap", "wrap before, after", "do_wrap"],
-        "z": [
-            "timezone",
-            "a timezone entry such as 'US/Eastern' or 'Europe/Paris' or 'none' to specify a naive datetime, i.e., one without timezone information",
-            "do_timezone",
-        ],
         "@": ["@-key", "", "do_at"],
         "rr": [
             "repetition frequency",
