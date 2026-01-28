@@ -980,7 +980,7 @@ Maybe an event involves a zoom meeting? Add an <code>@g</code> attribute with th
 
 ### 2.15. Away from your computer? Use the cloud
 
-There are two ways in which *tklr* supports remote usage through the the <em>cloud</em>. The examples here involve the use of <em>iCloud</em>, an <em>iPhone</em> and an <em>iPhone</em> app called <em>Textastic</em>, but these are just examples and a similar setup could be made using, e.g., <em>Google Drive</em>.
+There are two ways in which *tklr* supports remote usage through the the <em>cloud</em>. The examples here involve the use of <em>iCloud</em>, an <em>iPhone</em> and an <em>iPhone</em> app called <em>Textastic</em>, but these are just examples and a similar setup could be made using, e.g., <em>Google Drive</em>. All that's needed is a link to the <em>tklr</em> home directory in your cloud and a plain text / code editor on your mobile device which can access the linked directory.
 
 #### 2.15.1. To access to your schedule
 
