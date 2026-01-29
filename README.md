@@ -1170,7 +1170,7 @@ The modifers used in <code>@~</code> <em>project task</em> entries are significa
 
 ## 6. Developer Guide
 
-This guide walks you through setting up a development environment for `tklr` using [`uv`](https://github.com/astral-sh/uv) and a local virtual environment. Eventually the normal python installation procedures using pip or pipx will be available.
+This guide walks you through setting up a development environment for `tklr` using [`uv`](https://github.com/astral-sh/uv) and a local virtual environment. 
 
 #### ✅ Step 1: Clone/Update the repository
 
