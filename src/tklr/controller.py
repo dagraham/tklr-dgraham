@@ -3335,69 +3335,6 @@ class Controller:
     def get_subbins(self, bin_id: int) -> list[dict]:
         return self.db_manager.get_subbins(bin_id)
 
-        #                 tag_map,
-        #                 0,
-        #             )
-        #
-        #         # how many path letters to tag (exclude current bin)
-        #         taggable = max(0, len(path_ids) - 1)
-        #         header_letters = min(taggable, 26)
-        #
-        #         for i, bid in enumerate(path_ids):
-        #             name = _bin_name(bid)
-        #             if i < header_letters:  # tagged ancestor
-        #                 tag = chr(ord("a") + i)
-        #                 tag_map[tag] = ("bin", bid)
-        #                 segs.append(f"[dim]{tag}[/dim] {name}")
-        #             elif i == len(path_ids) - 1:  # current bin (untagged)
-        #                 segs.append(f"[bold red]{name}[/bold red]")
-        #             else:  # very deep path overflow (unlikely)
-        #                 f"[bold yellow]{segs.append(name)}[/bold yellow]"
-        #
-        #         header = " / ".join(segs) if segs else ".."
-        #         if continued:
-        #             header += " [i](continued)[/i]"
-        #         return header, tag_map, header_letters
-        #
-        #     # ---------- gather data ----------
-        #     path_ids = _bin_path_ids(bin_id)  # excludes root, includes current bin
-        #     current_name = "" if _is_root(bin_id) else _bin_name(bin_id)
-        #
-        #     subbins = self.db_manager.get_subbins(bin_id)  # [{id,name,subbins,reminders}]
-        #     reminders = self.db_manager.get_reminders_in_bin(
-        #         bin_id
-        #     )  # [{id,subject,itemtype}]
-        #
-        #     # Prepare content rows (bins then reminders), sorted
-        #     bin_rows: List[Tuple[str, Any, str]] = []
-        #     for b in sorted(subbins, key=lambda x: x["name"].lower()):
-        #         disp = _pretty_child_name(current_name, b["name"])
-        #         bin_rows.append(
-        #             (
-        #                 "bin",
-        #                 b["id"],
-        #                 f"[bold yellow]{disp}[/bold yellow]  [dim]({b['subbins']}/{b['reminders']})[/dim]",
-        #             )
-        #         )
-        #
-        #     rec_rows: List[Tuple[str, Any, str]] = []
-        #
-        #     for r in sorted(reminders, key=lambda x: x["subject"].lower()):
-        #         log_msg(f"bins {r = }")
-        #         color = TYPE_TO_COLOR.get(r.get("itemtype", ""), "white")
-        #         old_subject = r["subject"]
-        #         subject = self.apply_flags(r["id"], r["subject"])
-        #         log_msg(f"bins {old_subject = }, {subject = }")
-        #         rec_rows.append(
-        #             (
-        #                 "record",
-        #                 (r["id"], None),
-        #                 f"[{color}]{r.get('itemtype', '')} {subject}[/{color}]",
-        #             )
-        #         )
-        #
-        #     all_rows: List[Tuple[str, Any, str]] = bin_rows + rec_rows
-        #
         def get_record_details(self, record_id: int) -> str:
             """Fetch record details formatted for the details pane."""
             record = self.db_manager.get_record(record_id)
@@ -3466,22 +3403,43 @@ class Controller:
         self, backups: List[_BackupInfo], today_local: date
     ) -> Set[Path]:
         """
-        Keep at most 5:
-        newest overall, newest >=3d, >=7d, >=14d, >=28d (by calendar day).
+        Bucket-based retention:
+            - If there are 6 or fewer backups, keep them all.
+            - Otherwise keep the oldest entry from each age bucket:
+              0–3, 4–7, 8–14, 15–21, 22–42, 43–84 days old.
         """
-        keep: Set[Path] = set()
         if not backups:
-            return keep
+            return set()
+        if len(backups) <= 6:
+            return {b.path for b in backups}
 
-        newest = max(backups, key=lambda b: (b.day, b.mtime))
-        keep.add(newest.path)
+        buckets: list[tuple[int, int]] = [
+            (0, 3),
+            (4, 7),
+            (8, 14),
+            (15, 21),
+            (22, 42),
+            (43, 84),
+        ]
+        keep: Set[Path] = set()
+        bucket_assigned: dict[int, Path] = {}
 
-        for days in (3, 7, 14, 28):
-            cutoff = today_local - timedelta(days=days)
-            cands = [b for b in backups if b.day <= cutoff]
-            if cands:
-                chosen = max(cands, key=lambda b: (b.day, b.mtime))
-                keep.add(chosen.path)
+        # Oldest first so we capture the oldest file in each bucket.
+        oldest_first = sorted(backups, key=lambda b: (b.day, b.mtime))
+
+        for backup in oldest_first:
+            age_days = max(0, (today_local - backup.day).days)
+            for idx, (low, high) in enumerate(buckets):
+                if low <= age_days <= high:
+                    if idx not in bucket_assigned:
+                        bucket_assigned[idx] = backup.path
+                        keep.add(backup.path)
+                    break
+
+        # Fallback: if every backup fell outside the defined buckets, keep the oldest overall.
+        if not keep:
+            keep.add(oldest_first[0].path)
+
         return keep
 
     # --- Public API --------------------------------------------------------------

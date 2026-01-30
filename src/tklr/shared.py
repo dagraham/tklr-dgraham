@@ -582,17 +582,24 @@ def _resolve_log_file_path(file_path: str | Path) -> Path:
     return _get_runtime_home() / path
 
 
+def _default_log_relative_path(kind: str) -> Path:
+    """Return logs/log_<YYMMDD>.md style paths under the runtime home."""
+    suffix = datetime.now().strftime("%y%m%d")
+    return Path("logs") / f"{kind}_{suffix}.md"
+
+
 def log_msg(
     msg: str,
-    file_path: str | Path = "log_msg.md",
+    file_path: str | Path | None = None,
     print_output: bool = False,
 ):
     """
-    Log a message and save it directly to a specified file.
+    Log a message and save it directly to a file.
 
     Args:
         msg (str): The message to log.
-        file_path (str, optional): Path to the log file. Defaults to "log_msg.md".
+        file_path (str | Path | None, optional): Overrides the default path when
+            provided. Defaults to ``None`` which writes to ``logs/log_<YYMMDD>.md``.
         print_output (bool, optional): If True, also print to console.
     """
     frame = inspect.stack()[1].frame
@@ -611,7 +618,7 @@ def log_msg(
 
     # Format the line header
     lines = [
-        f"- {datetime.now().strftime('%y-%m-%d %H:%M:%S')} log_msg ({caller_name}):  ",
+        f"- {datetime.now().strftime('%H:%M:%S')} log_msg ({caller_name}):  ",
     ]
     # Wrap the message text
     lines.extend(
@@ -628,6 +635,8 @@ def log_msg(
     lines.append("\n\n")
 
     # Best-effort file logging; fall back to console when the file is unwritable.
+    if file_path is None:
+        file_path = _default_log_relative_path("log")
     log_path = _resolve_log_file_path(file_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -643,12 +652,17 @@ def log_msg(
 
 def bug_msg(
     msg: str,
-    file_path: str | Path = "bug_msg.md",
+    file_path: str | Path | None = None,
     print_output: bool = False,
 ):
     """
-    A different name for log_msg for temp debugging usage - easier to find and remove.
-    By default writes to "bug_msg.md" instead of "log_msg.md"
+    Companion to log_msg for temporary debugging.
+
+    Args:
+        msg (str): The message to log.
+        file_path (str | Path | None, optional): Overrides the default path when
+            provided. Defaults to ``None`` which writes to ``logs/bug_<YYMMDD>.md``.
+        print_output (bool, optional): If True, also print to console.
     """
     frame = inspect.stack()[1].frame
     func_name = frame.f_code.co_name
@@ -666,7 +680,7 @@ def bug_msg(
 
     # Format the line header
     lines = [
-        f"- {datetime.now().strftime('%y-%m-%d %H:%M:%S')} bug_msg ({caller_name}):  ",
+        f"- {datetime.now().strftime('%H:%M:%S')} bug_msg ({caller_name}):  ",
     ]
     # Wrap the message text
     lines.extend(
@@ -682,6 +696,8 @@ def bug_msg(
     )
     lines.append("\n\n")
 
+    if file_path is None:
+        file_path = _default_log_relative_path("bug")
     log_path = _resolve_log_file_path(file_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
