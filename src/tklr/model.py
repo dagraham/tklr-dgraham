@@ -2133,6 +2133,44 @@ class DatabaseManager:
 
         return results
 
+    def get_alerts_for_window(self, days: int) -> list[dict]:
+        """
+        Return alerts whose trigger falls between now and end-of-day + ``days``.
+        """
+        days = max(0, days)
+        now = datetime.now()
+        window_end = datetime.combine(
+            now.date() + timedelta(days=days), time(23, 59, 59)
+        )
+
+        rows = self._generate_alert_rows(now, window_end)
+
+        if days == 0:
+            # Prefer rows from the persisted Alerts table when possible so alert_id is populated.
+            self.cursor.execute(
+                """
+                SELECT alert_id, record_id, record_name, trigger_datetime,
+                       start_datetime, alert_name, alert_command
+                FROM Alerts
+                WHERE trigger_datetime BETWEEN ? AND ?
+                ORDER BY trigger_datetime ASC
+                """,
+                (now.strftime("%Y%m%dT%H%M"), window_end.strftime("%Y%m%dT%H%M")),
+            )
+            cols = [
+                "alert_id",
+                "record_id",
+                "record_name",
+                "trigger_datetime",
+                "start_datetime",
+                "alert_name",
+                "alert_command",
+            ]
+            persisted = [dict(zip(cols, row)) for row in self.cursor.fetchall()]
+            if persisted:
+                return persisted
+        return rows
+
     def get_all_tasks(self) -> list[dict]:
         """
         Retrieve all task and project records from the database.
@@ -2402,56 +2440,29 @@ class DatabaseManager:
                 "tokens": self._tokens_list(token_blob),
             }
 
-    def populate_alerts(self):
+    def _generate_alert_rows(
+        self, window_start: datetime, window_end: datetime
+    ) -> list[dict]:
         """
-        Populate the Alerts table for all records that have alerts defined.
-        Inserts alerts that will trigger between now and local end-of-day.
-        Uses TEXT datetimes ('YYYYMMDD' or 'YYYYMMDDTHHMMSS', local-naive).
+        Yield alert rows that trigger within [window_start, window_end].
         """
-
-        # --- small helpers for TEXT <-> datetime (local-naive) ---
-        from datetime import datetime, timedelta
 
         def _parse_local_text_dt(s: str) -> datetime:
-            """Parse 'YYYYMMDD' or 'YYYYMMDDTHHMMSS' (local-naive) into datetime."""
             s = (s or "").strip()
             if not s:
                 raise ValueError("empty datetime text")
             if "T" in s:
-                # datetime
                 return datetime.strptime(s, "%Y%m%dT%H%M")
-            else:
-                # date-only -> treat as midnight local
-                return datetime.strptime(s, "%Y%m%d")
+            return datetime.strptime(s, "%Y%m%d")
 
         def _to_text_dt(dt: datetime, is_date_only: bool = False) -> str:
-            """
-            Render datetime back to TEXT storage.
-            If is_date_only=True, keep 'YYYYMMDD'; else use 'YYYYMMDDTHHMMSS'.
-            """
-            if is_date_only:
-                return dt.strftime("%Y%m%d")
-            return dt.strftime("%Y%m%dT%H%M")
+            return dt.strftime("%Y%m%d") if is_date_only else dt.strftime("%Y%m%dT%H%M")
 
         def _is_date_only_text(s: str) -> bool:
             return "T" not in (s or "")
 
-        # --- time window (local-naive) ---
-        now = datetime.now()
-        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
+        rows: list[dict] = []
 
-        # Targeted delete: remove alerts in [now, end_of_day] so we can repopulate without duplicates.
-        self.cursor.execute(
-            """
-            DELETE FROM Alerts
-            WHERE trigger_datetime >= ?
-            AND trigger_datetime <= ?
-            """,
-            (now.strftime("%Y%m%dT%H%M"), end_of_day.strftime("%Y%m%dT%H%M")),
-        )
-        self.commit()
-
-        # Find records that have alerts and at least one DateTimes row
         self.cursor.execute(
             """
             SELECT R.id, R.subject, R.description, R.context, R.alerts, D.start_datetime
@@ -2462,8 +2473,7 @@ class DatabaseManager:
         )
         records = self.cursor.fetchall()
         if not records:
-            print("🔔 No records with alerts found.")
-            return
+            return rows
 
         for (
             record_id,
@@ -2473,18 +2483,12 @@ class DatabaseManager:
             alerts_json,
             start_text,
         ) in records:
-            # start_text is local-naive TEXT ('YYYYMMDD' or 'YYYYMMDDTHHMMSS')
             try:
                 start_dt = _parse_local_text_dt(start_text)
-            except Exception as e:
-                # bad/malformed DateTimes row; skip gracefully
-                print(
-                    f"⚠️ Skipping record {record_id}: invalid start_datetime {start_text!r}: {e}"
-                )
+            except Exception:
                 continue
 
             is_date_only = _is_date_only_text(start_text)
-
             try:
                 alert_list = json.loads(alerts_json)
                 if not isinstance(alert_list, list):
@@ -2494,10 +2498,8 @@ class DatabaseManager:
 
             for alert in alert_list:
                 if ":" not in alert:
-                    continue  # ignore malformed alerts like "10m" with no command
+                    continue
                 time_part, command_part = alert.split(":", 1)
-
-                # support multiple lead times and multiple commands per line
                 try:
                     lead_secs_list = [
                         td_str_to_seconds(t.strip()) for t in time_part.split(",")
@@ -2510,58 +2512,85 @@ class DatabaseManager:
                 if not commands:
                     continue
 
-                # For date-only starts, we alert relative to midnight (00:00:00) of that day
-                if is_date_only:
-                    effective_start_dt = start_dt.replace(
-                        hour=0, minute=0, second=0, microsecond=0
-                    )
-                else:
-                    effective_start_dt = start_dt
+                effective_start_dt = (
+                    start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+                    if is_date_only
+                    else start_dt
+                )
 
                 for lead_secs in lead_secs_list:
                     trigger_dt = effective_start_dt - timedelta(seconds=lead_secs)
-
-                    # only alerts that trigger today between now and end_of_day
-                    if not (now <= trigger_dt <= end_of_day):
+                    if not (window_start <= trigger_dt <= window_end):
                         continue
 
-                    trigger_text = _to_text_dt(trigger_dt)  # always 'YYYYMMDDTHHMMSS'
+                    trigger_text = _to_text_dt(trigger_dt)
                     start_store_text = _to_text_dt(
                         effective_start_dt, is_date_only=is_date_only
                     )
 
                     for alert_name in commands:
-                        # If you have a helper that *builds* the command string, call it;
-                        # otherwise keep your existing create_alert signature but pass TEXTs.
                         alert_command = self.create_alert(
                             alert_name,
                             lead_secs,
-                            start_store_text,  # now TEXT, not epoch
+                            start_store_text,
                             record_id,
                             record_name,
                             record_description,
                             record_location,
                         )
-
                         if not alert_command:
                             continue
-
-                        # Unique index will prevent duplicates; OR IGNORE keeps this idempotent.
-                        self.cursor.execute(
-                            """
-                            INSERT OR IGNORE INTO Alerts
-                                (record_id, record_name, trigger_datetime, start_datetime, alert_name, alert_command)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                            """,
-                            (
-                                record_id,
-                                record_name,
-                                trigger_text,
-                                start_store_text,
-                                alert_name,
-                                alert_command,
-                            ),
+                        rows.append(
+                            {
+                                "alert_id": None,
+                                "record_id": record_id,
+                                "record_name": record_name,
+                                "trigger_datetime": trigger_text,
+                                "start_datetime": start_store_text,
+                                "alert_name": alert_name,
+                                "alert_command": alert_command,
+                            }
                         )
+
+        rows.sort(key=lambda r: r["trigger_datetime"])
+        return rows
+
+    def populate_alerts(self):
+        """
+        Populate the Alerts table for all records that have alerts defined.
+        Inserts alerts that will trigger between now and local end-of-day.
+        Uses TEXT datetimes ('YYYYMMDD' or 'YYYYMMDDTHHMMSS', local-naive).
+        """
+        now = datetime.now()
+        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
+
+        self.cursor.execute(
+            """
+            DELETE FROM Alerts
+            WHERE trigger_datetime >= ?
+            AND trigger_datetime <= ?
+            """,
+            (now.strftime("%Y%m%dT%H%M"), end_of_day.strftime("%Y%m%dT%H%M")),
+        )
+        self.commit()
+
+        rows = self._generate_alert_rows(now, end_of_day)
+        for row in rows:
+            self.cursor.execute(
+                """
+                INSERT OR IGNORE INTO Alerts
+                    (record_id, record_name, trigger_datetime, start_datetime, alert_name, alert_command)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    row["record_id"],
+                    row["record_name"],
+                    row["trigger_datetime"],
+                    row["start_datetime"],
+                    row["alert_name"],
+                    row["alert_command"],
+                ),
+            )
 
         self.commit()
         log_msg("✅ Alerts table updated with today's relevant alerts.")

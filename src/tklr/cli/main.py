@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 import click
 from pathlib import Path
 from rich import print
@@ -9,7 +10,8 @@ from collections import defaultdict
 
 from rich.console import Console
 from rich.text import Text
-# from rich.table import Table
+from rich.table import Table
+from rich import box
 
 from dateutil import parser as dt_parser
 
@@ -535,6 +537,26 @@ def _group_instances_by_date_for_weeks(
     return dict(grouped)
 
 
+def _format_alert_trigger_display(trigger_text: str, ampm: bool) -> str:
+    try:
+        parsed = _parse_local_text_dt(trigger_text)
+    except Exception:
+        return trigger_text
+
+    if isinstance(parsed, datetime):
+        date_part = parsed.strftime("%a %b %d")
+        if ampm:
+            time_part = parsed.strftime("%I:%M %p").lstrip("0")
+            if time_part.startswith(":"):
+                time_part = "0" + time_part
+        else:
+            time_part = parsed.strftime("%H:%M")
+        return f"{date_part} {time_part}"
+    if isinstance(parsed, date):
+        return parsed.strftime("%a %b %d")
+    return trigger_text
+
+
 @cli.command()
 @click.option(
     "--start",
@@ -829,6 +851,66 @@ def days(ctx, start_opt, end_opt, width, rich, ids):
                     console.print(trimmed)
 
         current_date += timedelta(days=1)
+
+
+@cli.command()
+@click.option(
+    "--end",
+    type=click.IntRange(0, 365),
+    default=0,
+    show_default=True,
+    help="Include alerts through N days beyond today.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json"], case_sensitive=False),
+    default="table",
+    show_default=True,
+    help="Output format: table (human) or json (machine-readable).",
+)
+@click.pass_context
+def alerts(ctx, end, output_format):
+    """
+    List alerts scheduled for today and the next N days.
+    """
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+    controller = Controller(db_path, env)
+    rows = controller.db_manager.get_alerts_for_window(end)
+
+    if output_format.lower() == "json":
+        click.echo(json.dumps(rows, indent=2))
+        return
+
+    console = Console()
+    if not rows:
+        console.print("[dim]No alerts found in the requested window.[/dim]")
+        return
+
+    table = Table(
+        box=box.SIMPLE_HEAVY,
+        show_lines=False,
+        header_style="bold",
+    )
+    table.add_column("Trigger", style="cyan")
+    table.add_column("Record", style="magenta", overflow="fold")
+    table.add_column("Alert", style="yellow")
+    table.add_column("Command", overflow="fold")
+
+    for entry in rows:
+        trigger_display = _format_alert_trigger_display(
+            entry["trigger_datetime"], controller.AMPM
+        )
+        record_display = f"{entry['record_id']} · {entry['record_name']}"
+        table.add_row(
+            trigger_display,
+            record_display,
+            entry["alert_name"],
+            entry["alert_command"],
+        )
+
+    console.print(table)
 
 
 @cli.command()

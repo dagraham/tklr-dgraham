@@ -939,27 +939,31 @@ then it indicates the completion rate currently needed as a percentage of the or
 
 ### 2.13. Masked Information
 
-A <code>@m</code> attribute can be used to record information in a reminder that will be stored in an obfuscated format. Only someone running *tklr* with the *secret* from the configuration file used to create the entry will see the clear value. Useful for passwords, account numbers, diary entries or whatever.
+A <code>@m</code> attribute can be used to record information in a reminder that will be stored in an obfuscated format. Only someone running <em>tklr</em> with the <em>secret</em> from the configuration file used to create the entry will see the clear value. Useful for passwords, account numbers, diary entries or whatever.
 
 For example, this entry:
-<pre>@m This is a masked entry - it should be readable in the details view of the UI but otherwise obfuscated.</pre>
+
+```
+@m This is a masked entry - it should be readable in
+the details view of the UI but otherwise obfuscated.
+```
+
 would be displayed in the SQLite3 database as
-<pre>{
-    "token": "@m
-    wrnClsOSwprDmMKKwrrDnGTDiGTCpsK0w5_CnMOPwq9twr3DlMOEwrXDjMKDecKNw4_Dq
-    HHCqcOgw4jCp8Kuw45Rw4fDj3HDm8Kpw4jCqMKawrXDmMKWworCtMK7eMOawrjCqHPDh8
-    Kxw6HDh8Odwr3CqcKYw4_Cm8Knw6FRw5TDkHHDncKsw4xkwo7CnMKMwpPDn8K_bcOHw5r
-    CuMKow4XDmsK1w6DDi8KUw4DCmMOew47CpcKlw4vCpcOKw45_
-    "t": "@",
-    "k": "m",
-    "masked": true
-}</pre>
+
+```
+@m wrnClsOSwprDmMKKwrrDnGTDiGTCpsK0w5_CnMOPwq9twr3DlMOE
+wrXDjMKDecKNw4_DqHHCqcOgw4jCp8Kuw45Rw4fDj3HDm8Kpw4jCqMK
+awrXDmMKWworCtMK7eMOawrjCqHPDh8Kxw6HDh8Odwr3CqcKYw4_Cm8
+Knw6FRw5TDkHHDncKsw4xkwo7CnMKMwpPDn8K_bcOHw5r CuMKow4XD
+msK1w6DDi8KUw4DCmMOew47CpcKlw4vCpcOKw45_
+```
+
 
 [↩︎](#table-of-contents)
 
 ### 2.14. Open with default
 
-A <code>@g</code> attribute can be used to enter a URL, file or whatever which can the be "opened" using your system default application by selecting the item and using the menu command "Open with default". Example entries:
+An <code>@g</code> attribute can be used to enter a URL, file or whatever which can the be "opened" using your system default application by selecting the item and using the menu command "Open with default". Example entries:
 
 - URL: <code>@g https://dagraham.github.io/tklr-dgraham/</code>
   Open the URL in the default browser.
@@ -1040,8 +1044,8 @@ The default settings are in _config.toml_ in your _tklr_ home directory together
 ## 4. Using the Command Line Interface
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
-<code>% tklr --help                              ⏱ 13:31:53
+  <pre style="float:right; margin-left:20px; width:440px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>% tklr --help
 Usage: tklr [OPTIONS] COMMAND [ARGS]...
 
   Tklr CLI – manage your reminders from the command
@@ -1049,15 +1053,15 @@ Usage: tklr [OPTIONS] COMMAND [ARGS]...
 
 Options:
   --version      Show the version and exit.
-  --home TEXT    Override the Tklr workspace
-                 directory (equivalent to setting
-                 $TKLR_HOME).
+  --home TEXT    Override the Tklr workspace directory
+                 (equivalent to setting $TKLR_HOME).
   -v, --verbose  Enable verbose output
   --help         Show this message and exit.
 
 Commands:
   add
-  agenda   Display the current agenda: events...
+  agenda   Display the current agenda: events for...
+  alerts   List alerts scheduled for today and...
   check    Check whether an entry is valid...
   days     days(start: date = today(), end:...
   details  Display the details for a reminder...
@@ -1077,8 +1081,8 @@ Commands:
 
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
-<code>% tklr agenda --help                       ⏱ 13:34:29
+  <pre style="float:right; margin-left:20px; width:440px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>% tklr agenda --help
 Usage: tklr agenda [OPTIONS]
 
   Display the current agenda: events for the next 3
@@ -1170,7 +1174,7 @@ The modifers used in <code>@~</code> <em>project task</em> entries are significa
 
 ## 6. Developer Guide
 
-This guide walks you through setting up a development environment for `tklr` using [`uv`](https://github.com/astral-sh/uv) and a local virtual environment. 
+This guide walks you through setting up a development environment for `tklr` using [`uv`](https://github.com/astral-sh/uv) and a local virtual environment.
 
 #### ✅ Step 1: Clone/Update the repository
 

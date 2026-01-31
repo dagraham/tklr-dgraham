@@ -3942,6 +3942,7 @@ class DynamicViewApp(App):
                 log_msg(f"Inbox sync warning: {err}")
 
     def run_daily_tasks(self, *, refresh: bool = True):
+        bug_msg("run daily tasks")
         created, kept, removed = self.controller.rotate_daily_backups()
         if created:
             log_msg(f"✅ Backup created: {created}")
@@ -3978,6 +3979,7 @@ class DynamicViewApp(App):
         the Weeks/Agenda views. Guard it so we only refresh when the calendar
         day has actually advanced.
         """
+        bug_msg("daily rollover guard check")
         current = date.today()
         if getattr(self, "today", None) == current:
             return

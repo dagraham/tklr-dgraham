@@ -2939,7 +2939,7 @@ class Controller:
         """Return agenda rows/pages combining events, goals, and tasks."""
         if now is None:
             now = datetime.now()
-        header = "Agenda"
+        header = f"Agenda - {now.strftime('%a %b %-d')}"
         divider = [
             {
                 "record_id": None,
