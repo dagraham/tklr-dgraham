@@ -1044,7 +1044,7 @@ The default settings are in _config.toml_ in your _tklr_ home directory together
 ## 4. Using the Command Line Interface
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:440px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>% tklr --help
 Usage: tklr [OPTIONS] COMMAND [ARGS]...
 
@@ -1081,7 +1081,7 @@ Commands:
 
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:440px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>% tklr agenda --help
 Usage: tklr agenda [OPTIONS]
 
