@@ -964,25 +964,9 @@ class Item:
             self.datefmt = f"{_yr}-{_dm}" if self.yearfirst else f"{_dm}-{_yr}"
         self.datetimefmt = f"{self.datefmt} {self.timefmt}"
 
-        # print(f"{self.ampm = }, {self.yearfirst = }, {self.dayfirst = }")
-        #
-        # dayfirst  yearfirst    date     interpretation  standard
-        # ========  =========  ========   ==============  ========
-        #   True     True      12-10-11    2012-11-10     Y-D-M ??
-        #   True     False     12-10-11    2011-10-12     D-M-Y EU
-        #   False    True      12-10-11    2012-10-11     Y-M-D ISO 8601
-        #   False    False     12-10-11    2011-12-10     M-D-Y US
-        #   dayfirst D-M else M-D
-        #   yearfirst first else last
-        #   DM = %d-%m if dayfirst else "%m-%d"
-        #   DMY = f"%Y-{DM}" if yearfirst else f"{DM}-%Y"
-
         if raw:
             self.entry = raw
             self.parse_input(raw)
-            # if self.final:
-            #     self.finalize_record()
-            #
 
     def get_name_to_binpath(self) -> dict:
         if self.final or not self.controller:
