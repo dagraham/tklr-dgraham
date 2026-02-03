@@ -524,6 +524,7 @@ type_keys = {
     "^": "project",
     "%": "note",
     "!": "goal",
+    "-": "log",
     "?": "draft",
     "x": "finished",
     # '✓': 'finished',  # more a property of a task than an item type
@@ -583,7 +584,16 @@ multiple_allowed = [
 
 wrap_methods = ["w"]
 
-required = {"*": ["s"], "~": [], "^": ["~"], "%": [], "?": [], "!": ["s", "t"], "x": []}
+required = {
+    "*": ["s"],
+    "~": [],
+    "^": ["~"],
+    "%": [],
+    "?": [],
+    "!": ["s", "t"],
+    "-": ["s"],  # default to now if missing
+    "x": [],
+}
 
 all_keys = common_methods + datetime_methods + job_methods + repeating_methods
 
@@ -592,6 +602,7 @@ allowed = {
     "x": common_methods + datetime_methods + task_methods + repeating_methods + ["~"],
     "~": common_methods + datetime_methods + task_methods + repeating_methods,
     "!": common_methods + ["s", "t", "f", "k"],
+    "-": ["s", "c", "d", "e"],  # s will default to now if missing
     "^": common_methods + datetime_methods + job_methods + repeating_methods,
     "%": common_methods + datetime_methods,
     "?": all_keys,
@@ -713,7 +724,7 @@ class Item:
     token_keys = {
         "itemtype": [
             "item type",
-            "character from * (event), ~ (task), ^ (project), % (note), ! (goal),  x (finished) or ? (draft)",
+            "character from * (event), ~ (task), ^ (project), % (note), ! (goal), - (log), x (finished) or ? (draft)",
             "do_itemtype",
         ],
         "subject": [

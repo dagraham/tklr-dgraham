@@ -49,13 +49,14 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
           <li><a href="#26-wrap">2.6. Wrap</a></li>
           <li><a href="#27-alert">2.7. Alert</a></li>
           <li><a href="#28-recurrence">2.8. Recurrence</a></li>
-          <li><a href="#29-anniversaries">2.9. Anniversaries</a></li>
-          <li><a href="#210-timezones">2.10. Timezones</a></li>
-          <li><a href="#211-urgency">2.11. Urgency</a></li>
-          <li><a href="#212-priority">2.12. Priority</a></li>
-          <li><a href="#213-masked-information">2.13. Masked Information</a></li>
-          <li><a href="#214-open-with-default">2.14. Open with default</a></li>
-          <li><a href="#215-away-from-your-computer-use-the-cloud">2.15. Away from your computer? Use the cloud</a></li>
+          <li><a href="#29-masked-information">2.9. Masked Information</a></li>
+          <li><a href="#210-hashtags">2.10. HashTags</a></li>
+          <li><a href="#211-anniversaries">2.11. Anniversaries</a></li>
+          <li><a href="#212-timezones">2.12. Timezones</a></li>
+          <li><a href="#213-urgency">2.13. Urgency</a></li>
+          <li><a href="#214-priority">2.14. Priority</a></li>
+          <li><a href="#215-open-with-default">2.15. Open with default</a></li>
+          <li><a href="#216-away-from-your-computer-use-the-cloud">2.16. Away from your computer? Use the cloud</a></li>
         </ul>
       </details>
       <details>
@@ -567,9 +568,6 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 <div style="clear: both;"></div>
 
 
-[↩︎](#table-of-contents)
-
-
 #### 1.6.2 Tags View
 
 <div style="overflow: auto;">
@@ -627,6 +625,8 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 </p>
 <pre>plumber</pre>
 
+[↩︎](#table-of-contents)
+
 ### 1.8. <em>SQLite3</em> Data Store
 
 SQLite offers tangible advantages over TinyDB’s JSON store which - used for *tklr*'s predecessor - especially at the required scale. The embedded SQL engine keeps queries fast even as data grows, thanks to indexed storage and compiled query plans rather than repeatedly parsing whole JSON file. Reliability improves because SQLite wraps writes in ACID transactions so crashes or concurrent edits won’t corrupt the data, whereas TinyDB depends on rewriting the JSON blob. Finally, SQLite’s standard file format means other tools (command-line clients, BI dashboards, scripting languages) can open the same .db directly or even run read-only analytics in parallel, something that’s awkward with a bespoke JSON structure.
@@ -658,8 +658,6 @@ When dates and datetimes are recorded, _aware_ datetimes are first converted to 
 When an `@s` scheduled entry specifies a date without a time, i.e., a date instead of a datetime, the interpretation is that the task is due sometime on that day. Specifically, it is not due until `00:00` on that day and not past due until `00:00` on the following day. The interpretation of `@b` and `@u` in this circumstance is similar. For example, if `@s 2025-04-06` is specified with `@b 3d` and `@u 2d` then the task status would change from waiting to pending at `2025-04-03 00:00` and, if not completed, to deleted at `2025-04-09 00:00`.
 
 Note that times can only be specified, stored and displayed in hours and minutes - seconds and microseconds are not supported. Internally datetimes are interpreted as having seconds equal to 0.
-
-[↩︎](#table-of-contents)
 
 ### 2.2. TimeDeltas
 
@@ -808,7 +806,38 @@ This option is particularly useful for irregular recurrences such as annual doct
 
 **Note**: Without `@r`, the `@s` datetime is included in the datetimes generated but with `@r`, it is only used to set the beginning of the recurrence and otherwise ignored.
 
-#### 2.9. Anniversaries
+[↩︎](#table-of-contents)
+
+### 2.9. Masked Information
+
+A <code>@m</code> attribute can be used to record information in a reminder that will be stored in an obfuscated format. Only someone running <em>tklr</em> with the <em>secret</em> from the configuration file used to create the entry will see the clear value. Useful for passwords, account numbers, diary entries or whatever.
+
+For example, this entry:
+
+```
+@m This is a masked entry - it should be readable in
+the details view of the UI but otherwise obfuscated.
+```
+
+would be displayed in the SQLite3 database as
+
+```
+@m wrnClsOSwprDmMKKwrrDnGTDiGTCpsK0w5_CnMOPwq9twr3DlMOE
+wrXDjMKDecKNw4_DqHHCqcOgw4jCp8Kuw45Rw4fDj3HDm8Kpw4jCqMK
+awrXDmMKWworCtMK7eMOawrjCqHPDh8Kxw6HDh8Odwr3CqcKYw4_Cm8
+Knw6FRw5TDkHHDncKsw4xkwo7CnMKMwpPDn8K_bcOHw5r CuMKow4XD
+msK1w6DDi8KUw4DCmMOew47CpcKlw4vCpcOKw45_
+```
+
+[↩︎](#table-of-contents)
+
+### 2.10. HashTags
+
+A single word, without spaces, preceded by a hash character `#` and included in either the <em>subject</em> or the <em>details</em> (`@d` attribute) of a reminder is treated as a hashtag and displayed in <em>Tags View</em> under the tag. This provides a way to flag a word that would be included anyway. E.g., `@d A useful #python trick would be to ...`.
+
+[↩︎](#table-of-contents)
+
+### 2.11. Anniversaries
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
@@ -825,7 +854,7 @@ This option is particularly useful for irregular recurrences such as annual doct
 
 [↩︎](#table-of-contents)
 
-### 2.10. Timezones
+### 2.12. Timezones
 
 When a datetime is specified without an `z` component, the timezone is assumed to be aware and represented using the local timezone. The datetime is converted to UTC for storage in the database. When an awared datetime is displayed, it is displayed using the local timezone of the computer.
 
@@ -850,7 +879,7 @@ With this entry, the rruleset and datetimes generated show the effect of the tra
 
 [↩︎](#table-of-contents)
 
-### 2.11. Urgency
+### 2.13. Urgency
 
 Since urgency values are used ultimately to give an ordinal ranking of tasks, all that matters is the relative values used to compute the urgency scores. Accordingly, all urgency scores are constrained to fall within the interval from -1.0 to 1.0. The default urgency is 0.0 for a task with no urgency components.
 
@@ -912,7 +941,7 @@ Thus positive contributions _always_ increase urgency and negative contributions
 
 [↩︎](#table-of-contents)
 
-### 2.12. Priority
+### 2.14. Priority
 
 How is *priority* calculated for *goals*?  Consider a goal a goal with the target `@t n/t` so that `n` is the number of completions intended for the period `t`. Suppose further that `n'` is the number of instances remaining to be completed this period and that `t'` is the time remaining in the period for their completion.
 
@@ -935,33 +964,10 @@ then it indicates the completion rate currently needed as a percentage of the or
 - `priority = 100`: on schedule.
 - `priority < 100`: ahead of schedule.
 
-[↩︎](#table-of-contents)
-
-### 2.13. Masked Information
-
-A <code>@m</code> attribute can be used to record information in a reminder that will be stored in an obfuscated format. Only someone running <em>tklr</em> with the <em>secret</em> from the configuration file used to create the entry will see the clear value. Useful for passwords, account numbers, diary entries or whatever.
-
-For example, this entry:
-
-```
-@m This is a masked entry - it should be readable in
-the details view of the UI but otherwise obfuscated.
-```
-
-would be displayed in the SQLite3 database as
-
-```
-@m wrnClsOSwprDmMKKwrrDnGTDiGTCpsK0w5_CnMOPwq9twr3DlMOE
-wrXDjMKDecKNw4_DqHHCqcOgw4jCp8Kuw45Rw4fDj3HDm8Kpw4jCqMK
-awrXDmMKWworCtMK7eMOawrjCqHPDh8Kxw6HDh8Odwr3CqcKYw4_Cm8
-Knw6FRw5TDkHHDncKsw4xkwo7CnMKMwpPDn8K_bcOHw5r CuMKow4XD
-msK1w6DDi8KUw4DCmMOew47CpcKlw4vCpcOKw45_
-```
-
 
 [↩︎](#table-of-contents)
 
-### 2.14. Open with default
+### 2.15. Open with default
 
 An <code>@g</code> attribute can be used to enter a URL, file or whatever which can the be "opened" using your system default application by selecting the item and using the menu command "Open with default". Example entries:
 
@@ -982,11 +988,11 @@ Maybe an event involves a zoom meeting? Add an <code>@g</code> attribute with th
 
 [↩︎](#table-of-contents)
 
-### 2.15. Away from your computer? Use the cloud
+### 2.16. Away from your computer? Use the cloud
 
 There are two ways in which *tklr* supports remote usage through the the <em>cloud</em>. The examples here involve the use of <em>iCloud</em>, an <em>iPhone</em> and an <em>iPhone</em> app called <em>Textastic</em>, but these are just examples and a similar setup could be made using, e.g., <em>Google Drive</em>. All that's needed is a link to the <em>tklr</em> home directory in your cloud and a plain text / code editor on your mobile device which can access the linked directory.
 
-#### 2.15.1. To access to your schedule
+#### 2.16.1. To access to your schedule
 
 With this entry in <em>config.toml</em> in your home directory:
 
@@ -994,9 +1000,11 @@ With this entry in <em>config.toml</em> in your home directory:
 
 <em>tklr</em> will automatically output the result of the <code>agenda</code> command to the file <em>current.txt</em> in your home directory, creating the file if necessary and otherwise overwriting it whenever it needs to be updated. With a link to your home directory in <em>iCloud</em>, your agenda, trimmed to 46 characters to fit comfortably on your <em>iPhone</em> screen in portrait mode, will always be available to you. The same approach could be used with <code>weeks</code>, <code>days</code> or any other <em>tklr</em> command. The application <em>Textastic</em> is ideal for displaying the monospaced output and works well with <em>iCloud</em> files.
 
-#### 2.15.2. To record reminders
+#### 2.16.2. To record reminders
 
 The key here is parallel file, <em>inbox.txt</em> in your home directory. Normally this file has zero length, but if you edit it using, say, <em>Textastic</em> and record one or more reminders using exacly the same format that you would use with <em>tklr</em> and being careful to leave a blank line between reminders, then the next time <em>tklr</em> checks the length of this file and notices that it is greater than zero, it will import each of the reminders, prefixing each with a <code>?</code> character so that it will be treated as a <em>draft</em> reminder until you remove the <code>?</code> prefix.  When this process finishes, the reminders are automatically removed from <em>inbox.txt</em> so that its length is restored to zero - ready for subsequent additions. When you next open <em>tklr</em>, all the drafts will be listed together on the current day of the events listing in <em>Agenda View</em> ready for you to make any edits you like to the "drafts" and remove the <code>?</code> prefixes.
+
+[↩︎](#table-of-contents)
 
 ## 3. Getting Started
 
