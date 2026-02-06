@@ -3445,7 +3445,7 @@ class DynamicViewApp(App):
         ("J", "show_jots", "Jots"),
         ("U", "show_jot_uses", "Jot Uses"),
         ("W", "show_weeks", "Weeks"),
-        ("D", "jump_to_week", "Jump to date"),
+        ("D", "jump_to_date", "Jump to date"),
         ("Y", "show_year", "Year"),
         ("?", "show_help", "Help"),
         ("ctrl+q", "quit", "Quit"),
