@@ -524,7 +524,7 @@ type_keys = {
     "^": "project",
     "%": "note",
     "!": "goal",
-    "-": "log",
+    "-": "jot",
     "?": "draft",
     "x": "finished",
     # '✓': 'finished',  # more a property of a task than an item type
@@ -722,7 +722,7 @@ class Item:
     token_keys = {
         "itemtype": [
             "item type",
-            "character from * (event), ~ (task), ^ (project), % (note), ! (goal), - (log), x (finished) or ? (draft)",
+            "character from * (event), ~ (task), ^ (project), % (note), ! (goal), - (jot), x (finished) or ? (draft)",
             "do_itemtype",
         ],
         "subject": [
@@ -740,7 +740,7 @@ class Item:
         "a": ["alerts", "list of alerts", "do_alert"],
         "n": ["notice", "timeperiod", "do_notice"],
         "c": ["context", "context", "do_context"],
-        "u": ["use", "use to which log extent applies", "do_use"],
+        "u": ["use", "use to which jot extent applies", "do_use"],
         "d": ["details", "expanded notes", "do_d"],
         "e": ["extent", "timeperiod", "do_e"],
         "w": ["wrap", "list of two timeperiods", "do_two_periods"],
@@ -961,7 +961,7 @@ class Item:
         self.over = ""
         self.has_f = False  # True if there is an @f to process after parsing tokens
         self.has_s = False  # True if there is an @s to process after parsing tokens
-        self.auto_log_timestamp = None  # last auto-generated @s value for log entries
+        self.auto_log_timestamp = None  # last auto-generated @s value for jot entries
         self.auto_log_seeded = False
 
         # --- optional initial parse ---
@@ -1022,7 +1022,7 @@ class Item:
         if getattr(self, "context", None):
             parts.append(f"@c {self.context}")
 
-        # --- log use ---
+        # --- jot use ---
         if self.itemtype == "-" and getattr(self, "use", None):
             parts.append(f"@u {self.use}")
 
@@ -1166,7 +1166,7 @@ class Item:
             return fmt_error("""\
 Reminders begin with a type character from:
     * (event), ~ (task), ^ (project),
-    % (note),  ! (goal), - (log), ? (draft)
+    % (note),  ! (goal), - (jot), ? (draft)
 followed by a space and the subject.
 """)
 
@@ -1175,7 +1175,7 @@ followed by a space and the subject.
             return fmt_error(f"""\
 Error: an itemtype from:
     * (event), ~ (task), ^ (project),
-    % (note),  ! (goal), - (log), ? (draft)
+    % (note),  ! (goal), - (jot), ? (draft)
 must be the first character.
 Entry: {self.entry}
 """)
@@ -1643,7 +1643,7 @@ Entry: {self.entry}
         self._parse_all_tokens()
 
     def _ensure_log_timestamp(self) -> None:
-        """Auto-append @s now for log entries when user omits it."""
+        """Auto-append @s now for jot entries when user omits it."""
         if self.itemtype != "-":
             return
         if self.auto_log_seeded:
@@ -2036,7 +2036,7 @@ Entry: {self.entry}
 
     def do_use(self, token):
         if self.itemtype != "-":
-            return False, "@u is only valid for log entries.", []
+            return False, "@u is only valid for jot entries.", []
         raw = token["token"][2:].strip()
         if not raw:
             return False, "Use cannot be empty", []

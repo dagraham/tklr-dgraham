@@ -914,7 +914,7 @@ def alerts(ctx, end, output_format):
 @cli.group()
 @click.pass_context
 def uses(ctx):
-    """Manage @u "uses" to which log times can be assigned."""
+    """Manage @u "uses" to which jot times can be assigned."""
 
 
 def _read_multiline_use_entry() -> tuple[str, str]:
@@ -1291,17 +1291,17 @@ def migrate(
     click.echo(f"Migrated {count} {noun} to {outfile_path}")
 
 
-@cli.command()
+@cli.command("jot")
 @click.argument("entry", nargs=-1)
 @click.option(
     "--file",
     "-f",
     type=click.Path(exists=True),
-    help="Path to file with multiple log entries.",
+    help="Path to file with multiple jot entries.",
 )
 @click.pass_context
-def log(ctx, entry, file):
-    """Quickly add log entries (itemtype '-') without worrying about '-' option parsing."""
+def jot(ctx, entry, file):
+    """Quickly add jot entries (itemtype '-') without worrying about '-' option parsing."""
 
     def normalize(entry_str: str) -> str:
         stripped = entry_str.strip()
@@ -1322,7 +1322,7 @@ def log(ctx, entry, file):
 
     entries = [e for e in entries if e]
     if not entries:
-        print("[bold red]✘ No log text provided.[/bold red]")
+        print("[bold red]✘ No jot text provided.[/bold red]")
         return
 
     ctx.invoke(add, entry=tuple(entries), file=None, batch=False)

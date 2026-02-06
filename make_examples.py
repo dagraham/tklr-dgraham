@@ -4,6 +4,7 @@ import random
 import shutil
 from pathlib import Path
 import os
+import re
 
 from datetime import datetime, timedelta
 from rich import print
@@ -275,6 +276,20 @@ def use():
     return " ".join(lorem.sentence()[:-1].split(" ")[:2])
 
 
+def collect_use_names(entries: list[str], env: TklrEnvironment) -> list[str]:
+    names: set[str] = set()
+    for entry in entries:
+        if "@u" not in entry:
+            continue
+        try:
+            probe = Item(raw=entry, env=env)
+        except Exception:
+            continue
+        if probe.use:
+            names.add(probe.use)
+    return sorted(names)
+
+
 freq = [
     "FREQ=WEEKLY;INTERVAL=1",
     "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR",
@@ -322,10 +337,10 @@ one_off = [
     f"~ {phrase()} @p 1 @d undated task test #lorem",
     f"~ {phrase()} @p 3 @d undated task test #lorem",
     f"~ {phrase()} @p 5 @d undated task test #lorem",
-    f"- {phrase()} @s {minutes_ago(10)} @u {use()} @d use without e  #lorem",
+    f"- {phrase()} @s {minutes_ago(10)} @u {use()} @d u without e  #lorem",
     f"- {phrase()} @s {minutes_ago(40)} @u {use()} @e 25m @d u and e #lorem",
     f"- {phrase()} @s {minutes_ago(90)} @e 1h5m @d e without u #lorem",
-    f"- {phrase()} @s {minutes_ago(120)} @d neither e or u #lorem",
+    f"- {phrase()} @s {minutes_ago(120)} @d neither u nor e #lorem",
     f"- {phrase()} @d neither s, e or u #lorem",
     # f"~ {phrase()} @p 2 @d undated task test #lorem",
     # f"~ {phrase()} @p 4 @d undated task test #lorem",
@@ -362,6 +377,12 @@ while len(items) < num_items:
 
 
 id = 0
+try:
+    for name in collect_use_names(one_off + items, env):
+        ctrl.add_use(name)
+except Exception as e:
+    print(f"Error while creating uses: {e}")
+
 for entry in one_off + items:
     count += 1
     id += 1
