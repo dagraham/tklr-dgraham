@@ -6,6 +6,8 @@ from typing import Optional
 from datetime import date, datetime, time, timedelta
 from dateutil.rrule import rrulestr
 from dateutil import parser as dateutil_parser
+import unicodedata
+import difflib
 
 from typing import List, Tuple, Optional, Dict, Any, Set, Iterable
 from rich import print
@@ -209,6 +211,21 @@ def td_str_to_seconds(duration_str: str) -> int:
         return -(weeks * 604800 + days * 86400 + hours * 3600 + minutes * 60 + seconds)
     else:
         return weeks * 604800 + days * 86400 + hours * 3600 + minutes * 60 + seconds
+
+
+def _clean_use_name(name: str | None) -> str:
+    if not name:
+        return ""
+    return " ".join(name.strip().split())
+
+
+def _slugify_use(name: str) -> str:
+    base = unicodedata.normalize("NFKD", name or "")
+    base = base.encode("ascii", "ignore").decode("ascii")
+    base = re.sub(r"[^a-z0-9]+", "-", base.lower()).strip("-")
+    if base:
+        return base
+    return f"use-{abs(hash(name or 'use')) & 0xFFFFFFFF:x}"
 
 
 def dt_str_to_seconds(datetime_str: str) -> int:
@@ -1198,6 +1215,33 @@ class DatabaseManager:
         # --- Optional cleanup of old tag tables (safe if they don't exist) ---
         self.cursor.execute("DROP TABLE IF EXISTS RecordTags;")
         self.cursor.execute("DROP TABLE IF EXISTS Tags;")
+        # Drop remnants from the removed context_id migration if a user ran it locally.
+        self.cursor.execute("DROP TABLE IF EXISTS Records_old;")
+        self.cursor.execute("DROP INDEX IF EXISTS idx_records_context_id;")
+
+        # ---------------- Uses (log lookup) ----------------
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS Uses (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                name    TEXT NOT NULL UNIQUE,
+                slug    TEXT NOT NULL UNIQUE,
+                details TEXT DEFAULT ''
+            );
+        """
+        )
+        self.cursor.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_uses_name_nocase
+            ON Uses(name COLLATE NOCASE);
+        """
+        )
+        self.cursor.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_uses_slug
+            ON Uses(slug);
+        """
+        )
 
         # ---------------- Records ----------------
         self.cursor.execute("""
@@ -1212,16 +1256,17 @@ class DatabaseManager:
                 alerts            TEXT,                         -- JSON
                 notice            TEXT,
                 context           TEXT,
+                use_id            INTEGER,
                 jobs              TEXT,                         -- JSON
                 flags             TEXT,                         -- compact flags (e.g. 𝕒𝕘𝕠𝕣)
                 priority          INTEGER CHECK (priority IN (1,2,3,4,5)),
                 tokens            TEXT,                         -- JSON text (parsed tokens)
                 processed         INTEGER,                      -- 0/1
                 created           TEXT,                         -- 'YYYYMMDDTHHMMSS' UTC
-                modified          TEXT                          -- 'YYYYMMDDTHHMMSS' UTC
+                modified          TEXT,                         -- 'YYYYMMDDTHHMMSS' UTC
+                FOREIGN KEY (use_id) REFERENCES Uses(id)
             );
         """)
-
         # ---------------- Pinned ----------------
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Pinned (
@@ -1438,14 +1483,195 @@ class DatabaseManager:
 
         # ---------------- Busy tables (unchanged) ----------------
         self.setup_busy_tables()
-        # Seed default top-level bins (idempotent)
 
+        # Seed default top-level bins (idempotent)
         self.ensure_root_children(sorted(BIN_ROOTS))
 
         self.commit()
         self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = [row[0] for row in self.cursor.fetchall()]
         tables.sort()
+
+        self._ensure_use_schema()
+
+    def _ensure_use_schema(self):
+        """Ensure Uses lookup table exists and Records.use_id is available."""
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS Uses (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                name    TEXT NOT NULL UNIQUE,
+                slug    TEXT NOT NULL UNIQUE,
+                details TEXT DEFAULT ''
+            );
+        """
+        )
+        self.cursor.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_uses_name_nocase
+            ON Uses(name COLLATE NOCASE);
+        """
+        )
+        self.cursor.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_uses_slug
+            ON Uses(slug);
+        """
+        )
+        column_map = {
+            col[1]: col
+            for col in self.cursor.execute("PRAGMA table_info(Records)").fetchall()
+        }
+        if "use_id" not in column_map:
+            self.cursor.execute("ALTER TABLE Records ADD COLUMN use_id INTEGER;")
+        self.cursor.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_records_use_id
+            ON Records(use_id);
+        """
+        )
+        self.conn.commit()
+
+    def _row_to_use(self, row) -> dict | None:
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "name": row[1],
+            "slug": row[2],
+            "details": row[3],
+        }
+
+    def _ensure_unique_use_slug(self, slug: str) -> str:
+        candidate = slug
+        suffix = 2
+        while (
+            self.cursor.execute("SELECT 1 FROM Uses WHERE slug = ?", (candidate,)).fetchone()
+            is not None
+        ):
+            candidate = f"{slug}-{suffix}"
+            suffix += 1
+        return candidate
+
+    def _get_or_create_use(
+        self, name: str, *, details: str | None = None, allow_create: bool = False
+    ) -> dict | None:
+        cleaned = _clean_use_name(name)
+        if not cleaned:
+            return None
+        existing = self.lookup_use_by_name(cleaned)
+        if existing:
+            return existing
+        if not allow_create:
+            return None
+        slug = self._ensure_unique_use_slug(_slugify_use(cleaned))
+        self.cursor.execute(
+            """
+            INSERT INTO Uses (name, slug, details)
+            VALUES (?, ?, ?)
+        """,
+            (cleaned, slug, details or ""),
+        )
+        self.commit()
+        return self.lookup_use_by_name(cleaned)
+
+    def add_use(self, name: str, details: str | None = None) -> dict:
+        cleaned = _clean_use_name(name)
+        if not cleaned:
+            raise ValueError("Use name cannot be empty.")
+        if self.lookup_use_by_name(cleaned):
+            raise ValueError(f"Use '{cleaned}' already exists.")
+        slug = self._ensure_unique_use_slug(_slugify_use(cleaned))
+        self.cursor.execute(
+            """
+            INSERT INTO Uses (name, slug, details)
+            VALUES (?, ?, ?)
+        """,
+            (cleaned, slug, details or ""),
+        )
+        self.commit()
+        return self.lookup_use_by_name(cleaned)
+
+    def list_uses(self) -> list[dict]:
+        rows = self.cursor.execute(
+            """
+            SELECT id, name, slug, details
+            FROM Uses
+            ORDER BY name COLLATE NOCASE
+        """
+        ).fetchall()
+        return [self._row_to_use(row) for row in rows]
+
+    def lookup_use_by_name(self, name: str) -> dict | None:
+        cleaned = _clean_use_name(name)
+        if not cleaned:
+            return None
+        slug = _slugify_use(cleaned)
+        row = self.cursor.execute(
+            """
+            SELECT id, name, slug, details
+            FROM Uses
+            WHERE slug = ?
+        """,
+            (slug,),
+        ).fetchone()
+        if row:
+            return self._row_to_use(row)
+        row = self.cursor.execute(
+            """
+            SELECT id, name, slug, details
+            FROM Uses
+            WHERE name = ?
+        """,
+            (cleaned,),
+        ).fetchone()
+        return self._row_to_use(row)
+
+    def suggest_uses(self, name: str, limit: int = 3) -> list[dict]:
+        cleaned = _clean_use_name(name)
+        if not cleaned:
+            return []
+        rows = self.cursor.execute(
+            """
+            SELECT id, name, slug, details
+            FROM Uses
+        """
+        ).fetchall()
+        candidates = [row[1] for row in rows]
+        matches = difflib.get_close_matches(cleaned, candidates, n=limit, cutoff=0.6)
+        results: list[dict] = []
+        for match in matches:
+            row = self.cursor.execute(
+                """
+                SELECT id, name, slug, details
+                FROM Uses
+                WHERE name = ?
+            """,
+                (match,),
+            ).fetchone()
+            if row:
+                results.append(self._row_to_use(row))
+            if len(results) >= limit:
+                break
+        return results
+
+    def _resolve_use_id_for_item(self, item: Item, *, strict: bool = False) -> int | None:
+        name = _clean_use_name(getattr(item, "use", ""))
+        if not name or getattr(item, "itemtype", None) != "-":
+            item.use_id = None
+            return None
+        if getattr(item, "use_id", None):
+            return item.use_id
+        use = self.lookup_use_by_name(name)
+        if use:
+            item.use = use["name"]
+            item.use_id = use["id"]
+            return use["id"]
+        if strict:
+            raise ValueError(
+                f"Unknown use '{name}'. Use 'tklr uses add \"{name}\"' to create it."
+            )
+        return None
 
     def setup_busy_tables(self):
         """
@@ -1790,13 +2016,14 @@ class DatabaseManager:
         flags = self._compute_flags(item)
         try:
             timestamp = utc_now_string()
+            use_id = self._resolve_use_id_for_item(item, strict=bool(getattr(item, "use", "")))
             self.cursor.execute(
                 """
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
-                    extent, alerts, notice, context, jobs, flags, priority,
+                    extent, alerts, notice, context, use_id, jobs, flags, priority,
                     tokens, processed, created, modified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.itemtype,
@@ -1808,6 +2035,7 @@ class DatabaseManager:
                     json.dumps(item.alerts),
                     item.notice,
                     item.context,
+                    use_id,
                     json.dumps(item.jobs),
                     flags,
                     item.priority,
@@ -1848,6 +2076,9 @@ class DatabaseManager:
             )
             set_field("notice", item.notice)
             set_field("context", item.context)
+            use_id = self._resolve_use_id_for_item(item, strict=bool(getattr(item, "use", "")))
+            fields.append("use_id = ?")
+            values.append(use_id)
             set_field("jobs", json.dumps(item.jobs) if item.jobs is not None else None)
             set_field("priority", item.priority)
             set_field(
@@ -1873,6 +2104,7 @@ class DatabaseManager:
         """Insert or update a record and refresh associated tables."""
         timestamp = utc_now_string()
         flags = self._compute_flags(item)
+        use_id = self._resolve_use_id_for_item(item, strict=bool(getattr(item, "use", "")))
 
         if record_id is None:
             # Insert new record
@@ -1880,9 +2112,9 @@ class DatabaseManager:
                 """
                 INSERT INTO Records (
                     itemtype, subject, description, rruleset, timezone,
-                    extent, alerts, notice, context, jobs,
+                    extent, alerts, notice, context, use_id, jobs,
                     flags, priority, tokens, processed, created, modified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.itemtype,
@@ -1894,6 +2126,7 @@ class DatabaseManager:
                     json.dumps(item.alerts),
                     item.notice,
                     item.context,
+                    use_id,
                     json.dumps(item.jobs),
                     flags,
                     item.priority,
@@ -1910,7 +2143,7 @@ class DatabaseManager:
                 """
                 UPDATE Records
                 SET itemtype = ?, subject = ?, description = ?, rruleset = ?, timezone = ?,
-                    extent = ?, alerts = ?, notice = ?, context = ?, jobs = ?,
+                    extent = ?, alerts = ?, notice = ?, context = ?, use_id = ?, jobs = ?,
                     flags = ?, priority = ?, tokens = ?, processed = 0, modified = ?
                 WHERE id = ?
                 """,
@@ -1924,6 +2157,7 @@ class DatabaseManager:
                     json.dumps(item.alerts),
                     item.notice,
                     item.context,
+                    use_id,
                     json.dumps(item.jobs),
                     flags,
                     item.priority,
@@ -3241,7 +3475,7 @@ class DatabaseManager:
         FROM DateTimes dt
         JOIN Records r ON dt.record_id = r.id
         WHERE
-            r.itemtype != '!' AND
+            r.itemtype NOT IN ('!', '-') AND
             -- normalized end >= period start
             (
                 CASE

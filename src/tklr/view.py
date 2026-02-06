@@ -1055,6 +1055,82 @@ class TextPrompt(ModalScreen[Optional[str]]):
             self.dismiss(None)
 
 
+class UseEditorPrompt(ModalScreen[tuple[str, str] | None]):
+    """
+    Multi-line use editor. Line 1 is the use name; remaining lines hold details.
+    """
+
+    BINDINGS = [
+        (SAVE_BINDING, "save_use", "Save"),
+        (CANCEL_BINDING, "cancel_use", "Cancel"),
+    ]
+
+    def __init__(
+        self,
+        title: str = "Use Entry",
+        initial_name: str = "",
+        initial_details: str = "",
+    ):
+        super().__init__()
+        self._title = title or "Use Entry"
+        self._initial_name = initial_name or ""
+        self._initial_details = initial_details or ""
+        self._text: TextArea | None = None
+
+    def compose(self) -> ComposeResult:
+        initial_lines: list[str] = []
+        if self._initial_name:
+            initial_lines.append(self._initial_name)
+        else:
+            initial_lines.append("")
+        if self._initial_details:
+            initial_lines.append(self._initial_details)
+        initial_text = "\n".join(initial_lines)
+
+        with Vertical(id="use_prompt"):
+            yield Static(self._title, classes="title-class", id="use_prompt_title")
+            yield Static(
+                "Line 1 is the use name. Add optional details on later lines.\n"
+                f"[bold {FOOTER}]{SAVE_LABEL}[/bold {FOOTER}] to save, "
+                f"[bold {FOOTER}]{CANCEL_LABEL}[/bold {FOOTER}] to cancel.",
+                id="use_prompt_instructions",
+            )
+            self._text = TextArea(initial_text, id="use_prompt_entry")
+            yield self._text
+
+    def on_mount(self) -> None:
+        if self._text:
+            self._text.focus()
+            if self._initial_name:
+                self._text.cursor_location = (0, len(self._initial_name))
+
+    def _split_lines(self) -> list[str]:
+        if not self._text:
+            return []
+        text = self._text.text or ""
+        return text.splitlines()
+
+    def action_save_use(self) -> None:
+        lines = self._split_lines()
+        if not lines:
+            self.app.notify("Use name cannot be blank.", severity="warning")
+            return
+        name = lines[0].strip()
+        if not name:
+            self.app.notify("Use name cannot be blank.", severity="warning")
+            return
+        details = "\n".join(lines[1:])
+        self.dismiss((name, details))
+
+    def action_cancel_use(self) -> None:
+        self.dismiss(None)
+
+    def on_key(self, event: events.Key) -> None:
+        if event.key == "escape":
+            event.stop()
+            self.dismiss(None)
+
+
 class DatetimePrompt(ModalScreen[datetime | None]):
     """
     Prompt for a datetime, live-parsed with dateutil.parser.parse.
@@ -1150,6 +1226,11 @@ class EditorScreen(Screen):
     BINDINGS = [
         (SAVE_BINDING, "save_and_close", "Save"),
         (CANCEL_BINDING, "close", "Back"),
+        ("ctrl+shift+period", "create_use", "New use"),
+        ("ctrl+period", "create_use", "New use"),
+        ("ctrl+^", "create_use", "New use"),
+        ("f2", "create_use", "New use"),
+        ("ctrl+a", "create_use", "New use"),
     ]
 
     def __init__(
@@ -1159,6 +1240,8 @@ class EditorScreen(Screen):
         self.controller = controller
         self.record_id = record_id
         self.entry_text = seed_text
+        self._pending_use_name: str | None = None
+        self._pending_use_span: tuple[int, int] | None = None
 
         # one persistent Item
         from tklr.item import Item  # adjust import to your layout if needed
@@ -1235,6 +1318,80 @@ class EditorScreen(Screen):
 
     def action_close(self) -> None:
         self.dismiss(None)  # close without saving
+
+    def action_create_use(self) -> None:
+        bug_msg("Creating new use...")
+        token = self._token_at(self._cursor_abs_index())
+        if not token or token.get("k") != "u":
+            self.app.notify(
+                "Place the cursor inside an @u token to create a use.",
+                severity="warning",
+                timeout=1.5,
+            )
+            return
+
+        current_value = token.get("token", "")[2:].strip()
+        self._pending_use_span = (token.get("s", -1), token.get("e", -1))
+        self._pending_use_name = current_value or None
+        bug_msg(f"{self._pending_use_span = }, {self._pending_use_name= }")
+
+        def _after_use_entry(result: tuple[str, str] | None) -> None:
+            if not result:
+                self._pending_use_span = None
+                self._pending_use_name = None
+                return
+            name, details = result
+            cleaned = (name or "").strip()
+            if not cleaned:
+                self.app.notify("Use name cannot be blank.", severity="warning")
+                return
+            self._pending_use_name = cleaned
+            self._finalize_use_creation(details or "")
+
+        self.app.push_screen(
+            UseEditorPrompt("New Use", initial_name=current_value),
+            callback=_after_use_entry,
+        )
+
+    def _finalize_use_creation(self, details: str) -> None:
+        name = self._pending_use_name
+        if not name:
+            return
+        try:
+            use = self.controller.add_use(name, details)
+        except ValueError as exc:
+            existing = self.controller.lookup_use(name)
+            if existing:
+                use = existing
+            else:
+                self.app.notify(str(exc), severity="error")
+                self._pending_use_name = None
+                self._pending_use_span = None
+                return
+        self._apply_use_in_editor(use["name"])
+
+    def _apply_use_in_editor(self, canonical_name: str) -> None:
+        span = self._pending_use_span
+        text = self.entry_text or ""
+        replacement = f"@u {canonical_name}"
+        if (
+            span
+            and 0 <= span[0] <= span[1] <= len(text)
+            and not any(val is None for val in span)
+        ):
+            start, end = span
+            self.entry_text = text[:start] + replacement + text[end:]
+        else:
+            separator = "" if not text or text.endswith(" ") else " "
+            self.entry_text = f"{text}{separator}{replacement}"
+
+        if self._text is not None:
+            self._text.text = self.entry_text
+
+        self._pending_use_name = None
+        self._pending_use_span = None
+        self._live_parse_and_feedback(final=False, refresh_from_widget=True)
+        self.app.notify(f'Use "{canonical_name}" created.', timeout=1.5)
 
     # ---------- Internals ----------
     def _build_context(self) -> str:
@@ -1349,7 +1506,7 @@ class EditorScreen(Screen):
             "r": "Repetition frequency",
             "s": "Scheduled datetime",
             "t": "Target number/period",
-            "u": "URL",
+            "u": "Use",
             "w": "Wrap",
             "x": "Exclude dates",
             "z": "Timezone",

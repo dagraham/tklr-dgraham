@@ -18,7 +18,7 @@ class TestBasicAlerts:
         # Time frozen to 2025-01-15 12:00:00 via frozen_time fixture
 
         item = item_factory(
-            "* meeting @s 2025-01-15 14:00 @a 15m"
+            "* meeting @s 2025-01-15 14:00 @a 15m: n"
         )
 
         assert item.parse_ok, f"Parse failed for \'{item.entry}\': {item.parse_message}"
@@ -72,7 +72,7 @@ class TestAlertTiming:
         # Time frozen to 2025-01-15 12:00:00 via frozen_time fixture
 
         item = item_factory(
-            "* meeting @s 2025-01-15 13:00 @a 30m"
+            "* meeting @s 2025-01-15 13:00 @a 30m: n"
         )
 
         assert item.parse_ok, f"Parse failed for \'{item.entry}\': {item.parse_message}"
@@ -83,7 +83,7 @@ class TestAlertTiming:
         # Time frozen to 2025-01-15 12:00:00 via frozen_time fixture
 
         item = item_factory(
-            "* event @s 2025-01-16 10:00 @a 2h"
+            "* event @s 2025-01-16 10:00 @a 2h: n"
         )
 
         assert item.parse_ok, f"Parse failed for \'{item.entry}\': {item.parse_message}"
@@ -94,7 +94,7 @@ class TestAlertTiming:
         # Time frozen to 2025-01-15 12:00:00 via frozen_time fixture
 
         item = item_factory(
-            "* conference @s 2025-01-20 @a 2d"
+            "* conference @s 2025-01-20 @a 2d: n"
         )
 
         assert item.parse_ok, f"Parse failed for \'{item.entry}\': {item.parse_message}"
@@ -105,7 +105,7 @@ class TestAlertTiming:
         # Time frozen to 2025-01-15 12:00:00 via frozen_time fixture
 
         item = item_factory(
-            "~ project deadline @s 2025-02-15 @a 2w"
+            "~ project deadline @s 2025-02-15 @a 2w: n"
         )
 
         assert item.parse_ok, f"Parse failed for \'{item.entry}\': {item.parse_message}"

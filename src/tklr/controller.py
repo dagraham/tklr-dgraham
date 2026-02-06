@@ -648,6 +648,20 @@ class Controller:
 
         return record_id
 
+    # ── Use management -------------------------------------------------
+
+    def add_use(self, name: str, details: str | None = None) -> dict:
+        return self.db_manager.add_use(name, details)
+
+    def list_uses(self) -> list[dict]:
+        return self.db_manager.list_uses()
+
+    def lookup_use(self, name: str) -> dict | None:
+        return self.db_manager.lookup_use_by_name(name)
+
+    def suggest_uses(self, name: str, limit: int = 3) -> list[dict]:
+        return self.db_manager.suggest_uses(name, limit)
+
     # ── Inbox processing -------------------------------------------------
     def _inbox_path(self) -> Path:
         path = self.env.home / "inbox.txt"

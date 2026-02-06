@@ -167,6 +167,17 @@ def item_factory(test_env, test_controller):
 
 
 @pytest.fixture
+def use_factory(test_controller):
+    """
+    Helper fixture to create uses for tests that rely on @u lookup.
+    """
+    def _create(name: str = "General", details: str = ""):
+        return test_controller.db_manager.add_use(name, details)
+
+    return _create
+
+
+@pytest.fixture
 def populated_controller(test_controller, item_factory, sample_items):
     """
     Provides a Controller with a database populated with sample items.

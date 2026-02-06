@@ -55,6 +55,7 @@ DIM_COLOR = DARK_GRAY
 ALLDAY_COLOR = SANDY_BROWN
 EVENT_COLOR = LIME_GREEN
 NOTE_COLOR = DARK_SALMON
+LOG_COLOR = PALE_GREEN
 PASSED_EVENT = DARK_OLIVEGREEN
 ACTIVE_EVENT = LAWN_GREEN
 TASK_COLOR = LIGHT_SKY_BLUE
@@ -87,6 +88,7 @@ TYPE_TO_COLOR = {
     "<": PASTDUE_COLOR,  # past due task
     ">": NOTICE_COLOR,  # begin
     "!": GOAL_COLOR,  # draft
+    "-": LOG_COLOR,  # draft
     "?": DRAFT_COLOR,  # draft
     "b": BIN_COLOR,
     "B": ACTIVE_BIN,
@@ -161,6 +163,7 @@ def is_all_day_text(start_text: str | None, end_text: str | None) -> bool:
         return True
 
     return has_zero_time_component(end)
+
 
 # class datetimeChar:
 #     VSEP = "⏐"  # U+23D0  this will be a de-emphasized color

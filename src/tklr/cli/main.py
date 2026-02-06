@@ -173,7 +173,7 @@ def add(ctx, entry, file, batch):
     db = ctx.obj["DB"]
     verbose = ctx.obj["VERBOSE"]
     bad_items = []
-    dbm = DatabaseManager(db, env)
+    controller = Controller(db, env)
 
     def clean_and_split(content: str) -> list[str]:
         """
@@ -201,7 +201,7 @@ def add(ctx, entry, file, batch):
     def process_entry(entry_str: str) -> bool:
         msg = None
         try:
-            item = Item(env=env, raw=entry_str, final=True)
+            item = Item(env=env, raw=entry_str, final=True, controller=controller)
             if not item.parse_ok or not item.itemtype:
                 # pm = "\n".join(item.parse_message)
                 # tks = "\n".join(item.relative_tokens)
@@ -220,10 +220,7 @@ def add(ctx, entry, file, batch):
         if dry_run:
             print(f"[green]would have added:\n {item = }")
         else:
-            dbm.add_item(item)
-            # print(
-            #     f"[green]✔ Added:[/green] {item.subject if hasattr(item, 'subject') else entry_str}"
-            # )
+            controller.add_item(item)
         return True
 
     # Determine the source of entries
@@ -255,7 +252,7 @@ def add(ctx, entry, file, batch):
         if process_entry(e):
             count += 1
 
-    dbm.populate_dependent_tables()
+    controller.db_manager.populate_dependent_tables()
     print(
         f"[green]✔ Added {count} entr{'y' if count == 1 else 'ies'} successfully.[/green]"
     )
@@ -297,8 +294,9 @@ def check(ctx, entry):
         print("[bold red]✘ No entry provided. Use argument or pipe.[/bold red]")
         sys.exit(1)
 
+    controller = Controller(ctx.obj["DB"], env)
     try:
-        item = Item(env=env, raw=entry)
+        item = Item(env=env, raw=entry, controller=controller)
         if item.parse_ok:
             print("[green]✔ Entry is valid.[/green]")
             if verbose:
@@ -913,6 +911,97 @@ def alerts(ctx, end, output_format):
     console.print(table)
 
 
+@cli.group()
+@click.pass_context
+def uses(ctx):
+    """Manage @u "uses" to which log times can be assigned."""
+
+
+def _read_multiline_use_entry() -> tuple[str, str]:
+    click.echo(
+        "Enter the use name on the first line, then optional details.\n"
+        "Submit a blank line to finish."
+    )
+    lines: list[str] = []
+    while True:
+        prompt = "Name: " if not lines else "Details: "
+        click.echo(prompt, nl=False)
+        line = sys.stdin.readline()
+        if line == "":
+            break  # EOF
+        line = line.rstrip("\n")
+        if line == "":
+            if not lines:
+                click.echo("Use name cannot be blank.")
+                continue
+            break
+        lines.append(line)
+    if not lines:
+        raise click.ClickException("Use name cannot be blank.")
+    name = lines[0].strip()
+    if not name:
+        raise click.ClickException("Use name cannot be blank.")
+    details = "\n".join(lines[1:])
+    return name, details
+
+
+def _read_use_entry_from_stdin() -> tuple[str, str]:
+    raw = sys.stdin.read()
+    lines = raw.splitlines()
+    if not lines:
+        raise click.ClickException("Use name cannot be blank.")
+    name = (lines[0] or "").strip()
+    if not name:
+        raise click.ClickException("Use name cannot be blank.")
+    details = "\n".join(lines[1:])
+    return name, details
+
+
+@uses.command("add")
+@click.argument("name_parts", nargs=-1)
+@click.pass_context
+def uses_add(ctx, name_parts):
+    """Create a new @u "use" name with optional details."""
+    name = " ".join(name_parts).strip()
+    if not name:
+        if sys.stdin.isatty():
+            name, details = _read_multiline_use_entry()
+        else:
+            name, details = _read_use_entry_from_stdin()
+    else:
+        details = ""
+
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+    controller = Controller(db_path, env)
+    try:
+        use = controller.add_use(name, details)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"Added use #{use['id']}: {use['name']}")
+
+
+@uses.command("list")
+@click.pass_context
+def uses_list(ctx):
+    """List all defined uses."""
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+    controller = Controller(db_path, env)
+    entries = controller.list_uses()
+    if not entries:
+        click.echo("No uses defined yet. Use 'tklr uses add' to create one.")
+        return
+    table = Table(box=box.SIMPLE_HEAVY, header_style="bold")
+    table.add_column("ID", style="cyan", justify="right")
+    table.add_column("Name", style="magenta")
+    table.add_column("Details", style="green")
+    for entry in entries:
+        table.add_row(str(entry["id"]), entry["name"], entry.get("details") or "")
+    console = Console()
+    console.print(table)
+
+
 @cli.command()
 @click.argument("query_parts", nargs=-1)
 @click.option(
@@ -1200,3 +1289,40 @@ def migrate(
 
     noun = "record" if count == 1 else "records"
     click.echo(f"Migrated {count} {noun} to {outfile_path}")
+
+
+@cli.command()
+@click.argument("entry", nargs=-1)
+@click.option(
+    "--file",
+    "-f",
+    type=click.Path(exists=True),
+    help="Path to file with multiple log entries.",
+)
+@click.pass_context
+def log(ctx, entry, file):
+    """Quickly add log entries (itemtype '-') without worrying about '-' option parsing."""
+
+    def normalize(entry_str: str) -> str:
+        stripped = entry_str.strip()
+        if not stripped:
+            return ""
+        if not stripped.startswith("-"):
+            return f"- {stripped}"
+        return stripped
+
+    if entry:
+        entries = [normalize(" ".join(entry))]
+    elif file:
+        content = get_raw_from_file(file)
+        entries = [normalize(line) for line in content.splitlines() if line.strip()]
+    else:
+        raw = get_raw_from_stdin().strip()
+        entries = [normalize(raw)] if raw else []
+
+    entries = [e for e in entries if e]
+    if not entries:
+        print("[bold red]✘ No log text provided.[/bold red]")
+        return
+
+    ctx.invoke(add, entry=tuple(entries), file=None, batch=False)

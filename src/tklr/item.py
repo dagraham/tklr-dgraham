@@ -530,9 +530,7 @@ type_keys = {
     # '✓': 'finished',  # more a property of a task than an item type
 }
 # common_methods = list("cdgblmnstxz") + ["k", "#"]
-common_methods = list("cdgblmnstx") + [
-    "k",
-]
+common_methods = list("cdgblmnstx")
 
 repeating_methods = list("o") + [
     "r",
@@ -591,18 +589,18 @@ required = {
     "%": [],
     "?": [],
     "!": ["s", "t"],
-    "-": ["s"],  # default to now if missing
+    "-": [],  # @s defaults to now if missing
     "x": [],
 }
 
-all_keys = common_methods + datetime_methods + job_methods + repeating_methods
+all_keys = common_methods + datetime_methods + job_methods + repeating_methods + ["u"]
 
 allowed = {
     "*": common_methods + datetime_methods + repeating_methods + wrap_methods,
     "x": common_methods + datetime_methods + task_methods + repeating_methods + ["~"],
     "~": common_methods + datetime_methods + task_methods + repeating_methods,
     "!": common_methods + ["s", "t", "f", "k"],
-    "-": ["s", "c", "d", "e"],  # s will default to now if missing
+    "-": ["s", "u", "d", "e"],  # s will default to now if missing
     "^": common_methods + datetime_methods + job_methods + repeating_methods,
     "%": common_methods + datetime_methods,
     "?": all_keys,
@@ -741,7 +739,8 @@ class Item:
         "-": ["exdate", "exception dates", "do_minus"],
         "a": ["alerts", "list of alerts", "do_alert"],
         "n": ["notice", "timeperiod", "do_notice"],
-        "c": ["context", "context", "do_string"],
+        "c": ["context", "context", "do_context"],
+        "u": ["use", "use to which log extent applies", "do_use"],
         "d": ["details", "expanded notes", "do_d"],
         "e": ["extent", "timeperiod", "do_e"],
         "w": ["wrap", "list of two timeperiods", "do_two_periods"],
@@ -902,16 +901,20 @@ class Item:
         self.itemtype = ""
         self.subject = ""
         self.context = ""
+        self.use = ""
+        self.use_id = None
         self.description = ""
         self.token_map = {}
         self.parse_ok = False
         self.parse_message = ""
+        self.had_token_error = False
         self.relative_tokens = []
         self.last_result = ()
         self.bin_paths = []
         self.tokens = []
         self.messages = []
         self.validate_messages = []
+        self.error_result = None
 
         # --- schedule / tokens / jobs ---
         self.extent = ""
@@ -958,6 +961,8 @@ class Item:
         self.over = ""
         self.has_f = False  # True if there is an @f to process after parsing tokens
         self.has_s = False  # True if there is an @s to process after parsing tokens
+        self.auto_log_timestamp = None  # last auto-generated @s value for log entries
+        self.auto_log_seeded = False
 
         # --- optional initial parse ---
         self.ampm = False
@@ -1017,6 +1022,10 @@ class Item:
         if getattr(self, "context", None):
             parts.append(f"@c {self.context}")
 
+        # --- log use ---
+        if self.itemtype == "-" and getattr(self, "use", None):
+            parts.append(f"@u {self.use}")
+
         # --- jobs ---
         if getattr(self, "jobs", None) and self.jobs not in ("[]", None):
             try:
@@ -1035,7 +1044,14 @@ class Item:
         Parses the input string to extract tokens, then processes and validates the tokens.
         """
         # digits = "1234567890" * ceil(len(entry) / 10)
-
+        self.context = ""
+        self.use = ""
+        self.use_id = None
+        self.had_token_error = False
+        self.parse_message = ""
+        self.auto_log_seeded = False
+        self.auto_log_timestamp = None
+        self.error_result = None
         self._tokenize(entry)
         # NOTE: _tokenize sets self.itemtype and self.subject
 
@@ -1044,9 +1060,12 @@ class Item:
             self.parse_ok = False
             return f"parse failed: {self.parse_message = }"
 
+        self._ensure_log_timestamp()
         self._parse_tokens(entry)
 
-        self.parse_ok = True
+        self.parse_ok = not self.had_token_error
+        if self.had_token_error and self.error_result:
+            self.last_result = self.error_result
 
         if self.final:
             self.finalize_record()
@@ -1147,7 +1166,7 @@ class Item:
             return fmt_error("""\
 Reminders begin with a type character from:
     * (event), ~ (task), ^ (project),
-    % (note),  ! (goal), ? (draft)
+    % (note),  ! (goal), - (log), ? (draft)
 followed by a space and the subject.
 """)
 
@@ -1156,7 +1175,7 @@ followed by a space and the subject.
             return fmt_error(f"""\
 Error: an itemtype from:
     * (event), ~ (task), ^ (project),
-    % (note),  ! (goal), ? (draft)
+    % (note),  ! (goal), - (log), ? (draft)
 must be the first character.
 Entry: {self.entry}
 """)
@@ -1468,7 +1487,7 @@ Entry: {self.entry}
                 (False, ": ".join(Item.token_keys["itemtype"][:2]), [])
             )
             return
-        if entry[0] not in {"*", "~", "^", "%", "!", "x", "?"}:
+        if entry[0] not in {"*", "~", "^", "%", "!", "-", "x", "?"}:
             self.messages.append(
                 (
                     False,
@@ -1623,6 +1642,36 @@ Entry: {self.entry}
         """
         self._parse_all_tokens()
 
+    def _ensure_log_timestamp(self) -> None:
+        """Auto-append @s now for log entries when user omits it."""
+        if self.itemtype != "-":
+            return
+        if self.auto_log_seeded:
+            return
+        has_explicit_s = any(
+            tok.get("t") == "@"
+            and tok.get("k") == "s"
+            and not tok.get("incomplete", False)
+            for tok in self.relative_tokens
+        )
+        if has_explicit_s:
+            return
+        now_dt = datetime.now().astimezone()
+        self.auto_log_timestamp = now_dt
+        token_value = self.fmt_user(now_dt)
+        token_text = f"@s {token_value}"
+        start = len(self.entry or "")
+        new_token = {
+            "token": token_text,
+            "s": start,
+            "e": start + len(token_text),
+            "t": "@",
+            "k": "s",
+            "_auto": True,
+        }
+        self.relative_tokens.append(new_token)
+        self.auto_log_seeded = True
+
     def _parse_all_tokens(self):
         self.mark_grouped_tokens()
 
@@ -1664,9 +1713,14 @@ Entry: {self.entry}
             is_valid, result, sub_tokens = method(token)
             self.last_result = (is_valid, result, token)
             if is_valid:
-                self.parse_ok = is_valid
+                self.parse_ok = True
             else:
                 self.parse_ok = False
+                self.had_token_error = True
+                if self.error_result is None:
+                    self.error_result = (is_valid, result, token)
+                if result:
+                    self.parse_message = result
         else:
             self.parse_ok = False
             log_msg(f"No handler for token: {token}")
@@ -1790,6 +1844,15 @@ Entry: {self.entry}
         self.wrap = wrap
         return True, wrap, []
 
+    def _default_alert_command(self) -> str:
+        cfg = getattr(getattr(self.env, "config", None), "alerts", None)
+        if isinstance(cfg, dict) and cfg:
+            for preferred in ("n", "v"):
+                if preferred in cfg:
+                    return preferred
+            return next(iter(cfg.keys()))
+        return "n"
+
     def do_alert(self, token):
         """
         Process an alert string, validate it and return a corresponding string
@@ -1797,10 +1860,16 @@ Entry: {self.entry}
 
         alert = token["token"][2:].strip()
 
-        parts = [x.strip() for x in alert.split(":")]
-        if len(parts) != 2:
+        if not alert or ":" not in alert:
             return False, f"Invalid alert format: {alert}", []
-        timedeltas, commands = parts
+
+        timedeltas, commands = alert.split(":", 1)
+        timedeltas = timedeltas.strip()
+        commands = commands.strip()
+
+        if not timedeltas or not commands:
+            return False, f"Invalid alert format: {alert}", []
+
         secs = []
         tds = []
         cmds = []
@@ -1809,12 +1878,16 @@ Entry: {self.entry}
         res = ""
         ok = True
         for cmd in [x.strip() for x in commands.split(",")]:
+            if not cmd:
+                continue
             if is_lowercase_letter(cmd):
                 cmds.append(cmd)
             else:
                 ok = False
                 probs.append(f"  Invalid command: {cmd}")
         for td in [x.strip() for x in timedeltas.split(",")]:
+            if not td:
+                continue
             ok, td_seconds = timedelta_str_to_seconds(td)
             if ok:
                 secs.append(str(td_seconds))
@@ -1953,6 +2026,45 @@ Entry: {self.entry}
     def do_string(self, token):
         obj = rep = token["token"][2:].strip()
         return obj, rep, []
+
+    def do_context(self, token):
+        raw = token["token"][2:].strip()
+        if not raw:
+            return False, "Context cannot be empty", []
+        self.context = " ".join(raw.split())
+        return True, self.context, []
+
+    def do_use(self, token):
+        if self.itemtype != "-":
+            return False, "@u is only valid for log entries.", []
+        raw = token["token"][2:].strip()
+        if not raw:
+            return False, "Use cannot be empty", []
+        normalized = " ".join(raw.split())
+        resolver = getattr(self.controller, "lookup_use", None)
+        if callable(resolver):
+            use = resolver(normalized)
+            if use:
+                self.use = use["name"]
+                self.use_id = use["id"]
+                return True, use["name"], []
+            suggest_fn = getattr(self.controller, "suggest_uses", None)
+            suggestions = (
+                [u["name"] for u in suggest_fn(normalized, limit=3)]
+                if callable(suggest_fn)
+                else []
+            )
+            suggestion_text = (
+                f"\nClose matches: {', '.join(suggestions)}." if suggestions else ""
+            )
+            hint = (
+                f"Press Ctrl+Shift+Period to add '{normalized}' as a new use "
+                f"or enter an existing one.{suggestion_text}"
+            )
+            return (False, hint, [])
+        self.use = normalized
+        self.use_id = None
+        return True, normalized, []
 
     def do_timezone(self, token: dict):
         """Handle @z timezone declaration in user input."""

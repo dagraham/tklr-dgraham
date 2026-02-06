@@ -52,13 +52,6 @@ class TestItemAPIExamples:
         assert item.parse_ok, f"Parse failed: {item.parse_message}"
         assert "This is a description" in item.description
 
-    def test_context_parsing(self, item_factory):
-        """Test context attribute."""
-        item = item_factory("~ task @c office")
-
-        assert item.parse_ok, f"Parse failed: {item.parse_message}"
-        # assert item.context == "office"
-
     def test_bins_parsing(self, item_factory):
         """Test that bins/categories are captured."""
         item = item_factory("~ task @b work/projects")

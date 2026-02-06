@@ -185,3 +185,68 @@ class TestBins:
 
         assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
         assert bin_path_contains_prefix(item.bin_paths, ["2025:10", "2025", "journal"])
+
+
+@pytest.mark.unit
+class TestLogEntries:
+    """Tests for log (-) reminders."""
+
+    def test_log_defaults_schedule(self, frozen_time, item_factory):
+        """Log entries without @s should auto-append the current time."""
+        entry = "- hydration log"
+        item = item_factory(entry)
+
+        assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
+        assert item.auto_log_timestamp is not None
+
+        expected_now = datetime.now().astimezone()
+        assert item.auto_log_timestamp == expected_now
+
+        s_tokens = [
+            tok
+            for tok in item.relative_tokens
+            if tok.get("t") == "@" and tok.get("k") == "s"
+        ]
+        assert len(s_tokens) == 1
+        assert "@s" in s_tokens[0]["token"]
+        assert item.dtstart_str is not None
+
+    def test_log_respects_explicit_schedule(self, item_factory):
+        """If @s is provided, logs should not override it."""
+        entry = "- hydration log @s 2025-02-01 09:30"
+        item = item_factory(entry)
+
+        assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
+        assert item.auto_log_timestamp is None
+
+        s_tokens = [
+            tok
+            for tok in item.relative_tokens
+            if tok.get("t") == "@" and tok.get("k") == "s"
+        ]
+        assert len(s_tokens) == 1
+        assert "2025-02-01" in s_tokens[0]["token"]
+        assert "9:30" in s_tokens[0]["token"]
+
+
+@pytest.mark.unit
+class TestUseLookup:
+    """Ensure log-specific @u values come from the use registry."""
+
+    def test_existing_use_parses(self, item_factory, use_factory):
+        use_factory("Client Alpha")
+        item = item_factory("- call recap @u Client Alpha")
+
+        assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
+        assert item.use == "Client Alpha"
+        assert item.use_id is not None
+
+    def test_unknown_use_suggests(self, item_factory, use_factory):
+        use_factory("Jones, Robert")
+        use_factory("Smith, John")
+
+        item = item_factory("- phoned client @u Jonse, Robert")
+
+        assert not item.parse_ok
+        assert item.last_result
+        assert "Jones, Robert" in (item.last_result[1] or "")

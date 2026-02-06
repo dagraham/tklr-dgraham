@@ -90,6 +90,12 @@ def in_one_hour():
     return next.strftime("%Y-%m-%d %H:%M")
 
 
+def minutes_ago(minutes: int) -> str:
+    now = datetime.now().replace(second=0, microsecond=0)
+    next = now - timedelta(minutes=minutes)
+    return next.strftime("%Y-%m-%d %H:%M")
+
+
 def in_one_day():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
@@ -265,6 +271,10 @@ def word():
     return lorem.sentence()[:-1].split(" ")[0]
 
 
+def use():
+    return " ".join(lorem.sentence()[:-1].split(" ")[:2])
+
+
 freq = [
     "FREQ=WEEKLY;INTERVAL=1",
     "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR",
@@ -312,6 +322,11 @@ one_off = [
     f"~ {phrase()} @p 1 @d undated task test #lorem",
     f"~ {phrase()} @p 3 @d undated task test #lorem",
     f"~ {phrase()} @p 5 @d undated task test #lorem",
+    f"- {phrase()} @s {minutes_ago(10)} @u {use()} @d use without e  #lorem",
+    f"- {phrase()} @s {minutes_ago(40)} @u {use()} @e 25m @d u and e #lorem",
+    f"- {phrase()} @s {minutes_ago(90)} @e 1h5m @d e without u #lorem",
+    f"- {phrase()} @s {minutes_ago(120)} @d neither e or u #lorem",
+    f"- {phrase()} @d neither s, e or u #lorem",
     # f"~ {phrase()} @p 2 @d undated task test #lorem",
     # f"~ {phrase()} @p 4 @d undated task test #lorem",
     # f"~ {phrase()} @p 3 @d undated task test #lorem",
