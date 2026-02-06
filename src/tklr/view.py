@@ -251,8 +251,8 @@ pressing [bold]control[/bold] and [bold]u[/bold] simultaneously.
  [bold]C[/bold]    Completions         [bold]Q[/bold]    Query
  [bold]F[/bold]    Find                [bold]R[/bold]    Remaining Alerts
  [bold]G[/bold]    Goals               [bold]T[/bold]    Tags
- [bold]J[/bold]    Jots                [bold]W[/bold]    Weeks
- [bold]L[/bold]    Last                [bold]U[/bold]    Jot Uses
+ [bold]J[/bold]    Jots                [bold]U[/bold]    Jot Uses
+ [bold]L[/bold]    Last                [bold]W[/bold]    Weeks
 [bold][{HEADER_COLOR}]Weeks View Navigation[/{HEADER_COLOR}][/bold]
  Left/Right cursor keys move by one week.
    Add Shift to jump by 4 weeks.
@@ -2647,7 +2647,6 @@ class TaggedHierarchyScreen(SearchableScreen):
         title, lines, meta = self.controller.get_details_for_record(record_id, job_id)
         if self.list_with_details:
             self.list_with_details.show_details(title, lines, meta)
-
 
     # ----- Local key handling -----
     def on_key(self, event) -> None:
