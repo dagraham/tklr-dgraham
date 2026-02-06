@@ -3505,6 +3505,112 @@ class DatabaseManager:
         self.cursor.execute(sql, (start_key, end_key))
         return self.cursor.fetchall()
 
+    def get_jots_for_period(self, start_date: datetime, end_date: datetime):
+        """
+        Retrieve all jot entries (itemtype '-') that occur or overlap within
+        [start_date, end_date), ordered by start time.
+        """
+        start_key = _to_key(start_date)
+        end_key = _to_key(end_date)
+
+        sql = """
+        SELECT
+            dt.id,
+            dt.start_datetime,
+            dt.end_datetime,
+            r.itemtype,
+            r.subject,
+            r.id,
+            dt.job_id,
+            r.extent,
+            u.name
+        FROM DateTimes dt
+        JOIN Records r ON dt.record_id = r.id
+        LEFT JOIN Uses u ON r.use_id = u.id
+        WHERE
+            r.itemtype = '-' AND
+            -- normalized end >= period start
+            (
+                CASE
+                    WHEN dt.end_datetime IS NULL THEN
+                        CASE
+                            WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+                            ELSE dt.start_datetime
+                        END
+                    WHEN LENGTH(dt.end_datetime) = 8 THEN dt.end_datetime || 'T235959'
+                    ELSE dt.end_datetime
+                END
+            ) >= ?
+            AND
+            -- normalized start < period end
+            (
+                CASE
+                    WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+                    ELSE dt.start_datetime
+                END
+            ) < ?
+        ORDER BY
+            CASE
+                WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+                ELSE dt.start_datetime
+            END
+        """
+        self.cursor.execute(sql, (start_key, end_key))
+        return self.cursor.fetchall()
+
+    def get_jot_uses_for_period(self, start_date: datetime, end_date: datetime):
+        """
+        Retrieve jot entries with extents for use reports, ordered by start time.
+        """
+        start_key = _to_key(start_date)
+        end_key = _to_key(end_date)
+
+        sql = """
+        SELECT
+            dt.id,
+            dt.start_datetime,
+            dt.end_datetime,
+            r.subject,
+            r.description,
+            r.extent,
+            r.id,
+            dt.job_id,
+            u.name
+        FROM DateTimes dt
+        JOIN Records r ON dt.record_id = r.id
+        LEFT JOIN Uses u ON r.use_id = u.id
+        WHERE
+            r.itemtype = '-' AND
+            COALESCE(r.extent, '') <> '' AND
+            -- normalized end >= period start
+            (
+                CASE
+                    WHEN dt.end_datetime IS NULL THEN
+                        CASE
+                            WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+                            ELSE dt.start_datetime
+                        END
+                    WHEN LENGTH(dt.end_datetime) = 8 THEN dt.end_datetime || 'T235959'
+                    ELSE dt.end_datetime
+                END
+            ) >= ?
+            AND
+            -- normalized start < period end
+            (
+                CASE
+                    WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+                    ELSE dt.start_datetime
+                END
+            ) < ?
+        ORDER BY
+            CASE
+                WHEN LENGTH(dt.start_datetime) = 8 THEN dt.start_datetime || 'T000000'
+                ELSE dt.start_datetime
+            END
+        """
+        self.cursor.execute(sql, (start_key, end_key))
+        return self.cursor.fetchall()
+
     def generate_datetimes_for_period(self, start_date: datetime, end_date: datetime):
         self.cursor.execute("SELECT id FROM Records")
         for (record_id,) in self.cursor.fetchall():

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, date, timezone
 
 import re
 import inspect
+import math
 from typing import List, Tuple, Optional, Dict, Any, Set
 import shutil
 import calendar
@@ -18,7 +19,7 @@ import sys
 import json
 from typing import Literal
 from .item import Item
-from .model import DatabaseManager, UrgencyComputer
+from .model import DatabaseManager, UrgencyComputer, td_str_to_seconds
 from .model import _fmt_naive
 from .list_colors import css_named_colors
 from .versioning import get_version
@@ -39,6 +40,10 @@ INBOX_SPLIT_PATTERN = re.compile(r"\n\s*\n")
 # import sqlite3
 from .shared import (
     TYPE_TO_COLOR,
+    JOT_COLOR_NONE,
+    JOT_COLOR_PARTIAL,
+    JOT_COLOR_FULL,
+    parse_month_spec,
     log_msg,
     bug_msg,
     _to_local_naive,
@@ -390,6 +395,8 @@ def page_tagger(
     page_size: int = 26,
     *,
     dim_style: str = "dim",
+    pre_tag_spaces: int = 1,
+    post_tag_spaces: int = 2,
 ) -> List[Tuple[List[str], Dict[str, Tuple[int, int | None, int | None]]]]:
     """
     Split 'items' into pages. Each item is a dict:
@@ -455,8 +462,12 @@ def page_tagger(
 
         tag_map[tag] = (record_id, job_id, datetime_id, instance_ts)
 
-        # Display text unchanged
-        page_rows.append(f" [{dim_style}]{tag}[/{dim_style}]  {item.get('text', '')}")
+        # Display text unchanged, with configurable spacing around the tag
+        leading = " " * max(pre_tag_spaces, 0)
+        trailing = " " * max(post_tag_spaces, 0)
+        page_rows.append(
+            f"{leading}[{dim_style}]{tag}[/{dim_style}]{trailing}{item.get('text', '')}"
+        )
         tag_counter += 1
 
     if page_rows or tag_map:
@@ -1906,6 +1917,8 @@ class Controller:
         header = f"[bold][{dim}]{'tag':^3}[/{dim}] {'alert':^{alert_width}}   {'for':^{start_width}}    {'subject':<{name_width}}[/bold]"
 
         rows = []
+        screen_width = shutil.get_terminal_size((80, 20)).columns
+        available_width = max(20, screen_width - 4)  # account for tag prefix
         log_msg(f"processing {len(alerts)} alerts")
 
         for alert in alerts:
@@ -1963,8 +1976,39 @@ class Controller:
         start_dt = datetime.strptime(f"{year} {week} 1", "%G %V %u")
         details = self.get_week_details(selected_week)
 
-        title = format_iso_week(start_dt)
+        title = f"Weeks - {format_iso_week(start_dt)}"
         return title, busy_bar, details
+
+    def get_jots_table_and_list(
+        self, start_date: datetime, selected_week: tuple[int, int]
+    ):
+        year, week = selected_week
+
+        try:
+            extended = self.db_manager.ensure_week_generated_with_topup(
+                year, week, cushion=6, topup_threshold=2
+            )
+            if extended:
+                log_msg(
+                    f"[jots] extended/generated around {year}-W{week:02d} (+cushion)"
+                )
+                try:
+                    self.db_manager.populate_dependent_tables()
+                except Exception as refresh_exc:
+                    log_msg(
+                        f"[jots] populate_dependent_tables failed after extension: {refresh_exc}"
+                    )
+        except Exception as e:
+            log_msg(f"[jots] ensure_week_generated_with_topup error: {e}")
+
+        start_dt = datetime.strptime(f"{year} {week} 1", "%G %V %u")
+        details, total_minutes = self.get_jot_details(selected_week)
+
+        title = f"Jots - {format_iso_week(start_dt)}"
+        if total_minutes > 0:
+            hours, mins = divmod(total_minutes, 60)
+            title = f"{title}: {hours}:{mins:02d}"
+        return title, details
 
     def _format_busy_bar(
         self,
@@ -2161,11 +2205,311 @@ class Controller:
         # log_msg(f"{len(pages) = }, {pages[0] = }, {pages[-1] = }")
         return pages
 
+    def get_jot_details(self, yr_wk):
+        """
+        Fetch and format jot rows for a specific week.
+        """
+        today = datetime.now()
+        tomorrow = today + ONEDAY
+        today_year, today_week, today_weekday = today.isocalendar()
+        tomorrow_year, tomorrow_week, tomorrow_day = tomorrow.isocalendar()
+
+        self.selected_week = yr_wk
+
+        start_datetime = datetime.strptime(f"{yr_wk[0]} {yr_wk[1]} 1", "%G %V %u")
+        end_datetime = start_datetime + timedelta(weeks=1)
+        events = self.db_manager.get_jots_for_period(start_datetime, end_datetime)
+
+        this_week = format_date_range(start_datetime, end_datetime - ONEDAY)
+        header = f"{this_week} #{yr_wk[1]} ({len(events)})"
+        rows = []
+        total_minutes = 0
+        screen_width = getattr(self, "width", None) or shutil.get_terminal_size(
+            (80, 20)
+        ).columns
+        available_width = max(20, screen_width - 4)  # account for tag prefix
+
+        def _rounded_minutes(seconds: int) -> int:
+            if seconds <= 0:
+                return 0
+            return int(math.ceil(seconds / 360) * 6)
+
+        def _format_minutes(minutes: int, *, zero_label: str = "") -> str:
+            if minutes <= 0:
+                return zero_label
+            hours, mins = divmod(minutes, 60)
+            return f"{hours}:{mins:02d}"
+
+        if not events:
+            rows.append(
+                {
+                    "record_id": None,
+                    "job_id": None,
+                    "datetime_id": None,
+                    "instance_ts": yr_wk[0],
+                    "text": f" [{HEADER_COLOR}]Nothing jotted for this week[/{HEADER_COLOR}]",
+                }
+            )
+            pages = self._paginate(rows)
+            return pages, 0
+
+        weekday_to_events = {}
+        for i in range(7):
+            this_day = (start_datetime + timedelta(days=i)).date()
+            weekday_to_events[this_day] = []
+
+        day_totals: dict[date, int] = {day: 0 for day in weekday_to_events}
+
+        for (
+            dt_id,
+            start_ts,
+            end_ts,
+            itemtype,
+            subject,
+            id,
+            job_id,
+            extent,
+            use_name,
+        ) in events:
+            start_dt = datetime_from_timestamp(start_ts)
+            end_dt = datetime_from_timestamp(end_ts)
+            if not start_dt:
+                continue
+
+            has_extent = bool(extent and str(extent).strip())
+            extent_seconds = 0
+            if has_extent:
+                try:
+                    extent_seconds = td_str_to_seconds(extent)
+                except Exception:
+                    extent_seconds = 0
+            extent_minutes = _rounded_minutes(extent_seconds)
+
+            if start_dt:
+                time_str = start_dt.strftime("%H:%M")
+            else:
+                time_str = "--:--"
+
+            has_use = bool(use_name and str(use_name).strip())
+            if has_extent and has_use:
+                type_color = JOT_COLOR_FULL
+            elif has_extent or has_use:
+                type_color = JOT_COLOR_PARTIAL
+            else:
+                type_color = JOT_COLOR_NONE
+            subject = self.apply_flags(id, subject)
+            use_display = f"({use_name})" if has_use else ""
+            duration_display = (
+                _format_minutes(extent_minutes, zero_label="0:00")
+                if has_extent
+                else ""
+            )
+            duration_cell = f"{duration_display:>5}" if duration_display else " " * 5
+
+            base_len = len(duration_cell) + 2 + len(time_str)
+            max_subject = available_width - base_len
+            if use_display:
+                max_subject -= 1 + len(use_display)  # space + use
+            if max_subject > 0:
+                max_subject -= 1  # space between base and subject
+            max_subject = max(0, max_subject)
+            if max_subject:
+                subject = truncate_string(subject, max_subject)
+            else:
+                subject = ""
+
+            parts = [f"{duration_cell}  {time_str}"]
+            if subject:
+                parts.append(subject)
+            if use_display:
+                parts.append(use_display)
+
+            row = {
+                "record_id": id,
+                "job_id": job_id,
+                "datetime_id": dt_id,
+                "instance_ts": start_ts,
+                "text": f"[{type_color}]{' '.join(parts)}[/{type_color}]",
+            }
+            weekday_to_events.setdefault(start_dt.date(), []).append(row)
+            day_totals[start_dt.date()] = day_totals.get(start_dt.date(), 0) + extent_minutes
+            total_minutes += extent_minutes
+
+        for day, events in weekday_to_events.items():
+            iso_year, iso_week, weekday = day.isocalendar()
+            today = (
+                iso_year == today_year
+                and iso_week == today_week
+                and weekday == today_weekday
+            )
+            tomorrow = (
+                iso_year == tomorrow_year
+                and iso_week == tomorrow_week
+                and weekday == tomorrow_day
+            )
+            flag = " (today)" if today else " (tomorrow)" if tomorrow else ""
+            total_suffix = ""
+            if day_totals.get(day, 0) > 0:
+                total_suffix = f": {_format_minutes(day_totals[day], zero_label='0:00')}"
+            if events:
+                rows.append(
+                    {
+                        "record_id": None,
+                        "job_id": None,
+                        "datetime_id": dt_id,
+                        "instance_ts": start_ts,
+                        "text": f"[{HEADER_COLOR}]{day.strftime('%a, %b %-d')}{flag}{total_suffix}[/{HEADER_COLOR}]",
+                    }
+                )
+                for event in events:
+                    rows.append(event)
+
+        pages = self._paginate(rows)
+        self.yrwk_to_pages[yr_wk] = pages
+        return pages, total_minutes
+
     def get_busy_bits_for_week(self, selected_week: tuple[int, int]) -> list[int]:
         """Convert (year, week) tuple to 'YYYY-WW' and delegate to model."""
         year, week = selected_week
         year_week = f"{year:04d}-{week:02d}"
         return self.db_manager.get_busy_bits_for_week(year_week)
+
+    def get_jot_use_report(
+        self, month_spec: str | None, use_filter: str | None
+    ) -> tuple[list[tuple[list[str], dict]], str]:
+        start_date, end_date, label = parse_month_spec(month_spec)
+        start_dt = datetime.combine(start_date, datetime.min.time())
+        end_dt = datetime.combine(end_date, datetime.min.time())
+
+        raw = self.db_manager.get_jot_uses_for_period(start_dt, end_dt)
+        needle = (use_filter or "").strip().lower()
+        if not needle or needle == "all":
+            needle = ""
+
+        month_map: dict[tuple[int, int], dict[str, list[dict]]] = {}
+        for (
+            dt_id,
+            start_ts,
+            end_ts,
+            subject,
+            description,
+            extent,
+            record_id,
+            job_id,
+            use_name,
+        ) in raw:
+            if not start_ts:
+                continue
+            start_dt = datetime_from_timestamp(start_ts)
+            if not start_dt:
+                continue
+            use_label = use_name.strip() if use_name else "unassigned"
+            if needle and needle not in use_label.lower():
+                continue
+            month_key = (start_dt.year, start_dt.month)
+            month_map.setdefault(month_key, {}).setdefault(use_label, []).append(
+                {
+                    "record_id": record_id,
+                    "job_id": job_id,
+                    "datetime_id": dt_id,
+                    "instance_ts": start_ts,
+                    "subject": subject or "(untitled)",
+                    "description": description or "",
+                    "extent": extent or "",
+                    "start_dt": start_dt,
+                    "use_label": use_label,
+                }
+            )
+
+        rows: list[dict] = []
+        screen_width = getattr(self, "width", None) or shutil.get_terminal_size(
+            (80, 20)
+        ).columns
+        available_width = max(20, screen_width - 4)
+
+        def _extent_to_display(extent_str: str) -> str:
+            seconds = td_str_to_seconds(extent_str or "")
+            minutes = int(math.ceil(seconds / 60)) if seconds > 0 else 0
+            hours, mins = divmod(minutes, 60)
+            return f"{hours}:{mins:02d}"
+
+        def _wrap_subject(base: str, subject_text: str) -> str:
+            base_len = len(base)
+            max_subject = max(1, available_width - base_len - 1)
+            wrapped = textwrap.wrap(subject_text, width=max_subject) or [""]
+            text = f"{base} {wrapped[0]}".rstrip()
+            if len(wrapped) > 1:
+                indent = " " * (base_len + 1)
+                for extra in wrapped[1:]:
+                    text += "\n" + indent + extra
+            return text
+
+        for (year, month) in sorted(month_map.keys()):
+            month_label = date(year, month, 1).strftime("%b %Y")
+            rows.append(
+                {
+                    "record_id": None,
+                    "job_id": None,
+                    "datetime_id": None,
+                    "instance_ts": None,
+                    "text": f"[{HEADER_COLOR}]{month_label}[/{HEADER_COLOR}]",
+                }
+            )
+
+            use_map = month_map[(year, month)]
+            for use_label in sorted(
+                use_map.keys(),
+                key=lambda name: (name.lower() == "unassigned", name.lower()),
+            ):
+                rows.append(
+                    {
+                        "record_id": None,
+                        "job_id": None,
+                        "datetime_id": None,
+                        "instance_ts": None,
+                        "text": f"[{HEADER_COLOR}]  {use_label}[/{HEADER_COLOR}]",
+                    }
+                )
+                for entry in use_map[use_label]:
+                    extent_display = _extent_to_display(entry["extent"])
+                    extent_cell = f"{extent_display:>5}"
+                    dt_display = entry["start_dt"].strftime("%a, %b %-d %H:%M")
+                    base = f"{extent_cell} {dt_display}"
+                    subject = self.apply_flags(entry["record_id"], entry["subject"])
+                    text = _wrap_subject(base, subject)
+                    rows.append(
+                        {
+                            "record_id": entry["record_id"],
+                            "job_id": entry["job_id"],
+                            "datetime_id": entry["datetime_id"],
+                            "instance_ts": entry["instance_ts"],
+                            "text": text,
+                        }
+                    )
+
+        if not rows:
+            rows.append(
+                {
+                    "record_id": None,
+                    "job_id": None,
+                    "datetime_id": None,
+                    "instance_ts": None,
+                    "text": f"[{HEADER_COLOR}]No matching jots found.[/{HEADER_COLOR}]",
+                }
+            )
+
+        title = f"Jot Uses - {label}"
+        if use_filter and use_filter.strip() and use_filter.strip().lower() != "all":
+            title = f"{title} ({use_filter.strip()})"
+
+        pages = page_tagger(
+            rows,
+            page_size=26,
+            dim_style=self.dim_style,
+            pre_tag_spaces=2,
+            post_tag_spaces=1,
+        )
+        return pages, title
 
     def get_next(self):
         """

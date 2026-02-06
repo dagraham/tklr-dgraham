@@ -97,6 +97,13 @@ def minutes_ago(minutes: int) -> str:
     return next.strftime("%Y-%m-%d %H:%M")
 
 
+def days_ago() -> str:
+    now = datetime.now().replace(second=0, microsecond=0)
+    num_days = random.choice([3, 4, 5, 6, 7, 8, 9])
+    next = now - timedelta(days=num_days)
+    return next.strftime("%Y-%m-%d %H:%M")
+
+
 def in_one_day():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
@@ -129,6 +136,20 @@ def in_two_weeks():
     now = datetime.now().replace(second=0, microsecond=0)
     delta_minutes = 60 + (15 - now.minute % 15)
     next = now + timedelta(days=2 * 7, minutes=delta_minutes)
+    return next.strftime("%Y-%m-%d %H:%M")
+
+
+def one_weeks_ago():
+    now = datetime.now().replace(second=0, microsecond=0)
+    delta_minutes = 60 + (15 - now.minute % 15)
+    next = now - timedelta(days=7, minutes=delta_minutes)
+    return next.strftime("%Y-%m-%d %H:%M")
+
+
+def two_weeks_ago():
+    now = datetime.now().replace(second=0, microsecond=0)
+    delta_minutes = 60 + (15 - now.minute % 15)
+    next = now - timedelta(days=2 * 7, minutes=delta_minutes)
     return next.strftime("%Y-%m-%d %H:%M")
 
 
@@ -187,12 +208,13 @@ ctrl = Controller("./examples_dark/tklr.db", env, reset=True)
 # Insert the UTC records into the database
 
 num_items = 0
-types = ["*", "*", "*", "*", "*", "%"]
+types = ["*", "*", "*", "*", "*", "%", "~", "~", "-", "-"]
 
 contexts = ["errands", "home", "office", "shop"]
+use_cases = ["writing", "reading", "exercise", "meditation", "coding"]
 tags = ["amber", "cyan", "blue"]
 dates = [0, 0, 0, 1, 0, 0, 0]  # dates 1/7 of the time
-repeat = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0]  # repeat 1/10 of the time
+repeats = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0]  # repeat 1/10 of the time
 # duration = [to_tdstr(x) for x in range(6, 2 * 60 * 60, 6)]
 duration = [to_tdstr(x) for x in range(0, 2 * 60 * 60, 900)]
 
@@ -299,7 +321,6 @@ freq = [
     "FREQ=DAILY;INTERVAL=3",
 ]
 
-count = [f"COUNT={n}" for n in range(2, 5)]
 
 first_of_month = now.replace(day=1).strftime("%Y-%m-%d")
 yesterday_date = (now - ONEDAY).strftime("%Y-%m-%d")
@@ -337,6 +358,14 @@ one_off = [
     f"~ {phrase()} @p 1 @d undated task test #lorem",
     f"~ {phrase()} @p 3 @d undated task test #lorem",
     f"~ {phrase()} @p 5 @d undated task test #lorem",
+    f"- {phrase()} @s {one_weeks_ago()} @u {use()} @d u without e  #lorem",
+    f"- {phrase()} @s {one_weeks_ago()} @u {use()} @e 25m @d u and e #lorem",
+    f"- {phrase()} @s {one_weeks_ago()} @e 1h5m @d e without u #lorem",
+    f"- {phrase()} @s {one_weeks_ago()} @d neither u nor e #lorem",
+    f"- {phrase()} @s {two_weeks_ago()} @u {use()} @d u without e  #lorem",
+    f"- {phrase()} @s {two_weeks_ago()} @u {use()} @e 25m @d u and e #lorem",
+    f"- {phrase()} @s {two_weeks_ago()} @e 1h5m @d e without u #lorem",
+    f"- {phrase()} @s {two_weeks_ago()} @d neither u nor e #lorem",
     f"- {phrase()} @s {minutes_ago(10)} @u {use()} @d u without e  #lorem",
     f"- {phrase()} @s {minutes_ago(40)} @u {use()} @e 25m @d u and e #lorem",
     f"- {phrase()} @s {minutes_ago(90)} @e 1h5m @d e without u #lorem",
@@ -354,26 +383,37 @@ num_items = 100
 while len(items) < num_items:
     count += 1
     t = random.choice(types)
+    extent = f" @e {random.choice(duration)}" if t in ["*", "-"] else ""
     name = phrase()
     description = lorem.paragraph() + " #lorem"
-    start = random.choice(datetimes)
-    date = random.choice(dates)
-    if date:
-        # all day if event else end of day
-        dtstart = start.strftime("%Y%m%d")
+    if t == "-":
+        dtstart = days_ago()
+        date = 0
+        bin = ""
+        repeat = ""
     else:
-        dtstart = start.strftime("%Y-%m-%d %H:%M")
+        start = random.choice(datetimes)
+        date = random.choice(dates)
+        bin = f" @b {random.choice(BINS)}"
+        dtstart = start.strftime("%Y%m%d") if date else start.strftime("%Y-%m-%d %H:%M")
+        if t in ["*", "~"] and random.choice(repeats):
+            repeat = f" @r {random.choice(freq)};COUNT={random.choice([2, 3, 4, 5])}"
+        else:
+            repeat = ""
+    tag = f" #{random.choice(tags)}"
+
     # dtstart = local_dtstr_to_utc_str(dts)
-    extent = f" @e {random.choice(duration)}" if (t == "*" and not date) else ""
     # add_bin = random.choice([0, 0, 0, 0, 1, 1])
     # bin = f" @b {random.choice(BINS)}" if add_bin else ""
-    bin = f" @b {random.choice(BINS)}"
-    if random.choice(repeat):
-        items.append(
-            f"{t} {name} @d {description} #{random.choice(tags)}  @s {dtstart}{extent} @r {random.choice(freq)} {bin}"
-        )
-    else:
-        items.append(f"{t} {name} @d {description} @s {dtstart}{extent} {bin}")
+    items.append(
+        f"{t} {name} @d {description}{tag}  @s {dtstart}{extent}{repeat} {bin}"
+    )
+    # if random.choice(repeat):
+    #     items.append(
+    #         f"{t} {name} @d {description} #{random.choice(tags)}  @s {dtstart}{extent} @r {random.choice(freq)} {bin}"
+    #     )
+    # else:
+    #     items.append(f"{t} {name} @d {description} @s {dtstart}{extent} {bin}")
 
 
 id = 0

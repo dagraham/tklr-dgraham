@@ -27,18 +27,25 @@ OFFFSET = "⌁"  # Flag for offset task
 CORNSILK = "#FFF8DC"
 DARK_GRAY = "#A9A9A9"
 DARK_GREY = "#A9A9A9"  # same as DARK_GRAY
+DARK_OLIVEDRAB = "#6B8E23"
 DARK_OLIVEGREEN = "#556B2F"
 DARK_ORANGE = "#FF8C00"
 DARK_SALMON = "#E9967A"
+FORREST_GREEN = "#228B22"
 GOLD = "#FFD700"
 GOLDENROD = "#DAA520"
+GREEN = "#008000"
+GREEN_YELLOW = "#ADFF2F"
 KHAKI = "#F0E68C"
 LAWN_GREEN = "#7CFC00"
 LEMON_CHIFFON = "#FFFACD"
 LIGHT_CORAL = "#F08080"
 LIGHT_SKY_BLUE = "#87CEFA"
 LIME_GREEN = "#32CD32"
+LIGHT_GREEN = "#90EE90"
+MEDIUM_SEA_GREEN = "#3CB371"
 ORANGE_RED = "#FF4500"
+PALE_GREEN = "#98FB98"
 PALE_GREEN = "#98FB98"
 PEACHPUFF = "#FFDAB9"
 SALMON = "#FA8072"
@@ -46,6 +53,7 @@ SANDY_BROWN = "#F4A460"
 SEA_GREEN = "#2E8B57"
 SLATE_GREY = "#708090"
 TOMATO = "#FF6347"
+YELLOW_GREEN = "#9ACD32"
 
 # Colors for UI elements
 DAY_COLOR = LEMON_CHIFFON
@@ -56,6 +64,9 @@ ALLDAY_COLOR = SANDY_BROWN
 EVENT_COLOR = LIME_GREEN
 NOTE_COLOR = DARK_SALMON
 LOG_COLOR = PALE_GREEN
+JOT_COLOR_NONE = YELLOW_GREEN
+JOT_COLOR_PARTIAL = PALE_GREEN
+JOT_COLOR_FULL = GREEN_YELLOW
 PASSED_EVENT = DARK_OLIVEGREEN
 ACTIVE_EVENT = LAWN_GREEN
 TASK_COLOR = LIGHT_SKY_BLUE
@@ -338,6 +349,65 @@ def format_iso_week(monday_date: datetime) -> str:
     if start_dt.month == end_dt.month:
         return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%-d')}, {yr_wk}"
     return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%b %-d')}, {yr_wk}"
+
+
+def parse_month_spec(spec: str | None, *, today: date | None = None) -> tuple[date, date, str]:
+    """
+    Parse month specs like YYMM or YYMM-YYMM (inclusive).
+    Returns (start_date, end_date_exclusive, label).
+    Empty spec defaults to previous + current month.
+    """
+    def _parse_yymm(value: str) -> tuple[int, int]:
+        digits = re.sub(r"\D", "", value or "")
+        if len(digits) == 4:
+            year = 2000 + int(digits[:2])
+            month = int(digits[2:])
+        elif len(digits) == 6:
+            year = int(digits[:4])
+            month = int(digits[4:])
+        else:
+            raise ValueError("Expected YYMM or YYMM-YYMM.")
+        if month < 1 or month > 12:
+            raise ValueError("Month must be between 01 and 12.")
+        return year, month
+
+    def _next_month(year: int, month: int) -> tuple[int, int]:
+        if month == 12:
+            return year + 1, 1
+        return year, month + 1
+
+    today = today or date.today()
+    raw = (spec or "").strip()
+    if not raw:
+        first_this_month = date(today.year, today.month, 1)
+        prev_month_last = first_this_month - timedelta(days=1)
+        start_year, start_month = prev_month_last.year, prev_month_last.month
+        end_year, end_month = today.year, today.month
+    else:
+        parts = [p.strip() for p in raw.split("-", maxsplit=1)]
+        start_year, start_month = _parse_yymm(parts[0])
+        if len(parts) == 2 and parts[1]:
+            end_year, end_month = _parse_yymm(parts[1])
+        else:
+            end_year, end_month = start_year, start_month
+
+    start_date = date(start_year, start_month, 1)
+    end_year, end_month = _next_month(end_year, end_month)
+    end_date = date(end_year, end_month, 1)
+
+    if end_date <= start_date:
+        start_date, end_date = end_date, start_date
+
+    end_inclusive = end_date - timedelta(days=1)
+    if (
+        start_date.year == end_inclusive.year
+        and start_date.month == end_inclusive.month
+    ):
+        label = start_date.strftime("%b %Y")
+    else:
+        label = f"{start_date.strftime('%b %Y')} - {end_inclusive.strftime('%b %Y')}"
+
+    return start_date, end_date, label
 
 
 def get_previous_yrwk(year: int, week: int) -> tuple[int, int]:

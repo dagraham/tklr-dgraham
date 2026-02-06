@@ -1,6 +1,8 @@
 import sys
 import os
 import json
+import shutil
+import textwrap
 import click
 from pathlib import Path
 from rich import print
@@ -17,14 +19,20 @@ from dateutil import parser as dt_parser
 
 from tklr.item import Item
 from tklr.controller import Controller
-from tklr.model import DatabaseManager
+from tklr.model import DatabaseManager, td_str_to_seconds
 from tklr.view import DynamicViewApp
 from tklr.tklr_env import TklrEnvironment
 from tklr.migration import MIGRATION_ITEM_TYPES, migrate_etm_directory
 
 # from tklr.view_agenda import run_agenda_view
 from tklr.versioning import get_version
-from tklr.shared import format_time_range, format_iso_week, TYPE_TO_COLOR
+from tklr.shared import (
+    format_time_range,
+    format_iso_week,
+    TYPE_TO_COLOR,
+    parse_month_spec,
+    datetime_from_timestamp,
+)
 from tklr.query import QueryError
 
 from datetime import date, datetime, timedelta, time
@@ -1326,3 +1334,125 @@ def jot(ctx, entry, file):
         return
 
     ctx.invoke(add, entry=tuple(entries), file=None, batch=False)
+
+
+@cli.command("jots")
+@click.option(
+    "--months",
+    default="",
+    help="YYMM or YYMM-YYMM (inclusive). Defaults to previous+current month.",
+)
+@click.option(
+    "--use",
+    "use_filter",
+    default="all",
+    help="Filter uses by case-insensitive substring (default: all).",
+)
+@click.option(
+    "--verbose",
+    is_flag=True,
+    help="Show @d details on a new indented line.",
+)
+@click.pass_context
+def jots_report(ctx, months, use_filter, verbose):
+    """List jots with extents, grouped by month then use."""
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+    controller = Controller(db_path, env)
+
+    try:
+        start_date, end_date, label = parse_month_spec(months)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    start_dt = datetime.combine(start_date, datetime.min.time())
+    end_dt = datetime.combine(end_date, datetime.min.time())
+    rows = controller.db_manager.get_jot_uses_for_period(start_dt, end_dt)
+
+    needle = (use_filter or "").strip().lower()
+    if not needle or needle == "all":
+        needle = ""
+
+    month_map: dict[tuple[int, int], dict[str, list[dict]]] = {}
+    for (
+        dt_id,
+        start_ts,
+        _end_ts,
+        subject,
+        description,
+        extent,
+        record_id,
+        job_id,
+        use_name,
+    ) in rows:
+        if not start_ts:
+            continue
+        start_dt = datetime_from_timestamp(start_ts)
+        if not start_dt:
+            continue
+        use_label = use_name.strip() if use_name else "unassigned"
+        if needle and needle not in use_label.lower():
+            continue
+        month_key = (start_dt.year, start_dt.month)
+        month_map.setdefault(month_key, {}).setdefault(use_label, []).append(
+            {
+                "record_id": record_id,
+                "job_id": job_id,
+                "datetime_id": dt_id,
+                "instance_ts": start_ts,
+                "subject": subject or "(untitled)",
+                "description": description or "",
+                "extent": extent or "",
+                "start_dt": start_dt,
+            }
+        )
+
+    if not month_map:
+        click.echo("No matching jots found.")
+        return
+
+    width = shutil.get_terminal_size((80, 20)).columns
+    available_width = max(20, width - 2)
+
+    def extent_display(extent_str: str) -> str:
+        seconds = td_str_to_seconds(extent_str or "")
+        minutes = int((seconds + 59) // 60) if seconds > 0 else 0
+        hours, mins = divmod(minutes, 60)
+        return f"{hours}:{mins:02d}"
+
+    def wrap_text(base: str, text: str) -> list[str]:
+        base_len = len(base)
+        max_subject = max(1, available_width - base_len - 1)
+        wrapped = textwrap.wrap(text, width=max_subject) or [""]
+        lines = [f"{base} {wrapped[0]}".rstrip()]
+        if len(wrapped) > 1:
+            indent = " " * (base_len + 1)
+            for extra in wrapped[1:]:
+                lines.append(f"{indent}{extra}")
+        return lines
+
+    click.echo(f"Jot Uses - {label}")
+    for (year, month) in sorted(month_map.keys()):
+        month_label = date(year, month, 1).strftime("%b %Y")
+        click.echo(month_label)
+
+        use_map = month_map[(year, month)]
+        for use_label in sorted(
+            use_map.keys(),
+            key=lambda name: (name.lower() == "unassigned", name.lower()),
+        ):
+            click.echo(f"  {use_label}")
+            for entry in use_map[use_label]:
+                extent_str = extent_display(entry["extent"])
+                dt_display = entry["start_dt"].strftime("%a, %b %-d %H:%M")
+                base = f"  {extent_str:>5} {dt_display}"
+                subject = controller.apply_flags(entry["record_id"], entry["subject"])
+                for line in wrap_text(base, subject):
+                    click.echo(line)
+                if verbose and entry["description"]:
+                    detail_indent = " " * (len(base) + 1)
+                    detail_lines = textwrap.wrap(
+                        entry["description"], width=max(1, available_width - len(detail_indent))
+                    )
+                    for dline in detail_lines:
+                        click.echo(f"{detail_indent}{dline}")

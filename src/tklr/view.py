@@ -251,11 +251,12 @@ pressing [bold]control[/bold] and [bold]u[/bold] simultaneously.
  [bold]C[/bold]    Completions         [bold]Q[/bold]    Query
  [bold]F[/bold]    Find                [bold]R[/bold]    Remaining Alerts
  [bold]G[/bold]    Goals               [bold]T[/bold]    Tags
- [bold]L[/bold]    Last                [bold]W[/bold]    Weeks
+ [bold]J[/bold]    Jots                [bold]W[/bold]    Weeks
+ [bold]L[/bold]    Last                [bold]U[/bold]    Jot Uses
 [bold][{HEADER_COLOR}]Weeks View Navigation[/{HEADER_COLOR}][/bold]
  Left/Right cursor keys move by one week.
    Add Shift to jump by 4 weeks.
- Press "J" to jump to a specific date
+ Press "D" to jump to a specific date
    or "space" to jump to the current date.
 [bold][{HEADER_COLOR}]Tags and Reminder Details[/{HEADER_COLOR}][/bold]
  Each of the views listed above displays a list
@@ -2371,6 +2372,60 @@ class WeeksScreen(SearchableScreen, SafeScreen):
             self.list_with_details.show_details(title, lines, meta)
 
 
+class JotsScreen(WeeksScreen):
+    """Week view filtered to jot entries, without the busy-bar."""
+
+    def compose(self) -> ComposeResult:
+        yield Static(
+            self.table_title or "Untitled",
+            id="table_title",
+            classes="title-class",
+        )
+
+        self.list_with_details = ListWithDetails(id="list")
+        self.list_with_details.set_detail_key_handler(
+            self.app.make_detail_key_handler(
+                view_name="jots",
+                week_provider=lambda: self.app.selected_week,
+            )
+        )
+        self.app.detail_handler = self.list_with_details._detail_key_handler
+        yield self.list_with_details
+
+        yield FooterNoticeBar(self.footer_content)
+
+    def update_table_and_list(self):
+        """
+        Called by app after the controller recomputes the list pages
+        for the currently-selected week (jots only).
+        """
+        title, pages = self.app.controller.get_jots_table_and_list(
+            self.app.current_start_date, self.app.selected_week
+        )
+
+        normalized_pages = pages
+        if isinstance(pages, tuple) and len(pages) == 2 and isinstance(pages[0], list):
+            normalized_pages = pages[0]
+
+        if not isinstance(normalized_pages, list):
+            normalized_pages = []
+
+        self.pages = normalized_pages
+        self.current_page = 0
+        self.table_title = title
+
+        if len(self.pages) > 1:
+            title_with_indicator = (
+                f"{self.table_title}\n({self.current_page + 1}/{len(self.pages)})"
+            )
+        else:
+            title_with_indicator = self.table_title
+        self.query_one("#table_title", Static).update(title_with_indicator)
+
+        if self.list_with_details:
+            self.refresh_page()
+
+
 class FullScreenList(SearchableScreen):
     """Full-screen list view with paged navigation and tag support."""
 
@@ -2592,6 +2647,7 @@ class TaggedHierarchyScreen(SearchableScreen):
         title, lines, meta = self.controller.get_details_for_record(record_id, job_id)
         if self.list_with_details:
             self.list_with_details.show_details(title, lines, meta)
+
 
     # ----- Local key handling -----
     def on_key(self, event) -> None:
@@ -3354,6 +3410,8 @@ class DynamicViewApp(App):
     CSS_PATH = None
     VIEW_REFRESHERS = {
         "weeks": "action_show_weeks",
+        "jots": "action_show_jots",
+        "jot_uses": "refresh_jot_uses",
         "agenda": "action_show_agenda",
         "goals": "action_show_goals",
         "query": "action_show_query",
@@ -3385,8 +3443,10 @@ class DynamicViewApp(App):
         ("N", "show_next", "Show Next"),
         ("T", "show_tags", "Show Tags"),
         ("F", "show_find", "Find"),
+        ("J", "show_jots", "Jots"),
+        ("U", "show_jot_uses", "Jot Uses"),
         ("W", "show_weeks", "Weeks"),
-        ("J", "jump_to_week", "Jump to date"),
+        ("D", "jump_to_week", "Jump to date"),
         ("Y", "show_year", "Year"),
         ("?", "show_help", "Help"),
         ("ctrl+q", "quit", "Quit"),
@@ -3463,6 +3523,8 @@ class DynamicViewApp(App):
         self.run_daily_tasks(refresh=False)
         self._last_inbox_check = datetime.min
         self._current_command_task: asyncio.Task | None = None
+        self._jot_use_month_spec: str | None = None
+        self._jot_use_filter: str | None = None
 
     def _update_footer_color(self) -> None:
         global FOOTER, DIM_STYLE
@@ -3929,7 +3991,7 @@ class DynamicViewApp(App):
         #     self.action_show_bins()
 
         if event.key in ("left", "right"):
-            if self.view == "weeks":
+            if self.view in ("weeks", "jots"):
                 screen = getattr(self, "screen", None)
                 # log_msg(
                 #     f"[LEFT/RIGHT] screen={type(screen).__name__ if screen else None}"
@@ -3991,7 +4053,7 @@ class DynamicViewApp(App):
                 self.action_show_year()
                 return
             # else: not week/year view -> let other code handle left/right
-        if event.key == "full_stop" and self.view == "weeks":
+        if event.key == "full_stop" and self.view in ("weeks", "jots"):
             # call the existing "center_week" or "go to today" action
             try:
                 self.action_center_week()  # adjust name if different
@@ -4282,6 +4344,73 @@ class DynamicViewApp(App):
         screen = WeeksScreen(title, table, details, footer)
         self.show_screen(screen)
 
+    def action_show_jots(self):
+        self.view = "jots"
+        log_msg(f"{self.selected_week = }")
+        title, details = self.controller.get_jots_table_and_list(
+            self.current_start_date, self.selected_week
+        )
+        footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
+
+        screen = JotsScreen(title, "", details, footer)
+        self.show_screen(screen)
+
+    def _render_jot_uses(self, month_spec: str, use_filter: str) -> None:
+        try:
+            pages, title = self.controller.get_jot_use_report(month_spec, use_filter)
+        except ValueError as exc:
+            self.notify(str(exc), severity="warning", timeout=3)
+            return
+
+        footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
+        self.show_screen(FullScreenList(pages, title, "", footer))
+
+    def action_show_jot_uses(self):
+        self.view = "jot_uses"
+
+        today = date.today()
+        first_this_month = date(today.year, today.month, 1)
+        prev_month_last = first_this_month - timedelta(days=1)
+        default_spec = f"{prev_month_last.strftime('%y%m')}-{today.strftime('%y%m')}"
+
+        def _after_months(result: str | None) -> None:
+            month_spec = (result or "").strip() or default_spec
+
+            def _after_use(result_use: str | None) -> None:
+                use_filter = (result_use or "").strip() or "all"
+                self._jot_use_month_spec = month_spec
+                self._jot_use_filter = use_filter
+                self._render_jot_uses(month_spec, use_filter)
+
+            self.push_screen(
+                TextPrompt(
+                    "Use filter (default all)",
+                    initial=(self._jot_use_filter or "all"),
+                ),
+                callback=_after_use,
+            )
+
+        self.push_screen(
+            TextPrompt(
+                "Months (YYMM or YYMM-YYMM)",
+                initial=(self._jot_use_month_spec or default_spec),
+            ),
+            callback=_after_months,
+        )
+
+    def refresh_jot_uses(self):
+        self.view = "jot_uses"
+        if not self._jot_use_month_spec:
+            today = date.today()
+            first_this_month = date(today.year, today.month, 1)
+            prev_month_last = first_this_month - timedelta(days=1)
+            self._jot_use_month_spec = (
+                f"{prev_month_last.strftime('%y%m')}-{today.strftime('%y%m')}"
+            )
+        if not self._jot_use_filter:
+            self._jot_use_filter = "all"
+        self._render_jot_uses(self._jot_use_month_spec, self._jot_use_filter)
+
     def action_show_year(self):
         self.view = "year"
         view_width = None
@@ -4564,7 +4693,7 @@ class DynamicViewApp(App):
         ) - timedelta(weeks=1)
         self.update_table_and_list()
 
-    def action_jump_to_week(self):
+    def action_jump_to_date(self):
         """
         Prompt for a date and jump Weeks view to the week containing it.
         """
