@@ -98,9 +98,11 @@ def minutes_ago(minutes: int) -> str:
 
 
 def days_ago() -> str:
-    now = datetime.now().replace(second=0, microsecond=0)
+    hour = random.choice([9, 10, 11, 12, 13, 14, 15, 16])
+    minute = random.choice([0, 15, 30, 45])
+    next = datetime.now().replace(hour=hour, minute=minute, second=0, microsecond=0)
     num_days = random.choice([3, 4, 5, 6, 7, 8, 9])
-    next = now - timedelta(days=num_days)
+    next = next - timedelta(days=num_days)
     return next.strftime("%Y-%m-%d %H:%M")
 
 

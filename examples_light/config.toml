@@ -159,4 +159,4 @@ max = 3.0
 # Example:
 #   seedbed = ["germinating", "sprouting", "growing", "flowering"]
 
-ideas = ["seed", "germinating", "sprouting", "growing", "flowering"]
+ideas = ["seed","germinating","sprouting","growing","flowering"]

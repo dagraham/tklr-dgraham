@@ -21,6 +21,24 @@ history_weight = 3
 # Number of event days to display in Agenda view / CLI command.
 agenda_days = 3
 
+# minutes: int = 3 | 6 | 12 | 15 | 30
+# Rounding step (in minutes) for jot extents.
+minutes = 6
+
+# palette overrides (per theme). Uncomment any entries you want to override.
+# Available keys: label_color, type_color, at_color, am_color, header_color,
+# event_color, available_color, task_color, waiting_color, finished_color,
+# note_color, pastdue_color, notice_color, goal_color, draft_color,
+# bin_color, active_bin_color, chore_color, jot_color, jot_none, jot_extent,
+# jot_use, jot_full
+#
+# [ui.palette.dark]
+# header_color = "#1f4b7a"
+# jot_full = "#9ad1ff"
+#
+# [ui.palette.light]
+# note_color = "#b56576"
+
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
 # Prefix with '!' to run a standalone command/script (no automatic 'tklr').
@@ -55,6 +73,8 @@ yearfirst = true
 # If true, years are displayed using the last two digits, e.g.,
 # 25 instead of 2025.
 two_digit_year = true
+
+
 
 [alerts]
 # dict[str, str]: character -> command_str.

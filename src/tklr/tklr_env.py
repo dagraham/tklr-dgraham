@@ -2,7 +2,7 @@ from pathlib import Path
 import os
 import sys
 import tomllib
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from typing import Dict, List, Optional
 from jinja2 import Template
 
@@ -25,7 +25,17 @@ class UIConfig(BaseModel):
     two_digit_year: bool = True
     history_weight: int = 3
     agenda_days: int = Field(3, ge=1)
+    minutes: int = 6
+    palette: Dict[str, Dict[str, str]] = Field(default_factory=dict)
     current_command: str = ""
+
+    @field_validator("minutes")
+    @classmethod
+    def validate_minutes(cls, value: int) -> int:
+        allowed = {3, 6, 12, 15, 30}
+        if value not in allowed:
+            raise ValueError("minutes must be one of 3, 6, 12, 15, or 30")
+        return value
 
 
 class DueConfig(BaseModel):
@@ -135,6 +145,24 @@ history_weight = {{ ui.history_weight }}
 # Number of event days to display in Agenda view / CLI command.
 agenda_days = {{ ui.agenda_days }}
 
+# minutes: int = 3 | 6 | 12 | 15 | 30
+# Rounding step (in minutes) for jot extents.
+minutes = {{ ui.minutes }}
+
+# palette overrides (per theme). Uncomment any entries you want to override.
+# Available keys: label_color, type_color, at_color, am_color, header_color,
+# event_color, available_color, task_color, waiting_color, finished_color,
+# note_color, pastdue_color, notice_color, goal_color, draft_color,
+# bin_color, active_bin_color, chore_color, jot_color, jot_none, jot_extent,
+# jot_use, jot_full
+#
+# [ui.palette.dark]
+# header_color = "#1f4b7a"
+# jot_full = "#9ad1ff"
+#
+# [ui.palette.light]
+# note_color = "#b56576"
+
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
 # Prefix with '!' to run a standalone command/script (no automatic 'tklr').
@@ -169,6 +197,16 @@ yearfirst = {{ ui.yearfirst | lower }}
 # If true, years are displayed using the last two digits, e.g.,
 # 25 instead of 2025.
 two_digit_year = {{ ui.two_digit_year | lower }}
+
+{% if ui.palette %}
+{% for theme, values in ui.palette | dictsort %}
+[ui.palette.{{ theme }}]
+{% for key, value in values | dictsort %}
+{{ key }} = "{{ value }}"
+{% endfor %}
+
+{% endfor %}
+{% endif %}
 
 [alerts]
 # dict[str, str]: character -> command_str.

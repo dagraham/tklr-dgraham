@@ -21,7 +21,7 @@ from typing import Literal
 from .item import Item
 from .model import DatabaseManager, UrgencyComputer, td_str_to_seconds
 from .model import _fmt_naive
-from .list_colors import css_named_colors
+from . import shared as shared_colors
 from .versioning import get_version
 from .mask import reveal_mask_tokens
 from .query import QueryEngine, QueryError, QueryResponse
@@ -41,8 +41,61 @@ INBOX_SPLIT_PATTERN = re.compile(r"\n\s*\n")
 from .shared import (
     TYPE_TO_COLOR,
     JOT_COLOR_NONE,
-    JOT_COLOR_PARTIAL,
+    JOT_COLOR_EXTENT,
+    JOT_COLOR_USE,
     JOT_COLOR_FULL,
+    CORNSILK,
+    DARK_GRAY,
+    DARK_GREY,
+    DARK_OLIVEGREEN,
+    DARK_ORANGE,
+    DARK_SALMON,
+    GOLD,
+    GOLDENROD,
+    KHAKI,
+    LAWN_GREEN,
+    LEMON_CHIFFON,
+    LIGHT_CORAL,
+    LIGHT_SKY_BLUE,
+    LIME_GREEN,
+    ORANGE_RED,
+    PALE_GREEN,
+    PEACHPUFF,
+    SALMON,
+    SANDY_BROWN,
+    SEA_GREEN,
+    SLATE_GREY,
+    TOMATO,
+    DAY_COLOR,
+    FRAME_COLOR,
+    DIM_COLOR,
+    ALLDAY_COLOR,
+    EVENT_COLOR,
+    NOTE_COLOR,
+    PASSED_EVENT,
+    ACTIVE_EVENT,
+    TASK_COLOR,
+    AVAILABLE_COLOR,
+    WAITING_COLOR,
+    FINISHED_COLOR,
+    GOAL_COLOR,
+    CHORE_COLOR,
+    PASTDUE_COLOR,
+    NOTICE_COLOR,
+    DRAFT_COLOR,
+    TODAY_COLOR,
+    SELECTED_BACKGROUND,
+    MATCH_COLOR,
+    TITLE_COLOR,
+    BUSY_COLOR,
+    CONF_COLOR,
+    BUSY_FRAME_COLOR,
+    HEADER_COLOR,
+    label_color,
+    type_color,
+    at_color,
+    am_color,
+    apply_theme_palette,
     parse_month_spec,
     log_msg,
     bug_msg,
@@ -58,6 +111,8 @@ from .shared import (
     fmt_utc_z,
     timedelta_str_to_seconds,
     indx_to_tag,
+    round_seconds_to_step_minutes,
+    format_decimal_hours,
     format_date_range,
     format_iso_week,
     get_previous_yrwk,
@@ -73,67 +128,6 @@ VERSION = get_version()
 
 ISO_Z = "%Y%m%dT%H%MZ"
 
-type_color = css_named_colors["goldenrod"]
-at_color = css_named_colors["goldenrod"]
-am_color = css_named_colors["goldenrod"]
-# type_color = css_named_colors["burlywood"]
-# at_color = css_named_colors["burlywood"]
-# am_color = css_named_colors["burlywood"]
-label_color = css_named_colors["lightskyblue"]
-
-# The overall background color of the app is theme-driven (see view_dark.css / view_light.css)
-CORNSILK = "#FFF8DC"
-DARK_GRAY = "#A9A9A9"
-DARK_GREY = "#A9A9A9"  # same as DARK_GRAY
-DARK_OLIVEGREEN = "#556B2F"
-DARK_ORANGE = "#FF8C00"
-DARK_SALMON = "#E9967A"
-GOLD = "#FFD700"
-GOLDENROD = "#DAA520"
-KHAKI = "#F0E68C"
-LAWN_GREEN = "#7CFC00"
-LEMON_CHIFFON = "#FFFACD"
-LIGHT_CORAL = "#F08080"
-LIGHT_SKY_BLUE = "#87CEFA"
-LIME_GREEN = "#32CD32"
-ORANGE_RED = "#FF4500"
-PALE_GREEN = "#98FB98"
-PEACHPUFF = "#FFDAB9"
-SALMON = "#FA8072"
-SANDY_BROWN = "#F4A460"
-SEA_GREEN = "#2E8B57"
-SLATE_GREY = "#708090"
-TOMATO = "#FF6347"
-
-# Colors for UI elements
-DAY_COLOR = LEMON_CHIFFON
-FRAME_COLOR = KHAKI
-# HEADER_COLOR = LIGHT_SKY_BLUE
-HEADER_COLOR = LEMON_CHIFFON
-DIM_COLOR = DARK_GRAY
-ALLDAY_COLOR = SANDY_BROWN
-EVENT_COLOR = LIME_GREEN
-NOTE_COLOR = DARK_SALMON
-PASSED_EVENT = DARK_OLIVEGREEN
-ACTIVE_EVENT = LAWN_GREEN
-TASK_COLOR = LIGHT_SKY_BLUE
-AVAILABLE_COLOR = LIGHT_SKY_BLUE
-WAITING_COLOR = SLATE_GREY
-FINISHED_COLOR = DARK_GREY
-GOAL_COLOR = GOLDENROD
-CHORE_COLOR = KHAKI
-PASTDUE_COLOR = DARK_ORANGE
-NOTICE_COLOR = GOLD
-DRAFT_COLOR = ORANGE_RED
-TODAY_COLOR = TOMATO
-SELECTED_BACKGROUND = "#566573"
-MATCH_COLOR = TOMATO
-TITLE_COLOR = CORNSILK
-BUSY_COLOR = "#9acd32"
-BUSY_COLOR = "#adff2f"
-CONF_COLOR = TOMATO
-BUSY_FRAME_COLOR = "#5d5d5d"
-
 # This one appears to be a Rich/Textual style string
 SELECTED_COLOR = "bold yellow"
 # SLOT_HOURS = [0, 4, 8, 12, 16, 20, 24]
@@ -147,9 +141,7 @@ NOTICE = "⋙"
 SELECTED_COLOR = "yellow"
 # SELECTED_COLOR = "bold yellow"
 
-HEADER_COLOR = LEMON_CHIFFON
-# HEADER_STYLE = f"bold {LEMON_CHIFFON}"
-HEADER_STYLE = f"{LEMON_CHIFFON}"
+HEADER_STYLE = f"{HEADER_COLOR}"
 FIELD_COLOR = LIGHT_SKY_BLUE
 
 ONEDAY = timedelta(days=1)
@@ -208,8 +200,10 @@ def format_tokens(
         color = {"@": at_color, "&": am_color}
         return re.sub(
             r"(^|(?<=\s))([@&]\S\s)",
-            lambda m: m.group(1)
-            + f"[{color[m.group(2)[0]]}]{m.group(2)}[/{color[m.group(2)[0]]}]",
+            lambda m: (
+                m.group(1)
+                + f"[{color[m.group(2)[0]]}]{m.group(2)}[/{color[m.group(2)[0]]}]"
+            ),
             line,
         )
 
@@ -537,6 +531,7 @@ class Controller:
         self.dayfirst = False
         self.yearfirst = True
         self.datefmt = "%Y-%m-%d"
+        self.jot_minutes = 6
         if self.env:
             self.ampm = self.env.config.ui.ampm
             self.timefmt = "%-I:%M%p" if self.ampm else "%H:%M"
@@ -544,6 +539,7 @@ class Controller:
             self.yearfirst = self.env.config.ui.yearfirst
             self.history_weight = self.env.config.ui.history_weight
             self.agenda_days = max(1, self.env.config.ui.agenda_days)
+            self.jot_minutes = self.env.config.ui.minutes
             _yr = "%Y"
             _dm = "%d-%m" if self.dayfirst else "%m-%d"
             self.datefmt = f"{_yr}-{_dm}" if self.yearfirst else f"{_dm}-{_yr}"
@@ -579,21 +575,20 @@ class Controller:
         return page_tagger(rows, page_size=page_size, dim_style=self.dim_style)
 
     def _apply_theme_colors(self) -> None:
-        global label_color, type_color, HEADER_COLOR, at_color, am_color
-        if self.ui_theme == "light":
-            # Use a warm accent that's still readable on light backgrounds.
-            accent = css_named_colors.get("darkgoldenrod", "#b8860b")
-            label_color = accent
-            type_color = accent
-            HEADER_COLOR = "#1f4b7a"
-            at_color = accent
-            am_color = accent
-        else:
-            label_color = css_named_colors["lightskyblue"]
-            type_color = css_named_colors["goldenrod"]
-            HEADER_COLOR = LEMON_CHIFFON
-            at_color = css_named_colors["goldenrod"]
-            am_color = css_named_colors["goldenrod"]
+        global label_color, type_color, HEADER_COLOR, at_color, am_color, HEADER_STYLE
+        global JOT_COLOR_NONE, JOT_COLOR_EXTENT, JOT_COLOR_USE, JOT_COLOR_FULL
+        overrides = getattr(self.env.config.ui, "palette", {}) if self.env else {}
+        apply_theme_palette(self.ui_theme, overrides=overrides)
+        label_color = shared_colors.label_color
+        type_color = shared_colors.type_color
+        HEADER_COLOR = shared_colors.HEADER_COLOR
+        at_color = shared_colors.at_color
+        am_color = shared_colors.am_color
+        JOT_COLOR_NONE = shared_colors.JOT_COLOR_NONE
+        JOT_COLOR_EXTENT = shared_colors.JOT_COLOR_EXTENT
+        JOT_COLOR_USE = shared_colors.JOT_COLOR_USE
+        JOT_COLOR_FULL = shared_colors.JOT_COLOR_FULL
+        HEADER_STYLE = f"{HEADER_COLOR}"
 
     @property
     def root_id(self) -> int:
@@ -670,8 +665,14 @@ class Controller:
     def lookup_use(self, name: str) -> dict | None:
         return self.db_manager.lookup_use_by_name(name)
 
+    def lookup_use_by_id(self, use_id: int) -> dict | None:
+        return self.db_manager.lookup_use_by_id(use_id)
+
     def suggest_uses(self, name: str, limit: int = 3) -> list[dict]:
         return self.db_manager.suggest_uses(name, limit)
+
+    def update_use(self, use_id: int, name: str, details: str | None = None) -> dict:
+        return self.db_manager.update_use(use_id, name, details)
 
     # ── Inbox processing -------------------------------------------------
     def _inbox_path(self) -> Path:
@@ -2006,8 +2007,8 @@ class Controller:
 
         title = f"Jots - {format_iso_week(start_dt)}"
         if total_minutes > 0:
-            hours, mins = divmod(total_minutes, 60)
-            title = f"{title}: {hours}:{mins:02d}"
+            total_display = format_decimal_hours(total_minutes, self.jot_minutes)
+            title = f"{title}: {total_display}"
         return title, details
 
     def _format_busy_bar(
@@ -2224,21 +2225,17 @@ class Controller:
         header = f"{this_week} #{yr_wk[1]} ({len(events)})"
         rows = []
         total_minutes = 0
-        screen_width = getattr(self, "width", None) or shutil.get_terminal_size(
-            (80, 20)
-        ).columns
+        screen_width = (
+            getattr(self, "width", None) or shutil.get_terminal_size((80, 20)).columns
+        )
         available_width = max(20, screen_width - 4)  # account for tag prefix
+        step_minutes = self.jot_minutes
 
         def _rounded_minutes(seconds: int) -> int:
-            if seconds <= 0:
-                return 0
-            return int(math.ceil(seconds / 360) * 6)
+            return round_seconds_to_step_minutes(seconds, step_minutes)
 
-        def _format_minutes(minutes: int, *, zero_label: str = "") -> str:
-            if minutes <= 0:
-                return zero_label
-            hours, mins = divmod(minutes, 60)
-            return f"{hours}:{mins:02d}"
+        def _format_minutes(minutes: int) -> str:
+            return format_decimal_hours(minutes, step_minutes)
 
         if not events:
             rows.append(
@@ -2293,36 +2290,40 @@ class Controller:
             has_use = bool(use_name and str(use_name).strip())
             if has_extent and has_use:
                 type_color = JOT_COLOR_FULL
-            elif has_extent or has_use:
-                type_color = JOT_COLOR_PARTIAL
+            elif has_extent:
+                type_color = JOT_COLOR_EXTENT
+            elif has_use:
+                type_color = JOT_COLOR_USE
             else:
                 type_color = JOT_COLOR_NONE
             subject = self.apply_flags(id, subject)
-            use_display = f"({use_name})" if has_use else ""
-            duration_display = (
-                _format_minutes(extent_minutes, zero_label="0:00")
-                if has_extent
-                else ""
-            )
-            duration_cell = f"{duration_display:>5}" if duration_display else " " * 5
+            duration_display = _format_minutes(extent_minutes) if has_extent else ""
+            if has_use and has_extent:
+                paren_text = f"{use_name}: {duration_display}"
+            elif has_use:
+                paren_text = use_name
+            elif has_extent:
+                paren_text = duration_display
+            else:
+                paren_text = ""
+            paren_display = f"({paren_text})" if paren_text else ""
 
-            base_len = len(duration_cell) + 2 + len(time_str)
-            max_subject = available_width - base_len
-            if use_display:
-                max_subject -= 1 + len(use_display)  # space + use
-            if max_subject > 0:
-                max_subject -= 1  # space between base and subject
+            max_subject = available_width - len(time_str)
+            if paren_display:
+                max_subject -= 2 + len(paren_display)  # space before/after subject
+            else:
+                max_subject -= 1  # space between time and subject
             max_subject = max(0, max_subject)
             if max_subject:
                 subject = truncate_string(subject, max_subject)
             else:
                 subject = ""
 
-            parts = [f"{duration_cell}  {time_str}"]
+            parts = [time_str]
             if subject:
                 parts.append(subject)
-            if use_display:
-                parts.append(use_display)
+            if paren_display:
+                parts.append(paren_display)
 
             row = {
                 "record_id": id,
@@ -2332,7 +2333,9 @@ class Controller:
                 "text": f"[{type_color}]{' '.join(parts)}[/{type_color}]",
             }
             weekday_to_events.setdefault(start_dt.date(), []).append(row)
-            day_totals[start_dt.date()] = day_totals.get(start_dt.date(), 0) + extent_minutes
+            day_totals[start_dt.date()] = (
+                day_totals.get(start_dt.date(), 0) + extent_minutes
+            )
             total_minutes += extent_minutes
 
         for day, events in weekday_to_events.items():
@@ -2350,7 +2353,7 @@ class Controller:
             flag = " (today)" if today else " (tomorrow)" if tomorrow else ""
             total_suffix = ""
             if day_totals.get(day, 0) > 0:
-                total_suffix = f": {_format_minutes(day_totals[day], zero_label='0:00')}"
+                total_suffix = f": {_format_minutes(day_totals[day])}"
             if events:
                 rows.append(
                     {
@@ -2374,6 +2377,116 @@ class Controller:
         year_week = f"{year:04d}-{week:02d}"
         return self.db_manager.get_busy_bits_for_week(year_week)
 
+    def get_use_list_pages(self) -> tuple[list[tuple[list[str], dict]], str]:
+        uses = self.db_manager.list_uses()
+        rows: list[dict] = []
+        if not uses:
+            rows.append(
+                {
+                    "record_id": None,
+                    "job_id": None,
+                    "datetime_id": None,
+                    "instance_ts": None,
+                    "text": f"[{HEADER_COLOR}]No uses defined.[/{HEADER_COLOR}]",
+                }
+            )
+        else:
+            for entry in uses:
+                rows.append(
+                    {
+                        "record_id": entry["id"],
+                        "job_id": None,
+                        "datetime_id": None,
+                        "instance_ts": None,
+                        "text": entry["name"],
+                    }
+                )
+        pages = self._paginate(rows)
+        if pages:
+            page_rows, _tag_map = pages[0]
+            add_row = f" [{self.dim_style}]+[/{self.dim_style}]  Add new use"
+            page_rows.insert(0, add_row)
+        return pages, "Uses"
+
+    def get_palette_preview_pages(
+        self, mode: str = "current"
+    ) -> tuple[list[tuple[list[str], dict]], str]:
+        def _palette_lines(palette: dict[str, str], title: str) -> list[str]:
+            header = palette["header_color"]
+            lines: list[str] = []
+            lines.append(f"[{header}]{title}[/{header}]")
+            lines.append(f"[{header}]Primary labels[/{header}]")
+            lines.append(f"[{header}]HEADER_COLOR[/{header}] {header}")
+            lines.append(
+                f"[{palette['label_color']}]label_color[/{palette['label_color']}] "
+                f"{palette['label_color']}"
+            )
+            lines.append(
+                f"[{palette['type_color']}]type_color[/{palette['type_color']}] "
+                f"{palette['type_color']}"
+            )
+            lines.append(
+                f"[{palette['at_color']}]@ key color[/{palette['at_color']}] "
+                f"{palette['at_color']}"
+            )
+            lines.append(
+                f"[{palette['am_color']}]& key color[/{palette['am_color']}] "
+                f"{palette['am_color']}"
+            )
+            lines.append(f"[{header}]Jot states[/{header}]")
+            lines.append(
+                f"  [{palette['jot_none']}]13:25 jot (no extent or use)[/{palette['jot_none']}]"
+            )
+            lines.append(
+                f"  [{palette['jot_extent']}]13:25 jot (0.4h)[/{palette['jot_extent']}]"
+            )
+            lines.append(
+                f"  [{palette['jot_use']}]13:25 jot (Client)[/{palette['jot_use']}]"
+            )
+            lines.append(
+                f"  [{palette['jot_full']}]13:25 jot (Client: 0.4h)[/{palette['jot_full']}]"
+            )
+            lines.append(f"[{header}]Reminder types[/{header}]")
+            type_colors = {
+                "*": palette["event_color"],
+                "~": palette["available_color"],
+                "x": palette["finished_color"],
+                "^": palette["available_color"],
+                "+": palette["waiting_color"],
+                "%": palette["note_color"],
+                "<": palette["pastdue_color"],
+                ">": palette["notice_color"],
+                "!": palette["goal_color"],
+                "-": palette.get("jot_color", palette["jot_none"]),
+                "?": palette["draft_color"],
+                "b": palette["bin_color"],
+                "B": palette["active_bin_color"],
+            }
+            type_samples = [
+                ("*", "event"),
+                ("~", "task"),
+                ("+", "task_waiting"),
+                ("x", "task_finished"),
+                ("^", "project"),
+                ("%", "note"),
+                ("!", "goal"),
+                ("-", "jot"),
+                ("?", "draft"),
+            ]
+            for itemtype, label in type_samples:
+                color = type_colors.get(itemtype, "white")
+                lines.append(f"[{color}]  {itemtype} {label} ({color})[/{color}]")
+            return lines
+
+        theme = self.ui_theme if mode == "current" else mode
+        overrides = getattr(self.env.config.ui, "palette", {}) if self.env else {}
+        palette = shared_colors.get_theme_palette(theme, overrides)
+        lines = _palette_lines(palette, f"{theme.title()} theme")
+        title = f"Palette ({theme})"
+
+        pages = [(lines, {})]
+        return pages, title
+
     def get_jot_use_report(
         self, month_spec: str | None, use_filter: str | None
     ) -> tuple[list[tuple[list[str], dict]], str]:
@@ -2387,6 +2500,10 @@ class Controller:
             needle = ""
 
         month_map: dict[tuple[int, int], dict[str, list[dict]]] = {}
+        month_totals: dict[tuple[int, int], int] = {}
+        use_totals: dict[tuple[int, int], dict[str, int]] = {}
+        total_minutes = 0
+        step_minutes = self.jot_minutes
         for (
             dt_id,
             start_ts,
@@ -2407,6 +2524,13 @@ class Controller:
             if needle and needle not in use_label.lower():
                 continue
             month_key = (start_dt.year, start_dt.month)
+            extent_minutes = round_seconds_to_step_minutes(
+                td_str_to_seconds(extent or ""), step_minutes
+            )
+            month_totals[month_key] = month_totals.get(month_key, 0) + extent_minutes
+            use_totals.setdefault(month_key, {}).setdefault(use_label, 0)
+            use_totals[month_key][use_label] += extent_minutes
+            total_minutes += extent_minutes
             month_map.setdefault(month_key, {}).setdefault(use_label, []).append(
                 {
                     "record_id": record_id,
@@ -2416,36 +2540,36 @@ class Controller:
                     "subject": subject or "(untitled)",
                     "description": description or "",
                     "extent": extent or "",
+                    "extent_minutes": extent_minutes,
                     "start_dt": start_dt,
                     "use_label": use_label,
                 }
             )
 
         rows: list[dict] = []
-        screen_width = getattr(self, "width", None) or shutil.get_terminal_size(
-            (80, 20)
-        ).columns
+        screen_width = (
+            getattr(self, "width", None) or shutil.get_terminal_size((80, 20)).columns
+        )
         available_width = max(20, screen_width - 4)
 
-        def _extent_to_display(extent_str: str) -> str:
-            seconds = td_str_to_seconds(extent_str or "")
-            minutes = int(math.ceil(seconds / 60)) if seconds > 0 else 0
-            hours, mins = divmod(minutes, 60)
-            return f"{hours}:{mins:02d}"
-
-        def _wrap_subject(base: str, subject_text: str) -> str:
+        def _wrap_subject(base: str, subject_text: str, *, indent_width: int) -> str:
             base_len = len(base)
-            max_subject = max(1, available_width - base_len - 1)
-            wrapped = textwrap.wrap(subject_text, width=max_subject) or [""]
-            text = f"{base} {wrapped[0]}".rstrip()
-            if len(wrapped) > 1:
-                indent = " " * (base_len + 1)
-                for extra in wrapped[1:]:
+            first_width = max(1, available_width - base_len - 1)
+            rest_width = max(1, available_width - indent_width)
+            first_parts = textwrap.wrap(subject_text, width=first_width) or [""]
+            text = f"{base} {first_parts[0]}".rstrip()
+            remaining = " ".join(first_parts[1:]).strip()
+            if remaining:
+                indent = " " * max(indent_width, 0)
+                for extra in textwrap.wrap(remaining, width=rest_width):
                     text += "\n" + indent + extra
             return text
 
-        for (year, month) in sorted(month_map.keys()):
+        for year, month in sorted(month_map.keys()):
             month_label = date(year, month, 1).strftime("%b %Y")
+            month_minutes = month_totals.get((year, month), 0)
+            if month_minutes > 0:
+                month_label = f"{month_label}: {format_decimal_hours(month_minutes, step_minutes)}"
             rows.append(
                 {
                     "record_id": None,
@@ -2461,22 +2585,30 @@ class Controller:
                 use_map.keys(),
                 key=lambda name: (name.lower() == "unassigned", name.lower()),
             ):
+                use_minutes = use_totals.get((year, month), {}).get(use_label, 0)
+                use_header = f"  {use_label}"
+                if use_minutes > 0:
+                    use_header = f"{use_header}: {format_decimal_hours(use_minutes, step_minutes)}"
                 rows.append(
                     {
                         "record_id": None,
                         "job_id": None,
                         "datetime_id": None,
                         "instance_ts": None,
-                        "text": f"[{HEADER_COLOR}]  {use_label}[/{HEADER_COLOR}]",
+                        "text": f"[{HEADER_COLOR}]{use_header}[/{HEADER_COLOR}]",
                     }
                 )
                 for entry in use_map[use_label]:
-                    extent_display = _extent_to_display(entry["extent"])
-                    extent_cell = f"{extent_display:>5}"
-                    dt_display = entry["start_dt"].strftime("%a, %b %-d %H:%M")
-                    base = f"{extent_cell} {dt_display}"
+                    extent_display = format_decimal_hours(
+                        entry["extent_minutes"], step_minutes
+                    )
+                    time_display = entry["start_dt"].strftime("%H:%M")
+                    day_display = entry["start_dt"].strftime("%-d")
+                    base = f"{time_display} {day_display} {extent_display}"
                     subject = self.apply_flags(entry["record_id"], entry["subject"])
-                    text = _wrap_subject(base, subject)
+                    indent_width = 0
+                    text = _wrap_subject(base, subject, indent_width=indent_width)
+                    text = f"[{JOT_COLOR_FULL}]{text}[/{JOT_COLOR_FULL}]"
                     rows.append(
                         {
                             "record_id": entry["record_id"],
@@ -2499,6 +2631,8 @@ class Controller:
             )
 
         title = f"Jot Uses - {label}"
+        if total_minutes > 0:
+            title = f"{title}: {format_decimal_hours(total_minutes, step_minutes)}"
         if use_filter and use_filter.strip() and use_filter.strip().lower() != "all":
             title = f"{title} ({use_filter.strip()})"
 

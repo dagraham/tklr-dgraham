@@ -1627,6 +1627,79 @@ class DatabaseManager:
         ).fetchone()
         return self._row_to_use(row)
 
+    def lookup_use_by_id(self, use_id: int) -> dict | None:
+        row = self.cursor.execute(
+            """
+            SELECT id, name, slug, details
+            FROM Uses
+            WHERE id = ?
+        """,
+            (use_id,),
+        ).fetchone()
+        return self._row_to_use(row)
+
+    def update_use(self, use_id: int, name: str, details: str | None = None) -> dict:
+        cleaned = _clean_use_name(name)
+        if not cleaned:
+            raise ValueError("Use name cannot be empty.")
+        row = self.cursor.execute(
+            "SELECT id, name, slug FROM Uses WHERE id = ?", (use_id,)
+        ).fetchone()
+        if not row:
+            raise ValueError("Use not found.")
+
+        current_id, current_name, current_slug = row
+        existing = self.cursor.execute(
+            "SELECT id FROM Uses WHERE name = ? COLLATE NOCASE", (cleaned,)
+        ).fetchone()
+        if existing and existing[0] != use_id:
+            raise ValueError(f"Use '{cleaned}' already exists.")
+
+        if cleaned.lower() == (current_name or "").lower():
+            slug = current_slug
+        else:
+            slug = self._ensure_unique_use_slug(_slugify_use(cleaned))
+
+        self.cursor.execute(
+            """
+            UPDATE Uses
+            SET name = ?, slug = ?, details = ?
+            WHERE id = ?
+        """,
+            (cleaned, slug, details or "", use_id),
+        )
+
+        # Update stored tokens for records using this use_id.
+        rows = self.cursor.execute(
+            "SELECT id, tokens FROM Records WHERE use_id = ?", (use_id,)
+        ).fetchall()
+        for record_id, tokens_raw in rows:
+            if not tokens_raw:
+                continue
+            try:
+                tokens = json.loads(tokens_raw) if isinstance(tokens_raw, str) else []
+            except Exception:
+                continue
+            if not isinstance(tokens, list):
+                continue
+            changed = False
+            for tok in tokens:
+                if not isinstance(tok, dict):
+                    continue
+                if tok.get("t") == "@" and tok.get("k") == "u":
+                    tok["token"] = f"@u {cleaned}"
+                    if "v" in tok:
+                        tok["v"] = cleaned
+                    changed = True
+            if changed:
+                self.cursor.execute(
+                    "UPDATE Records SET tokens = ? WHERE id = ?",
+                    (json.dumps(tokens), record_id),
+                )
+
+        self.commit()
+        return self.lookup_use_by_id(use_id)
+
     def suggest_uses(self, name: str, limit: int = 3) -> list[dict]:
         cleaned = _clean_use_name(name)
         if not cleaned:

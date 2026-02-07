@@ -245,6 +245,7 @@ pressing [bold]control[/bold] and [bold]u[/bold] simultaneously.
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
 [bold]^q[/bold]    Quit               [bold]^r[/bold]    Record Screenshot
 [bold] +[/bold]    New Reminder       [bold] Y[/bold]    Yearly Calendar
+[bold] P[/bold]    Palette display
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
  [bold]A[/bold]    Agenda              [bold]M[/bold]    Modified
  [bold]B[/bold]    Bins                [bold]N[/bold]    Next
@@ -2529,6 +2530,107 @@ class FullScreenList(SearchableScreen):
         )
 
 
+class PaletteScreen(SearchableScreen):
+    def __init__(
+        self,
+        title: str,
+        left_lines: list[str],
+        *,
+        right_lines: list[str] | None = None,
+        footer_content: str = "",
+        left_bg: str | None = None,
+        left_text: str | None = None,
+        right_bg: str | None = None,
+        right_text: str | None = None,
+    ):
+        super().__init__()
+        self.title = title
+        self.footer_content = footer_content
+        self.left_lines = left_lines
+        self.right_lines = right_lines
+        self.left_bg = left_bg
+        self.left_text = left_text
+        self.right_bg = right_bg
+        self.right_text = right_text
+        self.left_list: ScrollableList | None = None
+        self.right_list: ScrollableList | None = None
+        self.add_class("panel-bg-list")
+
+    def compose(self) -> ComposeResult:
+        yield Static(self.title, id="scroll_title", expand=True, classes="title-class")
+        if self.right_lines is not None:
+            with Horizontal(id="palette_columns"):
+                self.left_list = ScrollableList(
+                    [],
+                    id="palette_left",
+                    bg_color=self.left_bg,
+                    text_color=self.left_text,
+                )
+                self.right_list = ScrollableList(
+                    [],
+                    id="palette_right",
+                    bg_color=self.right_bg,
+                    text_color=self.right_text,
+                )
+                self.left_list.styles.width = "1fr"
+                self.right_list.styles.width = "1fr"
+                self.left_list.styles.height = "1fr"
+                self.right_list.styles.height = "1fr"
+                yield self.left_list
+                yield self.right_list
+        else:
+            self.left_list = ScrollableList(
+                [], id="palette_left", bg_color=self.left_bg, text_color=self.left_text
+            )
+            self.left_list.styles.height = "1fr"
+            yield self.left_list
+        yield FooterNoticeBar(self.footer_content)
+
+    def on_mount(self) -> None:
+        if self.left_list:
+            self.left_list.update_list(self.left_lines)
+        if self.right_list and self.right_lines is not None:
+            self.right_list.update_list(self.right_lines)
+
+    def get_search_target(self):
+        return self.left_list
+
+    def perform_search(self, term: str):
+        if self.left_list:
+            self.left_list.set_search_term(term)
+        if self.right_list:
+            self.right_list.set_search_term(term)
+
+    def clear_search(self):
+        if self.left_list:
+            self.left_list.clear_search()
+        if self.right_list:
+            self.right_list.clear_search()
+
+    def scroll_to_next_match(self):
+        if self.left_list:
+            self.left_list.jump_next_match()
+
+    def scroll_to_previous_match(self):
+        if self.left_list:
+            self.left_list.jump_prev_match()
+
+
+class UseListScreen(FullScreenList):
+    """Tagged list of uses; tag opens editor."""
+
+    def show_details_for_tag(self, tag: str) -> None:
+        if tag == "+":
+            if hasattr(self.app, "open_use_editor"):
+                self.app.open_use_editor(None)
+            return
+        record = self.get_record_for_tag(tag)
+        if record:
+            use_id = record[0]
+            if hasattr(self.app, "open_use_editor"):
+                self.app.open_use_editor(use_id)
+
+
 Page = Tuple[List[str], Dict[str, Tuple[str, object]]]
 
 
@@ -3411,6 +3513,8 @@ class DynamicViewApp(App):
         "weeks": "action_show_weeks",
         "jots": "action_show_jots",
         "jot_uses": "refresh_jot_uses",
+        "use_list": "action_show_use_list",
+        "palette": "refresh_palette",
         "agenda": "action_show_agenda",
         "goals": "action_show_goals",
         "query": "action_show_query",
@@ -3443,7 +3547,8 @@ class DynamicViewApp(App):
         ("T", "show_tags", "Show Tags"),
         ("F", "show_find", "Find"),
         ("J", "show_jots", "Jots"),
-        ("U", "show_jot_uses", "Jot Uses"),
+        ("U", "show_jot_uses_menu", "Jot Uses"),
+        ("P", "show_palette", "Palette"),
         ("W", "show_weeks", "Weeks"),
         ("D", "jump_to_date", "Jump to date"),
         ("Y", "show_year", "Year"),
@@ -3478,6 +3583,7 @@ class DynamicViewApp(App):
                 "title": "#204060",
             },
         }
+        self._list_palette = palette
         colors = palette[self._theme]
         self.list_bg_color = colors["list_bg"]
         self.list_text_color = colors["list_text"]
@@ -3524,6 +3630,7 @@ class DynamicViewApp(App):
         self._current_command_task: asyncio.Task | None = None
         self._jot_use_month_spec: str | None = None
         self._jot_use_filter: str | None = None
+        self._palette_mode: str = "current"
 
     def _update_footer_color(self) -> None:
         global FOOTER, DIM_STYLE
@@ -4109,8 +4216,9 @@ class DynamicViewApp(App):
 
         # --- Single-letter tag press handling for paged views ----------------------
         # (Note: we assume tags are exactly one lower-case ASCII letter 'a'..'z')
-        if key in "abcdefghijklmnopqrstuvwxyz":
-            # If the view supplies a show_details_for_tag method, use it
+        if key in "abcdefghijklmnopqrstuvwxyz" or (
+            key == "+" and self.view == "use_list"
+        ):
             if hasattr(screen, "show_details_for_tag"):
                 screen.show_details_for_tag(key)
         return
@@ -4306,6 +4414,9 @@ class DynamicViewApp(App):
             self._current_command_task = None
 
     def action_new_reminder(self) -> None:
+        if self.view == "use_list":
+            self.open_use_editor(None)
+            return
         # Use whatever seed you like (empty, template, clipboard, etc.)
         self.open_editor_for(seed_text="")
 
@@ -4354,6 +4465,98 @@ class DynamicViewApp(App):
         screen = JotsScreen(title, "", details, footer)
         self.show_screen(screen)
 
+    def refresh_palette(self):
+        self._show_palette(toggle=False)
+
+    def action_show_palette(self):
+        self._show_palette(toggle=True)
+
+    def _show_palette(self, *, toggle: bool) -> None:
+        if toggle and self.view == "palette":
+            self._palette_mode = (
+                "both" if self._palette_mode == "current" else "current"
+            )
+        elif self._palette_mode not in ("current", "both"):
+            self._palette_mode = "current"
+
+        self.view = "palette"
+        footer = (
+            f"[bold {FOOTER}]P[/bold {FOOTER}] Toggle contrasting palette  "
+            f"[bold {FOOTER}]?[/bold {FOOTER}] Help  "
+            f"[bold {FOOTER}]/[/bold {FOOTER}] Search"
+        )
+
+        if self._palette_mode == "both":
+            left_pages, _ = self.controller.get_palette_preview_pages("dark")
+            right_pages, _ = self.controller.get_palette_preview_pages("light")
+            left_lines = left_pages[0][0] if left_pages else []
+            right_lines = right_pages[0][0] if right_pages else []
+            palette = getattr(self, "_list_palette", {})
+            dark_colors = palette.get("dark", {})
+            light_colors = palette.get("light", {})
+            title = "Palette (dark | light)"
+            screen = PaletteScreen(
+                title,
+                left_lines,
+                right_lines=right_lines,
+                footer_content=footer,
+                left_bg=dark_colors.get("list_bg"),
+                left_text=dark_colors.get("list_text"),
+                right_bg=light_colors.get("list_bg"),
+                right_text=light_colors.get("list_text"),
+            )
+        else:
+            pages, title = self.controller.get_palette_preview_pages("current")
+            lines = pages[0][0] if pages else []
+            screen = PaletteScreen(
+                title,
+                lines,
+                footer_content=footer,
+                left_bg=self.list_bg_color,
+                left_text=self.list_text_color,
+            )
+        self.show_screen(screen)
+
+    def open_use_editor(self, use_id: int | None) -> None:
+        use = None
+        if use_id is not None:
+            use = self.controller.lookup_use_by_id(use_id)
+            if not use:
+                self.notify("Use not found.", severity="warning", timeout=2)
+                return
+
+        def _after(result: tuple[str, str] | None) -> None:
+            if not result:
+                return
+            name, details = result
+            try:
+                if use_id is None:
+                    self.controller.add_use(name, details)
+                else:
+                    self.controller.update_use(use_id, name, details)
+            except ValueError as exc:
+                self.notify(str(exc), severity="error", timeout=3)
+                return
+            if self.view == "use_list":
+                self.action_show_use_list()
+            elif self.view == "jot_uses":
+                self.refresh_jot_uses()
+
+        self.push_screen(
+            UseEditorPrompt(
+                "Edit Use" if use_id is not None else "New Use",
+                initial_name=(use.get("name") or "") if use else "",
+                initial_details=(use.get("details") or "") if use else "",
+            ),
+            callback=_after,
+        )
+
+    def action_show_use_list(self):
+        self.view = "use_list"
+        pages, title = self.controller.get_use_list_pages()
+        footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
+        self.show_screen(UseListScreen(pages, title, "", footer))
+
     def _render_jot_uses(self, month_spec: str, use_filter: str) -> None:
         try:
             pages, title = self.controller.get_jot_use_report(month_spec, use_filter)
@@ -4396,6 +4599,49 @@ class DynamicViewApp(App):
             ),
             callback=_after_months,
         )
+
+    def action_show_jot_uses_menu(self):
+        message = "Jot Uses"
+        options = [
+            ("L) List/edit uses", "l"),
+            ("C) Current month uses", "c"),
+            ("P) Previous month uses", "p"),
+            ("U) Custom months/uses", "u"),
+        ]
+
+        def _after(choice: str | None) -> None:
+            if not choice:
+                return
+            label = choice.strip()
+            key = ""
+            if len(label) >= 2 and label[1] == ")":
+                key = label[0].lower()
+            else:
+                key = label[:1].lower()
+            label_lower = label.lower()
+            if key == "l" or label_lower.startswith("list"):
+                self.action_show_use_list()
+                return
+            if key == "c" or label_lower.startswith("current"):
+                today = date.today()
+                month_spec = today.strftime("%y%m")
+                self._jot_use_month_spec = month_spec
+                self._jot_use_filter = "all"
+                self._render_jot_uses(month_spec, "all")
+                return
+            if key == "p" or label_lower.startswith("previous"):
+                today = date.today()
+                first_this_month = date(today.year, today.month, 1)
+                prev_month_last = first_this_month - timedelta(days=1)
+                month_spec = prev_month_last.strftime("%y%m")
+                self._jot_use_month_spec = month_spec
+                self._jot_use_filter = "all"
+                self._render_jot_uses(month_spec, "all")
+                return
+            if key == "u" or label_lower.startswith("custom"):
+                self.action_show_jot_uses()
+
+        self.push_screen(OptionPrompt(message, options), callback=_after)
 
     def refresh_jot_uses(self):
         self.view = "jot_uses"

@@ -24,7 +24,9 @@ ELLIPSIS_CHAR = "…"
 REPEATING = "↻"  # Flag for @r and/or @+ reminders
 OFFFSET = "⌁"  # Flag for offset task
 
+CORAL = "#FF7F50"
 CORNSILK = "#FFF8DC"
+CORNFLOWER_BLUE = "#6495ED"
 DARK_GRAY = "#A9A9A9"
 DARK_GREY = "#A9A9A9"  # same as DARK_GRAY
 DARK_OLIVEDRAB = "#6B8E23"
@@ -48,6 +50,7 @@ ORANGE_RED = "#FF4500"
 PALE_GREEN = "#98FB98"
 PALE_GREEN = "#98FB98"
 PEACHPUFF = "#FFDAB9"
+YELLOW = "#FFFF00"
 SALMON = "#FA8072"
 SANDY_BROWN = "#F4A460"
 SEA_GREEN = "#2E8B57"
@@ -63,10 +66,11 @@ DIM_COLOR = DARK_GRAY
 ALLDAY_COLOR = SANDY_BROWN
 EVENT_COLOR = LIME_GREEN
 NOTE_COLOR = DARK_SALMON
-LOG_COLOR = PALE_GREEN
-JOT_COLOR_NONE = YELLOW_GREEN
-JOT_COLOR_PARTIAL = PALE_GREEN
-JOT_COLOR_FULL = GREEN_YELLOW
+JOT_COLOR = PALE_GREEN
+JOT_COLOR_NONE = JOT_COLOR
+JOT_COLOR_EXTENT = KHAKI
+JOT_COLOR_USE = PEACHPUFF
+JOT_COLOR_FULL = LIGHT_CORAL
 PASSED_EVENT = DARK_OLIVEGREEN
 ACTIVE_EVENT = LAWN_GREEN
 TASK_COLOR = LIGHT_SKY_BLUE
@@ -99,7 +103,7 @@ TYPE_TO_COLOR = {
     "<": PASTDUE_COLOR,  # past due task
     ">": NOTICE_COLOR,  # begin
     "!": GOAL_COLOR,  # draft
-    "-": LOG_COLOR,  # draft
+    "-": JOT_COLOR,  # draft
     "?": DRAFT_COLOR,  # draft
     "b": BIN_COLOR,
     "B": ACTIVE_BIN,
@@ -121,6 +125,136 @@ _TYPE_COLOR_ALIASES = {
     "active_bin": "B",
 }
 
+label_color = LIGHT_SKY_BLUE
+type_color = GOLDENROD
+at_color = GOLDENROD
+am_color = GOLDENROD
+
+THEME_PALETTES = {
+    "dark": {
+        "label_color": LIGHT_SKY_BLUE,
+        "type_color": GOLDENROD,
+        "at_color": GOLDENROD,
+        "am_color": GOLDENROD,
+        "header_color": LEMON_CHIFFON,
+        "event_color": EVENT_COLOR,
+        "available_color": AVAILABLE_COLOR,
+        "task_color": TASK_COLOR,
+        "waiting_color": WAITING_COLOR,
+        "finished_color": FINISHED_COLOR,
+        "note_color": NOTE_COLOR,
+        "pastdue_color": PASTDUE_COLOR,
+        "notice_color": NOTICE_COLOR,
+        "goal_color": GOAL_COLOR,
+        "draft_color": DRAFT_COLOR,
+        "bin_color": BIN_COLOR,
+        "active_bin_color": ACTIVE_BIN,
+        "chore_color": CHORE_COLOR,
+        "jot_color": JOT_COLOR,
+        "jot_none": PALE_GREEN,
+        "jot_extent": KHAKI,
+        "jot_use": PEACHPUFF,
+        "jot_full": LIGHT_SKY_BLUE,
+    },
+    "light": {
+        "label_color": "#b8860b",
+        "type_color": "#b8860b",
+        "at_color": "#b8860b",
+        "am_color": "#b8860b",
+        "header_color": "#1f4b7a",
+        "event_color": EVENT_COLOR,
+        "available_color": AVAILABLE_COLOR,
+        "task_color": TASK_COLOR,
+        "waiting_color": WAITING_COLOR,
+        "finished_color": FINISHED_COLOR,
+        "note_color": NOTE_COLOR,
+        "pastdue_color": PASTDUE_COLOR,
+        "notice_color": NOTICE_COLOR,
+        "goal_color": GOAL_COLOR,
+        "draft_color": DRAFT_COLOR,
+        "bin_color": BIN_COLOR,
+        "active_bin_color": ACTIVE_BIN,
+        "chore_color": CHORE_COLOR,
+        "jot_color": JOT_COLOR,
+        "jot_none": PALE_GREEN,
+        "jot_extent": KHAKI,
+        "jot_use": PEACHPUFF,
+        "jot_full": LIGHT_SKY_BLUE,
+    },
+}
+
+
+def get_theme_palette(
+    theme: str, overrides: dict[str, dict[str, str]] | None = None
+) -> dict[str, str]:
+    palette = dict(THEME_PALETTES.get(theme, THEME_PALETTES["dark"]))
+    if overrides is None:
+        overrides = getattr(env.config.ui, "palette", {}) or {}
+    theme_overrides: dict[str, str] = {}
+    if isinstance(overrides, dict):
+        candidate = overrides.get(theme)
+        if isinstance(candidate, dict):
+            theme_overrides = candidate
+    for key, value in theme_overrides.items():
+        if key in palette and value:
+            palette[key] = value.strip()
+    return palette
+
+
+def apply_theme_palette(
+    theme: str,
+    *,
+    apply_overrides: bool = True,
+    overrides: dict[str, dict[str, str]] | None = None,
+) -> dict[str, str]:
+    palette = get_theme_palette(theme, overrides)
+    globals().update(
+        label_color=palette["label_color"],
+        type_color=palette["type_color"],
+        at_color=palette["at_color"],
+        am_color=palette["am_color"],
+        HEADER_COLOR=palette["header_color"],
+        EVENT_COLOR=palette["event_color"],
+        AVAILABLE_COLOR=palette["available_color"],
+        TASK_COLOR=palette.get("task_color", palette["available_color"]),
+        WAITING_COLOR=palette["waiting_color"],
+        FINISHED_COLOR=palette["finished_color"],
+        NOTE_COLOR=palette["note_color"],
+        PASTDUE_COLOR=palette["pastdue_color"],
+        NOTICE_COLOR=palette["notice_color"],
+        GOAL_COLOR=palette["goal_color"],
+        DRAFT_COLOR=palette["draft_color"],
+        BIN_COLOR=palette["bin_color"],
+        ACTIVE_BIN=palette["active_bin_color"],
+        CHORE_COLOR=palette.get("chore_color", CHORE_COLOR),
+        JOT_COLOR=palette.get("jot_color", palette["jot_none"]),
+        JOT_COLOR_NONE=palette["jot_none"],
+        JOT_COLOR_EXTENT=palette["jot_extent"],
+        JOT_COLOR_USE=palette["jot_use"],
+        JOT_COLOR_FULL=palette["jot_full"],
+    )
+    TYPE_TO_COLOR.clear()
+    TYPE_TO_COLOR.update(
+        {
+            "*": EVENT_COLOR,  # event
+            "~": AVAILABLE_COLOR,  # available task
+            "x": FINISHED_COLOR,  # finished task
+            "^": AVAILABLE_COLOR,  # available task
+            "+": WAITING_COLOR,  # waiting task
+            "%": NOTE_COLOR,  # note
+            "<": PASTDUE_COLOR,  # past due task
+            ">": NOTICE_COLOR,  # begin
+            "!": GOAL_COLOR,  # goal
+            "-": JOT_COLOR,  # jot
+            "?": DRAFT_COLOR,  # draft
+            "b": BIN_COLOR,
+            "B": ACTIVE_BIN,
+        }
+    )
+    if apply_overrides:
+        _apply_type_color_overrides()
+    return palette
+
 
 def _apply_type_color_overrides() -> None:
     overrides = getattr(env.config.ui, "colors", {}) or {}
@@ -133,7 +267,7 @@ def _apply_type_color_overrides() -> None:
             TYPE_TO_COLOR[lookup] = value.strip()
 
 
-_apply_type_color_overrides()
+apply_theme_palette(getattr(env.config.ui, "theme", "dark"))
 
 
 def _normalize_ts(value: str | None) -> str:
@@ -351,12 +485,15 @@ def format_iso_week(monday_date: datetime) -> str:
     return f"{start_dt.strftime('%b %-d')} - {end_dt.strftime('%b %-d')}, {yr_wk}"
 
 
-def parse_month_spec(spec: str | None, *, today: date | None = None) -> tuple[date, date, str]:
+def parse_month_spec(
+    spec: str | None, *, today: date | None = None
+) -> tuple[date, date, str]:
     """
     Parse month specs like YYMM or YYMM-YYMM (inclusive).
     Returns (start_date, end_date_exclusive, label).
     Empty spec defaults to previous + current month.
     """
+
     def _parse_yymm(value: str) -> tuple[int, int]:
         digits = re.sub(r"\D", "", value or "")
         if len(digits) == 4:
@@ -550,6 +687,33 @@ def format_timedelta(seconds: int, short: bool = False) -> str:
     except Exception as exc:
         log_msg(f"{seconds = } raised exception: {exc}")
         return ""
+
+
+def round_seconds_to_step_minutes(seconds: int, step_minutes: int) -> int:
+    """
+    Round a duration in seconds up to the next multiple of step_minutes.
+    """
+    if seconds <= 0:
+        return 0
+    minutes = (int(seconds) + 59) // 60
+    step = max(1, int(step_minutes))
+    return ((minutes + step - 1) // step) * step
+
+
+def decimal_hours_places(step_minutes: int) -> int:
+    """
+    Return number of decimal places needed for the configured rounding step.
+    """
+    return 2 if int(step_minutes) in (3, 15) else 1
+
+
+def format_decimal_hours(minutes: int, step_minutes: int) -> str:
+    """
+    Convert minutes to decimal hours string with 'h' suffix.
+    """
+    hours = minutes / 60.0
+    places = decimal_hours_places(step_minutes)
+    return f"{hours:.{places}f}h"
 
 
 def format_datetime(fmt_dt: str, ampm: bool = False) -> str:
