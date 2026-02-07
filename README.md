@@ -30,12 +30,13 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
         <ul>
           <li><a href="#11-form-free-entry">1.1. Form-Free entry</a></li>
           <li><a href="#12-reminders-to-suit-the-purpose">1.2. Reminders to suit the purpose</a></li>
-          <li><a href="#13-mouse-free-navigation">1.3. Mouse-Free navigation</a></li>
-          <li><a href="#14-agenda-view-your-daily-brief">1.4. Agenda View: Your daily brief</a></li>
-          <li><a href="#15-weeks-next-and-last-views-whats-happening-and-when">1.5. Weeks, Next and Last Views: What's happening and when</a></li>
-          <li><a href="#16-bins-and-tags-views-organizing-your-reminders">1.6. Bins and Tags Views: Organizing your reminders</a></li>
-          <li><a href="#17-query-and-find-views-wheres-waldo">1.7 Query and Find Views: Where's Waldo</a></li>
-          <li><a href="#18-sqlite3-data-store">1.8 SQLite3 Data Store</a></li>
+          <li><a href="#13-where-did-the-time-go">1.3. Where did the time go?</a></li>
+          <li><a href="#14-mouse-free-navigation">1.4. Mouse-Free navigation</a></li>
+          <li><a href="#15-agenda-view-your-daily-brief">1.5. Agenda View: Your daily brief</a></li>
+          <li><a href="#16-weeks-next-and-last-views-whats-happening-and-when">1.6. Weeks, Next and Last Views: What's happening and when</a></li>
+          <li><a href="#17-bins-and-tags-views-organizing-your-reminders">1.7. Bins and Tags Views: Organizing your reminders</a></li>
+          <li><a href="#18-query-and-find-views-wheres-waldo">1.8 Query and Find Views: Where's Waldo</a></li>
+          <li><a href="#19-sqlite3-data-store">1.9 SQLite3 Data Store</a></li>
         </ul>
       </details>
       <details>
@@ -384,10 +385,28 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 </div>
 <div style="clear:both;"></div>
 
+[↩︎](#table-of-contents)
+
+### 1.3. Where did the time go?
+
+Tracking where your money goes is surely a important step in managing that scare resource. Indeed, tracking where a resource goes is critically important to managing any scarce resource and your time is no exception. *Tklr* provides a type of reminder quite different from those listed above which is labeled *jot* and designed to facilitate that task.  
+
+The definition I found for the verb *jot* is "write something quickly". Imagine that *tklr* is running on your computer and that, in the midst of your hectic day, you could reach over, press "+" to create a new *jot*, enter "- working on ..." or "- what about trying ..." or whatever you wanted to preserve and then press Ctrl+S to save. Just enough to remind you later what you were doing or what you had in mind. A timestamp will automatically be added when you save.  Whenever convenient, you can press "J" to see a list of your *jots* in cronological order. At the cost of a few seconds per *jot* you can have a daily record of what you were doing/thinking and when. 
+
+Your *jots* are grouped by week and then weekday and tagged with lower case letters, a, b, c, ....  All you need do is press the key corresponding to its tag to edit a *jot*. What sort of editing might you do?
+
+- Flush out an idea enough to be understood when you look at it later.
+- Add, e.g.,  `@e 1h15`, to indicate that an hour and fifteen minutes of your precious time were spent on this.
+- Add, e.g., `@u Waldo` to indicate that this time should be attributed to the *use* "Waldo". Other *tklr* commands will show you reports of exactly how much time each of your *uses* got and when.
+- Details can be added using `@d ...` and hashtags in either the subject or the details for quickly finding things later.
+- A *jot* such as `- book a lunch reservation for Friday` might be converted to an event `* lunch with Waldo @s fri 1pm` when you make the reservation.    
+
+Simple idea - *jot* down just enough in the heat of battle to be able to understand when things have calmed down. As with other reminders, flexible searches are available to find whatever you what to locate. 
+
 
 [↩︎](#table-of-contents)
 
-### 1.3. Mouse-Free navigation
+### 1.4. Mouse-Free navigation
 
 Each of the main views in *tklr* can be opened by pressing a single key - the first letter of the view's name.
 
@@ -422,7 +441,7 @@ Everything you might want to do to a reminder, to edit, finish, reschedule, dele
 
 [↩︎](#table-of-contents)
 
-### 1.4. Agenda View: Your daily brief
+### 1.5. Agenda View: Your daily brief
 
 *Agenda view* displays
 
@@ -462,7 +481,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 [↩︎](#table-of-contents)
 
-### 1.5 Weeks, Next and Last Views: What's happening and when
+### 1.6. Weeks, Next and Last Views: What's happening and when
 
 *Weeks View* is dedicated to displaying each instance of your scheduled reminders one week at a time with a *busy bar* at the top to show the busy days during the week at a glance followed by a day by day listing of the scheduled reminders.
 
@@ -491,7 +510,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 [↩︎](#table-of-contents)
 
-### 1.6. Bins and Tags Views: Organizing your reminders
+### 1.7. Bins and Tags Views: Organizing your reminders
 
 *Tklr* provides two complementary methods for organizing your reminders:
 
@@ -501,7 +520,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 </ol>
 
 
-#### 1.6.1 Bins View
+#### 1.7.1 Bins View
 
 The _Bins View_ displays a hierarchical, tree view of _bins_ and _reminders_.
 
@@ -568,7 +587,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 <div style="clear: both;"></div>
 
 
-#### 1.6.2 Tags View
+#### 1.7.2 Tags View
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/tags_screenshot.svg"
@@ -583,7 +602,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 [↩︎](#table-of-contents)
 
 
-### 1.7 Query and Find Views: Where's Waldo
+### 1.8. Query and Find Views: Where's Waldo
 
 What is the name of that plumber we used and liked so much?
 
@@ -627,7 +646,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 [↩︎](#table-of-contents)
 
-### 1.8. <em>SQLite3</em> Data Store
+### 1.9. <em>SQLite3</em> Data Store
 
 SQLite offers tangible advantages over TinyDB’s JSON store which - used for *tklr*'s predecessor - especially at the required scale. The embedded SQL engine keeps queries fast even as data grows, thanks to indexed storage and compiled query plans rather than repeatedly parsing whole JSON file. Reliability improves because SQLite wraps writes in ACID transactions so crashes or concurrent edits won’t corrupt the data, whereas TinyDB depends on rewriting the JSON blob. Finally, SQLite’s standard file format means other tools (command-line clients, BI dashboards, scripting languages) can open the same .db directly or even run read-only analytics in parallel, something that’s awkward with a bespoke JSON structure.
 
