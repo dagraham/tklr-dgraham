@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 from .versioning import get_version
 
 from tklr.tklr_env import TklrEnvironment
+from .named_colors import css_named_colors
 
 env = TklrEnvironment()
 AMPM = env.config.ui.ampm
@@ -132,54 +133,58 @@ am_color = GOLDENROD
 
 THEME_PALETTES = {
     "dark": {
-        "label_color": LIGHT_SKY_BLUE,
-        "type_color": GOLDENROD,
-        "at_color": GOLDENROD,
-        "am_color": GOLDENROD,
-        "header_color": LEMON_CHIFFON,
-        "event_color": EVENT_COLOR,
-        "available_color": AVAILABLE_COLOR,
-        "task_color": TASK_COLOR,
-        "waiting_color": WAITING_COLOR,
-        "finished_color": FINISHED_COLOR,
-        "note_color": NOTE_COLOR,
-        "pastdue_color": PASTDUE_COLOR,
-        "notice_color": NOTICE_COLOR,
-        "goal_color": GOAL_COLOR,
-        "draft_color": DRAFT_COLOR,
-        "bin_color": BIN_COLOR,
-        "active_bin_color": ACTIVE_BIN,
-        "chore_color": CHORE_COLOR,
-        "jot_color": JOT_COLOR,
-        "jot_none": PALE_GREEN,
-        "jot_extent": KHAKI,
-        "jot_use": PEACHPUFF,
-        "jot_full": LIGHT_SKY_BLUE,
+        "label_color": "lightskyblue",
+        "type_color": "goldenrod",
+        "at_color": "goldenrod",
+        "am_color": "goldenrod",
+        "header_color": "lemonchiffon",
+        "event_color": "limegreen",
+        "available_color": "lightskyblue",
+        "task_color": "lightskyblue",
+        "waiting_color": "darkgray",
+        "finished_color": "gray",
+        "note_color": "darksalmon",
+        "pastdue_color": "darkorange",
+        "notice_color": "gold",
+        "goal_color": "goldenrod",
+        "draft_color": "orangered",
+        "bin_color": "goldenrod",
+        "active_bin_color": "gold",
+        "chore_color": "khaki",
+        "jot_color": "palegreen",
+        "jot_none": "palegreen",
+        "jot_extent": "khaki",
+        "jot_use": "peachpuff",
+        "jot_full": "lightskyblue",
+        "urgency_min_color": "#6495ed",
+        "urgency_max_color": "#ffff00",
     },
     "light": {
-        "label_color": "#b8860b",
-        "type_color": "#b8860b",
-        "at_color": "#b8860b",
-        "am_color": "#b8860b",
-        "header_color": "#1f4b7a",
-        "event_color": EVENT_COLOR,
-        "available_color": AVAILABLE_COLOR,
-        "task_color": TASK_COLOR,
-        "waiting_color": WAITING_COLOR,
-        "finished_color": FINISHED_COLOR,
-        "note_color": NOTE_COLOR,
-        "pastdue_color": PASTDUE_COLOR,
-        "notice_color": NOTICE_COLOR,
-        "goal_color": GOAL_COLOR,
-        "draft_color": DRAFT_COLOR,
-        "bin_color": BIN_COLOR,
-        "active_bin_color": ACTIVE_BIN,
-        "chore_color": CHORE_COLOR,
-        "jot_color": JOT_COLOR,
-        "jot_none": PALE_GREEN,
-        "jot_extent": KHAKI,
-        "jot_use": PEACHPUFF,
-        "jot_full": LIGHT_SKY_BLUE,
+        "label_color": "royalblue",
+        "type_color": "firebrick",
+        "at_color": "firebrick",
+        "am_color": "firebrick",
+        "header_color": "darkslategray",
+        "event_color": "green",
+        "available_color": "blue",
+        "task_color": "blue",
+        "waiting_color": "darkslategray",
+        "finished_color": "slategray",
+        "note_color": "saddlebrown",
+        "pastdue_color": "brown",
+        "notice_color": "brown",
+        "goal_color": "blueviolet",
+        "draft_color": "crimson",
+        "bin_color": "brown",
+        "active_bin_color": "olive",
+        "chore_color": "darkolivegreen",
+        "jot_color": "darkgreen",
+        "jot_none": "darkgreen",
+        "jot_extent": "green",
+        "jot_use": "crimson",
+        "jot_full": "red",
+        "urgency_min_color": "#6495ed",
+        "urgency_max_color": "#ffff00",
     },
 }
 
@@ -198,7 +203,18 @@ def get_theme_palette(
     for key, value in theme_overrides.items():
         if key in palette and value:
             palette[key] = value.strip()
+    palette = {key: _normalize_color(value) for key, value in palette.items()}
     return palette
+
+
+def _normalize_color(value: str) -> str:
+    if not value:
+        return value
+    candidate = value.strip()
+    if candidate.startswith("#"):
+        return candidate
+    lookup = css_named_colors.get(candidate.lower())
+    return lookup if lookup else candidate
 
 
 def apply_theme_palette(
@@ -216,7 +232,8 @@ def apply_theme_palette(
         HEADER_COLOR=palette["header_color"],
         EVENT_COLOR=palette["event_color"],
         AVAILABLE_COLOR=palette["available_color"],
-        TASK_COLOR=palette.get("task_color", palette["available_color"]),
+        # TASK_COLOR=palette.get("task_color", palette["available_color"]),
+        TASK_COLOR=palette["task_color"],
         WAITING_COLOR=palette["waiting_color"],
         FINISHED_COLOR=palette["finished_color"],
         NOTE_COLOR=palette["note_color"],

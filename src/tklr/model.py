@@ -795,11 +795,34 @@ class UrgencyComputer:
         self.MAX_HEX_COLOR = self.urgency.colors.max_hex_color
         self.STEPS = self.urgency.colors.steps
 
+        max_priority = 0.0
+        try:
+            priority_map = getattr(self.urgency.priority, "root", {})
+            if isinstance(priority_map, dict):
+                if "next" in priority_map and isinstance(
+                    priority_map["next"], (int, float)
+                ):
+                    max_priority = float(priority_map["next"])
+                elif "1" in priority_map and isinstance(priority_map["1"], (int, float)):
+                    max_priority = float(priority_map["1"])
+                else:
+                    priority_values = priority_map.values()
+                    max_priority = max(
+                        (
+                            value
+                            for value in priority_values
+                            if isinstance(value, (int, float))
+                        ),
+                        default=0.0,
+                    )
+        except Exception:
+            max_priority = 0.0
+
         self.MAX_POSSIBLE_URGENCY = sum(
             comp.max
             for comp in vars(self.urgency).values()
             if hasattr(comp, "max") and isinstance(comp.max, (int, float))
-        )
+        ) + max_priority
         self.BUCKETS = self.get_urgency_color_buckets()
 
     def hex_to_rgb(self, hex_color: str) -> Tuple[int, int, int]:
@@ -809,9 +832,13 @@ class UrgencyComputer:
     def rgb_to_hex(self, rgb: Tuple[int, int, int]) -> str:
         return "#{:02x}{:02x}{:02x}".format(*rgb)
 
-    def get_urgency_color_buckets(self) -> List[str]:
-        neg_rgb = self.hex_to_rgb(self.MIN_HEX_COLOR)
-        max_rgb = self.hex_to_rgb(self.MAX_HEX_COLOR)
+    def get_urgency_color_buckets(
+        self, min_hex_color: str | None = None, max_hex_color: str | None = None
+    ) -> List[str]:
+        min_hex_color = min_hex_color or self.MIN_HEX_COLOR
+        max_hex_color = max_hex_color or self.MAX_HEX_COLOR
+        neg_rgb = self.hex_to_rgb(min_hex_color)
+        max_rgb = self.hex_to_rgb(max_hex_color)
 
         buckets = []
         for i in range(self.STEPS):
@@ -822,16 +849,29 @@ class UrgencyComputer:
             buckets.append(self.rgb_to_hex(rgb))
         return buckets
 
-    def urgency_to_bucket_color(self, urgency: float) -> str:
+    def urgency_to_bucket_color(
+        self,
+        urgency: float,
+        *,
+        min_hex_color: str | None = None,
+        max_hex_color: str | None = None,
+    ) -> str:
+        min_hex_color = min_hex_color or self.MIN_HEX_COLOR
+        max_hex_color = max_hex_color or self.MAX_HEX_COLOR
         if urgency <= self.MIN_URGENCY:
-            return self.MIN_HEX_COLOR
+            return min_hex_color
         if urgency >= 1.0:
-            return self.MAX_HEX_COLOR
+            return max_hex_color
+
+        if min_hex_color == self.MIN_HEX_COLOR and max_hex_color == self.MAX_HEX_COLOR:
+            buckets = self.BUCKETS
+        else:
+            buckets = self.get_urgency_color_buckets(min_hex_color, max_hex_color)
 
         i = min(
-            int((urgency - self.MIN_URGENCY) * len(self.BUCKETS)), len(self.BUCKETS) - 1
+            int((urgency - self.MIN_URGENCY) * len(buckets)), len(buckets) - 1
         )
-        return self.BUCKETS[i]
+        return buckets[i]
 
     def compute_partitioned_urgency(self, weights: dict[str, float]) -> float:
         """

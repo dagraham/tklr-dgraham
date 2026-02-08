@@ -32,6 +32,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 from dateutil.rrule import rrulestr
 from dateutil import tz
+from .named_colors import css_named_colors
 
 # Item prefixes that should be coerced to draft ("?") when importing inbox entries.
 INBOX_ITEM_PREFIXES = {"*", "~", "^", "!", "%", "?"}
@@ -576,7 +577,11 @@ class Controller:
 
     def _apply_theme_colors(self) -> None:
         global label_color, type_color, HEADER_COLOR, at_color, am_color, HEADER_STYLE
+        global EVENT_COLOR, AVAILABLE_COLOR, TASK_COLOR, WAITING_COLOR, FINISHED_COLOR
+        global NOTE_COLOR, PASTDUE_COLOR, NOTICE_COLOR, GOAL_COLOR, DRAFT_COLOR
+        global BIN_COLOR, ACTIVE_BIN, CHORE_COLOR, JOT_COLOR
         global JOT_COLOR_NONE, JOT_COLOR_EXTENT, JOT_COLOR_USE, JOT_COLOR_FULL
+        global TYPE_TO_COLOR
         overrides = getattr(self.env.config.ui, "palette", {}) if self.env else {}
         apply_theme_palette(self.ui_theme, overrides=overrides)
         label_color = shared_colors.label_color
@@ -584,10 +589,25 @@ class Controller:
         HEADER_COLOR = shared_colors.HEADER_COLOR
         at_color = shared_colors.at_color
         am_color = shared_colors.am_color
+        EVENT_COLOR = shared_colors.EVENT_COLOR
+        AVAILABLE_COLOR = shared_colors.AVAILABLE_COLOR
+        TASK_COLOR = shared_colors.TASK_COLOR
+        WAITING_COLOR = shared_colors.WAITING_COLOR
+        FINISHED_COLOR = shared_colors.FINISHED_COLOR
+        NOTE_COLOR = shared_colors.NOTE_COLOR
+        PASTDUE_COLOR = shared_colors.PASTDUE_COLOR
+        NOTICE_COLOR = shared_colors.NOTICE_COLOR
+        GOAL_COLOR = shared_colors.GOAL_COLOR
+        DRAFT_COLOR = shared_colors.DRAFT_COLOR
+        BIN_COLOR = shared_colors.BIN_COLOR
+        ACTIVE_BIN = shared_colors.ACTIVE_BIN
+        CHORE_COLOR = shared_colors.CHORE_COLOR
+        JOT_COLOR = shared_colors.JOT_COLOR
         JOT_COLOR_NONE = shared_colors.JOT_COLOR_NONE
         JOT_COLOR_EXTENT = shared_colors.JOT_COLOR_EXTENT
         JOT_COLOR_USE = shared_colors.JOT_COLOR_USE
         JOT_COLOR_FULL = shared_colors.JOT_COLOR_FULL
+        TYPE_TO_COLOR = dict(shared_colors.TYPE_TO_COLOR)
         HEADER_STYLE = f"{HEADER_COLOR}"
 
     @property
@@ -2411,27 +2431,36 @@ class Controller:
     def get_palette_preview_pages(
         self, mode: str = "current"
     ) -> tuple[list[tuple[list[str], dict]], str]:
+        hex_to_name = {value.upper(): name for name, value in css_named_colors.items()}
+
+        def _display_color(color_value: str) -> str:
+            if not color_value:
+                return color_value
+            if color_value.startswith("#"):
+                return hex_to_name.get(color_value.upper(), color_value)
+            return color_value
+
         def _palette_lines(palette: dict[str, str], title: str) -> list[str]:
             header = palette["header_color"]
             lines: list[str] = []
             lines.append(f"[{header}]{title}[/{header}]")
             lines.append(f"[{header}]Primary labels[/{header}]")
-            lines.append(f"[{header}]HEADER_COLOR[/{header}] {header}")
+            lines.append(f"[{header}]HEADER_COLOR[/{header}] {_display_color(header)}")
             lines.append(
                 f"[{palette['label_color']}]label_color[/{palette['label_color']}] "
-                f"{palette['label_color']}"
+                f"{_display_color(palette['label_color'])}"
             )
             lines.append(
                 f"[{palette['type_color']}]type_color[/{palette['type_color']}] "
-                f"{palette['type_color']}"
+                f"{_display_color(palette['type_color'])}"
             )
             lines.append(
                 f"[{palette['at_color']}]@ key color[/{palette['at_color']}] "
-                f"{palette['at_color']}"
+                f"{_display_color(palette['at_color'])}"
             )
             lines.append(
                 f"[{palette['am_color']}]& key color[/{palette['am_color']}] "
-                f"{palette['am_color']}"
+                f"{_display_color(palette['am_color'])}"
             )
             lines.append(f"[{header}]Jot states[/{header}]")
             lines.append(
@@ -2475,7 +2504,9 @@ class Controller:
             ]
             for itemtype, label in type_samples:
                 color = type_colors.get(itemtype, "white")
-                lines.append(f"[{color}]  {itemtype} {label} ({color})[/{color}]")
+                lines.append(
+                    f"[{color}]  {itemtype} {label} ({_display_color(color)})[/{color}]"
+                )
             return lines
 
         theme = self.ui_theme if mode == "current" else mode
@@ -2608,7 +2639,12 @@ class Controller:
                     subject = self.apply_flags(entry["record_id"], entry["subject"])
                     indent_width = 0
                     text = _wrap_subject(base, subject, indent_width=indent_width)
-                    text = f"[{JOT_COLOR_FULL}]{text}[/{JOT_COLOR_FULL}]"
+                    entry_color = (
+                        JOT_COLOR_EXTENT
+                        if use_label.strip().lower() == "unassigned"
+                        else JOT_COLOR_FULL
+                    )
+                    text = f"[{entry_color}]{text}[/{entry_color}]"
                     rows.append(
                         {
                             "record_id": entry["record_id"],
@@ -2640,7 +2676,7 @@ class Controller:
             rows,
             page_size=26,
             dim_style=self.dim_style,
-            pre_tag_spaces=2,
+            pre_tag_spaces=4,
             post_tag_spaces=1,
         )
         return pages, title
@@ -3670,6 +3706,15 @@ class Controller:
             },
         ]
 
+        overrides = getattr(self.env.config.ui, "palette", {}) if self.env else {}
+        palette = shared_colors.get_theme_palette(self.ui_theme, overrides)
+        urgency_min = palette.get(
+            "urgency_min_color", self.db_manager.compute_urgency.MIN_HEX_COLOR
+        )
+        urgency_max = palette.get(
+            "urgency_max_color", self.db_manager.compute_urgency.MAX_HEX_COLOR
+        )
+
         for (
             record_id,
             job_id,
@@ -3686,6 +3731,11 @@ class Controller:
             #     "📌" if pinned else f"[{color}]{int(round(urgency * 100)):>3}[/{color}]"
             # )
             urgency_str = "📌" if pinned else f"{round(100 * urgency):>3}"
+            color = self.db_manager.compute_urgency.urgency_to_bucket_color(
+                urgency,
+                min_hex_color=urgency_min,
+                max_hex_color=urgency_max,
+            )
 
             rows.append(
                 {

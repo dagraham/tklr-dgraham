@@ -2,7 +2,7 @@
 title = "Tklr Configuration"
 
 # secret: used to encode/decode masked (@m) fields.
-secret = "i1ZRbCKE8uv2TLoSjh5B0O3FrTBBz1uQ"
+secret = "eAa90BoW8ld1DMNwDsq0WxDuzAaAVCjN"
 
 [ui]
 # theme: str = 'dark' | 'light'
@@ -30,7 +30,7 @@ minutes = 6
 # event_color, available_color, task_color, waiting_color, finished_color,
 # note_color, pastdue_color, notice_color, goal_color, draft_color,
 # bin_color, active_bin_color, chore_color, jot_color, jot_none, jot_extent,
-# jot_use, jot_full
+# jot_use, jot_full, urgency_min_color, urgency_max_color
 #
 # [ui.palette.dark]
 # header_color = "#1f4b7a"
@@ -44,7 +44,7 @@ minutes = 6
 # Prefix with '!' to run a standalone command/script (no automatic 'tklr').
 # The output of this command will be written to "current.txt" in the Tklr home
 # directory.
-current_command = "!tklr --home ~/Projects/tklr-uv/examples_dark agenda --width 46 --rich"
+current_command = ""
 
 # dayfirst and yearfirst settings
 # These settings are used to resolve ambiguous date entries involving
@@ -99,7 +99,7 @@ two_digit_year = true
 min_hex_color = "#6495ed"
 max_hex_color = "#ffff00"
 min_urgency = 0.0
-steps = 20
+steps = 10
 
 [urgency.due]
 # The "due" urgency increases from 0.0 to "max" as now passes from
@@ -150,15 +150,15 @@ max = 3.0
 # would correspond to the "3" entry below. Absent an entry for "@p", the
 # value 0.0 is used.
 
-"1" = 10.0
+"someday" = -5.0
 
-"2" = 8.0
+"low" = 2.0
 
-"3" = 5.0
+"medium" = 5.0
 
-"4" = 2.0
+"high" = 8.0
 
-"5" = -5.0
+"next" = 10.0
 
 
 # In the default settings, a priority of "5" is the only one that yields
@@ -178,5 +178,3 @@ max = 3.0
 # Specify custom ordering of children for a root bin.
 # Example:
 #   seedbed = ["germinating", "sprouting", "growing", "flowering"]
-
-ideas = ["seed","germinating","sprouting","growing","flowering"]
