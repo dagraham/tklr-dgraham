@@ -25,20 +25,6 @@ agenda_days = 3
 # Rounding step (in minutes) for jot extents.
 minutes = 6
 
-# palette overrides (per theme). Uncomment any entries you want to override.
-# Available keys: label_color, type_color, at_color, am_color, header_color,
-# event_color, available_color, task_color, waiting_color, finished_color,
-# note_color, pastdue_color, notice_color, goal_color, draft_color,
-# bin_color, active_bin_color, chore_color, jot_color, jot_none, jot_extent,
-# jot_use, jot_full, urgency_min_color, urgency_max_color
-#
-# [ui.palette.dark]
-# header_color = "#1f4b7a"
-# jot_full = "#9ad1ff"
-#
-# [ui.palette.light]
-# note_color = "#b56576"
-
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
 # Prefix with '!' to run a standalone command/script (no automatic 'tklr').
@@ -74,6 +60,30 @@ yearfirst = true
 # 25 instead of 2025.
 two_digit_year = true
 
+# palette overrides (per theme). Uncomment any entries you want to override.
+# Available keys: label_color, type_color, at_color, am_color, header_color,
+# event_color, available_color, task_color, waiting_color, finished_color,
+# note_color, pastdue_color, notice_color, goal_color, draft_color,
+# bin_color, active_bin_color, chore_color, jot_color, jot_none, jot_extent,
+# jot_use, jot_full, urgency_min_color, urgency_max_color, goal_min_color, goal_max_color
+#
+# [ui.palette.dark]
+# header_color = "#1f4b7a"
+# jot_full = "#9ad1ff"
+#
+# [ui.palette.light]
+# note_color = "#b56576"
+
+
+
+[ui.palette.dark]
+
+urgency_max_color = "yellow"
+
+urgency_min_color = "lightskyblue"
+
+
+
 
 
 [alerts]
@@ -99,7 +109,7 @@ two_digit_year = true
 min_hex_color = "#6495ed"
 max_hex_color = "#ffff00"
 min_urgency = 0.0
-steps = 10
+steps = 20
 
 [urgency.due]
 # The "due" urgency increases from 0.0 to "max" as now passes from
@@ -149,6 +159,7 @@ max = 3.0
 # "5" (lowest) of `@p` specified in the task. E.g, with "@p 3", the value
 # would correspond to the "3" entry below. Absent an entry for "@p", the
 # value 0.0 is used.
+# Note: "next" is treated as the maximum priority when normalizing urgency.
 
 "someday" = -5.0
 

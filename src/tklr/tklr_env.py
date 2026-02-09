@@ -149,20 +149,6 @@ agenda_days = {{ ui.agenda_days }}
 # Rounding step (in minutes) for jot extents.
 minutes = {{ ui.minutes }}
 
-# palette overrides (per theme). Uncomment any entries you want to override.
-# Available keys: label_color, type_color, at_color, am_color, header_color,
-# event_color, available_color, task_color, waiting_color, finished_color,
-# note_color, pastdue_color, notice_color, goal_color, draft_color,
-# bin_color, active_bin_color, chore_color, jot_color, jot_none, jot_extent,
-# jot_use, jot_full, urgency_min_color, urgency_max_color
-#
-# [ui.palette.dark]
-# header_color = "#1f4b7a"
-# jot_full = "#9ad1ff"
-#
-# [ui.palette.light]
-# note_color = "#b56576"
-
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
 # Prefix with '!' to run a standalone command/script (no automatic 'tklr').
@@ -197,6 +183,20 @@ yearfirst = {{ ui.yearfirst | lower }}
 # If true, years are displayed using the last two digits, e.g.,
 # 25 instead of 2025.
 two_digit_year = {{ ui.two_digit_year | lower }}
+
+# palette overrides (per theme). Uncomment any entries you want to override.
+# Available keys: label_color, type_color, at_color, am_color, header_color,
+# event_color, available_color, task_color, waiting_color, finished_color,
+# note_color, pastdue_color, notice_color, goal_color, draft_color,
+# bin_color, active_bin_color, chore_color, jot_color, jot_none, jot_extent,
+# jot_use, jot_full, urgency_min_color, urgency_max_color, goal_min_color, goal_max_color
+#
+# [ui.palette.dark]
+# header_color = "#1f4b7a"
+# jot_full = "#9ad1ff"
+#
+# [ui.palette.light]
+# note_color = "#b56576"
 
 {% if ui.palette %}
 {% for theme, values in ui.palette | dictsort %}
@@ -279,8 +279,8 @@ count = {{ urgency.tags.count }}
 max = {{ urgency.tags.max }}
 
 [urgency.priority]
-# The "priority" urgency corresponds to the value from "1" (someday) to
-# "5" (highest) of `@p` specified in the task. E.g, with "@p 3", the value
+# The "priority" urgency corresponds to the value from "1" (highest) to
+# "5" (lowest) of `@p` specified in the task. E.g, with "@p 3", the value
 # would correspond to the "3" entry below. Absent an entry for "@p", the
 # value 0.0 is used.
 # Note: "next" is treated as the maximum priority when normalizing urgency.
@@ -288,7 +288,7 @@ max = {{ urgency.tags.max }}
 "{{ key }}" = {{ value }}
 {% endfor %}
 
-# In the default settings, a priority of "1" is the only one that yields
+# In the default settings, a priority of "5" is the only one that yields
 # a negative value, `-5`, and thus reduces the urgency of the task.
 
 [urgency.description]
@@ -406,13 +406,13 @@ max = {{ urgency.project.max }}
 # # Priority levels used in urgency calculation.
 # # These are mapped from user input `@p 1` through `@p 5`
 # # so that entering "@p 1" entails the priority value for
-# # "someday", "@p 2" the priority value for "low" and so forth.
+# # "next", "@p 2" the priority value for "high" and so forth.
 # #
-# #   @p 1 = someday  → least urgent
-# #   @p 2 = low
+# #   @p 1 = next     → most urgent
+# #   @p 2 = high
 # #   @p 3 = medium
-# #   @p 4 = high
-# #   @p 5 = next     → most urgent
+# #   @p 4 = low
+# #   @p 5 = someday  → least urgent
 # #
 # # Set these values to tune the effect of each level. Note
 # # that omitting @p in a task is equivalent to setting

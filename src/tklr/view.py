@@ -1896,14 +1896,16 @@ class ScrollableList(ScrollView):
     ):
         super().__init__(**kwargs)
         self._text_color = text_color
-        base_style = Style(color=self._text_color) if self._text_color else None
+        base_style = Style(color=self._text_color) if self._text_color else Style()
         self.console = Console(style=base_style)
         self.match_color = match_color
         self._bg_color = bg_color or "#373737"
         self.row_bg = Style(bgcolor=self._bg_color)  # ← row background color
         self.styles.background = self._bg_color
 
-        self._base_style = Style(color=self._text_color) if self._text_color else None
+        self._base_style = (
+            Style(color=self._text_color) if self._text_color else Style()
+        )
         self.lines: List[Text] = [
             Text.from_markup(line, style=self._base_style) for line in lines
         ]
@@ -3549,6 +3551,8 @@ class DynamicViewApp(App):
         ("J", "show_jots", "Jots"),
         ("U", "show_jot_uses_menu", "Jot Uses"),
         ("P", "show_palette", "Palette"),
+        ("p", "show_palette", "Palette"),
+        ("c", "toggle_palette_colors", "Palette Colors"),
         ("W", "show_weeks", "Weeks"),
         ("D", "jump_to_date", "Jump to date"),
         ("Y", "show_year", "Year"),
@@ -3631,6 +3635,7 @@ class DynamicViewApp(App):
         self._jot_use_month_spec: str | None = None
         self._jot_use_filter: str | None = None
         self._palette_mode: str = "current"
+        self._palette_view: str = "settings"
 
     def _update_footer_color(self) -> None:
         global FOOTER, DIM_STYLE
@@ -4469,7 +4474,20 @@ class DynamicViewApp(App):
         self._show_palette(toggle=False)
 
     def action_show_palette(self):
+        if self._palette_view == "colors":
+            self._palette_view = "settings"
         self._show_palette(toggle=True)
+
+    def action_toggle_palette_colors(self):
+        if self.view != "palette":
+            self._palette_view = "colors"
+            self.view = "palette"
+            self._show_palette(toggle=False)
+            return
+        self._palette_view = (
+            "colors" if self._palette_view == "settings" else "settings"
+        )
+        self._show_palette(toggle=False)
 
     def _show_palette(self, *, toggle: bool) -> None:
         if toggle and self.view == "palette":
@@ -4481,10 +4499,27 @@ class DynamicViewApp(App):
 
         self.view = "palette"
         footer = (
-            f"[bold {FOOTER}]P[/bold {FOOTER}] Toggle contrasting palette  "
+            f"[bold {FOOTER}]p[/bold {FOOTER}] Toggle dual palette  "
+            f"[bold {FOOTER}]c[/bold {FOOTER}] Toggle named colors  "
             f"[bold {FOOTER}]?[/bold {FOOTER}] Help  "
             f"[bold {FOOTER}]/[/bold {FOOTER}] Search"
         )
+
+        if self._palette_view == "colors":
+            left_lines, right_lines, title = self.controller.get_named_color_columns()
+            palette = getattr(self, "_list_palette", {})
+            dark_bg = palette.get("dark", {}).get("list_bg")
+            light_bg = palette.get("light", {}).get("list_bg")
+            screen = PaletteScreen(
+                title,
+                left_lines,
+                right_lines=right_lines,
+                footer_content=footer,
+                left_bg=dark_bg,
+                right_bg=light_bg,
+            )
+            self.show_screen(screen)
+            return
 
         if self._palette_mode == "both":
             left_pages, _ = self.controller.get_palette_preview_pages("dark")

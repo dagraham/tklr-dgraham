@@ -593,7 +593,9 @@ required = {
     "x": [],
 }
 
-all_keys = common_methods + datetime_methods + job_methods + repeating_methods + ["u"]
+all_keys = (
+    common_methods + datetime_methods + job_methods + repeating_methods + ["u", "k"]
+)
 
 allowed = {
     "*": common_methods + datetime_methods + repeating_methods + wrap_methods,
@@ -760,7 +762,7 @@ class Item:
         "m": ["mask", "string to be masked", "do_mask"],
         "p": [
             "priority",
-            "priority from 1 (someday), 2 (low), 3 (medium), 4 (high) to 5 (next)",
+            "priority from 1 (highest), 2 (high), 3 (medium), 4 (low) to 5 (lowest)",
             "do_priority",
         ],
         "w": ["wrap", "wrap before, after", "do_wrap"],

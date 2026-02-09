@@ -2445,35 +2445,65 @@ class Controller:
             lines: list[str] = []
             lines.append(f"[{header}]{title}[/{header}]")
             lines.append(f"[{header}]Primary labels[/{header}]")
-            lines.append(f"[{header}]HEADER_COLOR[/{header}] {_display_color(header)}")
             lines.append(
-                f"[{palette['label_color']}]label_color[/{palette['label_color']}] "
+                f"  [{header}]HEADER_COLOR[/{header}] {_display_color(header)}"
+            )
+            lines.append(f"[{header}]Details display[/{header}]")
+            lines.append(
+                f"  [{palette['label_color']}]label_color[/{palette['label_color']}] "
                 f"{_display_color(palette['label_color'])}"
             )
             lines.append(
-                f"[{palette['type_color']}]type_color[/{palette['type_color']}] "
+                f"  [{palette['type_color']}]type_color[/{palette['type_color']}] "
                 f"{_display_color(palette['type_color'])}"
             )
             lines.append(
-                f"[{palette['at_color']}]@ key color[/{palette['at_color']}] "
+                f"  [{palette['at_color']}]@ key color[/{palette['at_color']}] "
                 f"{_display_color(palette['at_color'])}"
             )
             lines.append(
-                f"[{palette['am_color']}]& key color[/{palette['am_color']}] "
+                f"  [{palette['am_color']}]& key color[/{palette['am_color']}] "
                 f"{_display_color(palette['am_color'])}"
             )
             lines.append(f"[{header}]Jot states[/{header}]")
             lines.append(
-                f"  [{palette['jot_none']}]13:25 jot (no extent or use)[/{palette['jot_none']}]"
+                f"  [{palette['jot_none']}]13:25 neither @e or @u[/{palette['jot_none']}] "
+                f"{_display_color(palette['jot_none'])}"
             )
             lines.append(
-                f"  [{palette['jot_extent']}]13:25 jot (0.4h)[/{palette['jot_extent']}]"
+                f"  [{palette['jot_extent']}]13:25 only @e[/{palette['jot_extent']}] "
+                f"{_display_color(palette['jot_extent'])}"
             )
             lines.append(
-                f"  [{palette['jot_use']}]13:25 jot (Client)[/{palette['jot_use']}]"
+                f"  [{palette['jot_use']}]13:25 only @u[/{palette['jot_use']}] "
+                f"{_display_color(palette['jot_use'])}"
             )
             lines.append(
-                f"  [{palette['jot_full']}]13:25 jot (Client: 0.4h)[/{palette['jot_full']}]"
+                f"  [{palette['jot_full']}]13:25 both @e and @u[/{palette['jot_full']}] "
+                f"{_display_color(palette['jot_full'])}"
+            )
+            goal_min = palette.get("goal_min_color") or PALE_GREEN
+            goal_max = palette.get("goal_max_color") or LIGHT_CORAL
+            lines.append(f"[{header}]Color gradients[/{header}]")
+            lines.append(
+                f"  [{goal_min}]goal_min_color[/{goal_min}] {_display_color(goal_min)}"
+            )
+            lines.append(
+                f"  [{goal_max}]goal_max_color[/{goal_max}] {_display_color(goal_max)}"
+            )
+            urgency_min = (
+                palette.get("urgency_min_color")
+                or self.db_manager.compute_urgency.MIN_HEX_COLOR
+            )
+            urgency_max = (
+                palette.get("urgency_max_color")
+                or self.db_manager.compute_urgency.MAX_HEX_COLOR
+            )
+            lines.append(
+                f"  [{urgency_min}]urgency_min_color[/{urgency_min}] {_display_color(urgency_min)}"
+            )
+            lines.append(
+                f"  [{urgency_max}]urgency_max_color[/{urgency_max}] {_display_color(urgency_max)}"
             )
             lines.append(f"[{header}]Reminder types[/{header}]")
             type_colors = {
@@ -2505,7 +2535,7 @@ class Controller:
             for itemtype, label in type_samples:
                 color = type_colors.get(itemtype, "white")
                 lines.append(
-                    f"[{color}]  {itemtype} {label} ({_display_color(color)})[/{color}]"
+                    f"[{color}]  {itemtype} {label}[/{color}] {_display_color(color)}"
                 )
             return lines
 
@@ -2517,6 +2547,17 @@ class Controller:
 
         pages = [(lines, {})]
         return pages, title
+
+    def get_named_color_columns(self) -> tuple[list[str], list[str], str]:
+        colors = sorted(
+            css_named_colors.items(),
+            key=lambda item: int(item[1].lstrip("#"), 16),
+        )
+        lines = [
+            f"[{hex_value}]{name} {hex_value.upper()}[/{hex_value}]"
+            for name, hex_value in colors
+        ]
+        return lines, lines[:], "Named colors"
 
     def get_jot_use_report(
         self, month_spec: str | None, use_filter: str | None
@@ -3021,10 +3062,14 @@ class Controller:
         def _rgb_to_hex(rgb: tuple[int, int, int]) -> str:
             return "#{:02x}{:02x}{:02x}".format(*rgb)
 
+        overrides = getattr(self.env.config.ui, "palette", {}) if self.env else {}
+        palette = shared_colors.get_theme_palette(self.ui_theme, overrides)
         min_priority = 0.0
         max_priority = 2.0
-        low_rgb = _hex_to_rgb(PALE_GREEN)
-        high_rgb = _hex_to_rgb(ORANGE_RED)
+        low_hex = palette.get("goal_min_color") or PALE_GREEN
+        high_hex = palette.get("goal_max_color") or LIGHT_CORAL
+        low_rgb = _hex_to_rgb(low_hex)
+        high_rgb = _hex_to_rgb(high_hex)
 
         def _priority_color(value: float) -> str:
             clamped = max(min_priority, min(max_priority, value))
@@ -3708,11 +3753,13 @@ class Controller:
 
         overrides = getattr(self.env.config.ui, "palette", {}) if self.env else {}
         palette = shared_colors.get_theme_palette(self.ui_theme, overrides)
-        urgency_min = palette.get(
-            "urgency_min_color", self.db_manager.compute_urgency.MIN_HEX_COLOR
+        urgency_min = (
+            palette.get("urgency_min_color")
+            or self.db_manager.compute_urgency.MIN_HEX_COLOR
         )
-        urgency_max = palette.get(
-            "urgency_max_color", self.db_manager.compute_urgency.MAX_HEX_COLOR
+        urgency_max = (
+            palette.get("urgency_max_color")
+            or self.db_manager.compute_urgency.MAX_HEX_COLOR
         )
 
         for (

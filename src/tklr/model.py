@@ -984,7 +984,19 @@ class UrgencyComputer:
         return age_contribution
 
     def urgency_priority(self, priority_level: int) -> float:
-        priority = self.urgency.priority.root.get(str(priority_level), 0.0)
+        priority_map = self.urgency.priority.root
+        priority = priority_map.get(str(priority_level), 0.0)
+        if priority == 0.0:
+            name_map = {
+                1: "next",
+                2: "high",
+                3: "medium",
+                4: "low",
+                5: "someday",
+            }
+            name_key = name_map.get(priority_level)
+            if name_key is not None:
+                priority = priority_map.get(name_key, priority)
         # log_msg(f"computed {priority = }")
         return priority
 

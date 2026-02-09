@@ -2,7 +2,7 @@
 title = "Tklr Configuration"
 
 # secret: used to encode/decode masked (@m) fields.
-secret = "MGPXvYy2DOJKQSNR4Wm2icHCOQd1OKTg"
+secret = "JdqdNZMJDqYYEyuLLg1G7YcPGw0GIB5E"
 
 [ui]
 # theme: str = 'dark' | 'light'
@@ -24,20 +24,6 @@ agenda_days = 3
 # minutes: int = 3 | 6 | 12 | 15 | 30
 # Rounding step (in minutes) for jot extents.
 minutes = 6
-
-# palette overrides (per theme). Uncomment any entries you want to override.
-# Available keys: label_color, type_color, at_color, am_color, header_color,
-# event_color, available_color, task_color, waiting_color, finished_color,
-# note_color, pastdue_color, notice_color, goal_color, draft_color,
-# bin_color, active_bin_color, chore_color, jot_color, jot_none, jot_extent,
-# jot_use, jot_full, urgency_min_color, urgency_max_color
-#
-# [ui.palette.dark]
-# header_color = "#1f4b7a"
-# jot_full = "#9ad1ff"
-#
-# [ui.palette.light]
-# note_color = "#b56576"
 
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
@@ -73,6 +59,20 @@ yearfirst = true
 # If true, years are displayed using the last two digits, e.g.,
 # 25 instead of 2025.
 two_digit_year = true
+
+# palette overrides (per theme). Uncomment any entries you want to override.
+# Available keys: label_color, type_color, at_color, am_color, header_color,
+# event_color, available_color, task_color, waiting_color, finished_color,
+# note_color, pastdue_color, notice_color, goal_color, draft_color,
+# bin_color, active_bin_color, chore_color, jot_color, jot_none, jot_extent,
+# jot_use, jot_full, urgency_min_color, urgency_max_color, goal_min_color, goal_max_color
+#
+# [ui.palette.dark]
+# header_color = "#1f4b7a"
+# jot_full = "#9ad1ff"
+#
+# [ui.palette.light]
+# note_color = "#b56576"
 
 
 
@@ -151,15 +151,15 @@ max = 3.0
 # value 0.0 is used.
 # Note: "next" is treated as the maximum priority when normalizing urgency.
 
-"next" = 10.0
+"1" = 10.0
 
-"high" = 8.0
+"2" = 8.0
 
-"medium" = 5.0
+"3" = 5.0
 
-"low" = 2.0
+"4" = 2.0
 
-"someday" = -5.0
+"5" = -5.0
 
 
 # In the default settings, a priority of "5" is the only one that yields
