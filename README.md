@@ -389,19 +389,20 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
 ### 1.3. Where did the time go?
 
-Tracking where your money goes is surely a important step in managing that scare resource. Indeed, tracking where a resource goes is critically important to managing any scarce resource and your time is no exception. *Tklr* provides a type of reminder quite different from those listed above which is labeled *jot* and designed to facilitate that task.  
+Tracking where your money goes is surely a important step in managing that scare resource. Indeed, tracking where a resource goes is critically important to managing any scarce resource and your time is no exception. *Tklr* provides a type of reminder quite different from those listed above which is labeled *jot* and designed to facilitate that task.
 
-The definition I found for the verb *jot* is "write something quickly". Imagine that *tklr* is running on your computer and that, in the midst of your hectic day, you could reach over, press "+" to create a new *jot*, enter "- working on ..." or "- what about trying ..." or whatever you wanted to preserve and then press Ctrl+S to save. Just enough to remind you later what you were doing or what you had in mind. A timestamp will automatically be added when you save.  Whenever convenient, you can press "J" to see a list of your *jots* in cronological order. At the cost of a few seconds per *jot* you can have a daily record of what you were doing/thinking and when. 
+Definition: *jot:  "write something quickly". Imagine that *tklr* is running on your computer and that, in the midst of your hectic day, you could reach over, press "+" to create a new *jot*, enter "- working on ..." or "- what about trying ..." or whatever you wanted to *jot* down and then press Ctrl+S to save and automatically append a timestamp.  Whenever convenient, you can press "J" to see a list of your *jots* in cronological order. At the cost of a few seconds per *jot* you can have a daily record of what you were doing/thinking and when. Your *jots* will be displayed by week and weekday and, as with all other reminder views in *tklr*, tagged with lower case letters, a, b, c, .... for easy access.
 
-Your *jots* are grouped by week and then weekday and tagged with lower case letters, a, b, c, ....  All you need do is press the key corresponding to its tag to edit a *jot*. What sort of editing might you do?
+What might you do with these *jots*.
 
-- Flush out an idea enough to be understood when you look at it later.
-- Add, e.g.,  `@e 1h15`, to indicate that an hour and fifteen minutes of your precious time were spent on this.
-- Add, e.g., `@u Waldo` to indicate that this time should be attributed to the *use* "Waldo". Other *tklr* commands will show you reports of exactly how much time each of your *uses* got and when.
-- Details can be added using `@d ...` and hashtags in either the subject or the details for quickly finding things later.
-- A *jot* such as `- book a lunch reservation for Friday` might be converted to an event `* lunch with Waldo @s fri 1pm` when you make the reservation.    
+As is, these jots can provide a record of what you were doing and when. Later, when you have time, you might want to edit some of them:
+- to flush out an idea. An `@d details` entry can be added to provide as much extra detail as you like.
+- to record the time spent. You could, e.g., add `@e 1h15`, to indicate that an hour and fifteen minutes of your precious time was spent on whatever you were doing when the *jot* was recorded.
+- to record the particular <em>use</em> to which the *jot* applies, e.g., `@u exercise.walking` to indicate that this time should be attributed to the *use* "exercise.walking". Other *tklr* commands will show you reports of exactly how much time each of your *uses* got and when with *monthly* reports which group *jots* by *use* with totals by *month* and *use*.
+- to add a hashtag to the subject or the details of a *jot* to have it appear in the *Tags View*.
+- to convert it to another type of reminder. E.g. `- book a lunch reservation for Friday` might be converted to the event `* lunch with Ed @s fri 1pm` when you make the reservation.
 
-Simple idea - *jot* down just enough in the heat of battle to be able to understand when things have calmed down. As with other reminders, flexible searches are available to find whatever you what to locate. 
+Simple idea - *jot* down just enough in the heat of battle to trigger your memory when things have calmed down.
 
 
 [↩︎](#table-of-contents)
@@ -417,11 +418,13 @@ Each of the main views in *tklr* can be opened by pressing a single key - the fi
 | Completed |   C   | Completion datetimes for completed tasks       |
 | Find      |   F   | Case insenstive search in subjects and details |
 | Last      |   L   | The last instance of reminders before today    |
+| Jots      |   J   | Jots by week and weekday                       |
 | Modified  |   M   | All reminders sorted by the modified timestamp |
 | Next      |   N   | The next instance of reminders after today     |
 | Query     |   Q   | List matches for a specified query             |
 | Remaining |   R   | List remaining alerts for the today            |
 | Tags      |   T   | List reminders with tags grouped by tag        |
+| Uses      |   U   | Jots by Month and Use                          |
 | Weeks     |   W   | List scheduled reminders by week and weekday   |
 
 

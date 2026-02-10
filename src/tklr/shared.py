@@ -151,11 +151,11 @@ THEME_PALETTES = {
         "bin_color": "goldenrod",
         "active_bin_color": "gold",
         "chore_color": "khaki",
-        "jot_color": "palegreen",
-        "jot_none": "palegreen",
-        "jot_extent": "khaki",
-        "jot_use": "peachpuff",
-        "jot_full": "lightskyblue",
+        "jot_color": "lightskyblue",
+        "jot_none": "lightskyblue",
+        "jot_extent": "orchid",
+        "jot_use": "goldenrod",
+        "jot_full": "palegreen",
         "urgency_min_color": "lightskyblue",
         "urgency_max_color": "yellow",
         "goal_min_color": "lightskyblue",
@@ -180,11 +180,11 @@ THEME_PALETTES = {
         "bin_color": "brown",
         "active_bin_color": "olive",
         "chore_color": "darkolivegreen",
-        "jot_color": "darkgreen",
-        "jot_none": "darkgreen",
-        "jot_extent": "green",
-        "jot_use": "crimson",
-        "jot_full": "red",
+        "jot_color": "royalblue",
+        "jot_none": "royalblue",
+        "jot_extent": "darkorchid",
+        "jot_use": "darkgoldenrod",
+        "jot_full": "green",
         "urgency_min_color": "steelblue",
         "urgency_max_color": "firebrick",
         "goal_min_color": "steelblue",
@@ -536,6 +536,11 @@ def parse_month_spec(
 
     today = today or date.today()
     raw = (spec or "").strip()
+    if raw.lower() in {"all", "*"}:
+        start_date = date(1970, 1, 1)
+        end_date = date(2100, 1, 1)
+        label = "All months"
+        return start_date, end_date, label
     if not raw:
         first_this_month = date(today.year, today.month, 1)
         prev_month_last = first_this_month - timedelta(days=1)

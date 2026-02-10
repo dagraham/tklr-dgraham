@@ -3685,7 +3685,7 @@ class DatabaseManager:
 
     def get_jot_uses_for_period(self, start_date: datetime, end_date: datetime):
         """
-        Retrieve jot entries with extents for use reports, ordered by start time.
+        Retrieve jot entries with extents or uses for use reports, ordered by start time.
         """
         start_key = _to_key(start_date)
         end_key = _to_key(end_date)
@@ -3706,7 +3706,6 @@ class DatabaseManager:
         LEFT JOIN Uses u ON r.use_id = u.id
         WHERE
             r.itemtype = '-' AND
-            COALESCE(r.extent, '') <> '' AND
             -- normalized end >= period start
             (
                 CASE

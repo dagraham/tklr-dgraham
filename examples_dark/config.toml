@@ -78,9 +78,13 @@ two_digit_year = true
 
 [ui.palette.dark]
 
-urgency_max_color = "yellow"
+jot_extent = "orchid"
 
-urgency_min_color = "lightskyblue"
+jot_full = "palegreen"
+
+jot_none = "lightskyblue"
+
+jot_use = "goldenrod"
 
 
 

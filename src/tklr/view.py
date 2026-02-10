@@ -2533,6 +2533,11 @@ class FullScreenList(SearchableScreen):
 
 
 class PaletteScreen(SearchableScreen):
+    BINDINGS = [
+        ("p", "toggle_palette", "Toggle palette"),
+        ("c", "toggle_palette_colors", "Palette Colors"),
+    ]
+
     def __init__(
         self,
         title: str,
@@ -2616,6 +2621,12 @@ class PaletteScreen(SearchableScreen):
     def scroll_to_previous_match(self):
         if self.left_list:
             self.left_list.jump_prev_match()
+
+    def action_toggle_palette(self):
+        self.app.action_show_palette()
+
+    def action_toggle_palette_colors(self):
+        self.app.action_toggle_palette_colors()
 
 
 class UseListScreen(FullScreenList):
@@ -3551,8 +3562,6 @@ class DynamicViewApp(App):
         ("J", "show_jots", "Jots"),
         ("U", "show_jot_uses_menu", "Jot Uses"),
         ("P", "show_palette", "Palette"),
-        ("p", "show_palette", "Palette"),
-        ("c", "toggle_palette_colors", "Palette Colors"),
         ("W", "show_weeks", "Weeks"),
         ("D", "jump_to_date", "Jump to date"),
         ("Y", "show_year", "Year"),
@@ -4629,7 +4638,7 @@ class DynamicViewApp(App):
 
         self.push_screen(
             TextPrompt(
-                "Months (YYMM or YYMM-YYMM)",
+                "Months (YYMM, YYMM-YYMM, or 'all')",
                 initial=(self._jot_use_month_spec or default_spec),
             ),
             callback=_after_months,
@@ -4641,6 +4650,7 @@ class DynamicViewApp(App):
             ("L) List/edit uses", "l"),
             ("C) Current month uses", "c"),
             ("P) Previous month uses", "p"),
+            ("A) All months uses", "a"),
             ("U) Custom months/uses", "u"),
         ]
 
@@ -4669,6 +4679,12 @@ class DynamicViewApp(App):
                 first_this_month = date(today.year, today.month, 1)
                 prev_month_last = first_this_month - timedelta(days=1)
                 month_spec = prev_month_last.strftime("%y%m")
+                self._jot_use_month_spec = month_spec
+                self._jot_use_filter = "all"
+                self._render_jot_uses(month_spec, "all")
+                return
+            if key == "a" or label_lower.startswith("all"):
+                month_spec = "all"
                 self._jot_use_month_spec = month_spec
                 self._jot_use_filter = "all"
                 self._render_jot_uses(month_spec, "all")

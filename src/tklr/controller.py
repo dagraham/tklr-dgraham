@@ -2592,7 +2592,9 @@ class Controller:
             start_dt = datetime_from_timestamp(start_ts)
             if not start_dt:
                 continue
-            use_label = use_name.strip() if use_name else "unassigned"
+            has_use = bool(use_name and str(use_name).strip())
+            has_extent = bool(extent and str(extent).strip())
+            use_label = use_name.strip() if has_use else "unassigned"
             if needle and needle not in use_label.lower():
                 continue
             month_key = (start_dt.year, start_dt.month)
@@ -2671,18 +2673,28 @@ class Controller:
                     }
                 )
                 for entry in use_map[use_label]:
-                    extent_display = format_decimal_hours(
-                        entry["extent_minutes"], step_minutes
-                    )
+                    if entry["extent"]:
+                        extent_display = format_decimal_hours(
+                            entry["extent_minutes"], step_minutes
+                        )
+                    else:
+                        extent_display = ""
                     time_display = entry["start_dt"].strftime("%H:%M")
                     day_display = entry["start_dt"].strftime("%-d")
+                    extent_display = extent_display.rjust(4)
                     base = f"{time_display} {day_display} {extent_display}"
                     subject = self.apply_flags(entry["record_id"], entry["subject"])
                     indent_width = 0
                     text = _wrap_subject(base, subject, indent_width=indent_width)
                     entry_color = (
-                        JOT_COLOR_EXTENT
-                        if use_label.strip().lower() == "unassigned"
+                        JOT_COLOR_USE
+                        if entry["use_label"].strip().lower() != "unassigned"
+                        and not entry["extent"]
+                        else JOT_COLOR_NONE
+                        if entry["use_label"].strip().lower() == "unassigned"
+                        and not entry["extent"]
+                        else JOT_COLOR_EXTENT
+                        if entry["use_label"].strip().lower() == "unassigned"
                         else JOT_COLOR_FULL
                     )
                     text = f"[{entry_color}]{text}[/{entry_color}]"

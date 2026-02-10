@@ -101,7 +101,7 @@ def days_ago() -> str:
     hour = random.choice([9, 10, 11, 12, 13, 14, 15, 16])
     minute = random.choice([0, 15, 30, 45])
     next = datetime.now().replace(hour=hour, minute=minute, second=0, microsecond=0)
-    num_days = random.choice([3, 4, 5, 6, 7, 8, 9])
+    num_days = random.choice([1, 2, 3, 4, 5, 6, 7, 8, 9])
     next = next - timedelta(days=num_days)
     return next.strftime("%Y-%m-%d %H:%M")
 
@@ -210,15 +210,21 @@ ctrl = Controller("./examples_dark/tklr.db", env, reset=True)
 # Insert the UTC records into the database
 
 num_items = 0
-types = ["*", "*", "*", "*", "*", "%", "~", "~", "-", "-"]
+types = ["*", "*", "*", "*", "%", "~", "~", "-", "-", "-", "-"]
 
 contexts = ["errands", "home", "office", "shop"]
-use_cases = ["writing", "reading", "exercise", "meditation", "coding"]
+use_cases = [
+    "writing",
+    "reading",
+    "exercise.bike",
+    "exercise.walking",
+    "meditation",
+]
 tags = ["amber", "cyan", "blue"]
 dates = [0, 0, 0, 1, 0, 0, 0]  # dates 1/7 of the time
 repeats = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0]  # repeat 1/10 of the time
 # duration = [to_tdstr(x) for x in range(6, 2 * 60 * 60, 6)]
-duration = [to_tdstr(x) for x in range(0, 2 * 60 * 60, 900)]
+duration = [to_tdstr(x) for x in range(900, 2 * 60 * 60, 900)]
 
 now = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 num_konnections = 0
@@ -297,7 +303,8 @@ def word():
 
 
 def use():
-    return " ".join(lorem.sentence()[:-1].split(" ")[:2])
+    # return " ".join(lorem.sentence()[:-1].split(" ")[:2])
+    return random.choice(use_cases)
 
 
 def collect_use_names(entries: list[str], env: TklrEnvironment) -> list[str]:
@@ -386,6 +393,7 @@ while len(items) < num_items:
     count += 1
     t = random.choice(types)
     extent = f" @e {random.choice(duration)}" if t in ["*", "-"] else ""
+    use = f" @u {random.choice(use_cases)}" if t == "-" else ""
     name = phrase()
     description = lorem.paragraph() + " #lorem"
     if t == "-":
@@ -393,6 +401,10 @@ while len(items) < num_items:
         date = 0
         bin = ""
         repeat = ""
+        if random.choice([0, 1, 2, 3, 4]) > 1:
+            use = ""
+        if random.choice([0, 1, 2, 3, 4]) > 1:
+            extent = ""
     else:
         start = random.choice(datetimes)
         date = random.choice(dates)
@@ -408,7 +420,7 @@ while len(items) < num_items:
     # add_bin = random.choice([0, 0, 0, 0, 1, 1])
     # bin = f" @b {random.choice(BINS)}" if add_bin else ""
     items.append(
-        f"{t} {name} @d {description}{tag}  @s {dtstart}{extent}{repeat} {bin}"
+        f"{t} {name} @d {description}{tag}  @s {dtstart}{extent}{use}{repeat} {bin}"
     )
     # if random.choice(repeat):
     #     items.append(
