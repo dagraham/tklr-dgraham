@@ -1110,30 +1110,29 @@ The purpose of <em>Palette View</em> is to display the color settings that are a
   </p>
   <p>The color for a setting can be customized in <code>config.toml</code> by first noting the theme in this section
   </p>
-<code>
+<pre>
   [ui]
-  # theme: str = 'dark' | 'light'
   theme = "dark"
-</code> 
+</pre> 
 <p>
 
 Then, for example, replacing this commented out section
 </p>
 
-<code>
+<pre>
   # [ui.palette.dark]
   # header_color = "#1f4b7a"
   # jot_full = "#040405"
-</code>
+</pre>
 
 <p>
 with
 </p>
 
-<code>
+<pre>
   [ui.palette.dark]
   task_color = "dodgerblue"
-</code>
+</pre>
 
 <p>
 
