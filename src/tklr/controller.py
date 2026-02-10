@@ -4307,7 +4307,7 @@ class Controller:
                 )
 
         if not rows:
-            header = "Hash Tags (0)"
+            header = "Hash-Tags (0)"
             return (
                 self._paginate(
                     [
@@ -4322,5 +4322,5 @@ class Controller:
             )
 
         pages = self._paginate(rows)
-        title = f"Hash Tags ({len(tag_groups)})"
+        title = f"Hash-Tags ({len(tag_groups)})"
         return pages, title

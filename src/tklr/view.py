@@ -234,7 +234,7 @@ def _make_rows(lines: list[str]) -> list[str]:
 
 
 def build_help_text(home: str | None = None) -> list[str]:
-    home_suffix = f" — {home}" if home else ""
+    home_suffix = f"  {home}" if home else ""
     text = f"""\
 [bold][{TITLE_COLOR}]tklr {VERSION}{home_suffix}[/{TITLE_COLOR}][/bold]
 The current version of tklr is given above. When
@@ -245,15 +245,15 @@ pressing [bold]control[/bold] and [bold]u[/bold] simultaneously.
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
 [bold]^q[/bold]    Quit               [bold]^r[/bold]    Record Screenshot
 [bold] +[/bold]    New Reminder       [bold] Y[/bold]    Yearly Calendar
-[bold] P[/bold]    Palette display
+[bold] P[/bold]    Palette
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
- [bold]A[/bold]    Agenda              [bold]M[/bold]    Modified
- [bold]B[/bold]    Bins                [bold]N[/bold]    Next
- [bold]C[/bold]    Completions         [bold]Q[/bold]    Query
- [bold]F[/bold]    Find                [bold]R[/bold]    Remaining Alerts
- [bold]G[/bold]    Goals               [bold]T[/bold]    Tags
- [bold]J[/bold]    Jots                [bold]U[/bold]    Jot Uses
- [bold]L[/bold]    Last                [bold]W[/bold]    Weeks
+ [bold]A[/bold]    Agenda              [bold]L[/bold]    Last
+ [bold]B[/bold]    Bins                [bold]M[/bold]    Modified
+ [bold]C[/bold]    Completions         [bold]N[/bold]    Next
+ [bold]F[/bold]    Find                [bold]Q[/bold]    Query
+ [bold]G[/bold]    Goals               [bold]R[/bold]    Remaining Alerts
+ [bold]H[/bold]    Hash-Tags           [bold]U[/bold]    Jot Uses
+ [bold]J[/bold]    Jots                [bold]W[/bold]    Weeks
 [bold][{HEADER_COLOR}]Weeks View Navigation[/{HEADER_COLOR}][/bold]
  Left/Right cursor keys move by one week.
    Add Shift to jump by 4 weeks.
@@ -3557,7 +3557,7 @@ class DynamicViewApp(App):
         ("L", "show_last", "Show Last"),
         ("M", "show_modified", "Show Modified"),
         ("N", "show_next", "Show Next"),
-        ("T", "show_tags", "Show Tags"),
+        ("H", "show_tags", "Show Hash-Tags"),
         ("F", "show_find", "Find"),
         ("J", "show_jots", "Jots"),
         ("U", "show_jot_uses_menu", "Jot Uses"),
