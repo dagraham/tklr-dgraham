@@ -1481,9 +1481,13 @@ def _emit_jot_uses_report(
                 )
             click.echo(f"{use_indent}{use_header}")
             for entry in use_map[use_label]:
-                extent_str = format_decimal_hours(
-                    entry["extent_minutes"], step_minutes
-                )
+                if entry["extent"]:
+                    extent_str = format_decimal_hours(
+                        entry["extent_minutes"], step_minutes
+                    )
+                else:
+                    extent_str = ""
+                extent_str = extent_str.rjust(4)
                 time_display = entry["start_dt"].strftime("%H:%M")
                 day_display = entry["start_dt"].strftime("%-d")
                 base_prefix = record_indent

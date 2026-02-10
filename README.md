@@ -373,30 +373,30 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
 #### 1.2.10. A _jot_: taking a walk
 
-Tracking where a resource goes is the key to managing any scarce resource - your time is no exception. A *jot* is a reminder type designed to facilitate this purpose. It provides a way of *quickly* recording *small* bits of time-stamped information. It is sufficienty different from the other reminder types to warrant some discussion before giving an example. 
+Tracking where a resource goes is the key to managing any scarce resource - your time is no exception. A *jot* is a reminder type designed to facilitate this purpose. It provides a way of *quickly* recording *small* bits of time-stamped information. It is sufficienty different from the other reminder types to warrant some discussion before giving an example.
 
-Imagine that *tklr* is running on your computer and that, in the midst of your hectic day, you could reach over, press "+" to create a new reminder, enter "-" to make it a *jot* and follow with the *subject* - a *brief* phrase - just enough to trigger your memory later. Then press Ctrl+S to save - an automatic timestamp will be added. 
+Imagine that *tklr* is running on your computer and that, in the midst of your hectic day, you could reach over, press "+" to create a new reminder, enter "-" to make it a *jot* and follow with the *subject* - a *brief* phrase - just enough to trigger your memory later. Then press Ctrl+S to save - an automatic timestamp will be added.
 
-What might you do with these *jots*? As is, these jots can provide a record of what you were doing and when.  At the cost of a few seconds per *jot* you can have a daily record of when and what you were doing or thinking. Press "J" to see a list of all your *jots* grouped by week and weekday and, as with all other reminder views in *tklr*, tagged with lower case letters, a, b, c, .... for easy access. 
+What might you do with these *jots*? As is, these jots can provide a record of what you were doing and when.  At the cost of a few seconds per *jot* you can have a daily record of when and what you were doing or thinking. Press "J" to see a list of all your *jots* grouped by week and weekday and, as with all other reminder views in *tklr*, tagged with lower case letters, a, b, c, .... for easy access.
 
-When you have time, you might want to:  
-- flush out the *subject* or add a `@d` *details* entry to provide extra detail. 
+When you have time, you might want to:
+- flush out the *subject* or add a `@d` *details* entry to provide extra detail.
 - record the time spent. You could, e.g., add `@e 1h15`, to indicate that an hour and fifteen minutes of your precious time was spent on whatever you were doing when the *jot* was recorded.
 - record the particular <em>use</em> to which the *jot* applies, e.g., `@u exercise.walking` to indicate that this time should be attributed to the *use* "exercise.walking". Press "U" whenever you like to see a report of your *Jot Uses* with *totals* of your time spent by *month* and *use*.
-- add a hashtag to the subject or the details of a *jot* to make it easy to find in the *Hash-Tags View*.
-- convert it to another type of reminder. E.g. `- book a lunch reservation for Friday` might be converted to the event `* lunch with Ed @s fri 1pm` when you make the reservation. 
+- add a hash-tag to the subject or the details of a *jot* to make it easy to find in the *Hash-Tags View*.
+- convert it to another type of reminder. E.g. `- book a lunch reservation for Friday` might be converted to the event `* lunch with Ed @s fri 1pm` when you make the reservation.
 
 Underneath the details is a very simple idea - in the heat of battle when every second counts, *jot* down just enough to trigger your memory later when things have calmed down.
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
-<code>- taking a walk @s 2026-01-05 13:14 
+<code>- taking a walk @s 2026-01-05 13:14
   @e 1h15m @u exercise.walking
 </code>
   </pre>
-  <p>Here's an example. The beginning <code>-</code> type character makes this reminder a <i>jot</i> with the following <code>taking a walk</code> as the <i>subject</i>. This much was <em>jotted down</em> before the walk and the <code>@s 2026-01-05 13:24</code> was automatically appended at that time.  
+  <p>Here's an example. The beginning <code>-</code> type character makes this reminder a <i>jot</i> with the following <code>taking a walk</code> as the <i>subject</i>. This much was <em>jotted down</em> before the walk and the <code>@s 2026-01-05 13:24</code> was automatically appended at that time.
   </p>
-  <p>Later in the day, after the walk was finished and the <em>jots</em> for the day were being reviewed, the <em>time spent</em>, <code>@e 1h15m</code>, and the <em>use</em>, <code>@u exercise.walking</code>, were added. 
+  <p>Later in the day, after the walk was finished and the <em>jots</em> for the day were being reviewed, the <em>time spent</em>, <code>@e 1h15m</code>, and the <em>use</em>, <code>@u exercise.walking</code>, were added.
   </p>
   <p>Note that <code>exercise.walking</code> would serve to differentiate this form of exercise from, say, <code>exercise.interval_training</code>, and thus avoid adding "apples and oranges" when reporting the <em>use</em> totals.
 </div>
@@ -420,7 +420,6 @@ Underneath the details is a very simple idea - in the heat of battle when every 
 
 [↩︎](#table-of-contents)
 
-[↩︎](#table-of-contents)
 
 ### 1.3. Mouse-Free navigation
 
@@ -540,7 +539,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 <ol>
   <li>Using the attribute <code>@b</code> to attach the the name of a bin to a reminder and the related <em>Bins View</em></li>
-  <li>Using a <em>hash tag</em>, i.e., <code>&#x23;</code> followed without spaces by an arbitrary word, in either the <em>subject</em> or the <em>details</em> attribute of reminders and the related <em>Tags View</em></li>
+  <li>Using a <em>hash-tag</em>, i.e., <code>&#x23;</code> followed without spaces by an arbitrary word, in either the <em>subject</em> or the <em>details</em> attribute of reminders and the related <em>Tags View</em></li>
 </ol>
 
 
@@ -617,7 +616,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/tags_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 
-  <p>Press <em>T</em> to open the <em>Tags View</em> which lists reminders with <em>hash tag</em> entries grouped by the <em>tag name</em>.
+  <p>Press <em>T</em> to open the <em>Tags View</em> which lists reminders with <em>hash-tag</em> entries grouped by the <em>tag name</em>.
   </p>
 
 </div>

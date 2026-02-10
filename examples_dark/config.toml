@@ -76,20 +76,6 @@ two_digit_year = true
 
 
 
-[ui.palette.dark]
-
-jot_extent = "orchid"
-
-jot_full = "palegreen"
-
-jot_none = "lightskyblue"
-
-jot_use = "goldenrod"
-
-
-
-
-
 [alerts]
 # dict[str, str]: character -> command_str.
 # E.g., this entry
