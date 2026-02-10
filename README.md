@@ -400,6 +400,7 @@ Underneath the details is a very simple idea - in the heat of battle when every 
   <p>Later in the day, after the walk was finished and the <em>jots</em> for the day were being reviewed, the <em>time spent</em>, <code>@e 1h15m</code>, and the <em>use</em>, <code>@u exercise.walking</code>, were added.
   </p>
   <p>Note that <code>exercise.walking</code> would serve to differentiate this form of exercise from, say, <code>exercise.interval_training</code>, and thus avoid adding "apples and oranges" when reporting the <em>use</em> totals.
+  </p>
 </div>
 <div style="clear:both;"></div>
 
@@ -418,6 +419,7 @@ Underneath the details is a very simple idea - in the heat of battle when every 
   </p>
 </div>
 <div style="clear:both;"></div>
+
 
 [↩︎](#table-of-contents)
 
