@@ -400,7 +400,7 @@ As is, these jots can provide a record of what you were doing and when. Later, w
 - to record the time spent. You could, e.g., add `@e 1h15`, to indicate that an hour and fifteen minutes of your precious time was spent on whatever you were doing when the *jot* was recorded.
 - to record the particular <em>use</em> to which the *jot* applies, e.g., `@u exercise.walking` to indicate that this time should be attributed to the *use* "exercise.walking". Press "U" whenever you like to see a report of your *Jot Uses* by *month* and *use* with *totals*.
 - to add a hashtag to the subject or the details of a *jot* to make it easy to find in the *Tags View*.
-- to convert it to another type of reminder. E.g. `- book a lunch reservation for Friday` might be converted to the event `* lunch with Ed @s fri 1pm` when you make the reservation.
+- to convert it to another type of reminder. E.g. `- book a lunch reservation for Friday` might be converted to the event `* lunch with Ed @s fri 1pm` when you make the reservation. 
 
 Simple idea - in the heat of battle, *jot* down just enough to trigger your memory later when things have calmed down.
 
