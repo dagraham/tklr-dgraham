@@ -386,7 +386,7 @@ When you have time, you might want to:
 - add a hashtag to the subject or the details of a *jot* to make it easy to find in the *Hash-Tags View*.
 - convert it to another type of reminder. E.g. `- book a lunch reservation for Friday` might be converted to the event `* lunch with Ed @s fri 1pm` when you make the reservation. 
 
-Underneath the detail is a very simple idea - in the heat of battle when every second counts, *jot* down just enough to trigger your memory later when things have calmed down.
+Underneath the details is a very simple idea - in the heat of battle when every second counts, *jot* down just enough to trigger your memory later when things have calmed down.
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
@@ -394,7 +394,7 @@ Underneath the detail is a very simple idea - in the heat of battle when every s
   @e 1h15m @u exercise.walking
 </code>
   </pre>
-  <p>Here's an example. The beginning <code>-</code> type character makes this reminder a <i>jot</i> with the following <code>taking a walk</code> as the <i>subject</i>. This much was recorded (<em>jotted down</em>) before the walk  - the <code>@s 2026-01-05 13:24</code> automatically appended when the <em>jot</em> was saved.  
+  <p>Here's an example. The beginning <code>-</code> type character makes this reminder a <i>jot</i> with the following <code>taking a walk</code> as the <i>subject</i>. This much was <em>jotted down</em> before the walk and the <code>@s 2026-01-05 13:24</code> was automatically appended at that time.  
   </p>
   <p>Later in the day, after the walk was finished and the <em>jots</em> for the day were being reviewed, the <em>time spent</em>, <code>@e 1h15m</code>, and the <em>use</em>, <code>@u exercise.walking</code>, were added. 
   </p>
