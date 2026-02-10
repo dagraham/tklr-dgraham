@@ -30,13 +30,13 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
         <ul>
           <li><a href="#11-form-free-entry">1.1. Form-Free entry</a></li>
           <li><a href="#12-reminders-to-suit-the-purpose">1.2. Reminders to suit the purpose</a></li>
-          <li><a href="#13-where-did-the-time-go">1.3. Where did the time go?</a></li>
-          <li><a href="#14-mouse-free-navigation">1.4. Mouse-Free navigation</a></li>
-          <li><a href="#15-agenda-view-your-daily-brief">1.5. Agenda View: Your daily brief</a></li>
-          <li><a href="#16-weeks-next-and-last-views-whats-happening-and-when">1.6. Weeks, Next and Last Views: What's happening and when</a></li>
-          <li><a href="#17-bins-and-tags-views-organizing-your-reminders">1.7. Bins and Tags Views: Organizing your reminders</a></li>
-          <li><a href="#18-query-and-find-views-wheres-waldo">1.8 Query and Find Views: Where's Waldo</a></li>
-          <li><a href="#19-sqlite3-data-store">1.9 SQLite3 Data Store</a></li>
+          <li><a href="#13-mouse-free-navigation">1.3. Mouse-Free navigation</a></li>
+          <li><a href="#14-agenda-view-your-daily-brief">1.4. Agenda View: Your daily brief</a></li>
+          <li><a href="#15-weeks-next-and-last-views-whats-happening-and-when">1.5. Weeks, Next and Last Views: What's happening and when</a></li>
+          <li><a href="#16-jots-and-jot-uses-views-where-did-the-time-go">1.6. Jots and Jot Uses Views: Where did the time go</a></li>
+          <li><a href="#17-bins-and-hash-tags-views-organizing-your-reminders">1.7. Bins and Hash-Tags Views: Organizing your reminders</a></li>
+          <li><a href="#18-query-and-find-views-wheres-waldo">1.8. Query and Find Views: Where's Waldo</a></li>
+          <li><a href="#19-sqlite3-data-store">1.9. SQLite3 Data Store</a></li>
         </ul>
       </details>
       <details>
@@ -177,7 +177,7 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 
 ### 1.2. Reminders to suit the purpose
 
-*tklr* has six types of reminders, each with a corresponding type character:
+*tklr* has seven types of reminders, each with a corresponding type character:
 
 | item type | character |
 | --------- | :-------: |
@@ -186,6 +186,7 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 | project   |     ^     |
 | goal      |     !     |
 | note      |     %     |
+| jot       |     -     |
 | draft     |     ?     |
 
 Here are some illustrations of how the various types and attributes can be put to use.
@@ -202,6 +203,7 @@ Here are some illustrations of how the various types and attributes can be put t
   <li><a href="#127-a-note-a-favorite-churchill-quotation">1.2.7. A <em>note</em>: a favorite Churchill quotation</a></li>
   <li><a href="#128-a-project-build-a-dog-house-with-component-tasks">1.2.8. A <em>project</em>: build a dog house with component tasks</a></li>
   <li><a href="#129-a-goal-interval-training-3-times-each-week">1.2.9. A <em>goal</em>: interval training 3 times each week</a></li>
+  <li><a href="#1210-a-jot">1.2.10. A <em>jot</em></a></li>
   <li><a href="#1210-a-draft-reminder-meet-alex-for-coffee---time-to-be-determined">1.2.10. A <em>draft</em> reminder: meet Alex for coffee - time to be determined</a></li>
 </ul>
 
@@ -369,8 +371,39 @@ When a *goal* is created, the attribute `@k 0` is automatically added to indicat
 
 In either case, `@k` is reset to zero and `@s` is reset to the previous value *plus* the period allowed for completion of the goal, i.e, to the *end* of the period originally allowed for completion.
 
+#### 1.2.10. A _jot_: taking a walk
 
-#### 1.2.10. A _draft_ reminder: meet Alex for coffee - time to be determined
+Tracking where a resource goes is the key to managing any scarce resource - your time is no exception. A *jot* is a reminder type designed to facilitate this purpose. It provides a way of *quickly* recording *small* bits of time-stamped information. It is sufficienty different from the other reminder types to warrant some discussion before giving an example. 
+
+Imagine that *tklr* is running on your computer and that, in the midst of your hectic day, you could reach over, press "+" to create a new reminder, enter "-" to make it a *jot* and follow with the *subject* - a *brief* phrase - just enough to trigger your memory later. Then press Ctrl+S to save - an automatic timestamp will be added. 
+
+What might you do with these *jots*? As is, these jots can provide a record of what you were doing and when.  At the cost of a few seconds per *jot* you can have a daily record of when and what you were doing or thinking. Press "J" to see a list of all your *jots* grouped by week and weekday and, as with all other reminder views in *tklr*, tagged with lower case letters, a, b, c, .... for easy access. 
+
+When you have time, you might want to:  
+- flush out the *subject* or add a `@d` *details* entry to provide extra detail. 
+- record the time spent. You could, e.g., add `@e 1h15`, to indicate that an hour and fifteen minutes of your precious time was spent on whatever you were doing when the *jot* was recorded.
+- record the particular <em>use</em> to which the *jot* applies, e.g., `@u exercise.walking` to indicate that this time should be attributed to the *use* "exercise.walking". Press "U" whenever you like to see a report of your *Jot Uses* with *totals* of your time spent by *month* and *use*.
+- add a hashtag to the subject or the details of a *jot* to make it easy to find in the *Hash-Tags View*.
+- convert it to another type of reminder. E.g. `- book a lunch reservation for Friday` might be converted to the event `* lunch with Ed @s fri 1pm` when you make the reservation. 
+
+Underneath the detail is a very simple idea - in the heat of battle when every second counts, *jot* down just enough to trigger your memory later when things have calmed down.
+
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>- taking a walk @s 2026-01-05 13:14 
+  @e 1h15m @u exercise.walking
+</code>
+  </pre>
+  <p>Here's an example. The beginning <code>-</code> type character makes this reminder a <i>jot</i> with the following <code>taking a walk</code> as the <i>subject</i>. This much was recorded (<em>jotted down</em>) before the walk  - the <code>@s 2026-01-05 13:24</code> automatically appended when the <em>jot</em> was saved.  
+  </p>
+  <p>Later in the day, after the walk was finished and the <em>jots</em> for the day were being reviewed, the <em>time spent</em>, <code>@e 1h15m</code>, and the <em>use</em>, <code>@u exercise.walking</code>, were added. 
+  </p>
+  <p>Note that <code>exercise.walking</code> would serve to differentiate this form of exercise from, say, <code>exercise.interval_training</code>, and thus avoid adding "apples and oranges" when reporting the <em>use</em> totals.
+</div>
+<div style="clear:both;"></div>
+
+
+#### 1.2.11. A _draft_ reminder: meet Alex for coffee - time to be determined
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
@@ -387,29 +420,9 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
 [↩︎](#table-of-contents)
 
-### 1.3. Where did the time go?
-
-Tracking where a resource goes is the key to managing any scarce resource - your time is no exception. A *jot* is a reminder type different from those listed above which is designed to facilitate this purpose by providing a way of *quickly* recording the *small* bits of time-stamped information. 
-
-Imagine that *tklr* is running on your computer and that, in the midst of your hectic day, you could reach over, press "+" to create a new greminder, enter "-" to make it a *jot*, add "working on ..." or "thinking about ..." or any other any *brief* expression that might be useful later. Then press Ctrl+S to save - an automatic timestamp will be added.  
-
-Whenever convenient, you can press "J" to see a list of all your *jots* grouped by week and weekday and, as with all other reminder views in *tklr*, tagged with lower case letters, a, b, c, .... for easy access. At the cost of a few seconds per *jot* you can have a daily record of when and what you were doing or thinking. 
-
-What might you do with these *jots*?
-
-As is, these jots can provide a record of what you were doing and when. Later, when you have time, you might want to edit some of them:
-- to flush out the subject or add an `@d details` entry to provide as much extra detail as you like.
-- to record the time spent. You could, e.g., add `@e 1h15`, to indicate that an hour and fifteen minutes of your precious time was spent on whatever you were doing when the *jot* was recorded.
-- to record the particular <em>use</em> to which the *jot* applies, e.g., `@u exercise.walking` to indicate that this time should be attributed to the *use* "exercise.walking". Press "U" whenever you like to see a report of your *Jot Uses* by *month* and *use* with *totals*.
-- to add a hashtag to the subject or the details of a *jot* to make it easy to find in the *Tags View*.
-- to convert it to another type of reminder. E.g. `- book a lunch reservation for Friday` might be converted to the event `* lunch with Ed @s fri 1pm` when you make the reservation. 
-
-Simple idea - in the heat of battle, *jot* down just enough to trigger your memory later when things have calmed down.
-
-
 [↩︎](#table-of-contents)
 
-### 1.4. Mouse-Free navigation
+### 1.3. Mouse-Free navigation
 
 Each of the main views in *tklr* can be opened by pressing a single key - the first letter of the view's name.
 
@@ -447,7 +460,7 @@ Everything you might want to do to a reminder, to edit, finish, reschedule, dele
 
 [↩︎](#table-of-contents)
 
-### 1.5. Agenda View: Your daily brief
+### 1.4. Agenda View: Your daily brief
 
 *Agenda view* displays
 
@@ -487,7 +500,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 [↩︎](#table-of-contents)
 
-### 1.6. Weeks, Next and Last Views: What's happening and when
+### 1.5. Weeks, Next and Last Views: What's happening and when
 
 *Weeks View* is dedicated to displaying each instance of your scheduled reminders one week at a time with a *busy bar* at the top to show the busy days during the week at a glance followed by a day by day listing of the scheduled reminders.
 
@@ -514,9 +527,14 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 </div>
 <div style="clear: both;"></div>
 
+
 [↩︎](#table-of-contents)
 
-### 1.7. Bins and Tags Views: Organizing your reminders
+### 1.6. Jots and Jot Uses Views: Where did the time go
+
+[↩︎](#table-of-contents)
+
+### 1.7. Bins and Hash-Tags Views: Organizing your reminders
 
 *Tklr* provides two complementary methods for organizing your reminders:
 
@@ -593,7 +611,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 <div style="clear: both;"></div>
 
 
-#### 1.7.2 Tags View
+#### 1.7.2 Hash-Tags View
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/tags_screenshot.svg"
