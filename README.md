@@ -203,7 +203,7 @@ Here are some illustrations of how the various types and attributes can be put t
   <li><a href="#127-a-note-a-favorite-churchill-quotation">1.2.7. A <em>note</em>: a favorite Churchill quotation</a></li>
   <li><a href="#128-a-project-build-a-dog-house-with-component-tasks">1.2.8. A <em>project</em>: build a dog house with component tasks</a></li>
   <li><a href="#129-a-goal-interval-training-3-times-each-week">1.2.9. A <em>goal</em>: interval training 3 times each week</a></li>
-  <li><a href="#1210-a-jot">1.2.10. A <em>jot</em></a></li>
+  <li><a href="#1210-a-jot-taking-a-walk">1.2.10. A <em>jot</em>: taking a walk</a></li>
   <li><a href="#1210-a-draft-reminder-meet-alex-for-coffee---time-to-be-determined">1.2.10. A <em>draft</em> reminder: meet Alex for coffee - time to be determined</a></li>
 </ul>
 
@@ -440,8 +440,8 @@ Each of the main views in *tklr* can be opened by pressing a single key - the fi
 | Next             |   N   | The next instance of reminders after today     |
 | Query            |   Q   | List matches for a specified query             |
 | Remaining Alerts |   R   | List remaining alerts for the today            |
-| Jot Uses         |   U   | Jots by Month and Use                          |
-| Weeks            |   W   | List scheduled reminders by week and weekday   |
+| Jot Uses         |   U   | Jots with totals by month and use              |
+| Weeks            |   W   | Scheduled reminders by week and weekday        |
 
 
 Each of these views displays a vertical list of reminders, with each reminder row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder including its subject.  When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
