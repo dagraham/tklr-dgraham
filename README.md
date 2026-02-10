@@ -205,7 +205,7 @@ Here are some illustrations of how the various types and attributes can be put t
   <li><a href="#128-a-project-build-a-dog-house-with-component-tasks">1.2.8. A <em>project</em>: build a dog house with component tasks</a></li>
   <li><a href="#129-a-goal-interval-training-3-times-each-week">1.2.9. A <em>goal</em>: interval training 3 times each week</a></li>
   <li><a href="#1210-a-jot-taking-a-walk">1.2.10. A <em>jot</em>: taking a walk</a></li>
-  <li><a href="#1210-a-draft-reminder-meet-alex-for-coffee---time-to-be-determined">1.2.10. A <em>draft</em> reminder: meet Alex for coffee - time to be determined</a></li>
+  <li><a href="#1211-a-draft-reminder-meet-alex-for-coffee---time-to-be-determined">1.2.11. A <em>draft</em> reminder: meet Alex for coffee - time to be determined</a></li>
 </ul>
 
 #### 1.2.1. An _event_: lunch with Ed (extended)
