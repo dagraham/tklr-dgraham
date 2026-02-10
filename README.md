@@ -411,21 +411,22 @@ Simple idea - in the heat of battle, *jot* down just enough to trigger your memo
 
 Each of the main views in *tklr* can be opened by pressing a single key - the first letter of the view's name.
 
-| View      |  Key  | Displays                                       |
-| --------- | :---: | ---------------------------------------------- |
-| Agenda    |   A   | events, goals, tasks                           |
-| Bins      |   B   | Tree view of Bins                              |
-| Completed |   C   | Completion datetimes for completed tasks       |
-| Find      |   F   | Case insenstive search in subjects and details |
-| Last      |   L   | The last instance of reminders before today    |
-| Jots      |   J   | Jots by week and weekday                       |
-| Modified  |   M   | All reminders sorted by the modified timestamp |
-| Next      |   N   | The next instance of reminders after today     |
-| Query     |   Q   | List matches for a specified query             |
-| Remaining |   R   | List remaining alerts for the today            |
-| Tags      |   T   | List reminders with tags grouped by tag        |
-| Uses      |   U   | Jots by Month and Use                          |
-| Weeks     |   W   | List scheduled reminders by week and weekday   |
+| View             |  Key  | Displays                                       |
+| ---------------- | :---: | ---------------------------------------------- |
+| Agenda           |   A   | events, goals, tasks                           |
+| Bins             |   B   | Tree view of Bins                              |
+| Completions      |   C   | Completion datetimes for completed tasks       |
+| Find             |   F   | Case insenstive search in subjects and details |
+| Goals            |   G   | Case insenstive search in subjects and details |
+| Hash-Tags        |   H   | List reminders with tags grouped by tag        |
+| Jots             |   J   | Jots by week and weekday                       |
+| Last             |   L   | The last instance of reminders before today    |
+| Modified         |   M   | All reminders sorted by the modified timestamp |
+| Next             |   N   | The next instance of reminders after today     |
+| Query            |   Q   | List matches for a specified query             |
+| Remaining Alerts |   R   | List remaining alerts for the today            |
+| Jot Uses         |   U   | Jots by Month and Use                          |
+| Weeks            |   W   | List scheduled reminders by week and weekday   |
 
 
 Each of these views displays a vertical list of reminders, with each reminder row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder including its subject.  When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
