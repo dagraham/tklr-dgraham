@@ -19,5 +19,5 @@ repos:
         entry: uv run pytest
         language: system
         pass_filenames: false
-        always_run: true
+        files: "\\.py$"
         stages: [pre-commit]
