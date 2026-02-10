@@ -531,6 +531,8 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 ### 1.6. Jots and Jot Uses Views: Where did the time go
 
+<!-- FIXME: complete this section -->
+
 [↩︎](#table-of-contents)
 
 ### 1.7. Bins and Hash-Tags Views: Organizing your reminders
