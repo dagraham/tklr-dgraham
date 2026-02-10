@@ -58,6 +58,7 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
           <li><a href="#214-priority">2.14. Priority</a></li>
           <li><a href="#215-open-with-default">2.15. Open with default</a></li>
           <li><a href="#216-away-from-your-computer-use-the-cloud">2.16. Away from your computer? Use the cloud</a></li>
+          <li><a href="#217-palette-view-customizing-theme-color-settings">2.17. Palette View: Customizing Theme Color Settings</a></li>
         </ul>
       </details>
       <details>
@@ -531,7 +532,42 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 ### 1.6. Jots and Jot Uses Views: Where did the time go
 
-<!-- FIXME: complete this section -->
+These screenshots reflect a configuration setting that rounds reported <code>@e</code> times up to the next integer multiple of <code>6</code> minutes and thus reports times in hours and tenths. 
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/jots_jots.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+  <em>Jots View</em> is similar to <em>Weeks View</em> - reminders are grouped by <em>week</em> and then <em>week day</em> with the same key bindings used for navigation. The <em>jots</em> are displayed in different colors for 
+  <ul>
+   <li>those with neither <code>@e</code> nor <code>@u</code> entries</li> 
+   <li>those with only <code>@e</code> entries</li> 
+   <li>those with only <code>@u</code> entries</li> 
+   <li>those with both <code>@e</code> and <code>@u</code> entries</li>
+   </ul> 
+   When either or both of these attributes are present, they are given in parentheses after the <em>subject</em>. 
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/jots_uses.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+  <em>Jots Uses View</em> groups by <em>month</em> and <em>use</em>.  <em>Jots</em> without an entry for  <code>@u</code> are grouped under <em>unassigned</em>. 
+  </p>
+  <p>
+  The listing for each <em>jot</em> gives 
+  <ol>
+  <li>tag</li>
+  <li><code>@s entry</code> hours:minutes</li>
+  <li><code>@s entry</code> month day</li>
+  <li><code>@e entry</code></li> in hours and tenths if given else blank
+  <li><em>subject</em></li>
+  </ol>
+  All <em>jots</em> are listed using the same colors as were used in <em>Jots View</em>.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
 
 [↩︎](#table-of-contents)
 
@@ -1047,6 +1083,65 @@ With this entry in <em>config.toml</em> in your home directory:
 #### 2.16.2. To record reminders
 
 The key here is parallel file, <em>inbox.txt</em> in your home directory. Normally this file has zero length, but if you edit it using, say, <em>Textastic</em> and record one or more reminders using exacly the same format that you would use with <em>tklr</em> and being careful to leave a blank line between reminders, then the next time <em>tklr</em> checks the length of this file and notices that it is greater than zero, it will import each of the reminders, prefixing each with a <code>?</code> character so that it will be treated as a <em>draft</em> reminder until you remove the <code>?</code> prefix.  When this process finishes, the reminders are automatically removed from <em>inbox.txt</em> so that its length is restored to zero - ready for subsequent additions. When you next open <em>tklr</em>, all the drafts will be listed together on the current day of the events listing in <em>Agenda View</em> ready for you to make any edits you like to the "drafts" and remove the <code>?</code> prefixes.
+
+### 2.17. Palette View: Customizing Theme Color Settings
+
+The purpose of <em>Palette View</em> is to display the color settings that are available for user customization in <code>config.toml</code> along with the palette of colors available for use in those settings.
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_settings_single.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>The opening view shows the current color settings for the currently selected <em>theme</em> which, in this case, is the <em>dark</em> theme.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_settings_dual.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>Pressing "p" toggles a dual display for both of the available themes with <em>dark</em> on the left and <em>light</em> on the right. In both cases, the colors reflect the current settings which, in the absence of customizations, are just the default settings for the two themes.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_colors_dual.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>Pressing "c" toggles the display to show a list of the named colors against the backgrounds currently used for the <em>dark</em> and <em>light</em> themes. 
+  </p>
+  <p>The color for a setting can be customized in <code>config.toml</code> by first noting the theme in this section
+  </p>
+<code>
+  [ui]
+  # theme: str = 'dark' | 'light'
+  theme = "dark"
+</code> 
+<p>
+
+Then, for example, replacing this commented out section
+</p>
+
+<code>
+  # [ui.palette.dark]
+  # header_color = "#1f4b7a"
+  # jot_full = "#040405"
+</code>
+
+<p>
+with
+</p>
+
+<code>
+  [ui.palette.dark]
+  task_color = "dodgerblue"
+</code>
+<p>
+
+would change the color for the <em>task</em> type for the current <em>dark</em> setting from "lightskyblue" to "dodgerblue". 
+
+Note that either the color name or the hex value can be used.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+
 
 [↩︎](#table-of-contents)
 
