@@ -571,7 +571,7 @@ These screenshots reflect a configuration setting that rounds reported <code>@e<
 <div style="clear: both;"></div>
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:440px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>% tklr uses report --use exercise 
 Jot Uses - Jan 2026 - Feb 2026: 3.9h
 Jan 2026: 0.5h
@@ -603,7 +603,7 @@ limits the <em>uses</em> to those containing a match for "exercise".
 <div style="clear:both;"></div>
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:440px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>% tklr uses report --use meditation --verbose 
 Jot Uses - Jan 2026 - Feb 2026: 1.0h
 Jan 2026
