@@ -570,6 +570,66 @@ These screenshots reflect a configuration setting that rounds reported <code>@e<
 </div>
 <div style="clear: both;"></div>
 
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>% tklr uses report --use exercise 
+Jot Uses - Jan 2026 - Feb 2026: 3.9h
+Jan 2026: 0.5h
+  exercise.bike: 0.5h
+    14:13 26 0.5h Ut tempora consectetur
+  exercise.walking
+    12:30 31      Ut porro dolor non ut
+Feb 2026: 3.4h
+  exercise.bike: 1.6h
+    14:13 2      Voluptatem aliquam ipsum velit
+    11:00 6      Ipsum ipsum est
+    11:15 6 1.3h Dolor dolorem labore sed
+    13:15 8 0.3h Quaerat etincidunt quisquam dolor
+  exercise.walking: 1.8h
+    13:30 2      Magnam quaerat dolor non
+    12:45 5 1.8h Porro est sit
+    13:15 5      Adipisci tempora neque
+    15:15 5      Adipisci sed voluptatem sit porro
+    15:30 5      Dolorem sit dolore non dolorem
+</code>
+</pre>
+<p>The CLI version is similar. This one using the command <code>tklr uses report</code> limits the <em>uses</em> to those containing a match for 
+  <code>--use exercise</code>
+  </p>
+</div>
+<div style="clear:both;"></div>
+
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>% tklr uses report --use meditation --verbose 
+Jot Uses - Jan 2026 - Feb 2026: 1.0h
+Jan 2026
+  meditation
+    14:13 26      Dolore aliquam consectetur
+                  u without e  #lorem
+Feb 2026: 1.0h
+  meditation: 1.0h
+    14:13 2 0.5h Quaerat numquam eius amet
+                 u and e #lorem
+    12:30 5      Porro est sed
+                 Porro amet quisquam eius amet labore
+                 dolor. Ut labore ut quaerat dolorem
+                 magnam quiquia. Quisquam non est
+                 quisquam dolor neque tempora velit.
+                 Dolore ut numquam sit velit aliquam
+                 ipsum. #lorem #amber
+    14:34 9 0.5h Dolorem quaerat quaerat consectetur
+                 u and e #lorem
+</code>
+</pre>
+<p>Another argument, 
+
+<code>--verbose</code> 
+
+would add the <code>@d</code> <em>details</em> attribute indented under the subject.
+</p>
+</div>
+<div style="clear:both;"></div>
 
 [↩︎](#table-of-contents)
 
