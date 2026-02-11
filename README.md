@@ -211,7 +211,7 @@ Here are some illustrations of how the various types and attributes can be put t
 #### 1.2.1. An _event_: lunch with Ed (extended)
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>* lunch with Ed
   @s 12p fri @e 1h
   @a 30m: n
@@ -228,7 +228,7 @@ Here are some illustrations of how the various types and attributes can be put t
 #### 1.2.2. A _task_: pick up milk
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>~ pick up milk
 </code>
   </pre>
@@ -244,7 +244,7 @@ Here are some illustrations of how the various types and attributes can be put t
 #### 1.2.3. A _repeating event_: trash pickup
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>* trash pickup @s 8a mon @n 1d @r w &w MO
 </code>
   </pre>
@@ -257,7 +257,7 @@ Here are some illustrations of how the various types and attributes can be put t
 #### 1.2.4. An _event that repeats irregularly_: dental appointment
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>* dental exam and cleaning
   @s 2p feb 5
   @e 45m
@@ -276,7 +276,7 @@ Here are some illustrations of how the various types and attributes can be put t
 #### 1.2.5. A _complicated_ but regularly repeating task: vote for president
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>~ vote for president
   @s nov 1 2020
   @r y &i 4 &w TU &d 2, 3, 4, 5, 6, 7, 8 &m 11
@@ -293,7 +293,7 @@ Here are some illustrations of how the various types and attributes can be put t
 #### 1.2.6. An _offset task_: fill bird feeders
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>~ fill birdfeeders @s 3p sat @n 1d @o 12d
 </code>
   </pre>
@@ -317,7 +317,7 @@ It is worth noting the different roles of two attributes in events and tasks.
 #### 1.2.7. A _note_: a favorite Churchill quotation
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>% Give me a pig - #Churchill
   @d Dogs look up at you.
   Cats look down at you.
@@ -338,7 +338,7 @@ It is worth noting the different roles of two attributes in events and tasks.
 #### 1.2.8. A _project_: build a dog house with component tasks
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>^ Build dog house
   @~ pick up materials &r 1 &e 4h
   @~ cut pieces &r 2: 1 &e 3h
@@ -356,7 +356,7 @@ It is worth noting the different roles of two attributes in events and tasks.
 #### 1.2.9. A _goal_: interval training 3 times each week
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>! interval training @s 2026-01-05 @o 3/1w
 </code>
   </pre>
@@ -390,7 +390,7 @@ When you have time, you might want to:
 Underneath the details is a very simple idea - in the heat of battle when every second counts, *jot* down just enough to trigger your memory later when things have calmed down.
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>- taking a walk @s 2026-01-05 13:14
   @e 1h15m @u exercise.walking
 </code>
@@ -408,7 +408,7 @@ Underneath the details is a very simple idea - in the heat of battle when every 
 #### 1.2.11. A _draft_ reminder: meet Alex for coffee - time to be determined
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>? Coffee with Alex @s fri @e 1h
 </code>
   </pre>
@@ -571,7 +571,7 @@ These screenshots reflect a configuration setting that rounds reported <code>@e<
 <div style="clear: both;"></div>
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:440px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>% tklr uses report --use exercise 
 Jot Uses - Jan 2026 - Feb 2026: 3.9h
 Jan 2026: 0.5h
@@ -603,7 +603,7 @@ limits the <em>uses</em> to those containing a match for "exercise".
 <div style="clear:both;"></div>
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:440px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>% tklr uses report --use meditation --verbose 
 Jot Uses - Jan 2026 - Feb 2026: 1.0h
 Jan 2026
@@ -981,7 +981,7 @@ A single word, without spaces, preceded by a hash character `#` and included in 
 ### 2.11. Anniversaries
 
 <div style="overflow:auto;">
-  <pre style="float:right; margin-left:20px; width:420px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>* Max's {XXX} birthday
   @s 2016-10-23
   @r y &m 10 &d 23
