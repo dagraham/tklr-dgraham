@@ -593,8 +593,11 @@ Feb 2026: 3.4h
     15:30 5      Dolorem sit dolore non dolorem
 </code>
 </pre>
-<p>The CLI version is similar. This one using the command <code>tklr uses report</code> limits the <em>uses</em> to those containing a match for 
-  <code>--use exercise</code>
+<p>The CLI version is similar. This one using the command 
+
+<code>   tklr uses report --use exercise</code> 
+
+limits the <em>uses</em> to those containing a match for "exercise".
   </p>
 </div>
 <div style="clear:both;"></div>
@@ -622,11 +625,7 @@ Feb 2026: 1.0h
                  u and e #lorem
 </code>
 </pre>
-<p>Another argument, 
-
-<code>--verbose</code> 
-
-would add the <code>@d</code> <em>details</em> attribute indented under the subject.
+<p>This one shows <em>uses</em> matching "meditation" and, because of the <code>--verbose</code> argument, also displays the <code>@d</code> <em>details</em> attribute indented under the subject.
 </p>
 </div>
 <div style="clear:both;"></div>
