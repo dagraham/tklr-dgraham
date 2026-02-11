@@ -395,7 +395,7 @@ Underneath the details is a very simple idea - in the heat of battle when every 
   @e 1h15m @u exercise.walking
 </code>
   </pre>
-  <p>Here's an example. The beginning <code>-</code> type character makes this reminder a <i>jot</i> with the following <code>taking a walk</code> as the <i>subject</i>. This much was <em>jotted down</em> before the walk and the <code>@s 2026-01-05 13:24</code> was automatically appended at that time.
+  <p>Here's an example. The beginning <code>-</code> type character makes this reminder a <i>jot</i> with the following <code>taking a walk</code> as the <i>subject</i>. This much was <em>jotted down</em> before the walk and the <code>@s 2026-01-05 13:14</code> was automatically appended at that time.
   </p>
   <p>Later in the day, after the walk was finished and the <em>jots</em> for the day were being reviewed, the <em>time spent</em>, <code>@e 1h15m</code>, and the <em>use</em>, <code>@u exercise.walking</code>, were added.
   </p>
