@@ -18,7 +18,7 @@
 <p>If you like fast, local, keyboard‑first tools, <em>tklr</em> gives you a daily brief without a heavyweight app.</p>
     </td>
     <td style="width: 40%; vertical-align: middle;">
-      <figure style="margin: 18px; text-align: center;">
+      <figure style="margin: 20px; text-align: center;">
         <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif"
              alt="tklr logo" title="Tklr" style="max-width: 380px; width: 100%; height: auto;">
         <figcaption style="margin-top: 6px; font-style: italic;">Make the most of your time!</figcaption>
