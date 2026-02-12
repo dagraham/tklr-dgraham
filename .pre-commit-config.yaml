@@ -9,6 +9,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
+        exclude: '^.*\.gif$'
       - id: check-merge-conflict
       - id: mixed-line-ending
 

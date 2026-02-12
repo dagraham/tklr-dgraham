@@ -1504,7 +1504,7 @@ class EditorScreen(Screen):
             "m": "Mask",
             "n": "Notice",
             "o": "Offset",
-            "p": "Priority 1 - 5 (low - high)",
+            "p": "Priority 1 - 5 (high - low)",
             "r": "Repetition frequency",
             "s": "Scheduled datetime",
             "t": "Target number/period",
