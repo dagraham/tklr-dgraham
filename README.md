@@ -1,28 +1,40 @@
 <!-- markdownlint-disable MD033 -->
 <table>
   <tr>
-    <td style="vertical-align: top; width: 75%;">
+    <td style="vertical-align: top; width: 64%;">
       <h1>tklr</h1>
       <p>
-        The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em>, pronounced "tickler", is a digital version that ranks tasks by <i>urgency</i>, goals by <i>priority</i>, and generally facilitates the same purpose - managing what you need to know quickly and easily. It supports a wide variety of reminder types,  a simple, text-based entry format with timely, automatic assistance, the datetime parsing and recurrence features of <em>dateutil</em> and provides both command line (<i>Click</i>) and graphical (<i>Textual</i>) user interfaces.
-      </p>
-      <p>Make the most of your time!</p>
+        The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em> turns this classic into a local, SQLite-backed reminder system. You enter reminders in plain text; <em>tklr</em> parses dates, recurrence, and metadata as you type, then ranks tasks by urgency and goals by priority.
+</p>
+<p>Why try it?
+<ul>
+<li>Form‑free entry with live prompts (no forms to fill).</li>
+<li>CLI and Textual UI with mouse‑free navigation.</li>
+<li>Multiple reminder types: events, tasks, projects, goals, notes, jots, drafts.</li>
+<li>Flexible scheduling (fuzzy dates, recurrence, time zones) powered by <em>dateutil</em>.</li>
+<li>Organized views (Agenda, Next/Last, Queries, bins, hashtags) to surface what matters.</li>
+</ul></p>
+
+<p>If you like fast, local, keyboard‑first tools, *tklr* gives you a daily brief without a heavyweight app.</p>
     </td>
-    <td style="width: 25%; vertical-align: middle;">
-      <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif"
-           alt="tklr logo" title="Tklr" style="max-width: 360px; width: 100%; height: auto;">
+    <td style="width: 40%; vertical-align: middle;">
+      <figure style="margin: 0; text-align: center;">
+        <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/tklr_logo.avif"
+             alt="tklr logo" title="Tklr" style="max-width: 380px; width: 100%; height: auto;">
+        <figcaption style="margin-top: 6px; font-style: italic;">Make the most of your time!</figcaption>
+      </figure>
     </td>
   </tr>
 </table>
 
 
-This introduction to *tklr* is best viewed at [GitHub.io](https://dagraham.github.io/tklr-dgraham/) - *tklr* itself is available from [PyPi](https://pypi.org/project/tklr-dgraham/) and [GitHub](https://github.com/dagraham/tklr-dgraham) and further information at [Tklr Discussions](https://github.com/dagraham/tklr-dgraham/discussions).
-
-The [↩︎](#table-of-contents) links at the end of major sections lead back to this **expandable** *Table of Contents*.
+Ready to dive deeper? This introduction is best viewed at [GitHub.io](https://dagraham.github.io/tklr-dgraham/). *Tklr* itself is available from [PyPi](https://pypi.org/project/tklr-dgraham/), the source code from [GitHub](https://github.com/dagraham/tklr-dgraham) and further discussion at [Tklr Discussions](https://github.com/dagraham/tklr-dgraham/discussions).
 
 <a id="table-of-contents"></a>
+<h3>Table of Contents</h3>
+
 <details>
-  <summary><strong>Table of Contents</strong></summary>
+  <summary><strong>Show/Hide</strong></summary>
   <ul>
     <li>
       <details>
@@ -76,6 +88,9 @@ The [↩︎](#table-of-contents) links at the end of major sections lead back to
     </li>
   </ul>
 </details>
+
+<p>This <em>Table of Contents</em> is expandable with links to all the major sections and with <code>↩︎</code> links throughout the document to return to it.</p>
+
 
 
 ## 1. What makes tklr different
