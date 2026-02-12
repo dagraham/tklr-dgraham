@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD033 -->
 <table>
   <tr>
-    <td style="vertical-align: top; width: 64%;">
+    <td style="vertical-align: top; width: 60%;">
       <h1>tklr</h1>
       <p>
         The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em> turns this classic into a local, SQLite-backed reminder system. You enter reminders in plain text; <em>tklr</em> parses dates, recurrence, and metadata as you type, then ranks tasks by urgency and goals by priority.
@@ -15,7 +15,7 @@
 <li>Organized views (Agenda, Next/Last, Queries, bins, hashtags) to surface what matters.</li>
 </ul></p>
 
-<p>If you like fast, local, keyboard‑first tools, *tklr* gives you a daily brief without a heavyweight app.</p>
+<p>If you like fast, local, keyboard‑first tools, <em>tklr</em> gives you a daily brief without a heavyweight app.</p>
     </td>
     <td style="width: 40%; vertical-align: middle;">
       <figure style="margin: 0; text-align: center;">
