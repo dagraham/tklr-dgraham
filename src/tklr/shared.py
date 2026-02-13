@@ -442,7 +442,7 @@ def timedelta_str_to_seconds(time_str: str) -> tuple[bool, int]:
     if not matches:
         return (
             False,
-            "Invalid time string format. Expected integers followed by 'w', 'd', 'h', or 'm'.",
+            "integers followed by 'w', 'd', 'h', or 'm'",
         )
     # Convert each match to seconds and sum them
     total_seconds = sum(int(value) * multipliers[unit] for value, unit in matches)
