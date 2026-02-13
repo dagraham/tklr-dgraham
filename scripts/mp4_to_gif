@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  echo "Usage: $(basename "$0") /path/to/video.mp4" >&2
+  echo "Env overrides: FPS (default 8), SCALE (default 640), COLORS (default 48), BAYER_SCALE (default 5)" >&2
+}
+
+if [[ ${#} -ne 1 ]]; then
+  usage
+  exit 2
+fi
+
+input=$1
+if [[ ! -f "$input" ]]; then
+  echo "Input not found: $input" >&2
+  exit 1
+fi
+
+fps=${FPS:-8}
+scale=${SCALE:-640}
+colors=${COLORS:-48}
+bayer_scale=${BAYER_SCALE:-5}
+
+base=$(basename "${input%.*}")
+dir=$(cd "$(dirname "$input")" && pwd)
+output="${dir}/${base}.gif"
+
+tmpdir=${TMPDIR:-/tmp}
+palette=$(mktemp "${tmpdir%/}/${base}.palette.XXXXXX.png")
+trap 'rm -f "$palette"' EXIT
+
+ffmpeg -y -i "$input" \
+  -vf "fps=${fps},scale=${scale}:-1:flags=lanczos,palettegen=max_colors=${colors}:stats_mode=diff" \
+  -frames:v 1 -update 1 -an "$palette"
+
+ffmpeg -y -i "$input" -i "$palette" \
+  -filter_complex "fps=${fps},scale=${scale}:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=${bayer_scale}" \
+  -an "$output"
+
+echo "Wrote: $output"
