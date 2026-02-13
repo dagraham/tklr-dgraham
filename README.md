@@ -103,103 +103,26 @@ Ready to dive deeper? This introduction is best viewed at [GitHub.io](https://da
 Rather than filling out fields in a form to create or edit reminders, a simple entry field is provided for text input together with a prompt area which provides <i>instantaneous feedback</i>.
   </p>
 <p>
-  Here a new reminder is being created. Below the entry area, the prompt indicates that the first step is to enter the type character for the reminder.
+  This animation shows the entire process for creating a new reminder. The individual entry steps are listed below.
+
+<ul>
+<li>the type character, here an <code>*</code> for an <em>event</em>
+</li>
+<li>the subject, "Lunch with Ed"
+</li>
+<li>the scheduled time, <code>@s 12p</code> - today is assumed
+</li>
+<li>the extent (duration) of the event, <code>@e 1h30m</code> - an hour and thirty minutes
+</li>
+<li>an alert, <code>@e 15m: n</code> - fifteen minutes before the event, trigger a notification 
+</li>
+<li>the resulting event displayed in <em>Agenda View</em>
+</li>
+</ul>
 </p>
 </div>
 <div style="clear: both;"></div>
 
-
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-a.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>
-Rather than filling out fields in a form to create or edit reminders, a simple entry field is provided for text input together with a prompt area which provides <i>instantaneous feedback</i>.
-  </p>
-<p>
-  Here a new reminder is being created. Below the entry area, the prompt indicates that the first step is to enter the type character for the reminder.
-</p>
-</div>
-<div style="clear: both;"></div>
-
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-b.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>
-After the type character is entered, the prompt changes to indicate that the next step is to enter the subject of the reminder.
-  </p>
-<p>
-  The prompt is updated <i>as the entry changes</i> to assist with the editing of the reminder. This does not interfere with the entry process but, like the speedometer in a car, ensures that the relevant information is there if wanted.
-</p>
-</div>
-<div style="clear: both;"></div>
-
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-c.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>
-As the subject is entered, the prompt changes to reflect the current value of the entry.
-  </p>
-</div>
-<div style="clear: both;"></div>
-
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-d.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>
-After the subject is entered, adding an <code>@</code> character changes the prompt to a list of the required and optional attributes which can still be entered.
-  </p>
-</div>
-<div style="clear: both;"></div>
-
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-e.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>
-Entering an available key changes the prompt to a description of the attribute.
-  </p>
-  <p>
-Here <code>@s</code>, has been selected and the prompt changes to show that this attibute, which is required for an event, specifies the scheduled datetime at which the event begins.
-  </p>
-</div>
-<div style="clear: both;"></div>
-
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-f.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>
-<i>Fuzzy parsing</i> is supported for entering dates or datetimes in <i>tklr</i>. Since it was January 26, 2026 when this entry was made, the interpretation is that <code>12p</code> means 12:00pm on Jan 26.
-  </p>
-</div>
-<div style="clear: both;"></div>
-
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-g.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>
-  Adding <code>fri</code> changes the interpretation to Friday of this week.
-  </p>
-</div>
-<div style="clear: both;"></div>
-
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-h.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>
-  Adding <code>@</code> again shows the current list of required and optional attributes, but this time with <code>@s</code> removed since it has already been entered.
-  </p>
-</div>
-<div style="clear: both;"></div>
-
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-i.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>
-  Adding <code>e</code> changes the prompt to indicate that this attribute is used to specify the <i>extent</i> of the event, i.e., how long the event lasts.
-  </p>
-</div>
-<div style="clear: both;"></div>
-
-
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-j.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>
-  Adding <code>1h</code> specifies an <i>extent</i> of one hour. With this setting, the event would last from 12pm until 1pm.
-  </p>
-  <p> In addition to <code>h</code> for hours, other options include <code>m</code> for minutes, <code>d</code> for days and <code>w</code> for weeks. These can be combinded so that, e.g.,  <code>2h30m</code> would represent two hours and thirty minutes.
-  </p>
-</div>
-<div style="clear: both;"></div>
 
 [↩︎](#table-of-contents)
 
@@ -217,12 +140,12 @@ Here <code>@s</code>, has been selected and the prompt changes to show that this
 | jot       |     -     |
 | draft     |     ?     |
 
-Here are some illustrations of how the various types and attributes can be put to use.
+Here are some illustrations of how the various types.
 
 <a id="reminder-types"></a>
 
 <ul>
-  <li><a href="#121-an-event-lunch-with-ed-extended">1.2.1. An <em>event</em>: lunch with Ed (extended)</a></li>
+  <li><a href="#121-an-event-lunch-with-ed-extended">1.2.1. An <em>event</em>: lunch with Ed (discussed)</a></li>
   <li><a href="#122-a-task-pick-up-milk">1.2.2. A <em>task</em>: pick up milk</a></li>
   <li><a href="#123-a-repeating-event-trash-pickup">1.2.3. A <em>repeating event</em>: trash pickup</a></li>
   <li><a href="#124-an-event-that-repeats-irregularly-dental-appointment">1.2.4. An <em>event that repeats irregularly</em>: dental appointment</a></li>
@@ -240,13 +163,13 @@ Here are some illustrations of how the various types and attributes can be put t
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
 <code>* lunch with Ed
-  @s 12p fri @e 1h
-  @a 30m: n
+  @s 12p fri @e 1h30m
+  @a 15m: n
 </code>
   </pre>
-<p>The <code>*</code> makes this reminder an <i>event</i> with whatever follows until the next <code>@</code> character as the subject. The <code>@s</code> attribute sets the <i>scheduled</i> or starting time for 12pm on the first Friday after today and the <code>@e 1h</code> attribute sets the <i>extent</i> for one hour. This event will thus be displayed as occupying the period <code>12-1pm</code> on that Friday. The distinguishing feature of an <i>event</i> is that it occurs at a particular time and the <code>@s</code> attribute is therefore required.
+<p>The <code>*</code> makes this reminder an <i>event</i> with whatever follows until the next <code>@</code> character as the subject. The <code>@s</code> attribute sets the <i>scheduled</i> or starting time for 12pm on the first Friday on or after today and the <code>@e 1h30m</code> attribute sets the <i>extent</i> for one hour and thirty minutes. This event will thus be displayed as occupying the period <code>12-1:30pm</code> on the day of the event. The distinguishing feature of an <i>event</i> is that it occurs at a particular time and the <code>@s</code> attribute is therefore required.
 </p>
-<p>Provided that <em>tklr ui</em> is running, <code>@a 30m: n</code> will trigger a built-in <em>notify</em> alert thirty minutes before the start of the event which sounds a bell and posts a message on the <em>tklr</em> display showing the subject and time of the event.
+<p>Provided that <em>tklr ui</em> is running, <code>@a 15m: n</code> will trigger a built-in <em>notify</em> alert fifteen minutes before the start of the event which sounds a bell and posts a message on the <em>tklr</em> display showing the subject and time of the event.
 </p>
 </div>
 <div style="clear:both;"></div>
