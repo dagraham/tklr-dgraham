@@ -98,6 +98,18 @@ Ready to dive deeper? This introduction is best viewed at [GitHub.io](https://da
 ### 1.1. Form-Free entry
 
 <div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/demo.gif" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+Rather than filling out fields in a form to create or edit reminders, a simple entry field is provided for text input together with a prompt area which provides <i>instantaneous feedback</i>.
+  </p>
+<p>
+  Here a new reminder is being created. Below the entry area, the prompt indicates that the first step is to enter the type character for the reminder.
+</p>
+</div>
+<div style="clear: both;"></div>
+
+
+<div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/new_event-a.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
 Rather than filling out fields in a form to create or edit reminders, a simple entry field is provided for text input together with a prompt area which provides <i>instantaneous feedback</i>.
