@@ -1863,14 +1863,14 @@ Entry: {self.entry}
         alert = token["token"][2:].strip()
 
         if not alert or ":" not in alert:
-            return False, f"timedelta(s):command(s): {alert}", []
+            return False, f"timeperiods(s):command(s): {alert}", []
 
         timedeltas, commands = alert.split(":", 1)
         timedeltas = timedeltas.strip()
         commands = commands.strip()
 
         if not timedeltas or not commands:
-            return False, f"timedelta(s):command(s): {alert}", []
+            return False, f"timeperiod(s):command(s: {alert}", []
 
         secs = []
         tds = []
