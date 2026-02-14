@@ -4,6 +4,7 @@ version = "0.0.51"
 description = "Reminders Tickler / CLI and Textual UI"
 authors = [{ name = "Daniel Graham", email = "dnlgrhm@gmail.com" }]
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.12,<4.0"
 dependencies = [
   "textual>=0.60",
@@ -22,10 +23,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-  "lorem>=0.1.1",
-  "pre-commit>=3.6.0",
-] # removed tomli-w
+dev = ["lorem>=0.1.1", "pre-commit>=3.6.0"] # removed tomli-w
 test = [
   "pytest>=8.0.0",
   "pytest-cov>=4.1.0",
@@ -61,15 +59,15 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
-    "-v",
-    "--strict-markers",
-    "--tb=short",
-    "--cov=src/tklr",
-    "--cov-report=term-missing",
-    "--cov-report=html",
+  "-v",
+  "--strict-markers",
+  "--tb=short",
+  "--cov=src/tklr",
+  "--cov-report=term-missing",
+  "--cov-report=html",
 ]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
+  "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+  "integration: marks tests as integration tests",
+  "unit: marks tests as unit tests",
 ]
