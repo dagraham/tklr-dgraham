@@ -462,7 +462,7 @@ Two supporting views are limited to displaying a single instance of each schedul
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/weeks_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 
-  <p>Press <code>W</code> to open <em>Weeks View</em> on the current week or press <code>J</code> and enter a date to open the view on the week containing that date. The header displays the date range, year and week number for the displayed week. Left and right cursor keys shift the displayed week backward or forward by one week. Pressing the shift key at the same time increases the shift from one to four weeks. Pressing the space key will jump back to the current week.
+  <p>Press <code>W</code> to open <em>Weeks View</em> on the current week or press <code>D</code> and enter a date to open the view on the week containing that date. The header displays the date range, year and week number for the displayed week. Left and right cursor keys shift the displayed week backward or forward by one week. Pressing the shift key at the same time increases the shift from one to four weeks. Pressing the space key will jump back to the current week.
  </p>
 
   <p>As with the other tagged views, pressing the key corresponding to the tag of a reminder opens a panel with the details of that reminder. In this case, the details for tag <em>j</em> are being displayed.
