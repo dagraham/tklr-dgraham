@@ -114,7 +114,7 @@ Rather than filling out fields in a form to create or edit reminders, a simple e
 </li>
 <li>the extent (duration) of the event, <code>@e 1h30m</code> - an hour and thirty minutes
 </li>
-<li>an alert, <code>@e 15m: n</code> - fifteen minutes before the event, trigger a notification 
+<li>an alert, <code>@e 15m: n</code> - fifteen minutes before the event, trigger a notification
 </li>
 <li>the resulting event displayed in <em>Agenda View</em>
 </li>
@@ -484,19 +484,19 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 ### 1.6. Jots and Jot Uses Views: Where did the time go
 
-These screenshots reflect a configuration setting that rounds reported <code>@e</code> times up to the next integer multiple of <code>6</code> minutes and thus reports times in hours and tenths. 
+These screenshots reflect a configuration setting that rounds reported <code>@e</code> times up to the next integer multiple of <code>6</code> minutes and thus reports times in hours and tenths.
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/jots_jots.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
-  <em>Jots View</em> is similar to <em>Weeks View</em> - reminders are grouped by <em>week</em> and then <em>week day</em> with the same key bindings used for navigation. The <em>jots</em> are displayed in different colors for 
+  <em>Jots View</em> is similar to <em>Weeks View</em> - reminders are grouped by <em>week</em> and then <em>week day</em> with the same key bindings used for navigation. The <em>jots</em> are displayed in different colors for
   <ul>
-   <li>those with neither <code>@e</code> nor <code>@u</code> entries</li> 
-   <li>those with only <code>@e</code> entries</li> 
-   <li>those with only <code>@u</code> entries</li> 
+   <li>those with neither <code>@e</code> nor <code>@u</code> entries</li>
+   <li>those with only <code>@e</code> entries</li>
+   <li>those with only <code>@u</code> entries</li>
    <li>those with both <code>@e</code> and <code>@u</code> entries</li>
-   </ul> 
-   When either or both of these attributes are present, they are given in parentheses after the <em>subject</em>. 
+   </ul>
+   When either or both of these attributes are present, they are given in parentheses after the <em>subject</em>.
   </p>
 </div>
 <div style="clear: both;"></div>
@@ -504,10 +504,10 @@ These screenshots reflect a configuration setting that rounds reported <code>@e<
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/jots_uses.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
-  <em>Jots Uses View</em> groups by <em>month</em> and <em>use</em>.  <em>Jots</em> without an entry for  <code>@u</code> are grouped under <em>unassigned</em>. 
+  <em>Jots Uses View</em> groups by <em>month</em> and <em>use</em>.  <em>Jots</em> without an entry for  <code>@u</code> are grouped under <em>unassigned</em>.
   </p>
   <p>
-  The listing for each <em>jot</em> gives 
+  The listing for each <em>jot</em> gives
   <ol>
   <li>tag</li>
   <li><code>@s entry</code> hours:minutes</li>
@@ -522,7 +522,7 @@ These screenshots reflect a configuration setting that rounds reported <code>@e<
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
-<code>% tklr uses report --use exercise 
+<code>% tklr uses report --use exercise
 Jot Uses - Jan 2026 - Feb 2026: 3.9h
 Jan 2026: 0.5h
   exercise.bike: 0.5h
@@ -543,9 +543,9 @@ Feb 2026: 3.4h
     15:30 5      Dolorem sit dolore non dolorem
 </code>
 </pre>
-<p>The CLI version is similar. This one using the command 
+<p>The CLI version is similar. This one using the command
 
-<code>   tklr uses report --use exercise</code> 
+<code>   tklr uses report --use exercise</code>
 
 limits the <em>uses</em> to those containing a match for "exercise".
   </p>
@@ -554,7 +554,7 @@ limits the <em>uses</em> to those containing a match for "exercise".
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
-<code>% tklr uses report --use meditation --verbose 
+<code>% tklr uses report --use meditation --verbose
 Jot Uses - Jan 2026 - Feb 2026: 1.0h
 Jan 2026
   meditation
@@ -1115,14 +1115,14 @@ The purpose of <em>Palette View</em> is to display the color settings that are a
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_colors_dual.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>Pressing "c" toggles the display to show a list of the named colors against the backgrounds currently used for the <em>dark</em> and <em>light</em> themes. 
+  <p>Pressing "c" toggles the display to show a list of the named colors against the backgrounds currently used for the <em>dark</em> and <em>light</em> themes.
   </p>
   <p>The color for a setting can be customized in <code>config.toml</code> by first noting the theme in this section
   </p>
 <pre>
   [ui]
   theme = "dark"
-</pre> 
+</pre>
 <p>
 
 Then, for example, replacing this commented out section
@@ -1176,20 +1176,20 @@ pipx upgrade tklr-dgraham
 
 ### 3.2 Starting tklr for the first time
 
-**Tklr** needs a _home_ directory to store its files - most importantly these two:
+**Tklr** needs a _home_ directory to store its files, most importantly these two:
 
 - _config.toml_: An editable file that holds user configuration settings
-- _tkrl.db_: An _SQLite3_ database file that holds all the records for events, tasks and other reminders created when using _tklr_
+- _tklr.db_: An _SQLite3_ database file that holds all the records for events, tasks and other reminders created when using _tklr_
 
 Any directory can be used for _home_. These are the options:
 
-1. If started using the command `tklr --home <path_to_home>` and the directory `<path_to_home>` exists then _tklr_ will use this directory and, if necessary, create the files `config.toml` and `tklr.db` in this directory.
+1. If started using the command `tklr --home <path_to_home>`, tklr will use that directory. If it does not exist, you will be prompted to create it. The files `config.toml` and `tklr.db` will be created there if needed.
 2. If the `--home <path_to_home>` is not passed to _tklr_ then the _home_ will be selected in this order:
 
-   - If the current working directory contains files named `config.toml` and `tklr.db` then it will be used as _home_
-   - Else if the environmental variable `TKLR_HOME` is set and specifies a path to an existing directory then it will be used as _home_
-   - Else if the environmental variable `XDG_CONFIG_HOME` is set, and specifies a path to an existing directory which contains a directory named `tklr`, then that directory will be used.
-   - Else the directory `~/.config/tklr` will be used.
+   - If the current working directory contains files named `config.toml` and `tklr.db`, it will be used as _home_.
+   - Else if the environment variable `TKLR_HOME` is set, it will be used as _home_ (and created if missing).
+   - Else if the environment variable `XDG_CONFIG_HOME` is set, `${XDG_CONFIG_HOME}/tklr` will be used (and created if missing).
+   - Else the directory `~/.config/tklr` will be used (and created if missing).
 
 ### 3.3. Configuration
 

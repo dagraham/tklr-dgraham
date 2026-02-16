@@ -16,9 +16,8 @@ from .versioning import get_version
 from tklr.tklr_env import TklrEnvironment
 from .named_colors import css_named_colors
 
+# Avoid touching env.config at import time so --help remains side-effect free.
 env = TklrEnvironment()
-AMPM = env.config.ui.ampm
-HRS_MINS = "12" if AMPM else "24"
 
 ELLIPSIS_CHAR = "…"
 
@@ -198,7 +197,7 @@ def get_theme_palette(
 ) -> dict[str, str]:
     palette = dict(THEME_PALETTES.get(theme, THEME_PALETTES["dark"]))
     if overrides is None:
-        overrides = getattr(env.config.ui, "palette", {}) or {}
+        overrides = {}
     theme_overrides: dict[str, str] = {}
     if isinstance(overrides, dict):
         candidate = overrides.get(theme)
@@ -226,6 +225,7 @@ def apply_theme_palette(
     *,
     apply_overrides: bool = True,
     overrides: dict[str, dict[str, str]] | None = None,
+    type_overrides: dict[str, str] | None = None,
 ) -> dict[str, str]:
     palette = get_theme_palette(theme, overrides)
     globals().update(
@@ -273,12 +273,13 @@ def apply_theme_palette(
         }
     )
     if apply_overrides:
-        _apply_type_color_overrides()
+        _apply_type_color_overrides(type_overrides)
     return palette
 
 
-def _apply_type_color_overrides() -> None:
-    overrides = getattr(env.config.ui, "colors", {}) or {}
+def _apply_type_color_overrides(overrides: dict[str, str] | None = None) -> None:
+    if not overrides:
+        return
     for key, value in overrides.items():
         if not value:
             continue
@@ -287,8 +288,7 @@ def _apply_type_color_overrides() -> None:
         if lookup in TYPE_TO_COLOR:
             TYPE_TO_COLOR[lookup] = value.strip()
 
-
-apply_theme_palette(getattr(env.config.ui, "theme", "dark"))
+apply_theme_palette("dark", apply_overrides=False)
 
 
 def _normalize_ts(value: str | None) -> str:
@@ -791,10 +791,14 @@ def datetime_in_words(fmt_dt: str, ampm: bool = False) -> str:
     minutes_str = (
         "" if minutes == 0 else f" o {minutes}" if minutes < 10 else f" {minutes}"
     )
-    hours_str = dt.strftime("%H") if ampm else dt.strftime("%I")
+    if ampm:
+        hours_str = dt.strftime("%I")
+        suffix = " a m" if dt.hour < 12 else " p m"
+    else:
+        hours_str = dt.strftime("%H")
+        suffix = " hours"
     if hours_str.startswith("0"):
         hours_str = hours_str[1:]
-    suffix = " hours" if ampm else " a m" if dt.hour < 12 else " p m"
     time_str = f"{hours_str}{minutes_str}{suffix}"
 
     if delta_days == 0:

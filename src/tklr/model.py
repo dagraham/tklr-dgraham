@@ -29,7 +29,6 @@ from rich.text import Text
 
 
 from .shared import (
-    HRS_MINS,
     log_msg,
     bug_msg,
     parse,
@@ -2655,8 +2654,8 @@ class DatabaseManager:
         else:
             when = f"{duration_in_words(-timedelta)} ago"
 
-        start = format_datetime(start_datetime, HRS_MINS)
-        time_fmt = datetime_in_words(start_datetime)
+        start = format_datetime(start_datetime, self.AMPM)
+        time_fmt = datetime_in_words(start_datetime, self.AMPM)
 
         alert_command = alert_command.format(
             name=name,
@@ -2697,8 +2696,8 @@ class DatabaseManager:
         else:
             when = f"{duration_in_words(-timedelta)} ago"
 
-        start = format_datetime(start_datetime, HRS_MINS)
-        start_words = datetime_in_words(start_datetime)
+        start = format_datetime(start_datetime, self.AMPM)
+        start_words = datetime_in_words(start_datetime, self.AMPM)
 
         # Prepare dict of available fields
         field_values = {

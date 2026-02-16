@@ -491,6 +491,7 @@ class TklrEnvironment:
 
         # Step 1: Create the file if it doesn't exist
         if not os.path.exists(self.config_path):
+            self.home.mkdir(parents=True, exist_ok=True)
             config = TklrConfig()
             template = Template(CONFIG_TEMPLATE)
             rendered = template.render(**config.model_dump()).strip() + "\n"

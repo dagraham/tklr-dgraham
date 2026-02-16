@@ -101,7 +101,6 @@ from .shared import (
     log_msg,
     bug_msg,
     _to_local_naive,
-    HRS_MINS,
     format_time_range,
     format_timedelta,
     datetime_from_timestamp,
@@ -583,7 +582,12 @@ class Controller:
         global JOT_COLOR_NONE, JOT_COLOR_EXTENT, JOT_COLOR_USE, JOT_COLOR_FULL
         global TYPE_TO_COLOR
         overrides = getattr(self.env.config.ui, "palette", {}) if self.env else {}
-        apply_theme_palette(self.ui_theme, overrides=overrides)
+        type_overrides = getattr(self.env.config.ui, "colors", {}) if self.env else {}
+        apply_theme_palette(
+            self.ui_theme,
+            overrides=overrides,
+            type_overrides=type_overrides,
+        )
         label_color = shared_colors.label_color
         type_color = shared_colors.type_color
         HEADER_COLOR = shared_colors.HEADER_COLOR
@@ -3371,7 +3375,8 @@ class Controller:
             due_dt = due_dt.astimezone() if due_dt else None
 
             monthday = completed_dt.strftime("%-m-%d")
-            time_part = format_hours_mins(completed_dt, HRS_MINS)
+            mode = "12" if self.AMPM else "24"
+            time_part = format_hours_mins(completed_dt, mode)
             when_str = f"{monthday:>2} {time_part}"
 
             type_color = TYPE_TO_COLOR.get(itemtype, "white")

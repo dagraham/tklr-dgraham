@@ -21,7 +21,7 @@ from tklr.item import Item
 from tklr.controller import Controller
 from tklr.model import DatabaseManager, td_str_to_seconds
 from tklr.view import DynamicViewApp
-from tklr.tklr_env import TklrEnvironment
+from tklr.tklr_env import TklrEnvironment, collapse_home
 from tklr.migration import MIGRATION_ITEM_TYPES, migrate_etm_directory
 
 # from tklr.view_agenda import run_agenda_view
@@ -117,6 +117,31 @@ def _print_detail_lines(console: Console, lines: list[str], rich: bool) -> None:
         last_was_blank = is_blank
 
 
+def _format_command_list(ctx: click.Context) -> str:
+    formatter = click.HelpFormatter()
+    ctx.command.format_commands(ctx, formatter)
+    return formatter.getvalue().rstrip()
+
+
+def _format_home_candidates() -> str:
+    candidates: list[str] = []
+    cwd = Path.cwd()
+    if (cwd / "config.toml").exists() and (cwd / "tklr.db").exists():
+        candidates.append(f"- current directory: {collapse_home(cwd)}")
+    env_home = os.getenv("TKLR_HOME")
+    if env_home:
+        candidates.append(f"- $TKLR_HOME: {collapse_home(env_home)}")
+    xdg_home = os.getenv("XDG_CONFIG_HOME")
+    if xdg_home:
+        candidates.append(
+            f"- $XDG_CONFIG_HOME/tklr: {collapse_home(Path(xdg_home) / 'tklr')}"
+        )
+    candidates.append(
+        f"- default: {collapse_home(Path.home() / '.config' / 'tklr')}"
+    )
+    return "\n".join(candidates)
+
+
 def get_raw_from_file(path: str) -> str:
     with open(path, "r", encoding="utf-8") as f:
         return f.read().strip()
@@ -131,7 +156,7 @@ def get_raw_from_stdin() -> str:
     return sys.stdin.read().strip()
 
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.version_option(VERSION, prog_name="tklr", message="%(prog)s version %(version)s")
 @click.option(
     "--home",
@@ -141,6 +166,14 @@ def get_raw_from_stdin() -> str:
 @click.pass_context
 def cli(ctx, home, verbose):
     """Tklr CLI – manage your reminders from the command line."""
+    if ctx.invoked_subcommand is None and not ctx.resilient_parsing:
+        commands = _format_command_list(ctx)
+        click.echo(
+            "What command would you like to execute?\nPlease append one from the list below.\n"
+            f"{commands}"
+        )
+        ctx.exit(2)
+
     if home:
         os.environ["TKLR_HOME"] = (
             home  # Must be set before TklrEnvironment is instantiated
@@ -153,6 +186,14 @@ def cli(ctx, home, verbose):
             f"The Tklr home directory '{env.home}' does not exist. Create it now?",
             default=True,
             abort=True,
+        )
+    elif not home and not env.home.exists() and not ctx.resilient_parsing:
+        candidates = _format_home_candidates()
+        click.echo(
+            "No Tklr home directory found. You can create one in any of these locations:\n"
+            f"{candidates}\n"
+            f"Creating {collapse_home(env.home)} now. "
+            "Use --home or set $TKLR_HOME/$XDG_CONFIG_HOME to choose another."
         )
 
     env.ensure(init_config=True, init_db_fn=lambda path: ensure_database(path, env))
@@ -1457,7 +1498,7 @@ def _emit_jot_uses_report(
     if total_minutes > 0:
         title = f"{title}: {format_decimal_hours(total_minutes, step_minutes)}"
     click.echo(title)
-    for (year, month) in sorted(month_map.keys()):
+    for year, month in sorted(month_map.keys()):
         month_label = date(year, month, 1).strftime("%b %Y")
         month_minutes = month_totals.get((year, month), 0)
         if month_minutes > 0:
