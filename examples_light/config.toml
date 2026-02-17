@@ -75,7 +75,6 @@ two_digit_year = true
 # note_color = "#b56576"
 
 
-
 [alerts]
 # dict[str, str]: character -> command_str.
 # E.g., this entry
@@ -88,6 +87,7 @@ two_digit_year = true
 # Additional keys: start (scheduled datetime), time (spoken version of
 # start), location, description.
 
+v = '/usr/bin/say -v Alex "{name}, {when}"'
 
 # ─── Urgency Configuration ─────────────────────────────────────
 
