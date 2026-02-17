@@ -9,7 +9,6 @@ import tomllib
 from tomlkit import parse as toml_parse, dumps as toml_dumps
 import shutil
 import itertools
-import subprocess
 
 TWINE_ENV_KEYS = (
     "TWINE_USERNAME",
@@ -21,7 +20,6 @@ TWINE_ENV_KEYS = (
 
 PYPROJECT_PATH = Path("pyproject.toml")
 MAIN_BRANCH = "master"
-WORKING_BRANCH = "working"
 
 DRY_RUN = "--dry-run" in sys.argv
 
@@ -199,12 +197,12 @@ def write_version(new_version: str):
     PYPROJECT_PATH.write_text(toml_dumps(doc), encoding="utf-8")
 
 
-# --- Ensure we're on the working branch ---
+# --- Ensure we're on the main branch ---
 ok, current_branch = read("git rev-parse --abbrev-ref HEAD")
 current_branch = current_branch.strip()
-if current_branch != WORKING_BRANCH:
-    print(f"⚠️  You are on '{current_branch}', not '{WORKING_BRANCH}'.")
-    print(f"Please switch to '{WORKING_BRANCH}' before running this script.")
+if current_branch != MAIN_BRANCH:
+    print(f"⚠️  You are on '{current_branch}', not '{MAIN_BRANCH}'.")
+    print(f"Please switch to '{MAIN_BRANCH}' before running this script.")
     sys.exit(1)
 
 if CLEAN_ONLY:
@@ -304,21 +302,16 @@ run(f"git tag -a -f '{new_version}' -m '{version_info}'")
 #         f.write(changelog)
 #     print("CHANGES.txt generated (not committed).")
 
-# Merge to master and sync
-if input("Switch to master, merge working, and push? [yN] ").lower() == "y":
-    run(f"git checkout {MAIN_BRANCH}")
-    run(f"git merge {WORKING_BRANCH}")
+# Sync and push on master
+if input(f"Pull --rebase and push '{MAIN_BRANCH}' to origin? [yN] ").lower() == "y":
+    run(f"git pull --rebase origin {MAIN_BRANCH}")
     run(f"git push origin {MAIN_BRANCH}")
-
-    run(f"git checkout {WORKING_BRANCH}")
-    run(f"git reset --hard {MAIN_BRANCH}")
-    run(f"git push origin {WORKING_BRANCH} --force")
+    run("git push origin --tags")
 
     if input("Upload to PyPI using uv publish? [yN] ").lower() == "y":
         build_and_upload()
-
 else:
-    print(f"Retained version: {version}")
+    print(f"Retained version locally on '{MAIN_BRANCH}': {version}")
 
 if not DRY_RUN:
     run("uv pip install -e .")
