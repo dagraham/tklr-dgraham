@@ -137,7 +137,7 @@ Rather than filling out fields in a form to create or edit reminders, a simple e
 | project   |     ^     | collection of related tasks      |
 | goal      |     !     | action at a specified frequency  |
 | note      |     %     | information for future reference |
-| jot       |     -     | timestampled message to self     |
+| jot       |     -     | timestamped message to self      |
 | draft     |     ?     | preliminary/unfinished reminder  |
 
 Here are some illustrations of how the various types.
@@ -252,7 +252,7 @@ Here are some illustrations of how the various types.
 </div>
 <div style="clear:both;"></div>
 
-Since the <code>@o</code> attribute involves resetting attibutes  in a way that effectively repeats the <em>task</em>:
+Since the <code>@o</code> attribute involves resetting attributes  in a way that effectively repeats the <em>task</em>:
 
 1. `@o` can only be used with _tasks_
 2. Using `@o` precludes the use of `@r`
@@ -378,22 +378,22 @@ Underneath the details is a very simple idea - in the heat of battle when every 
 
 Each of the main views in *tklr* can be opened by pressing a single key - the first letter of the view's name.
 
-| View             |  Key  | Displays                                       |
-| ---------------- | :---: | ---------------------------------------------- |
-| Agenda           |   A   | events, goals, tasks                           |
-| Bins             |   B   | Tree view of Bins                              |
-| Completions      |   C   | Completion datetimes for completed tasks       |
-| Find             |   F   | Case insenstive search in subjects and details |
-| Goals            |   G   | Case insenstive search in subjects and details |
-| Hash-Tags        |   H   | List reminders with tags grouped by tag        |
-| Jots             |   J   | Jots by week and weekday                       |
-| Last             |   L   | The last instance of reminders before today    |
-| Modified         |   M   | All reminders sorted by the modified timestamp |
-| Next             |   N   | The next instance of reminders after today     |
-| Query            |   Q   | List matches for a specified query             |
-| Remaining Alerts |   R   | List remaining alerts for the today            |
-| Jot Uses         |   U   | Jots with totals by month and use              |
-| Weeks            |   W   | Scheduled reminders by week and weekday        |
+| View             |  Key  | Displays                                        |
+| ---------------- | :---: | ----------------------------------------------- |
+| Agenda           |   A   | events, goals, tasks                            |
+| Bins             |   B   | Tree view of Bins                               |
+| Completions      |   C   | Completion datetimes for completed tasks        |
+| Find             |   F   | Case insensitive search in subjects and details |
+| Goals            |   G   | Case insensitive search in subjects and details |
+| Hash-Tags        |   H   | List reminders with tags grouped by tag         |
+| Jots             |   J   | Jots by week and weekday                        |
+| Last             |   L   | The last instance of reminders before today     |
+| Modified         |   M   | All reminders sorted by the modified timestamp  |
+| Next             |   N   | The next instance of reminders after today      |
+| Query            |   Q   | List matches for a specified query              |
+| Remaining Alerts |   R   | List remaining alerts for the today             |
+| Jot Uses         |   U   | Jots with totals by month and use               |
+| Weeks            |   W   | Scheduled reminders by week and weekday         |
 
 
 Each of these views displays a vertical list of reminders, with each reminder row beginning with a tag from "a", "b", ..., "z", followed by the pertinent details of the reminder including its subject.  When necessary, lists are split into pages so that no more than 26 reminders appear on any one page and the left and right cursor keys are used to move back and forth between pages.
@@ -427,11 +427,11 @@ Times are displayed in the screenshots using _24-hour_ notation. An option can b
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>While the listing of events begins with the current day, any all-day events or events whose ending times have already passed such as the one tagged <em>a</em> will be dimmed. Additionally an event, such as the one tagged <em>b</em> whose active period overlaps the current moment will be highlighted.
   </p>
-  <p>The first day of events will always include any <em>notices</em> of upcomming events or <em>draft</em> reminders needing completion in addition to any scheduled events for today. In this case the reminder tagged <em>d</em> indicates that there is an event beginning in 5 days (<code>+5d</code>) with a subject beginning with "Amet porro ..." and a <em>notice attribute</em>, <code>@n x</code>, in which <code>x > 5d</code>. This attribute is the reason this notice of the event is being displayed before its scheduled datetime - it will continue to be displayed on the first day (current date) of Agenda View each day until the day of the event.
+  <p>The first day of events will always include any <em>notices</em> of upcoming events or <em>draft</em> reminders needing completion in addition to any scheduled events for today. In this case the reminder tagged <em>d</em> indicates that there is an event beginning in 5 days (<code>+5d</code>) with a subject beginning with "Amet porro ..." and a <em>notice attribute</em>, <code>@n x</code>, in which <code>x > 5d</code>. This attribute is the reason this notice of the event is being displayed before its scheduled datetime - it will continue to be displayed on the first day (current date) of Agenda View each day until the day of the event.
   </p>
     <p>There is also a draft entry tagged <em>e</em> and displayed in red. This is simply a reminder whose item type is <code>?</code>. This is used to flag a reminder as incomplete as would be the case, e.g., if a final datetime for the event had not yet been finalized. Draft reminders are also displayed on the current, first day in Agenda view until the item type is changed.
     </p>
-    <p>The list for *goals* includes all goals which have not been completed on the current date, sorted and color coded by their *priorty*, which is listed in the first column after the tags. The details for precisely how *priority* is calculated will be described later but the basic idea involves comparing</p>
+    <p>The list for *goals* includes all goals which have not been completed on the current date, sorted and color coded by their *priority*, which is listed in the first column after the tags. The details for precisely how *priority* is calculated will be described later but the basic idea involves comparing</p>
 
   <ol>
     <li>the rate at which completions would currently need to occur to complete the goal</li>
@@ -818,7 +818,7 @@ Consider an event with `@s 2025-10-21 10am @e 2h30m`, which starts at 10am and e
 
 ### 2.7. Alert
 
-An alert is specified using `@a <list of invervals> : <list of commands>`. An `@s <datetime>` is required and the result is to execute the commands in `<list of commands>` at the datetimes resulting from subtracting the intervals in `<list of intervals>` from `<datetime>`. E.g., with `@s 17:00 fri` and `@a 1h, -15m: n, v`, the commands `n` and `v` would each be executed at `17:00 - 1h = 16:00` and `17:00 + 15m = 17:15` on Friday.
+An alert is specified using `@a <list of intervals> : <list of commands>`. An `@s <datetime>` is required and the result is to execute the commands in `<list of commands>` at the datetimes resulting from subtracting the intervals in `<list of intervals>` from `<datetime>`. E.g., with `@s 17:00 fri` and `@a 1h, -15m: n, v`, the commands `n` and `v` would each be executed at `17:00 - 1h = 16:00` and `17:00 + 15m = 17:15` on Friday.
 
 The command `n` in the example is *built into tklr* - it sounds a bell and pops up a message on the *tklr* display which lasts for a minute (or until clicked on).  Other commands such as `v` in the example must be specified in the user configuration file. This is the relevant section:
 
@@ -947,7 +947,7 @@ A single word, without spaces, preceded by a hash character `#` and included in 
 
 ### 2.12. Timezones
 
-When a datetime is specified without an `z` component, the timezone is assumed to be aware and represented using the local timezone. The datetime is converted to UTC for storage in the database. When an awared datetime is displayed, it is displayed using the local timezone of the computer.
+When a datetime is specified without an `z` component, the timezone is assumed to be aware and represented using the local timezone. The datetime is converted to UTC for storage in the database. When an aware datetime is displayed, it is displayed using the local timezone of the computer.
 
 Suppose you're in the US/Eastern timezone and want to schedule a call to a friend at 3:00pm Friday, US/Pacific time. This could be entered as `@s 3p fri z US/Pacific`. This datetime would first be converted to UTC time and then stored as a string in the SQLite3 database. It would then be displayed to you in the local timezone of your computer, where ever it might be.
 
@@ -1093,7 +1093,7 @@ With this entry in <em>config.toml</em> in your home directory:
 
 #### 2.16.2. To record reminders
 
-The key here is parallel file, <em>inbox.txt</em> in your home directory. Normally this file has zero length, but if you edit it using, say, <em>Textastic</em> and record one or more reminders using exacly the same format that you would use with <em>tklr</em> and being careful to leave a blank line between reminders, then the next time <em>tklr</em> checks the length of this file and notices that it is greater than zero, it will import each of the reminders, prefixing each with a <code>?</code> character so that it will be treated as a <em>draft</em> reminder until you remove the <code>?</code> prefix.  When this process finishes, the reminders are automatically removed from <em>inbox.txt</em> so that its length is restored to zero - ready for subsequent additions. When you next open <em>tklr</em>, all the drafts will be listed together on the current day of the events listing in <em>Agenda View</em> ready for you to make any edits you like to the "drafts" and remove the <code>?</code> prefixes.
+The key here is parallel file, <em>inbox.txt</em> in your home directory. Normally this file has zero length, but if you edit it using, say, <em>Textastic</em> and record one or more reminders using exactly the same format that you would use with <em>tklr</em> and being careful to leave a blank line between reminders, then the next time <em>tklr</em> checks the length of this file and notices that it is greater than zero, it will import each of the reminders, prefixing each with a <code>?</code> character so that it will be treated as a <em>draft</em> reminder until you remove the <code>?</code> prefix.  When this process finishes, the reminders are automatically removed from <em>inbox.txt</em> so that its length is restored to zero - ready for subsequent additions. When you next open <em>tklr</em>, all the drafts will be listed together on the current day of the events listing in <em>Agenda View</em> ready for you to make any edits you like to the "drafts" and remove the <code>?</code> prefixes.
 
 ### 2.17. Palette View: Customizing Theme Color Settings
 
@@ -1283,7 +1283,7 @@ The attribute <code>@z</code> to specify the timezone for datetime entries in a 
 
 <code>@s 9a fri z US/Pacific</code>
 
-would indicate that "9a fri" is to be interpreted as an <em>aware</em> datetime in the "US/Pacific" timezone. Similarly <code>z none</code> would indicate that the preceeding datetime is to be interpreted as a <em>naive</em> datetime.
+would indicate that "9a fri" is to be interpreted as an <em>aware</em> datetime in the "US/Pacific" timezone. Similarly <code>z none</code> would indicate that the preceding datetime is to be interpreted as a <em>naive</em> datetime.
 
 ### 5.2. Type Changes
 
@@ -1326,7 +1326,7 @@ The *tklr* settings mirror standard usage in <code>strftime</code>.
 
 ### 5.5. <code>@~</code> project task/job modifier changes
 
-The modifers used in <code>@~</code> <em>project task</em> entries are significantly changed from the <em>etm</em> <code>@j</code> <em>job</em> entries. In <em>tklr</em>, the optional <code>&r</code> <em>requires</em> modifier replaces both the <code>&i</code> <em>id</em> and the <code>&p</code> <em>prerequisite</em> modifiers. See [doghouse project](#doghouse-example) for an example of the new usage.
+The modifiers used in <code>@~</code> <em>project task</em> entries are significantly changed from the <em>etm</em> <code>@j</code> <em>job</em> entries. In <em>tklr</em>, the optional <code>&r</code> <em>requires</em> modifier replaces both the <code>&i</code> <em>id</em> and the <code>&p</code> <em>prerequisite</em> modifiers. See [doghouse project](#doghouse-example) for an example of the new usage.
 
 ## 6. Developer Guide
 

@@ -136,9 +136,7 @@ def _format_home_candidates() -> str:
         candidates.append(
             f"- $XDG_CONFIG_HOME/tklr: {collapse_home(Path(xdg_home) / 'tklr')}"
         )
-    candidates.append(
-        f"- default: {collapse_home(Path.home() / '.config' / 'tklr')}"
-    )
+    candidates.append(f"- default: {collapse_home(Path.home() / '.config' / 'tklr')}")
     return "\n".join(candidates)
 
 
