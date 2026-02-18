@@ -130,15 +130,15 @@ Rather than filling out fields in a form to create or edit reminders, a simple e
 
 *tklr* has seven types of reminders, each with a corresponding type character:
 
-| item type | character | description                      |
-| --------- | :-------: | -------------------------------- |
-| event     |     *     | happens at a particular time     |
-| task      |     ~     | requires action to complete      |
-| project   |     ^     | collection of related tasks      |
-| goal      |     !     | action at a specified frequency  |
-| note      |     %     | information for future reference |
-| jot       |     -     | timestamped message to self      |
-| draft     |     ?     | preliminary/unfinished reminder  |
+| item type | character | description                             |
+| --------- | :-------: | --------------------------------------- |
+| event     |     *     | happens at a particular time            |
+| task      |     ~     | requires an action to complete          |
+| project   |     ^     | collection of related tasks             |
+| goal      |     !     | targets action at a specified frequency |
+| note      |     %     | information for future reference        |
+| jot       |     -     | timestamped message to self             |
+| draft     |     ?     | preliminary/unfinished reminder         |
 
 Here are some illustrations of how the various types.
 
