@@ -250,3 +250,31 @@ class TestRelativeTimes:
         item = item_factory("* weekend event @s sat 7p @e 2d2h30m")
 
         assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
+
+
+@pytest.mark.unit
+class TestScheduleKeywords:
+    """Test @s keyword shortcuts."""
+
+    def test_parse_today_keyword(self, frozen_time, item_factory):
+        item = item_factory("~ keyword test")
+        obj, kind, tz_used = item.parse_user_dt_for_s("today")
+        assert kind == "date"
+        assert obj == date(2025, 1, 1)
+        assert tz_used is None
+
+    def test_parse_now_keyword(self, frozen_time, item_factory):
+        item = item_factory("~ keyword test")
+        obj, kind, tz_used = item.parse_user_dt_for_s("now")
+        assert kind == "aware"
+        assert isinstance(obj, datetime)
+        assert obj.tzinfo is not None
+        assert tz_used is not None
+
+    def test_parse_now_keyword_naive(self, frozen_time, item_factory):
+        item = item_factory("~ keyword test")
+        obj, kind, tz_used = item.parse_user_dt_for_s("now z none")
+        assert kind == "naive"
+        assert isinstance(obj, datetime)
+        assert obj.tzinfo is None
+        assert tz_used is None

@@ -1338,6 +1338,25 @@ Entry: {self.entry}
         On error: (None, 'error', <message>)
         """
         core, zdir = _split_z_directive(user_text)
+        core_lc = core.strip().lower()
+
+        # Friendly keywords
+        if core_lc == "today":
+            return date.today(), "date", None
+
+        if core_lc == "now":
+            if zdir and zdir.lower() == "none":
+                return datetime.now(), "naive", None
+
+            if zdir:
+                zone = tz.gettz(zdir)
+                if zone is None:
+                    return None, "error", f"Unknown timezone: {zdir!r}"
+            else:
+                zone = tz.tzlocal()
+
+            now_aware = datetime.now(zone)
+            return _ensure_utc(now_aware), "aware", zone
 
         try:
             obj = parse_dt(core, dayfirst=self.dayfirst, yearfirst=self.yearfirst)

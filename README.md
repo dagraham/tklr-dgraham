@@ -728,11 +728,13 @@ SQLite offers tangible advantages over TinyDB’s JSON store which - used for *t
 
 ### 2.1. DateTimes
 
-Intelligent parsing of the user's entry of a datetime is supported. Suppose it is Thursday, November 6 2025 in the US/Eastern timezone. When a datetime is entered it is interpreted _relative_ to the current date, time and timezone. When entering the scheduled datetime for a reminder using `@s`, the following table illustrates how various entries would be interpreted and the resulting user feedback.
+Intelligent parsing of the user's entry of a datetime is supported. Suppose it is 10am on Thursday, November 6 2025 in the US/Eastern timezone. When a datetime is entered it is interpreted _relative_ to the current date, time and timezone. When entering the scheduled datetime for a reminder using `@s`, the following table illustrates how various entries would be interpreted and the resulting user feedback.
 
 | @s entry        | interpretation       | user feedback              |
 | --------------- | -------------------- | -------------------------- |
 | wed             | 2025-11-12           | Wed, Nov 12 2025           |
+| now             | 2025-11-06 10:00 EST | Thu, Nov 6 2025 10:00 EST  |
+| today           | 2025-11-06           | Thu, Nov 6 2025            |
 | 9a              | 2025-11-06 09:00 EST | Thu, Nov 6 2025 09:00 EST  |
 | 9a fri          | 2025-11-07 09:00 EST | Fri, Nov 7 2025 09:00 EST  |
 | 10 9p z none    | 2025-11-10 21:00     | Mon, Nov 10 2025 21:00     |
