@@ -324,7 +324,7 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
 #### 1.2.10. A _jot_: taking a walk
 
-Tracking where a resource goes is the key to managing any scarce resource - your time is no exception. A *jot* is a reminder type designed to facilitate this purpose. It provides a way of *quickly* recording *small* bits of time-stamped information. It is sufficienty different from the other reminder types to warrant some discussion before giving an example.
+Tracking where a resource goes is the key to managing any scarce resource - your time is no exception. A *jot* is a reminder type designed to facilitate this purpose. It provides a way of *quickly* recording a *jot* of time-stamped information as a *message to self*. It is sufficiently different from the other reminder types to warrant some discussion before giving an example.
 
 Imagine that *tklr* is running on your computer and that, in the midst of your hectic day, you could reach over, press "+" to create a new reminder, enter "-" to make it a *jot* and follow with the *subject* - a *brief* phrase - just enough to trigger your memory later. Then press Ctrl+S to save - an automatic timestamp will be added.
 
