@@ -1293,6 +1293,7 @@ class EditorScreen(Screen):
             self._text.focus()
             self._render_feedback()
         self._live_parse_and_feedback(final=False)
+        self.call_after_refresh(self._rebalance_editor_panes)
 
     # ---------- Text change -> live parse ----------
     def on_text_area_changed(self, event: TextArea.Changed) -> None:
@@ -1302,6 +1303,7 @@ class EditorScreen(Screen):
             self._live_parse_and_feedback(final=False, refresh_from_widget=True)
         else:
             self._live_parse_and_feedback(final=False)
+        self._rebalance_editor_panes()
 
         # Optional: stop propagation so nothing else double-handles it
         event.stop()
@@ -1334,6 +1336,55 @@ class EditorScreen(Screen):
         """Restore focus to the editor on clicks inside the screen."""
         if self._text and not self._text.has_focus:
             self._text.focus()
+
+    def on_resize(self, event: events.Resize) -> None:
+        self.call_after_refresh(self._rebalance_editor_panes)
+
+    def _rebalance_editor_panes(self) -> None:
+        """
+        Size editor + feedback dynamically:
+        - entry grows with content
+        - entry capped at 50% of combined editable area
+        - feedback gets the remainder
+        """
+        if not self._text:
+            return
+        available_height = self.size.height or 0
+        if available_height <= 0:
+            return
+
+        text = self._text.text or self.entry_text or ""
+        usable_width = max(10, (self._text.size.width or 0) - 2)
+        entry_height = self.compute_editor_entry_height(
+            text=text,
+            usable_width=usable_width,
+            available_height=available_height,
+        )
+
+        # Let feedback pane keep the remainder via CSS (1fr).
+        self._text.styles.height = str(entry_height)
+
+    @staticmethod
+    def compute_editor_entry_height(
+        *,
+        text: str,
+        usable_width: int,
+        available_height: int,
+        min_entry_height: int = 4,
+    ) -> int:
+        """
+        Compute TextArea height from visual wrapped lines, capped at 50% of space.
+        """
+        logical_lines = text.splitlines() or [""]
+        width = max(10, usable_width)
+        visual_lines = 0
+        for line in logical_lines:
+            line_len = max(1, len(line))
+            visual_lines += max(1, (line_len + width - 1) // width)
+        needed_lines = visual_lines + 2  # TextArea chrome + breathing room
+
+        max_entry_height = max(min_entry_height, max(1, available_height) // 2)
+        return max(min_entry_height, min(needed_lines, max_entry_height))
 
     def action_save_and_close(self) -> None:
         ok = self._finalize_and_validate()
