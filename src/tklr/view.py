@@ -33,7 +33,7 @@ from rich.text import Text
 from rich.rule import Rule
 from rich.style import Style
 from textual.app import App, ComposeResult, ScreenStackError
-from textual.containers import Horizontal, Vertical, Grid
+from textual.containers import Horizontal, Vertical, Grid, VerticalScroll
 from textual.geometry import Size
 from textual.reactive import reactive
 from textual.screen import ModalScreen
@@ -1275,8 +1275,8 @@ class EditorScreen(Screen):
                 ),
             ]
             self._instructions = Static("\n".join(instructions), id="ed_instructions")
-            self._feedback = Static("", id="ed_feedback")
             self._text = TextArea(self.entry_text, id="ed_entry")
+            self._feedback = Static("", id="ed_feedback")
 
             yield Static(title_text, classes="title-class", id="ed_title")
 
@@ -1284,7 +1284,8 @@ class EditorScreen(Screen):
 
             yield self._instructions
             yield self._text
-            yield self._feedback
+            with VerticalScroll(id="ed_feedback_scroll"):
+                yield self._feedback
 
     def on_mount(self) -> None:
         # focus editor and run initial parse (non-final)
@@ -1308,6 +1309,31 @@ class EditorScreen(Screen):
     def on_text_area_selection_changed(self, event: TextArea.SelectionChanged) -> None:
         # Don't re-parse—just re-render feedback for the new caret position
         self._render_feedback()
+        event.stop()
+
+    def on_key(self, event: events.Key) -> None:
+        """Keep cursor-navigation keys in the editor even if focus drifts."""
+        if not self._text:
+            return
+
+        nav_keys = {
+            "up",
+            "down",
+            "left",
+            "right",
+            "home",
+            "end",
+            "pageup",
+            "pagedown",
+        }
+        if event.key in nav_keys and not self._text.has_focus:
+            self._text.focus()
+            event.stop()
+
+    def on_mouse_down(self, event: events.MouseDown) -> None:
+        """Restore focus to the editor on clicks inside the screen."""
+        if self._text and not self._text.has_focus:
+            self._text.focus()
 
     def action_save_and_close(self) -> None:
         ok = self._finalize_and_validate()
@@ -1487,6 +1513,14 @@ class EditorScreen(Screen):
         except Exception:
             return None
 
+    def _set_feedback(self, panel: Static, text: str) -> None:
+        """Update feedback panel while keeping the text fully scrollable."""
+        normalized = (text or "").replace("\t", "    ")
+        max_total_chars = 12000
+        if len(normalized) > max_total_chars:
+            normalized = normalized[: max_total_chars - 1] + "…"
+        panel.update(normalized.strip())
+
     def _render_feedback(self) -> None:
         """Update the feedback panel using only screen state."""
         _AT_DESC = {
@@ -1532,13 +1566,13 @@ class EditorScreen(Screen):
 
         item = getattr(self, "item", None)
         if not item:
-            panel.update("")
+            self._set_feedback(panel, "")
             return
 
         # 1) Show validate messages if any.
         if self.item.validate_messages:
             # log_msg(f"{self.item.validate_messages = }")
-            panel.update("\n".join(self.item.validate_messages))
+            self._set_feedback(panel, "\n".join(self.item.validate_messages))
             return
 
         msgs = getattr(item, "messages", None) or []
@@ -1554,20 +1588,15 @@ class EditorScreen(Screen):
             s = "\n".join(l)
             # log_msg(f"{s = }")
             # panel.update("\n".join(msgs))
-            panel.update(s)
+            self._set_feedback(panel, s)
             return
-
-        last = getattr(item, "last_result", None)
-        if last and last[1]:
-            panel.update(str(last[1]))
-            # return
 
         # 2) No errors: describe token at cursor (with normalized preview if available).
         idx = self._cursor_abs_index()
         tok = self._token_at(idx)
 
         if not tok:
-            # panel.update("")
+            self._set_feedback(panel, "")
             return
 
         ttype = tok.get("t", "")
@@ -1575,19 +1604,11 @@ class EditorScreen(Screen):
         k = tok.get("k", "")
 
         preview = ""
-        last = getattr(item, "last_result", None)
-        # if isinstance(last, tuple) and len(last) >= 3 and last[0] is True:
-        if isinstance(last, tuple) and len(last) >= 3:
-            meta = last[2] or {}
-            if meta.get("s") == tok.get("s") and meta.get("e") == tok.get("e"):
-                norm_val = last[1]
-                if isinstance(norm_val, str) and norm_val:
-                    preview = f"{meta.get('t')}{meta.get('k')} {norm_val}"
 
         if ttype == "itemtype":
-            panel.update(f"itemtype: {self.item.itemtype}")
+            self._set_feedback(panel, f"itemtype: {self.item.itemtype}")
         elif ttype == "subject":
-            panel.update(f"subject: {self.item.subject}")
+            self._set_feedback(panel, f"subject: {self.item.subject}")
         elif ttype == "@":
             # panel.update(f"↳ @{k or '?'} {preview or raw}")
             key = tok.get("k", None)
@@ -1596,13 +1617,13 @@ class EditorScreen(Screen):
                 formatted = self._format_schedule_preview(tok)
                 if formatted:
                     preview = f"@s {formatted}"
-            panel.update(f"{description} {preview or raw}")
+            self._set_feedback(panel, f"{description} {preview or raw}")
         elif ttype == "&":
             key = tok.get("k", None)
             description = f"{_AMP_DESC.get(key, '')}:" if key else "↳"
-            panel.update(f"{description} {preview or raw}")
+            self._set_feedback(panel, f"{description} {preview or raw}")
         else:
-            panel.update(f"↳ {raw}{preview}")
+            self._set_feedback(panel, f"↳ {raw}{preview}")
 
     def _persist(self, item) -> None:
         rid = self.controller.db_manager.save_record(item, record_id=self.record_id)

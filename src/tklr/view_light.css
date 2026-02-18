@@ -128,6 +128,7 @@ ScrollView {
 
 #ed_prompt {
   layout: vertical;
+  height: 1fr;
   padding: 0 1;
 }
 
@@ -148,14 +149,30 @@ ScrollView {
   border: solid #a0a0a0;
   background: #ffffff;
   color: #1c1c1c;
-  height: auto;
   padding: 0 0;
+}
+
+#ed_entry,
+#use_prompt_entry {
+  height: 1fr;
+  overflow: auto;
+}
+
+#use_prompt {
+  layout: vertical;
+  height: 1fr;
+  padding: 0 1;
 }
 
 #ed_feedback {
   height: auto;
   color: #1f7a1f;
   padding: 0 1 0 1;
+}
+
+#ed_feedback_scroll {
+  height: 1fr;
+  overflow: auto;
 }
 
 ListWithDetails {
