@@ -979,7 +979,7 @@ Since urgency values are used ultimately to give an ordinal ranking of tasks, al
 There are some situations in which a task will _not_ be displayed in the "urgency list" and there is no need, therefore, to compute its urgency:
 
 - Completed tasks are not displayed.
-- Hidden tasks are not displayed. The task is hidden if it has an `@s` entry and an `@b` entry and the date corresponding to `@s - @b` falls sometime after the current date.
+- Hidden tasks are not displayed. The task is hidden if it has an `@s` entry and an `@n` entry and the date corresponding to `@s - @n` falls sometime after the current date.
 - Waiting tasks are not displayed. A task is waiting if it belongs to a project and has unfinished prerequisites.
 - Only the first _unfinished_ instance of a repeating task is displayed. Subsequent instances are not displayed.
 
@@ -1008,29 +1008,17 @@ The "due" urgency of a task with an `@s` entry is computed from _now_ (the curre
 
 For a task without an `@s` entry, the "due" urgency is 0.0.
 
-Other contributions of the task to urgency are computed similarly. Depending on the configuration settings and the characteristics of the task, the value can be either positive or negative or 0.0 when missing the requisite characteristic(s).
+Other contributions of the task to urgency are computed similarly. Depending on the configuration settings and the characteristics of the task, the value can be either positive or negative or 0.0 when missing the requisite characteristic(s). 
 
-Once all the contributions of a task have been computed, they are aggregated into a single urgency value in the following way. The process begins by setting the initial values of variables `Wn = 1.0` and `Wp = 1.0`. Then for each of the urgency contributions, `v`, the value is added to `Wp` if `v > 0` or `abs(v)` is added to `Wn` if `v` negative. Thus either `Wp` or `Wn` is increased by each addition unless `v = 0`. When each contribution has been added, the urgency value of the task is computed as follows:
+For contributions other than *priority* there is a *maximum* value, e.g., for *due*, the default *maximum* is `max = 8.0`.  The maximum possible urgency that can be assigned to a task corresponds to the sum of these *maximum* values plus the value assigned to the highest possible priority, *next*. Call this maximum possible urgency, `Wmax`.
 
-```python
-urgency = (Wp - Wn) / (Wp + Wn)
-```
-
-Equivalently, urgency can be regarded as a weighted average of `-1.0` and `1.0` with `Wn/(Wn + Wp)` and `Wp/(Wn + Wp)` as the weights:
+Once all the contributions of a task have been computed, they are aggregated into a single urgency value in the following way. The process begins by setting the initial values of variables `Wn = 0.0` and `Wp = 0.0`. Then for each of the urgency contributions, `v`, the value is added to `Wp` if `v > 0` or `abs(v)` is added to `Wn` if `v` negative. Thus either `Wp` or `Wn` is increased by each addition unless `v = 0`.  When each contribution has been added, the urgency value of the task is computed as follows:
 
 ```python
-urgency = -1.0 * Wn / (Wn + Wp) + 1.0 * Wp / (Wn + Wp) = (Wp - Wn) / (Wn + Wp)
+urgency = max(Wp - Wn, 0.0) / Wmax
 ```
 
-Observations from the weighted average perspective and the fact that `Wn >= 1` and `Wp >= 1`:
-
-- `-1.0 < urgency < 1`
-- `urgency = 0.0` if and only if `Wn = Wp`
-- `urgency` is _always increasing_ in `Wp` and _always decreasing_ in `Wn`
-- `urgency` approaches `1.0` as `Wn/Wp` approaches `0.0` - as `Wp` increases relative to `Wn`
-- `urgency` approaches `-1.0` as `Wp/Wn` approaches `0.0` - as `Wn` increases relative to `Wp`
-
-Thus positive contributions _always_ increase urgency and negative contributions _always_ decrease urgency. The fact that the urgency derived from contributions is always less than `1.0` means that _pinned_ tasks with `urgency = 1` will always be listed first.
+Thus computed, `0.0 <= urgency <= 1.0` . In *tklr* views, *urgency* is reported as the corresponding percentage of the maximum possible score, i.e., as an integer between 0 and 100. 
 
 [↩︎](#table-of-contents)
 

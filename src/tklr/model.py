@@ -802,7 +802,9 @@ class UrgencyComputer:
                     priority_map["next"], (int, float)
                 ):
                     max_priority = float(priority_map["next"])
-                elif "1" in priority_map and isinstance(priority_map["1"], (int, float)):
+                elif "1" in priority_map and isinstance(
+                    priority_map["1"], (int, float)
+                ):
                     max_priority = float(priority_map["1"])
                 else:
                     priority_values = priority_map.values()
@@ -817,11 +819,14 @@ class UrgencyComputer:
         except Exception:
             max_priority = 0.0
 
-        self.MAX_POSSIBLE_URGENCY = sum(
-            comp.max
-            for comp in vars(self.urgency).values()
-            if hasattr(comp, "max") and isinstance(comp.max, (int, float))
-        ) + max_priority
+        self.MAX_POSSIBLE_URGENCY = (
+            sum(
+                comp.max
+                for comp in vars(self.urgency).values()
+                if hasattr(comp, "max") and isinstance(comp.max, (int, float))
+            )
+            + max_priority
+        )
         self.BUCKETS = self.get_urgency_color_buckets()
 
     def hex_to_rgb(self, hex_color: str) -> Tuple[int, int, int]:
@@ -867,9 +872,7 @@ class UrgencyComputer:
         else:
             buckets = self.get_urgency_color_buckets(min_hex_color, max_hex_color)
 
-        i = min(
-            int((urgency - self.MIN_URGENCY) * len(buckets)), len(buckets) - 1
-        )
+        i = min(int((urgency - self.MIN_URGENCY) * len(buckets)), len(buckets) - 1)
         return buckets[i]
 
     def compute_partitioned_urgency(self, weights: dict[str, float]) -> float:
@@ -1597,7 +1600,9 @@ class DatabaseManager:
         candidate = slug
         suffix = 2
         while (
-            self.cursor.execute("SELECT 1 FROM Uses WHERE slug = ?", (candidate,)).fetchone()
+            self.cursor.execute(
+                "SELECT 1 FROM Uses WHERE slug = ?", (candidate,)
+            ).fetchone()
             is not None
         ):
             candidate = f"{slug}-{suffix}"
@@ -1779,7 +1784,9 @@ class DatabaseManager:
                 break
         return results
 
-    def _resolve_use_id_for_item(self, item: Item, *, strict: bool = False) -> int | None:
+    def _resolve_use_id_for_item(
+        self, item: Item, *, strict: bool = False
+    ) -> int | None:
         name = _clean_use_name(getattr(item, "use", ""))
         if not name or getattr(item, "itemtype", None) != "-":
             item.use_id = None
@@ -2140,7 +2147,9 @@ class DatabaseManager:
         flags = self._compute_flags(item)
         try:
             timestamp = utc_now_string()
-            use_id = self._resolve_use_id_for_item(item, strict=bool(getattr(item, "use", "")))
+            use_id = self._resolve_use_id_for_item(
+                item, strict=bool(getattr(item, "use", ""))
+            )
             self.cursor.execute(
                 """
                 INSERT INTO Records (
@@ -2200,7 +2209,9 @@ class DatabaseManager:
             )
             set_field("notice", item.notice)
             set_field("context", item.context)
-            use_id = self._resolve_use_id_for_item(item, strict=bool(getattr(item, "use", "")))
+            use_id = self._resolve_use_id_for_item(
+                item, strict=bool(getattr(item, "use", ""))
+            )
             fields.append("use_id = ?")
             values.append(use_id)
             set_field("jobs", json.dumps(item.jobs) if item.jobs is not None else None)
@@ -2228,7 +2239,9 @@ class DatabaseManager:
         """Insert or update a record and refresh associated tables."""
         timestamp = utc_now_string()
         flags = self._compute_flags(item)
-        use_id = self._resolve_use_id_for_item(item, strict=bool(getattr(item, "use", "")))
+        use_id = self._resolve_use_id_for_item(
+            item, strict=bool(getattr(item, "use", ""))
+        )
 
         if record_id is None:
             # Insert new record
