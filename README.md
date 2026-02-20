@@ -582,6 +582,26 @@ Feb 2026: 1.0h
 
 [↩︎](#table-of-contents)
 
+### GTD
+
+
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/GTD.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+  <em>Jots View</em> is similar to <em>Weeks View</em> - reminders are grouped by <em>week</em> and then <em>week day</em> with the same key bindings used for navigation. The <em>jots</em> are displayed in different colors for
+  <ul>
+   <li>those with neither <code>@e</code> nor <code>@u</code> entries</li>
+   <li>those with only <code>@e</code> entries</li>
+   <li>those with only <code>@u</code> entries</li>
+   <li>those with both <code>@e</code> and <code>@u</code> entries</li>
+   </ul>
+   When either or both of these attributes are present, they are given in parentheses after the <em>subject</em>.
+  </p>
+</div>
+<div style="clear: both;"></div>
+
+
+
 ### 1.7. Bins and Hash-Tags Views: Organizing your reminders
 
 *Tklr* provides two complementary methods for organizing your reminders:
