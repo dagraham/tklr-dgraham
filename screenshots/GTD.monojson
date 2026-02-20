@@ -31,7 +31,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 14",
       "object_id" : "039F88DF-7436-448B-9BE3-8680AA96183A",
-      "origin" : "0,5",
+      "origin" : "0,4",
       "position_refs" : [
         "A0A1193F-A2F5-4EE7-9740-21BC6CCC0EE3",
         "217757A4-5B3D-4F25-99A5-8E567DDE900C",
@@ -126,7 +126,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 8",
       "object_id" : "10147CB7-CEA4-4CB7-BFA2-DB32DE0551FD",
-      "origin" : "0,5",
+      "origin" : "0,4",
       "position_refs" : [
         "3A7A3634-22CB-430F-8758-CBA7067366BD",
         "68FB34ED-C3C2-4B28-B5EA-7020A71CE978",
@@ -175,7 +175,7 @@
       "model_text" : "F317AAEC-4D66-4606-8EE3-C6E509E0DBCD",
       "name" : "next",
       "object_id" : "149C3496-4C4C-402C-9981-9E4152ED3AB1",
-      "origin" : "0,5",
+      "origin" : "0,4",
       "position_refs" : [
         "09D6AC5B-EA9E-4126-9C0D-4AFBCA503D32",
         "4DF8D5BA-4DF0-4229-97C6-078491D29F08",
@@ -436,7 +436,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 2",
       "object_id" : "34D11A7D-5531-4BCF-8FED-8DE87BF3D4EF",
-      "origin" : "0,7",
+      "origin" : "0,6",
       "position_refs" : [
         "93371276-D0A2-43B8-BBD6-E9F654AFFF96",
         "BB0F337E-67E0-4065-8F4D-4749E36EBA8E",
@@ -480,7 +480,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 5",
       "object_id" : "3879B2CD-4ACD-4197-A472-1D4DA6EF1073",
-      "origin" : "0,7",
+      "origin" : "0,6",
       "position_refs" : [
         "B356E3D0-B62F-4DC8-87C4-605B127B98EF",
         "F70F6E03-395D-43D2-A07E-866EF6BE9CCF",
@@ -556,7 +556,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 13",
       "object_id" : "444FDF9F-BCC6-4488-B316-0EEBD9F9B136",
-      "origin" : "0,5",
+      "origin" : "0,4",
       "position_refs" : [
         "79CE4FE4-AF07-4159-9FEE-A68985C9F452",
         "B8899A11-64C9-4262-83F3-A7C4FE7C8CC6",
@@ -664,7 +664,7 @@
       "model_text" : "9666825C-5EA2-4E0B-99A4-993C0E6030E7",
       "name" : "file for reference",
       "object_id" : "52C89189-A0B3-427F-AEA1-9124BF1E1DF7",
-      "origin" : "0,6",
+      "origin" : "0,5",
       "position_refs" : [
         "4E2822AD-A2F0-46B3-80C2-44A7F2829A01",
         "2F631536-B9FD-4932-9D20-D1E9A11A4F0A",
@@ -685,7 +685,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 12",
       "object_id" : "53685CD7-3317-4CE8-878A-81121120342A",
-      "origin" : "0,5",
+      "origin" : "0,4",
       "position_refs" : [
         "2E2BCF6A-C3B5-4C08-83AF-0FB630DE3DC0",
         "B26C9583-082F-406F-A960-D8E289783C2B",
@@ -759,7 +759,7 @@
       "model_text" : "31098207-D7A4-4382-BF3C-50B8AEE80867",
       "name" : "no",
       "object_id" : "61B54FA5-BCA2-43E9-B252-BE0DAD058A3A",
-      "origin" : "1,5",
+      "origin" : "1,4",
       "position_refs" : [
         "21935853-E1BD-4B5A-BA01-072FCD49A67C",
         "8F0D4F74-86CD-4E9A-9807-6A1407B72F15",
@@ -790,7 +790,7 @@
       "model_text" : "4D886200-21D7-48EA-9359-B898CC5F3E73",
       "name" : "less than 2 minutes?",
       "object_id" : "66509870-5DA2-41B4-951F-12D41FEB3155",
-      "origin" : "-3,6",
+      "origin" : "-3,5",
       "position_refs" : [
         "BC3C8F3D-4B13-4D24-BD84-C6FE5206964D",
         "711FEBEC-C37F-474C-8F9F-11C3D671AF8A",
@@ -958,7 +958,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 3",
       "object_id" : "7A5D2803-64B7-429E-B750-BBCD97C38FC6",
-      "origin" : "0,7",
+      "origin" : "0,6",
       "position_refs" : [
         "484E947F-450A-449F-8D34-AADE61B34BFD",
         "00688EA1-0227-4D88-84F2-C09F6DE076F6",
@@ -990,7 +990,7 @@
       "model_text" : "669DDB2B-FF23-48C1-A00F-F36FAD37DBEA",
       "name" : "do it",
       "object_id" : "7B162A4D-2EC0-49B8-80F0-020124A3536A",
-      "origin" : "1,5",
+      "origin" : "1,4",
       "position_refs" : [
         "A0CE2C25-FBBD-49F7-93D3-E73D41762199",
         "A3DA2D33-7EB8-46C1-BC9D-C80791B17E59",
@@ -1005,7 +1005,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 18",
       "object_id" : "7B7C721F-FF5C-4A0F-BE4D-2A2957125FC4",
-      "origin" : "0,5",
+      "origin" : "0,4",
       "position_refs" : [
         "4DB8E995-FF03-47CB-9788-A07F50A71B93",
         "83C73CDF-14B7-46B6-8013-24016F043134",
@@ -1032,7 +1032,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 15",
       "object_id" : "7FB813DB-04BA-4D87-A33D-1062E3A66DB6",
-      "origin" : "0,5",
+      "origin" : "0,4",
       "position_refs" : [
         "F240FB24-BF39-4D5A-8305-0DD20197AF18",
         "29F4DF8B-C6AE-4BAB-AB82-85495F22E7B8",
@@ -1052,7 +1052,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 10",
       "object_id" : "7FC8680D-FA9A-46F4-8CDC-5D2099A2B48C",
-      "origin" : "0,5",
+      "origin" : "0,4",
       "position_refs" : [
         "99704809-C5B1-40F0-9EFB-3819638576F2",
         "2764ED58-1FD8-4CF9-BAEE-267F95BD90AA",
@@ -1089,7 +1089,7 @@
       "model_text" : "F3BA7ACC-5037-4114-AC54-7CCEA8210647",
       "name" : "delete",
       "object_id" : "859790F8-9599-447C-A7E9-4D03B96A0EB5",
-      "origin" : "-8,5",
+      "origin" : "-8,4",
       "position_refs" : [
         "26F6697B-4BC9-4C87-8553-C191ECCF878D",
         "7AABF344-735D-476F-B5EE-CB4632DFFAFB",
@@ -1229,7 +1229,7 @@
     {
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "object_id" : "93371276-D0A2-43B8-BBD6-E9F654AFFF96",
-      "point" : "69,5",
+      "point" : "69,6",
       "type_id" : 11
     },
     {
@@ -1243,7 +1243,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 11",
       "object_id" : "95AC0DB3-2F02-4DBC-A321-DE368067C409",
-      "origin" : "0,5",
+      "origin" : "0,4",
       "position_refs" : [
         "08151CD9-5886-4EC1-952D-4FD2010308C9",
         "D4C6EE97-84BB-4831-B72A-E1F977997E57",
@@ -1320,7 +1320,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 17",
       "object_id" : "9FAF27E8-2185-41DA-876A-C5F51F18D9E8",
-      "origin" : "-3,4",
+      "origin" : "-3,3",
       "position_refs" : [
         "E9FE7A69-B717-4DEF-9237-F5F9CC44D254",
         "A8BBCD76-A126-4C72-A559-A5BCC54018E1",
@@ -1374,7 +1374,7 @@
       "model_text" : "1FA2480F-166E-4173-85C2-1D0F5BAAFA3B",
       "name" : "waiting",
       "object_id" : "A188C1C9-1E6C-4046-A84B-C01586DD5E12",
-      "origin" : "0,5",
+      "origin" : "0,4",
       "position_refs" : [
         "B447E8A8-E96D-414A-BDD5-824BFC735E2E",
         "40FD99DA-EF74-46CC-9C99-E92109C47D24",
@@ -1460,7 +1460,7 @@
       "model_text" : "886BE743-D590-41A8-AC42-883615A168C7",
       "name" : "defer it",
       "object_id" : "ABCAE65C-E0A8-4D03-8F5D-95FC50EBDF46",
-      "origin" : "-1,5",
+      "origin" : "-1,4",
       "position_refs" : [
         "681D8B28-BE2A-4CB1-ADE9-79521DC95404",
         "78F47936-68A2-4225-B08B-C9076BA5025B",
@@ -1654,7 +1654,7 @@
       "model_text" : "5A109317-C43D-434E-BE7B-690E3FDE66EA",
       "name" : "someday \/ maybe",
       "object_id" : "CDC9C3D8-85CA-4602-81B0-6280D44DFF6A",
-      "origin" : "0,7",
+      "origin" : "0,6",
       "position_refs" : [
         "F8B534EF-98C6-4265-A09C-047CF34FC4DF",
         "22BDC289-EBAB-455D-9C84-3898B7A7CE1B",
@@ -1741,14 +1741,14 @@
       "border_tixels" : "F3C532C1-196D-4DE1-9986-AB7BE4C90609",
       "content_tixels" : "670D438C-1FAD-4B66-B46A-56626BB67D46",
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
-      "frame_anchor_ref" : "B0F27D90-7B36-4019-B976-09B62285089C",
+      "frame_anchor_ref" : "E7863C10-AECA-4B7F-96D3-A23006B67BEC",
       "frame_corner" : 5,
       "frame_size" : "11,3",
       "model_text" : "111ECAD3-DF1F-4830-90B1-C99C297231A6",
       "name" : "clarify",
       "object_id" : "D8D8CCB4-0507-4BC3-AEE5-FD000980AFC6",
       "position_refs" : [
-
+        "E7863C10-AECA-4B7F-96D3-A23006B67BEC"
       ],
       "rectangular_border_enabled" : false,
       "type_id" : 20
@@ -1826,7 +1826,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 16",
       "object_id" : "E38C1804-D7AA-473E-B2D1-A3FC9893A3DD",
-      "origin" : "0,5",
+      "origin" : "0,4",
       "position_refs" : [
         "EA9E1240-D281-4C03-9B28-161424405874",
         "C1C9FF69-FEDE-4C1E-8313-1BB2DE691A2D",
@@ -1870,7 +1870,7 @@
       "model_text" : "012D9D83-D906-431D-90EA-48EA97E9A4EA",
       "name" : "actionable?",
       "object_id" : "E615EC6E-F6C8-4665-86E9-0AE14E163500",
-      "origin" : "-1,7",
+      "origin" : "-1,6",
       "position_refs" : [
         "22F93EE8-6EDC-4C3A-AA04-F5222450200B",
         "79391CD3-3F42-4DF4-B2F0-A8A18FD6FFA1",
@@ -1879,6 +1879,12 @@
         "2E940627-CFBA-474B-AE2A-1CCB181BE7FA"
       ],
       "type_id" : 20
+    },
+    {
+      "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
+      "object_id" : "E7863C10-AECA-4B7F-96D3-A23006B67BEC",
+      "point" : "69,14",
+      "type_id" : 11
     },
     {
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
@@ -1896,7 +1902,7 @@
       "model_text" : "1C9EB989-387D-4634-BB38-B82E629FD453",
       "name" : "calendar",
       "object_id" : "EA00AC04-3755-48D2-B499-32593F4A5137",
-      "origin" : "-2,5",
+      "origin" : "-2,4",
       "position_refs" : [
         "9A8267F7-FFB1-4E42-B28A-7BAEF832A89E",
         "073A30B4-0625-4B5A-85D9-685CFF1F4BBB",
@@ -1916,7 +1922,7 @@
       "model_text" : "0CA33386-66AB-4325-A0C7-B6FDBAEB1A91",
       "name" : "yes",
       "object_id" : "EA10CA7B-FBF8-4387-B38D-6A75DB38DA98",
-      "origin" : "0,5",
+      "origin" : "0,4",
       "position_refs" : [
         "AE0CE174-8950-4C25-843A-4C18068815EB",
         "85A20E87-9A1D-4368-B531-8DA0A0866A49",
@@ -1953,7 +1959,7 @@
       "model_text" : "3FE5879B-32A6-4569-8C2F-6EB7D08C3E34",
       "name" : "delegate it",
       "object_id" : "EC0FA394-8E1D-4276-952D-ACBE986E23B5",
-      "origin" : "-9,4",
+      "origin" : "-9,3",
       "position_refs" : [
         "FF57DAD7-2F2A-477F-9A06-54A857A9F6E6",
         "CAE0C766-F189-4D74-BDC4-5BDD727CDF20",
@@ -1972,7 +1978,7 @@
       "model_text" : "F6CC9A3D-23EE-4AFB-BF96-1B95CAF7140B",
       "name" : "no",
       "object_id" : "ECD15B57-447A-477B-82D3-679D55332027",
-      "origin" : "-1,7",
+      "origin" : "-1,6",
       "position_refs" : [
         "42137062-2E4E-4433-99A2-A93581495E68",
         "13CF4271-977E-424B-9EC9-586759FE700C",
@@ -2001,7 +2007,7 @@
       "model_text" : "D9C3C90E-CF9E-4E69-8EFB-779751F71AD5",
       "name" : "yes",
       "object_id" : "F03E1B2B-37C5-4C4F-9E55-33C2ADF760C1",
-      "origin" : "-1,3",
+      "origin" : "-1,2",
       "position_refs" : [
         "0F50D9D9-B233-43AA-8A97-CBFE586751F1",
         "D5790530-B258-4C1B-AA58-BF86C89BFE0B",
@@ -2016,7 +2022,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 6",
       "object_id" : "F15396E3-052F-4D2C-B585-38811C3E0061",
-      "origin" : "-2,7",
+      "origin" : "-2,6",
       "position_refs" : [
         "1A7432B2-F90A-43BC-8D73-C45AA6323EEF",
         "B198A833-722B-4009-97EF-6A3BBEC2C18D",
@@ -2043,7 +2049,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 4",
       "object_id" : "F18A46B1-9285-48DC-8DF4-3894CD35E0AC",
-      "origin" : "1,7",
+      "origin" : "1,6",
       "position_refs" : [
         "0A1BDDF9-15A0-468B-84A4-26B022DA9951",
         "022DA163-DCB3-4D3E-8B8E-5C31354FA342",

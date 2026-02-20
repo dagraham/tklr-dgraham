@@ -586,7 +586,7 @@ Feb 2026: 1.0h
 
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/GTD.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/GTD.png" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
   <em>Jots View</em> is similar to <em>Weeks View</em> - reminders are grouped by <em>week</em> and then <em>week day</em> with the same key bindings used for navigation. The <em>jots</em> are displayed in different colors for
   <ul>
