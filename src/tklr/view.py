@@ -16,6 +16,8 @@ from .shared import (
     parse,
     TYPE_TO_COLOR,
     fmt_user,
+    duration_in_words,
+    timedelta_str_to_seconds,
     get_previous_yrwk,
     get_next_yrwk,
     calculate_4_week_start,
@@ -1564,6 +1566,62 @@ class EditorScreen(Screen):
         except Exception:
             return None
 
+    def _duration_words(self, value: str) -> str | None:
+        """Expand compact timedelta text (e.g. '1w2d' -> '1 week 2 days')."""
+        ok, seconds = timedelta_str_to_seconds((value or "").strip().lower())
+        if not ok:
+            return None
+        return duration_in_words(seconds)
+
+    def _format_timedelta_preview(self, tok: dict[str, Any]) -> str | None:
+        """Return an expanded preview for tokens that accept a timedelta."""
+        raw = (tok.get("token") or "").strip()
+        key = tok.get("k", "")
+        ttype = tok.get("t", "")
+        if not raw or not key:
+            return None
+
+        value = raw[2:].strip()
+        if not value:
+            return None
+
+        if ttype == "@":
+            if key == "o":
+                # @o supports optional learning prefixes.
+                body = value.lower()
+                if body.startswith("~"):
+                    body = body[1:].strip()
+                if body.startswith("learn "):
+                    body = body[6:].strip()
+                words = self._duration_words(body)
+                return f"@o {value} ({words})" if words else None
+            if key in {"e", "n"}:
+                words = self._duration_words(value)
+                return f"@{key} {value} ({words})" if words else None
+            if key == "w":
+                parts = [part.strip() for part in value.split(",")]
+                if len(parts) != 2:
+                    return None
+                before_words = self._duration_words(parts[0])
+                after_words = self._duration_words(parts[1])
+                if not before_words or not after_words:
+                    return None
+                return f"@w {value} (before {before_words}, after {after_words})"
+            if key == "t":
+                if "/" not in value:
+                    return None
+                num, period = value.split("/", 1)
+                period_words = self._duration_words(period.strip())
+                if not period_words:
+                    return None
+                return f"@t {num.strip()}/{period.strip()} ({num.strip()} per {period_words})"
+
+        if ttype == "&" and key == "s":
+            words = self._duration_words(value)
+            return f"&s {value} ({words})" if words else None
+
+        return None
+
     def _set_feedback(self, panel: Static, text: str) -> None:
         """Update feedback panel while keeping the text fully scrollable."""
         normalized = (text or "").replace("\t", "    ")
@@ -1668,10 +1726,14 @@ class EditorScreen(Screen):
                 formatted = self._format_schedule_preview(tok)
                 if formatted:
                     preview = f"@s {formatted}"
+            elif key in {"o", "e", "n", "t", "w"}:
+                preview = self._format_timedelta_preview(tok) or ""
             self._set_feedback(panel, f"{description} {preview or raw}")
         elif ttype == "&":
             key = tok.get("k", None)
             description = f"{_AMP_DESC.get(key, '')}:" if key else "↳"
+            if key == "s":
+                preview = self._format_timedelta_preview(tok) or ""
             self._set_feedback(panel, f"{description} {preview or raw}")
         else:
             self._set_feedback(panel, f"↳ {raw}{preview}")

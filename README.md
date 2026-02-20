@@ -46,9 +46,11 @@ Ready to dive deeper? This introduction is best viewed at [GitHub.io](https://da
           <li><a href="#14-agenda-view-your-daily-brief">1.4. Agenda View: Your daily brief</a></li>
           <li><a href="#15-weeks-next-and-last-views-whats-happening-and-when">1.5. Weeks, Next and Last Views: What's happening and when</a></li>
           <li><a href="#16-jots-and-jot-uses-views-where-did-the-time-go">1.6. Jots and Jot Uses Views: Where did the time go</a></li>
-          <li><a href="#17-bins-and-hash-tags-views-organizing-your-reminders">1.7. Bins and Hash-Tags Views: Organizing your reminders</a></li>
-          <li><a href="#18-query-and-find-views-wheres-waldo">1.8. Query and Find Views: Where's Waldo</a></li>
-          <li><a href="#19-sqlite3-data-store">1.9. SQLite3 Data Store</a></li>
+          <li><a href="#17-jots-and-gtd">1.7. Jots and GTD</a></li>
+          <li><a href="#18-gtd-and-task-view">1.8. GTD and Task View</a></li>
+          <li><a href="#19-bins-and-hash-tags-views-organizing-your-reminders">1.9. Bins and Hash-Tags Views: Organizing your reminders</a></li>
+          <li><a href="#110-query-and-find-views-wheres-waldo">1.10. Query and Find Views: Where's Waldo</a></li>
+          <li><a href="#111-sqlite3-data-store">1.11. SQLite3 Data Store</a></li>
         </ul>
       </details>
       <details>
@@ -582,8 +584,7 @@ Feb 2026: 1.0h
 
 [↩︎](#table-of-contents)
 
-### GTD
-
+### 1.7. Jots and GTD
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/GTD.png" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
@@ -600,9 +601,13 @@ Feb 2026: 1.0h
 </div>
 <div style="clear: both;"></div>
 
+[↩︎](#table-of-contents)
 
+### 1.8. GTD and Task View
 
-### 1.7. Bins and Hash-Tags Views: Organizing your reminders
+[↩︎](#table-of-contents)
+
+### 1.9. Bins and Hash-Tags Views: Organizing your reminders
 
 *Tklr* provides two complementary methods for organizing your reminders:
 
@@ -612,7 +617,7 @@ Feb 2026: 1.0h
 </ol>
 
 
-#### 1.7.1 Bins View
+#### 1.9.1 Bins View
 
 The _Bins View_ displays a hierarchical, tree view of _bins_ and _reminders_.
 
@@ -679,7 +684,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 <div style="clear: both;"></div>
 
 
-#### 1.7.2 Hash-Tags View
+#### 1.9.2 Hash-Tags View
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/tags_screenshot.svg"
@@ -694,7 +699,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 [↩︎](#table-of-contents)
 
 
-### 1.8. Query and Find Views: Where's Waldo
+### 1.10. Query and Find Views: Where's Waldo
 
 What is the name of that plumber we used and liked so much?
 
@@ -738,7 +743,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 [↩︎](#table-of-contents)
 
-### 1.9. <em>SQLite3</em> Data Store
+### 1.11. <em>SQLite3</em> Data Store
 
 SQLite offers tangible advantages over TinyDB’s JSON store which - used for *tklr*'s predecessor - especially at the required scale. The embedded SQL engine keeps queries fast even as data grows, thanks to indexed storage and compiled query plans rather than repeatedly parsing whole JSON file. Reliability improves because SQLite wraps writes in ACID transactions so crashes or concurrent edits won’t corrupt the data, whereas TinyDB depends on rewriting the JSON blob. Finally, SQLite’s standard file format means other tools (command-line clients, BI dashboards, scripting languages) can open the same .db directly or even run read-only analytics in parallel, something that’s awkward with a bespoke JSON structure.
 
