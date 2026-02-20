@@ -1,4 +1,6 @@
-from tklr.view import EditorScreen
+from types import SimpleNamespace
+
+from tklr.view import DynamicViewApp, EditorScreen
 
 
 def test_entry_height_has_practical_minimum():
@@ -49,3 +51,40 @@ def test_entry_height_grows_with_multiline_text_before_cap():
     )
     assert 4 < h < 20
 
+
+class _DummyEvent:
+    def __init__(self, key: str):
+        self.key = key
+
+    def stop(self) -> None:
+        return None
+
+
+def test_on_key_ignores_week_nav_when_modal_screen_active_left():
+    calls = {"prev": 0, "next": 0}
+    app = SimpleNamespace(
+        view="weeks",
+        screen=object(),  # modal/editor-like screen, not WeeksScreen
+        action_previous_week=lambda: calls.__setitem__("prev", calls["prev"] + 1),
+        action_next_week=lambda: calls.__setitem__("next", calls["next"] + 1),
+    )
+
+    DynamicViewApp.on_key(app, _DummyEvent("left"))
+
+    assert calls["prev"] == 0
+    assert calls["next"] == 0
+
+
+def test_on_key_ignores_week_nav_when_modal_screen_active_right():
+    calls = {"prev": 0, "next": 0}
+    app = SimpleNamespace(
+        view="jots",
+        screen=object(),  # modal/editor-like screen, not WeeksScreen
+        action_previous_week=lambda: calls.__setitem__("prev", calls["prev"] + 1),
+        action_next_week=lambda: calls.__setitem__("next", calls["next"] + 1),
+    )
+
+    DynamicViewApp.on_key(app, _DummyEvent("right"))
+
+    assert calls["prev"] == 0
+    assert calls["next"] == 0

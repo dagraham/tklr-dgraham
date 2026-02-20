@@ -4247,6 +4247,9 @@ class DynamicViewApp(App):
         if event.key in ("left", "right"):
             if self.view in ("weeks", "jots"):
                 screen = getattr(self, "screen", None)
+                # Ignore global week navigation while modal/editor screens are active.
+                if not isinstance(screen, WeeksScreen):
+                    return
                 # log_msg(
                 #     f"[LEFT/RIGHT] screen={type(screen).__name__ if screen else None}"
                 # )
@@ -4307,7 +4310,11 @@ class DynamicViewApp(App):
                 self.action_show_year()
                 return
             # else: not week/year view -> let other code handle left/right
-        if event.key == "full_stop" and self.view in ("weeks", "jots"):
+        if (
+            event.key == "full_stop"
+            and self.view in ("weeks", "jots")
+            and isinstance(getattr(self, "screen", None), WeeksScreen)
+        ):
             # call the existing "center_week" or "go to today" action
             try:
                 self.action_center_week()  # adjust name if different
@@ -4949,7 +4956,7 @@ class DynamicViewApp(App):
             pass
 
     def _remember_week_context(self) -> None:
-        if self.view == "weeks":
+        if self.view in ("weeks", "jots"):
             self._week_state_before_editor = (
                 self.current_start_date,
                 self.selected_week,
@@ -4964,7 +4971,7 @@ class DynamicViewApp(App):
         if not result or not result.get("changed"):
             return
 
-        if self.view == "weeks":
+        if self.view in ("weeks", "jots"):
             if week_snapshot:
                 saved_start, saved_week = week_snapshot
             else:
