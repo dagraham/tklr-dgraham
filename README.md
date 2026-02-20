@@ -1298,7 +1298,6 @@ would indicate that "9a fri" is to be interpreted as an <em>aware</em> datetime 
 |   @j job    |   @~ task (project)   |
 | @k connect  |                       |
 |             | @k completions (goal) |
-| @l location |      @c context       |
 | @n attendee |                       |
 |   @t tag    |       #hashtag        |
 |             |   @t target (goal)    |

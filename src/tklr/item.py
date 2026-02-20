@@ -530,7 +530,7 @@ type_keys = {
     # '✓': 'finished',  # more a property of a task than an item type
 }
 # common_methods = list("cdgblmnstxz") + ["k", "#"]
-common_methods = list("cdgblmnstx")
+common_methods = list("cdgblmnsx")
 
 repeating_methods = list("o") + [
     "r",
