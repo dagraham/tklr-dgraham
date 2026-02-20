@@ -594,7 +594,11 @@ required = {
 }
 
 all_keys = (
-    common_methods + datetime_methods + job_methods + repeating_methods + ["u", "k"]
+    common_methods
+    + datetime_methods
+    + job_methods
+    + repeating_methods
+    + ["u", "k", "t"]
 )
 
 allowed = {
