@@ -1915,7 +1915,7 @@ Entry: {self.entry}
                 tds.append(td)
             else:
                 ok = False
-                probs.append(f"  Invalid timedelta: {td}")
+                probs.append(f"  Invalid timeperiod: {td}")
         if ok:
             res = f"{', '.join(tds)}: {', '.join(cmds)}"
             self.alerts.append(res)
