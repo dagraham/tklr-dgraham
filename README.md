@@ -668,7 +668,6 @@ scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to
     <dd>Next task best completed when dealing with "email".</dd>
   </dl>
 </dd>
-
 </dl>
 
 [↩︎](#table-of-contents)
@@ -676,9 +675,11 @@ scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to
 ### 1.8. GTD and Task View
 
 <p><em>Task View</em> is designed specifically with <em>GTD</em> in mind. It presents a collapsible, tagged list of possible categories beginning with <em>inbox</em> and <em>next</em>, followed by the various friends of <em>next</em> and ending with <em>waiting</em> and <em>someday</em>. Each category is followed by the number of relevant reminders in parentheses. As with other <em>tklr</em> views, pressing the key corresponding to a tag opens the corresponding list of tagged reminders.
-<p>
+</p>
+
 
 [↩︎](#table-of-contents)
+
 
 ### 1.9. Bins and Hash-Tags Views: Organizing your reminders
 
