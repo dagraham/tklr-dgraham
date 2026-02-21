@@ -599,6 +599,10 @@ Feb 2026: 1.0h
   </p>
 The flowchart and the connection to <em>tklr</em> mainly involve the first three - these are the steps described in the flowchart. Changes to Allen's original chart are colored magneta. Outcomes in which <em>tklr</em> plays a role are colored green.  
 <p>
+
+</div>
+<div style="clear: both;"></div>
+
 <h4>Capture</h4>
 <p><em>Get stuff out of your head and into a bucket you can trust.</em> </p>
 
@@ -666,10 +670,6 @@ scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to
 </dd>
 
 </dl>
-
-
-</div>
-<div style="clear: both;"></div>
 
 [↩︎](#table-of-contents)
 
