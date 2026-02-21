@@ -620,7 +620,7 @@ to what you are trying to do and, the more you are trying not to forget, the les
 <dd>Is the <em>jot</em> worth saving? If not delete it.</dd>
 
 <dt>someday</dt>
-<dd>Is the jot something that might be actionable someday? If so, change the reminder type to <code>~</code> (task), remove the <em>scheduled<em> <code>@s</code> entry and set the <em>context</em> to <code>@c someday</code>. </dd> 
+<dd>Is the jot something that might be actionable someday? If so, change the reminder type to <code>~</code> (task), remove the <em>scheduled</em> <code>@s</code> entry and set the <em>context</em> to <code>@c someday</code>. </dd> 
 
 <dt>reference</dt>
 <dd>Does the jot represent useful information that you might want to reference later? If so, change the reminder type to <code>%</code> (note) and "file" it in an appropriate <em>bin</em> using <code>@b [appropriate bin]</code>. </dd>
@@ -652,22 +652,24 @@ to what you are trying to do and, the more you are trying not to forget, the les
 scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to <code>@c scheduled</code>. </dd>
 
 <dt>defer it - next and friends</dt>
-<dd>At this point we have a task that takes a single step to complete, takes more than two minutes to complete, couldn't be deligated and shouldn't be scheduled for some future date. In short, should be done as soon as possible. This fits the category <em>next</next> or one of the other categories which call for "ASAP" completion but add further specficity. Some examples follow, in each case, the reminder type should be changed to <code>~</code> (task) and the <em>category</em> should be set to <code>@c next</code> or one of its friends:
+<dd>At this point we have a task that takes a single step to complete, takes more than two minutes to complete, couldn't be deligated and shouldn't be scheduled for some future date. In short, should be done as soon as possible. This fits the category <em>next</em> or one of the other categories which call for "ASAP" completion but add further specficity. Some examples follow, in each case, the reminder type should be changed to <code>~</code> (task) and the <em>category</em> should be set to <code>@c next</code> or one of its friends:
 
-<dl>
-<dt><code>@c at home</code></dt>
-<dd>A next task that should be completed when "at home".</dd>
+  <dl>
 
-<dt><code>@c at office</code></dt>
-<dd>Next task best completed when "at office".</dd>
+    <dt><code>@c at home</code></dt>
+    <dd>A next task that should be completed when "at home".</dd>
 
-<dt><code>@c errands</code></dt>
-<dd>best completed when running "errands".</dd>
+    <dt><code>@c at office</code></dt>
+    <dd>Next task best completed when "at office".</dd>
 
-<dt><code>@c email</code></dt>
-<dd>best completed when dealing with "email".</dd>
+    <dt><code>@c errands</code></dt>
+    <dd>best completed when running "errands".</dd>
 
-</dl>
+    <dt><code>@c email</code></dt>
+    <dd>best completed when dealing with "email".</dd>
+
+  </dl>
+
 </dd>
 
 </dl>
@@ -680,7 +682,7 @@ scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to
 
 ### 1.8. GTD and Task View
 
-<p><em>Task View</em> is designed specifically with <em>GTD</em> in mind. It presents a collapsible, tagged list of possible categories beginning with <em>inbox<em> and <em>next>, followed by the various friends of <em>next</em> and ending with <em>waiting</em> and <em>someday</em>. Each category is followed by the number of relevant reminders in parentheses. As with other <em>tklr</em> views, pressing the key corresponding to a tag opens the corresponding list of tagged reminders.
+<p><em>Task View</em> is designed specifically with <em>GTD</em> in mind. It presents a collapsible, tagged list of possible categories beginning with <em>inbox</em> and <em>next</em>, followed by the various friends of <em>next</em> and ending with <em>waiting</em> and <em>someday</em>. Each category is followed by the number of relevant reminders in parentheses. As with other <em>tklr</em> views, pressing the key corresponding to a tag opens the corresponding list of tagged reminders.
 <p>
 
 [↩︎](#table-of-contents)
