@@ -636,6 +636,11 @@ to what you are trying to do and, the more you are trying not to forget, the les
 <h4>Actionable? Yes</h4>
 
 <dl>
+<dt>single step to complete?<dt>
+<dd>If not, start a project for it. Change the reminder type to <code>^</code> (project), remove the <em>scheduled</em> <code>@s</code> entry and consider adding a <em>component task</em> <code>@~</code> for the first step to take on the project.</dd>
+
+
+<dl>
 <dt>less than 2 minutes?<dt>
 <dd>If so, do it. Then change the reminder type to <code>~</code> (task) and add the <em>finished</em> datetime, <code>@f [finished datetime]</code>.</dd>
 
