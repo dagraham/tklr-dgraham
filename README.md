@@ -588,16 +588,17 @@ Feb 2026: 1.0h
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/GTD.png" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>
-  <em>Jots View</em> is similar to <em>Weeks View</em> - reminders are grouped by <em>week</em> and then <em>week day</em> with the same key bindings used for navigation. The <em>jots</em> are displayed in different colors for
-  <ul>
-   <li>those with neither <code>@e</code> nor <code>@u</code> entries</li>
-   <li>those with only <code>@e</code> entries</li>
-   <li>those with only <code>@u</code> entries</li>
-   <li>those with both <code>@e</code> and <code>@u</code> entries</li>
-   </ul>
-   When either or both of these attributes are present, they are given in parentheses after the <em>subject</em>.
+  <p>The flowchart is from David Allen's <em>Getting Things Done</em>. His justly famous approach to the subject has become known simply as <em>GTD</em> and is based on these five steps:
+  <ol>
+   <li>Capture</li>
+   <li>Clarify</li>
+   <li>Organize</li>
+   <li>Reflect</li>
+   <li>Engage</li>
+   </ol>
   </p>
+  <p>
+
 </div>
 <div style="clear: both;"></div>
 
