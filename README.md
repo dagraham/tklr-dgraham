@@ -640,7 +640,6 @@ to what you are trying to do and, the more you are trying not to forget, the les
 <dd>If not, start a project for it. Change the reminder type to <code>^</code> (project), remove the <em>scheduled</em> <code>@s</code> entry and consider adding a <em>component task</em> <code>@~</code> for the first step to take on the project.</dd>
 
 
-<dl>
 <dt>less than 2 minutes?<dt>
 <dd>If so, do it. Then change the reminder type to <code>~</code> (task) and add the <em>finished</em> datetime, <code>@f [finished datetime]</code>.</dd>
 
@@ -653,23 +652,17 @@ scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to
 
 <dt>defer it - next and friends</dt>
 <dd>At this point we have a task that takes a single step to complete, takes more than two minutes to complete, couldn't be deligated and shouldn't be scheduled for some future date. In short, should be done as soon as possible. This fits the category <em>next</em> or one of the other categories which call for "ASAP" completion but add further specficity. Some examples follow, in each case, the reminder type should be changed to <code>~</code> (task) and the <em>category</em> should be set to <code>@c next</code> or one of its friends:
-
   <dl>
-
     <dt><code>@c at home</code></dt>
-    <dd>A next task that should be completed when "at home".</dd>
-
+    <dd>A next task that should be completed when "at home".
+    </dd>
     <dt><code>@c at office</code></dt>
     <dd>Next task best completed when "at office".</dd>
-
     <dt><code>@c errands</code></dt>
-    <dd>best completed when running "errands".</dd>
-
+    <dd>Next task best completed when running "errands".</dd>
     <dt><code>@c email</code></dt>
-    <dd>best completed when dealing with "email".</dd>
-
+    <dd>Next task best completed when dealing with "email".</dd>
   </dl>
-
 </dd>
 
 </dl>
