@@ -670,7 +670,9 @@ scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to
 </dd>
 </dl>
 
+
 [↩︎](#table-of-contents)
+
 
 ### 1.8. GTD and Task View
 
