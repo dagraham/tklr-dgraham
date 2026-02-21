@@ -200,9 +200,9 @@
       "content_tixels" : "B9B113DF-925C-4C28-BDF5-F7CFDC9DFCBD",
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "frame_anchor_ref" : "09D6AC5B-EA9E-4126-9C0D-4AFBCA503D32",
-      "frame_size" : "6,3",
+      "frame_size" : "23,3",
       "model_text" : "F317AAEC-4D66-4606-8EE3-C6E509E0DBCD",
-      "name" : "next",
+      "name" : "next and friends",
       "object_id" : "149C3496-4C4C-402C-9981-9E4152ED3AB1",
       "origin" : "0,11",
       "position_refs" : [
@@ -2287,7 +2287,7 @@
       "color" : 4278253824,
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "object_id" : "F317AAEC-4D66-4606-8EE3-C6E509E0DBCD",
-      "text" : "next",
+      "text" : "next and friends",
       "type_id" : 27
     },
     {
