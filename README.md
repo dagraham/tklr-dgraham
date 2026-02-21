@@ -620,13 +620,13 @@ to what you are trying to do and, the more you are trying not to forget, the les
 <dd>Is the <em>jot</em> worth saving? If not delete it.</dd>
 
 <dt>someday</dt>
-<dd>Is the jot something that might be actionable someday? If so, change the reminder type to <code>~</code> (task) and set the <em>context</em> to <code>@c someday</code>. </dd> 
+<dd>Is the jot something that might be actionable someday? If so, change the reminder type to <code>~</code> (task), remove the <em>scheduled<em> <code>@s</code> entry and set the <em>context</em> to <code>@c someday</code>. </dd> 
 
 <dt>reference</dt>
-<dd>Does the jot represent useful information that you might want to reference later? If so, change the reminder type to <code>%</code> (note) and "file" it in an appropriate <em>bin</em>, <code>@b [appropriate bin]</code>. </dd>
+<dd>Does the jot represent useful information that you might want to reference later? If so, change the reminder type to <code>%</code> (note) and "file" it in an appropriate <em>bin</em> using <code>@b [appropriate bin]</code>. </dd>
 
 <dt>used time</dt>
-<dd>Does the jot represent a use of time that you want to preserve? If so, leave the reminder type as is, <code>-</code> (jot) and set the <em>extent</em> <code>@e [time used]</code> and/or <em>use</em> <code>@u [use]</code> accordingly. </dd> 
+<dd>Does the jot represent a use of time that you want to preserve? If so, leave the reminder type as is, <code>-</code> (jot) and set the <em>extent</em> <code>@e [time used]</code> and/or <em>use</em> <code>@u [use]</code> accordingly. Adjust the <em>scheduled</em> <code>@s</code> entry if necessary to correspond to the relevant datetime.</dd> 
 
 </dl>
 
@@ -673,14 +673,15 @@ scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to
 </dl>
 
 
-
-
 </div>
 <div style="clear: both;"></div>
 
 [↩︎](#table-of-contents)
 
 ### 1.8. GTD and Task View
+
+<p><em>Task View</em> is designed specifically with <em>GTD</em> in mind. It presents a collapsible, tagged list of possible categories beginning with <em>inbox<em> and <em>next>, followed by the various friends of <em>next</em> and ending with <em>waiting</em> and <em>someday</em>. Each category is followed by the number of relevant reminders in parentheses. As with other <em>tklr</em> views, pressing the key corresponding to a tag opens the corresponding list of tagged reminders.
+<p>
 
 [↩︎](#table-of-contents)
 
