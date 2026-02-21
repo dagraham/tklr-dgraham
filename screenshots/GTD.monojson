@@ -663,7 +663,7 @@
     {
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "object_id" : "4DB8E995-FF03-47CB-9788-A07F50A71B93",
-      "point" : "86,33",
+      "point" : "84,33",
       "type_id" : 11
     },
     {
@@ -1090,12 +1090,11 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 18",
       "object_id" : "7B7C721F-FF5C-4A0F-BE4D-2A2957125FC4",
-      "origin" : "0,9",
+      "origin" : "4,9",
       "position_refs" : [
         "4DB8E995-FF03-47CB-9788-A07F50A71B93",
         "83C73CDF-14B7-46B6-8013-24016F043134",
-        "D1FE7EC0-752A-43F8-96F1-391702C60C17",
-        "FA9AB6CC-3221-41A3-913E-0BC467C418B6"
+        "D1FE7EC0-752A-43F8-96F1-391702C60C17"
       ],
       "segment_end_refs" : [
         "83C73CDF-14B7-46B6-8013-24016F043134",
@@ -1307,12 +1306,6 @@
     },
     {
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
-      "object_id" : "8B9B0E04-C81E-4B03-A4AA-C588BEAEF592",
-      "point" : "82,37",
-      "type_id" : 11
-    },
-    {
-      "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "object_id" : "8BDBBCFF-A48D-4446-8462-FCAFDD6E9A25",
       "rect_position" : 15,
       "type_id" : 12
@@ -1453,12 +1446,11 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "name" : "Line 17",
       "object_id" : "9FAF27E8-2185-41DA-876A-C5F51F18D9E8",
-      "origin" : "-3,8",
+      "origin" : "-6,8",
       "position_refs" : [
         "E9FE7A69-B717-4DEF-9237-F5F9CC44D254",
         "A8BBCD76-A126-4C72-A559-A5BCC54018E1",
-        "F2CC3096-F6E9-4833-91DD-2FE9616BAA41",
-        "8B9B0E04-C81E-4B03-A4AA-C588BEAEF592"
+        "F2CC3096-F6E9-4833-91DD-2FE9616BAA41"
       ],
       "segment_end_refs" : [
         "A8BBCD76-A126-4C72-A559-A5BCC54018E1",
@@ -1907,7 +1899,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "head_type" : 1,
       "object_id" : "D1FE7EC0-752A-43F8-96F1-391702C60C17",
-      "position_ref" : "FA9AB6CC-3221-41A3-913E-0BC467C418B6",
+      "position_ref" : "4DF8D5BA-4DF0-4229-97C6-078491D29F08",
       "type_id" : 10
     },
     {
@@ -2107,7 +2099,7 @@
     {
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "object_id" : "E9FE7A69-B717-4DEF-9237-F5F9CC44D254",
-      "point" : "84,34",
+      "point" : "86,34",
       "type_id" : 11
     },
     {
@@ -2220,7 +2212,7 @@
       "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
       "head_type" : 1,
       "object_id" : "F2CC3096-F6E9-4833-91DD-2FE9616BAA41",
-      "position_ref" : "8B9B0E04-C81E-4B03-A4AA-C588BEAEF592",
+      "position_ref" : "073A30B4-0625-4B5A-85D9-685CFF1F4BBB",
       "type_id" : 10
     },
     {
@@ -2272,12 +2264,6 @@
       "object_id" : "FA571DDF-4A14-4CEF-B9D7-9B3580CEDAC3",
       "rect_position" : 19,
       "type_id" : 12
-    },
-    {
-      "doc_ref" : "46003D57-D1CC-4DF7-A69C-F2F59B052A44",
-      "object_id" : "FA9AB6CC-3221-41A3-913E-0BC467C418B6",
-      "point" : "88,36",
-      "type_id" : 11
     },
     {
       "color" : 4294918399,

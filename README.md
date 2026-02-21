@@ -659,6 +659,9 @@ scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to
 <dt><code>@c errands</code></dt>
 <dd>best completed when running "errands".</dd>
 
+<dt><code>@c email</code></dt>
+<dd>best completed when dealing with "email".</dd>
+
 </dl>
 </dd>
 
