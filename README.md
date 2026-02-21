@@ -643,14 +643,29 @@ to what you are trying to do and, the more you are trying not to forget, the les
 <dd>Can this be deligated to someone. If so, change the reminder type to <code>~</code> (task) and set the <em>category</em> <code>@c waiting</code> and, perhaps, add the name of the person to whom the task was assigned to the <em>details</em>, <code>@d [person responsible for completion]</code>. </dd>
 
 <dt>defer it - calendar</dt>
-<dd>Should this be deferred to a specific date in the future? If so, change the reminder type to <code>~</code> (task), set the due datetime in <em>
+<dd>Should this be deferred to a specific date in the future? If so, change the reminder type to <code>~</code> (task), change the due datetime in <em>
 scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to <code>@c scheduled</code>. </dd>
 
-<dt>defer it - next</dt>
+<dt>defer it - next and friends</dt>
+<dd>At this point we have a task that takes a single step to complete, takes more than two minutes to complete, couldn't be deligated and shouldn't be scheduled for some future date. In short, should be done as soon as possible. This fits the category <em>next</next> or one of the other categories which call for "ASAP" completion but add further specficity. Some examples follow, in each case, the reminder type should be changed to <code>~</code> (task) and the <em>category</em> should be set to <code>@c next</code> or one of its friends:
 
+<dl>
+<dt><code>@c at home</code></dt>
+<dd>A next task that should be completed when "at home".</dd>
 
+<dt><code>@c at office</code></dt>
+<dd>Next task best completed when "at office".</dd>
+
+<dt><code>@c errands</code></dt>
+<dd>best completed when running "errands".</dd>
 
 </dl>
+</dd>
+
+</dl>
+
+
+
 
 </div>
 <div style="clear: both;"></div>
