@@ -656,22 +656,22 @@ to what you are trying to do and, the more you are trying not to forget, the les
   scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to <code>@c scheduled</code>. </dd>
 
   <dt>defer it - next and friends</dt>
-  <dd>At this point we have a task that takes a single step to complete, takes more than two minutes to complete, couldn't be deligated and shouldn't be scheduled for some future date. In short, should be done as soon as possible. This fits the category <em>next</em> or one of the other categories which call for "ASAP" completion but add further specficity. Some examples follow, in each case, the reminder type should be changed to <code>~</code> (task), the <em>scheduled</em> <code>@s</code> entry should be removed and the <em>category</em> should be set to <code>@c next</code> or one of its friends:
+  <dd>At this point we have a task that takes a single step to complete, takes more than two minutes to complete, couldn't be deligated and shouldn't be scheduled for some future date. Deferred to the next available opportunity for completion. This is the meaning of the category <em>next</em> but other categories might similarly call for "next available opportunity" completion but add further specficity. In each case, the reminder type should be changed to <code>~</code> (task), the <em>scheduled</em> <code>@s</code> entry should be removed and the <em>category</em> should be set to <code>@c next</code> or some variant. Here are a few examples: 
 
     <dl>
       
-      <dt><code>@c at home</code></dt>
-      <dd>A next task that should be completed when "at home".
+      <dt><code>@c home</code></dt>
+      <dd>A ASAP task best completed at "home".
       </dd>
 
-      <dt><code>@c at office</code></dt>
-      <dd>Next task best completed when "at office".</dd>
+      <dt><code>@c office</code></dt>
+      <dd>A ASAP task best completed at "office".</dd>
 
       <dt><code>@c errands</code></dt>
-      <dd>Next task best completed when running "errands".</dd>
+      <dd>A ASAP task best completed when running "errands".</dd>
 
       <dt><code>@c email</code></dt>
-      <dd>Next task best completed when dealing with "email".</dd>
+      <dd>A ASAP task best completed when doing "email".</dd>
 
     </dl>
 
