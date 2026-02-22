@@ -597,8 +597,9 @@ Feb 2026: 1.0h
    <li>Engage</li>
    </ol>
   </p>
-The flowchart and the connection to <em>tklr</em> mainly involve the first three - these are the steps described in the flowchart. Changes to Allen's original chart are colored magneta. Outcomes in which <em>tklr</em> plays a role are colored green.  
 <p>
+The flowchart and the connection to <em>tklr</em> mainly involve the first three - these are the steps described in the flowchart. Changes to Allen's original chart are colored magneta. Outcomes in which <em>tklr</em> plays a role are colored green.  
+</p>
 
 </div>
 <div style="clear: both;"></div>
