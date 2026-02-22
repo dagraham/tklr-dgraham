@@ -668,7 +668,6 @@ scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to
     <dd>Next task best completed when dealing with "email".</dd>
   </dl>
 </dd>
-</dl>
 
 
 [↩︎](#table-of-contents)
