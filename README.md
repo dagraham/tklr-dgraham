@@ -656,17 +656,17 @@ Feb 2026: 1.0h
     <dl>
       
       <dt><code>@c home</code></dt>
-      <dd>A ASAP task best completed at "home".
+      <dd>A next task best completed at "home".
       </dd>
 
       <dt><code>@c office</code></dt>
-      <dd>A ASAP task best completed at "office".</dd>
+      <dd>A next task best completed at "office".</dd>
 
       <dt><code>@c errands</code></dt>
-      <dd>A ASAP task best completed when running "errands".</dd>
+      <dd>A next task best completed when running "errands".</dd>
 
       <dt><code>@c email</code></dt>
-      <dd>A ASAP task best completed when doing "email".</dd>
+      <dd>A next task best completed when doing "email".</dd>
 
     </dl>
 
