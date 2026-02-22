@@ -588,8 +588,9 @@ Feb 2026: 1.0h
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/GTD.png" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>The flowchart is from David Allen's <em>Getting Things Done</em>. His justly famous approach has become known simply as <em>GTD</em>. My own efforts to develop what has now become <em>tklr</em> began when I first read this wonderful book nearly two decades ago. It emphasizes these five steps:
-  </p>
+  <p><em>GTD</em> refers to <em>Getting Things Done</em> - the title of a justly famous 2001 book by David Allen. The illustrated flowchart is a slightly altered version of the one in his book. Changes to the original are colored magneta and outcomes in which <em>tklr</em> plays a role are colored green.</p>  
+  
+  <p>Both the flowchart and the connection to <em>tklr</em> mainly involve the first three of the five steps emphasized by Allen:</p>
 
   <ol>
    <li><strong>Capture</strong></li>
@@ -599,25 +600,23 @@ Feb 2026: 1.0h
    <li>Engage</li>
   </ol>
 
-<p>
-The flowchart and the connection to <em>tklr</em> mainly involve the first three - these are the steps described in the flowchart. Changes to Allen's original chart are colored magneta. Outcomes in which <em>tklr</em> plays a role are colored green.  
+<h4>Capture</h4>
+
+<p><em>Get the stuff out of your head and into a bucket you can trust.</em> </p>
+
+<p>Your concious mind is made to focus not to store. It keeps reminding you of things you're subconciously trying not to forget whether or not they are relevant to what you are trying to do and, the more you are trying not to forget, the less processing power you have left for the task at hand. These words scarcely do justice to the importance of this observation. 
 </p>
 
-<strong>Capture</strong>
+<p>In <em>tklr</em>, the "bucket you can trust" is <em>jots</em> and <em>capture</em> in is the stage devoted to moving the stuff from your head to <em>jots</em>. </p>
 
-<p><em>Get stuff out of your head and into a bucket you can trust.</em> </p>
+<h4>Clarify and Organize</h4>
 
-<p>Your concious mind is made to focus not to store. It keeps reminding you of things you're subconciously trying not to forget whether or not they are relevant
-to what you are trying to do and, the more you are trying not to forget, the less processing power you have left for the task at hand. 
+<p>With your stuff safely stored in <em>jots</em> the next two stages are concerned with clarifying organizing them. The phrase <em>In to Empty</em> is a motto in <em>GTD</em>, meaning that the result of applying the illustrated work flow is that every <em>inbox</em> item will have gone into one of the green boxes, leaving the <em>inbox</em> empty. There is, however, one destinaton in <em>tklr</em> for <em>jots</em> not imagined in <em>GTD</em> - the magenta <em>used time</em> box for records of time spent. Let's step through the flow and see how all this works. 
 </p>
 
-<p>In <em>tklr</em>, <em>jots</em> plays the role of the "trusted bucket".</p>
+<h4>Actionable? No</h4>
 
-<strong>Clarify and Organize</strong>
-
-<p>One of the <em>GTD</em> mottos is <em>In to Empty</em>. This refers to the goal of routinely appling the Clarify/Organize flow with the goal of restoring the <em>Inbox</em> to <em>empty</em>. In <em>tklr</em> this goal is slightly modified - the only <em>jots</em> remaining should be those representing records of time spent. Lets step through the flow and see how this works.</p>
-
-<strong>Actionable? No</strong>
+<p>To be "actionable" would mean that the item is a task and one that should be completed as soon as possible.</p> 
 
 <dl>
   
@@ -628,17 +627,14 @@ to what you are trying to do and, the more you are trying not to forget, the les
   <dd>Is the jot something that might be actionable someday? If so, change the reminder type to <code>~</code> (task), remove the <em>scheduled</em> <code>@s</code> entry and set the <em>context</em> to <code>@c someday</code>. </dd> 
 
   <dt>reference</dt>
-  <dd>Does the jot represent useful information that you might want to reference later? If so, change the reminder type to <code>%</code> (note) and "file" it in an appropriate <em>bin</em> using <code>@b [appropriate bin]</code>. </dd>
+  <dd>Does the jot represent useful information that you might want to reference later? If so, change the reminder type to <code>%</code> (note) and "file" it in an appropriate <em>bin</em> using <code>@b</code>. </dd>
 
   <dt>used time</dt>
-  <dd>Does the jot represent a use of time that you want to preserve? If so, leave the reminder type as is, <code>-</code> (jot) and set the <em>extent</em> <code>@e [time used]</code> and/or <em>use</em> <code>@u [use]</code> accordingly. Adjust the <em>scheduled</em> <code>@s</code> entry if necessary to correspond to the relevant datetime.</dd> 
+  <dd>Does the jot represent a use of time that you want to preserve? If so, leave the reminder type as is, <code>-</code> (jot) and set the <em>extent</em> using <code>@e</code> and/or the <em>use</em> using <code>@u</code> accordingly. Adjust the <em>scheduled</em> <code>@s</code> entry if necessary to correspond to the relevant datetime. Having either an <code>@e</code> or an <code>@u</code> entry effectively removes the jot from further consideration in the workflow.</dd> 
 
 </dl>
 
-<p>Any <em>jot</em> remaining at this point that does not have either an <code>@e</code> or an <code>@u</code> entry will be regarded as an <em>Inbox</em> item and will implicity be assigned the <em>category</em> <code>@c inbox</code>, though this category assignment may be changed later in the flow. 
-</p>
-
-<strong>Actionable? Yes</strong>
+<h4>Actionable? Yes</h4>
 
 <dl>
   <dt>single step to complete?</dt>
