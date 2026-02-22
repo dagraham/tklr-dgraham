@@ -603,7 +603,7 @@ The flowchart and the connection to <em>tklr</em> mainly involve the first three
 </div>
 <div style="clear: both;"></div>
 
-<stronstrong>Capture</h4>
+<strong>Capture</strong>
 
 <p><em>Get stuff out of your head and into a bucket you can trust.</em> </p>
 
