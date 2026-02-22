@@ -651,7 +651,7 @@ Feb 2026: 1.0h
   <dd>Should this be deferred to a specific date in the future? If so, change the reminder type to <code>~</code> (task), change the due datetime in <code>@s</code> and set the <em>context</em> to <code>@c scheduled</code>. </dd>
 
   <dt>defer it - next and friends</dt>
-  <dd>At this point we have a task that takes a single step to complete, takes more than two minutes to complete, couldn't be deligated and shouldn't be scheduled for some future date. Deferred to the next available opportunity for completion. This is the meaning of the category <em>next</em> but other categories might similarly call for "next available opportunity" completion but add further specficity. In each case, the reminder type should be changed to <code>~</code> (task), the <em>scheduled</em> <code>@s</code> entry should be removed and the <em>category</em> should be set to <code>@c next</code> or some variant. Here are a few examples: 
+  <dd>At this point we have a task that takes a single step to complete, takes more than two minutes to complete, couldn't be deligated and shouldn't be scheduled for some future date. Deferred to the next available opportunity for completion. This is the meaning of the category <em>next</em> but other categories might similarly call for "next available opportunity" completion but add further specficity. In each case, the reminder type should be changed to <code>~</code> (task), the <em>scheduled</em> <code>@s</code> entry should be removed and the <em>category</em> should be set to <code>@c next</code> or some variant. Here are a few illustrative variants: 
 
     <dl>
       
@@ -683,7 +683,7 @@ Feb 2026: 1.0h
 
 ### 1.8. GTD and Task View
 
-<p><em>Task View</em> is designed specifically with <em>GTD</em> in mind. It presents a collapsible, tagged list of possible categories beginning with <em>inbox</em> and <em>next</em>, followed by the various friends of <em>next</em> and ending with <em>waiting</em> and <em>someday</em>. Each category is followed by the number of relevant reminders in parentheses. As with other <em>tklr</em> views, pressing the key corresponding to a tag opens the corresponding list of tagged reminders.
+<p><em>Task View</em> is designed specifically with <em>GTD</em> in mind. It presents a collapsible, tagged list of categories beginning with <em>inbox</em> and <em>next</em>, followed by the various friends of <em>next</em> and ending with <em>waiting</em> and <em>someday</em>. Each category is followed by the number of relevant reminders in parentheses. As with other <em>tklr</em> views, pressing the key corresponding to a tag opens the corresponding list of tagged reminders.
 </p>
 
 
