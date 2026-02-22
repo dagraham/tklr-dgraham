@@ -589,6 +589,7 @@ Feb 2026: 1.0h
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/GTD.png" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>The flowchart is from David Allen's <em>Getting Things Done</em>. His justly famous approach has become known simply as <em>GTD</em>. My own efforts to develop what has now become <em>tklr</em> began when I first read this wonderful book nearly two decades ago. It emphasizes these five steps:
+  </p>
   <ol>
    <li><strong>Capture</strong></li>
    <li><strong>Clarify</strong></li>
@@ -596,7 +597,7 @@ Feb 2026: 1.0h
    <li>Reflect</li>
    <li>Engage</li>
    </ol>
-  </p>
+
 <p>
 The flowchart and the connection to <em>tklr</em> mainly involve the first three - these are the steps described in the flowchart. Changes to Allen's original chart are colored magneta. Outcomes in which <em>tklr</em> plays a role are colored green.  
 </p>
@@ -621,18 +622,18 @@ to what you are trying to do and, the more you are trying not to forget, the les
 <strong>Actionable? No</strong>
 
 <dl>
+  
+  <dt>delete</dt> 
+  <dd>Is the <em>jot</em> worth saving? If not delete it.</dd>
 
-<dt>delete</dt> 
-<dd>Is the <em>jot</em> worth saving? If not delete it.</dd>
+  <dt>someday</dt>
+  <dd>Is the jot something that might be actionable someday? If so, change the reminder type to <code>~</code> (task), remove the <em>scheduled</em> <code>@s</code> entry and set the <em>context</em> to <code>@c someday</code>. </dd> 
 
-<dt>someday</dt>
-<dd>Is the jot something that might be actionable someday? If so, change the reminder type to <code>~</code> (task), remove the <em>scheduled</em> <code>@s</code> entry and set the <em>context</em> to <code>@c someday</code>. </dd> 
+  <dt>reference</dt>
+  <dd>Does the jot represent useful information that you might want to reference later? If so, change the reminder type to <code>%</code> (note) and "file" it in an appropriate <em>bin</em> using <code>@b [appropriate bin]</code>. </dd>
 
-<dt>reference</dt>
-<dd>Does the jot represent useful information that you might want to reference later? If so, change the reminder type to <code>%</code> (note) and "file" it in an appropriate <em>bin</em> using <code>@b [appropriate bin]</code>. </dd>
-
-<dt>used time</dt>
-<dd>Does the jot represent a use of time that you want to preserve? If so, leave the reminder type as is, <code>-</code> (jot) and set the <em>extent</em> <code>@e [time used]</code> and/or <em>use</em> <code>@u [use]</code> accordingly. Adjust the <em>scheduled</em> <code>@s</code> entry if necessary to correspond to the relevant datetime.</dd> 
+  <dt>used time</dt>
+  <dd>Does the jot represent a use of time that you want to preserve? If so, leave the reminder type as is, <code>-</code> (jot) and set the <em>extent</em> <code>@e [time used]</code> and/or <em>use</em> <code>@u [use]</code> accordingly. Adjust the <em>scheduled</em> <code>@s</code> entry if necessary to correspond to the relevant datetime.</dd> 
 
 </dl>
 
@@ -642,34 +643,41 @@ to what you are trying to do and, the more you are trying not to forget, the les
 <strong>Actionable? Yes</strong>
 
 <dl>
-<dt>single step to complete?<dt>
-<dd>If not, start a project for it. Change the reminder type to <code>^</code> (project), remove the <em>scheduled</em> <code>@s</code> entry and consider adding a <em>component task</em> <code>@~</code> for the first step to take on the project.</dd>
+  <dt>single step to complete?<dt>
+  <dd>If not, start a project for it. Change the reminder type to <code>^</code> (project), remove the <em>scheduled</em> <code>@s</code> entry and consider adding a <em>component task</em> <code>@~</code> for the first step to take on the project.</dd>
 
 
-<dt>less than 2 minutes?<dt>
-<dd>If so, do it. Then change the reminder type to <code>~</code> (task) and add the <em>finished</em> datetime, <code>@f [finished datetime]</code>.</dd>
+  <dt>less than 2 minutes?<dt>
+  <dd>If so, do it. Then change the reminder type to <code>~</code> (task) and add the <em>finished</em> datetime, <code>@f [finished datetime]</code>.</dd>
 
-<dt>delegate it<dt>
-<dd>Can this be deligated to someone. If so, change the reminder type to <code>~</code> (task) and set the <em>category</em> <code>@c waiting</code> and, perhaps, add the name of the person to whom the task was assigned to the <em>details</em>, <code>@d [person responsible for completion]</code>. </dd>
+  <dt>delegate it<dt>
+  <dd>Can this be deligated to someone. If so, change the reminder type to <code>~</code> (task) and set the <em>category</em> <code>@c waiting</code> and, perhaps, add the name of the person to whom the task was assigned to the <em>details</em>, <code>@d [person responsible for completion]</code>. </dd>
 
-<dt>defer it - calendar</dt>
-<dd>Should this be deferred to a specific date in the future? If so, change the reminder type to <code>~</code> (task), change the due datetime in <em>
-scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to <code>@c scheduled</code>. </dd>
+  <dt>defer it - calendar</dt>
+  <dd>Should this be deferred to a specific date in the future? If so, change the reminder type to <code>~</code> (task), change the due datetime in <em>
+  scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to <code>@c scheduled</code>. </dd>
 
-<dt>defer it - next and friends</dt>
-<dd>At this point we have a task that takes a single step to complete, takes more than two minutes to complete, couldn't be deligated and shouldn't be scheduled for some future date. In short, should be done as soon as possible. This fits the category <em>next</em> or one of the other categories which call for "ASAP" completion but add further specficity. Some examples follow, in each case, the reminder type should be changed to <code>~</code> (task), the <em>scheduled</em> <code>@s</code> entry should be removed and the <em>category</em> should be set to <code>@c next</code> or one of its friends:
-  <dl>
-    <dt><code>@c at home</code></dt>
-    <dd>A next task that should be completed when "at home".
-    </dd>
-    <dt><code>@c at office</code></dt>
-    <dd>Next task best completed when "at office".</dd>
-    <dt><code>@c errands</code></dt>
-    <dd>Next task best completed when running "errands".</dd>
-    <dt><code>@c email</code></dt>
-    <dd>Next task best completed when dealing with "email".</dd>
-  </dl>
-</dd>
+  <dt>defer it - next and friends</dt>
+  <dd>At this point we have a task that takes a single step to complete, takes more than two minutes to complete, couldn't be deligated and shouldn't be scheduled for some future date. In short, should be done as soon as possible. This fits the category <em>next</em> or one of the other categories which call for "ASAP" completion but add further specficity. Some examples follow, in each case, the reminder type should be changed to <code>~</code> (task), the <em>scheduled</em> <code>@s</code> entry should be removed and the <em>category</em> should be set to <code>@c next</code> or one of its friends:
+  
+    <dl>
+      
+      <dt><code>@c at home</code></dt>
+      <dd>A next task that should be completed when "at home".
+      </dd>
+
+      <dt><code>@c at office</code></dt>
+      <dd>Next task best completed when "at office".</dd>
+
+      <dt><code>@c errands</code></dt>
+      <dd>Next task best completed when running "errands".</dd>
+
+      <dt><code>@c email</code></dt>
+      <dd>Next task best completed when dealing with "email".</dd>
+
+    </dl>
+
+  </dd>
 </dl>
 
 
