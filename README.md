@@ -602,9 +602,6 @@ Feb 2026: 1.0h
 The flowchart and the connection to <em>tklr</em> mainly involve the first three - these are the steps described in the flowchart. Changes to Allen's original chart are colored magneta. Outcomes in which <em>tklr</em> plays a role are colored green.  
 </p>
 
-</div>
-<div style="clear: both;"></div>
-
 <strong>Capture</strong>
 
 <p><em>Get stuff out of your head and into a bucket you can trust.</em> </p>
@@ -678,8 +675,11 @@ to what you are trying to do and, the more you are trying not to forget, the les
     </dl>
 
   </dd>
-  
+
 </dl>
+
+</div>
+<div style="clear: both;"></div>
 
 
 [↩︎](#table-of-contents)
