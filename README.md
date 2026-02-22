@@ -642,14 +642,13 @@ Feb 2026: 1.0h
 
 
   <dt>less than 2 minutes?</dt>
-  <dd>If so, do it. Then change the reminder type to <code>~</code> (task) and add the <em>finished</em> datetime, <code>@f [finished datetime]</code>.</dd>
+  <dd>If so, do it. Then change the reminder type to <code>~</code> (task) and add the <em>finished</em> datetime using <code>@f</code>.</dd>
 
   <dt>delegate it</dt>
-  <dd>Can this be deligated to someone. If so, change the reminder type to <code>~</code> (task) and set the <em>category</em> <code>@c waiting</code> and, perhaps, add the name of the person to whom the task was assigned to the <em>details</em>, <code>@d [person responsible for completion]</code>. </dd>
+  <dd>Can this be deligated to someone. If so, change the reminder type to <code>~</code> (task) and set the <em>category</em> <code>@c waiting</code> and, perhaps, add the name of the person to whom the task was assigned to the <em>details</em>, <code>@d</code>. </dd>
 
   <dt>defer it - calendar</dt>
-  <dd>Should this be deferred to a specific date in the future? If so, change the reminder type to <code>~</code> (task), change the due datetime in <em>
-  scheduled</em> to <code>@s [due datetime]</code> and set the <em>context</em> to <code>@c scheduled</code>. </dd>
+  <dd>Should this be deferred to a specific date in the future? If so, change the reminder type to <code>~</code> (task), change the due datetime in <code>@s</code> and set the <em>context</em> to <code>@c scheduled</code>. </dd>
 
   <dt>defer it - next and friends</dt>
   <dd>At this point we have a task that takes a single step to complete, takes more than two minutes to complete, couldn't be deligated and shouldn't be scheduled for some future date. Deferred to the next available opportunity for completion. This is the meaning of the category <em>next</em> but other categories might similarly call for "next available opportunity" completion but add further specficity. In each case, the reminder type should be changed to <code>~</code> (task), the <em>scheduled</em> <code>@s</code> entry should be removed and the <em>category</em> should be set to <code>@c next</code> or some variant. Here are a few examples: 
