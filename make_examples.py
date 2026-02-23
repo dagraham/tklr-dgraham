@@ -322,12 +322,12 @@ def collect_use_names(entries: list[str], env: TklrEnvironment) -> list[str]:
 
 
 freq = [
-    "FREQ=WEEKLY;INTERVAL=1",
-    "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR",
-    "FREQ=WEEKLY;INTERVAL=2",
-    "FREQ=DAILY",
-    "FREQ=DAILY;INTERVAL=2",
-    "FREQ=DAILY;INTERVAL=3",
+    "w",
+    "w &w MO,WE,FR",
+    "w &i 2",
+    "d",
+    "d &i 2",
+    "d &i 3",
 ]
 
 
@@ -411,7 +411,7 @@ while len(items) < num_items:
         bin = f" @b {random.choice(BINS)}"
         dtstart = start.strftime("%Y%m%d") if date else start.strftime("%Y-%m-%d %H:%M")
         if t in ["*", "~"] and random.choice(repeats):
-            repeat = f" @r {random.choice(freq)};COUNT={random.choice([2, 3, 4, 5])}"
+            repeat = f" @r {random.choice(freq)} &c {random.choice([2, 3, 4, 5])}"
         else:
             repeat = ""
     tag = f" #{random.choice(tags)}"

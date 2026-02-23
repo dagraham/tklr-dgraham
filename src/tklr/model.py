@@ -2637,6 +2637,24 @@ class DatabaseManager:
         columns = [column[0] for column in self.cursor.description]
         return [dict(zip(columns, row)) for row in self.cursor.fetchall()]
 
+    def get_tasks_view_candidates(self) -> list[dict]:
+        """
+        Return records relevant to Tasks View bucketing.
+
+        Includes unfinished tasks/projects and jots; the controller applies
+        final inclusion rules for jots and context assignment.
+        """
+        self.cursor.execute(
+            """
+            SELECT id, itemtype, subject, context, tokens
+            FROM Records
+            WHERE itemtype IN ('~', '^', '-')
+            ORDER BY id ASC
+            """
+        )
+        cols = [column[0] for column in self.cursor.description]
+        return [dict(zip(cols, row)) for row in self.cursor.fetchall()]
+
     def get_job_display_subject(self, record_id: int, job_id: int | None) -> str | None:
         """
         Return the display_subject for a given record_id + job_id pair.

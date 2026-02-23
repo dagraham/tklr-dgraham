@@ -530,6 +530,7 @@ class Controller:
         self.timefmt = "%H:%M"
         self.dayfirst = False
         self.yearfirst = True
+        self.two_digit_year = False
         self.datefmt = "%Y-%m-%d"
         self.jot_minutes = 6
         if self.env:
@@ -537,6 +538,7 @@ class Controller:
             self.timefmt = "%-I:%M%p" if self.ampm else "%H:%M"
             self.dayfirst = self.env.config.ui.dayfirst
             self.yearfirst = self.env.config.ui.yearfirst
+            self.two_digit_year = self.env.config.ui.two_digit_year
             self.history_weight = self.env.config.ui.history_weight
             self.agenda_days = max(1, self.env.config.ui.agenda_days)
             self.jot_minutes = self.env.config.ui.minutes
@@ -568,6 +570,25 @@ class Controller:
         if isinstance(dt, date):
             return dt.strftime(self.datefmt)
         raise ValueError(f"Error: {dt} must either be a date or datetime")
+
+    def fmt_user_date_only(self, dt: date | datetime) -> str:
+        """
+        Format only the date portion using yearfirst/dayfirst/two_digit_year.
+        """
+        if isinstance(dt, datetime):
+            d = dt
+            if d.tzinfo == tz.UTC and not getattr(self, "final", False):
+                d = d.astimezone()
+            dt_date = d.date()
+        elif isinstance(dt, date):
+            dt_date = dt
+        else:
+            raise ValueError(f"Error: {dt} must either be a date or datetime")
+
+        year_token = "%y" if self.two_digit_year else "%Y"
+        dm = "%d-%m" if self.dayfirst else "%m-%d"
+        fmt = f"{year_token}-{dm}" if self.yearfirst else f"{dm}-{year_token}"
+        return dt_date.strftime(fmt)
 
     def _paginate(
         self, rows: List[dict], page_size: int = 26
@@ -2802,6 +2823,191 @@ class Controller:
         # build 'rows' as a list of dicts with record_id and text
         pages = self._paginate(rows)
         return pages, header
+
+    def _extract_tasks_view_markers(
+        self, tokens_raw: str | list[dict] | None
+    ) -> tuple[list[str], bool, bool, bool, str, date | None]:
+        """
+        Parse token metadata needed for Tasks View grouping.
+
+        Returns:
+            contexts, has_s, has_e, has_u, scheduled_display, scheduled_sort_date
+        """
+        tokens_list: list[dict]
+        if isinstance(tokens_raw, str):
+            try:
+                tokens_list = json.loads(tokens_raw) or []
+            except Exception:
+                tokens_list = []
+        elif isinstance(tokens_raw, list):
+            tokens_list = tokens_raw
+        else:
+            tokens_list = []
+
+        tokens_list = reveal_mask_tokens(tokens_list, self.mask_secret)
+
+        contexts: list[str] = []
+        seen_ctx: set[str] = set()
+        has_s = False
+        has_e = False
+        has_u = False
+        scheduled_display = ""
+        scheduled_sort_date: date | None = None
+
+        for tok in tokens_list:
+            if not isinstance(tok, dict) or tok.get("t") != "@":
+                continue
+            key = tok.get("k")
+            if key == "s":
+                has_s = True
+                if not scheduled_display:
+                    raw = (tok.get("token") or "").strip()
+                    value = raw[2:].strip() if raw.lower().startswith("@s") else ""
+                    if value:
+                        try:
+                            dtobj = parse(
+                                value, yearfirst=self.yearfirst, dayfirst=self.dayfirst
+                            )
+                            if dtobj:
+                                scheduled_display = self.fmt_user_date_only(dtobj)
+                                if isinstance(dtobj, datetime):
+                                    scheduled_sort_date = dtobj.date()
+                                elif isinstance(dtobj, date):
+                                    scheduled_sort_date = dtobj
+                            else:
+                                scheduled_display = value
+                        except Exception:
+                            scheduled_display = value
+            elif key == "e":
+                has_e = True
+            elif key == "u":
+                has_u = True
+            elif key == "c":
+                raw = (tok.get("token") or "").strip()
+                value = ""
+                if raw.lower().startswith("@c"):
+                    value = raw[2:].strip()
+                if not value:
+                    continue
+                value = " ".join(value.split())
+                folded = value.casefold()
+                if folded in seen_ctx:
+                    continue
+                seen_ctx.add(folded)
+                contexts.append(value)
+
+        return (
+            contexts,
+            has_s,
+            has_e,
+            has_u,
+            scheduled_display,
+            scheduled_sort_date,
+        )
+
+    def get_tasks_view_groups(self) -> list[tuple[str, list[dict]]]:
+        """
+        Return ordered Tasks View groups as (context_name, reminder_rows).
+
+        Rules:
+        - Tasks with @c go under those context(s).
+        - Tasks without @c but with @s go under implicit "scheduled".
+        - Tasks without @c or @s go under implicit "inbox".
+        - Jots ('-') with neither @e nor @u go under implicit "inbox".
+        """
+        records = self.db_manager.get_tasks_view_candidates()
+
+        grouped_rows: dict[str, list[dict]] = {}
+        display_name_by_key: dict[str, str] = {
+            "inbox": "inbox",
+            "scheduled": "scheduled",
+        }
+
+        for record in records:
+            record_id = record["id"]
+            itemtype = record.get("itemtype") or ""
+            subject_plain = record.get("subject") or "(untitled)"
+            subject = self.apply_flags(record_id, subject_plain)
+            contexts, has_s, has_e, has_u, scheduled_display, scheduled_sort_date = (
+                self._extract_tasks_view_markers(record.get("tokens"))
+            )
+
+            base_text = (
+                f"[{TYPE_TO_COLOR.get(itemtype, 'white')}]"
+                f"{itemtype} {subject}"
+                f"[/{TYPE_TO_COLOR.get(itemtype, 'white')}]"
+            )
+
+            target_keys: list[str] = []
+
+            if itemtype == "-":
+                if has_e or has_u:
+                    continue
+                target_keys = ["inbox"]
+            else:
+                if contexts:
+                    for ctx in contexts:
+                        key = ctx.casefold()
+                        display_name_by_key.setdefault(key, ctx)
+                        target_keys.append(key)
+                elif has_s:
+                    target_keys = ["scheduled"]
+                else:
+                    target_keys = ["inbox"]
+
+            for key in target_keys:
+                row_text = base_text
+                if key == "scheduled" and scheduled_display:
+                    row_text = f"[not bold]{scheduled_display}[/not bold]  {base_text}"
+                row = {
+                    "record_id": record_id,
+                    "job_id": None,
+                    "datetime_id": None,
+                    "instance_ts": None,
+                    "sort_subject": subject_plain.casefold(),
+                    "sort_scheduled_date": scheduled_sort_date,
+                    "text": row_text,
+                }
+                grouped_rows.setdefault(key, []).append(dict(row))
+
+        for key, rows in grouped_rows.items():
+            if key == "scheduled":
+                rows.sort(
+                    key=lambda r: (
+                        r.get("sort_scheduled_date") is None,
+                        r.get("sort_scheduled_date"),
+                        r.get("sort_subject", ""),
+                        r.get("record_id", 0),
+                    )
+                )
+            else:
+                rows.sort(
+                    key=lambda r: (r.get("sort_subject", ""), r.get("record_id", 0))
+                )
+            for row in rows:
+                row.pop("sort_subject", None)
+                row.pop("sort_scheduled_date", None)
+
+        top_keys = ["inbox", "waiting", "next"]
+        bottom_keys = ["someday", "scheduled"]
+
+        ordered_keys: list[str] = [k for k in top_keys if k in grouped_rows]
+
+        middle_keys = sorted(
+            [
+                k
+                for k in grouped_rows.keys()
+                if k not in set(top_keys) and k not in set(bottom_keys)
+            ],
+            key=lambda k: display_name_by_key.get(k, k).casefold(),
+        )
+        ordered_keys.extend(middle_keys)
+
+        ordered_keys.extend([k for k in bottom_keys if k in grouped_rows])
+
+        return [
+            (display_name_by_key.get(key, key), grouped_rows[key]) for key in ordered_keys
+        ]
 
     def get_modified(self, yield_rows: bool = False):
         """

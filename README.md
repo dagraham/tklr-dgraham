@@ -683,7 +683,7 @@ Feb 2026: 1.0h
 
 ### 1.8. GTD and Task View
 
-<p><em>Task View</em> is designed specifically with <em>GTD</em> in mind. It presents a collapsible, tagged list of categories beginning with <em>inbox</em> and <em>next</em>, followed by the various friends of <em>next</em> and ending with <em>waiting</em> and <em>someday</em>. Each category is followed by the number of relevant reminders in parentheses. As with other <em>tklr</em> views, pressing the key corresponding to a tag opens the corresponding list of tagged reminders.
+<p><em>Task View</em> is designed specifically with <em>GTD</em> in mind. It begins with a tagged list of relevant <em>contexts</em> (those having at least one applicable reminder), each followed by its reminder count in parentheses. Tasks with <code>@c</code> are grouped under that context; tasks without <code>@c</code> but with <code>@s</code> are grouped under the implicit context <em>scheduled</em>; tasks with neither <code>@c</code> nor <code>@s</code> are grouped under the implicit context <em>inbox</em>. Jots (<code>-</code>) with neither <code>@e</code> nor <code>@u</code> are also grouped under <em>inbox</em>. The context order is <em>inbox</em>, <em>waiting</em>, <em>next</em>, other contexts alphabetically, then <em>someday</em> and <em>scheduled</em>. Pressing a context tag opens the corresponding tagged reminder list; pressing a reminder tag opens its details.
 </p>
 
 

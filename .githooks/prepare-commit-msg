@@ -1,0 +1,92 @@
+#!/bin/sh
+
+# Auto-generate a helpful commit message from staged changes.
+# Runs only for normal commits when the message is otherwise empty.
+
+set -eu
+
+MSG_FILE="${1:-}"
+SOURCE="${2:-}"
+
+if [ -z "$MSG_FILE" ]; then
+  exit 0
+fi
+
+# Do not override explicit messages or Git-generated merge/squash/cherry-pick text.
+case "$SOURCE" in
+  message|merge|squash|commit)
+    exit 0
+    ;;
+esac
+
+# Respect existing user text (ignore comment lines).
+if grep -q '^[[:space:]]*[^#[:space:]]' "$MSG_FILE"; then
+  exit 0
+fi
+
+# Nothing staged -> nothing to summarize.
+if git diff --cached --quiet; then
+  exit 0
+fi
+
+branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)"
+shortstat="$(git diff --cached --shortstat 2>/dev/null || true)"
+[ -n "$shortstat" ] || shortstat="staged changes ready"
+
+file_count="$(
+  git diff --cached --name-only \
+    | sed '/^$/d' \
+    | wc -l \
+    | tr -d ' '
+)"
+
+if [ "${file_count:-0}" -le 1 ]; then
+  only_file="$(git diff --cached --name-only | head -n 1)"
+  [ -n "$only_file" ] || only_file="change"
+  subject="Update ${only_file}"
+else
+  subject="Update ${file_count} files"
+fi
+
+files_block="$(
+  git diff --cached --name-status \
+    | awk '
+        {
+          status=$1
+          $1=""
+          sub(/^\t/, "")
+          printf("- %s %s\n", status, $0)
+        }
+      ' \
+    | head -n 30
+)"
+[ -n "$files_block" ] || files_block="- (unable to determine file list)"
+
+notable_block="$(
+  git diff --cached --unified=0 --no-color \
+    | awk '
+        /^\+\+\+ b\// {file=substr($0, 7); next}
+        /^@@/ {
+          if (file != "") {
+            printf("- %s %s\n", file, $0)
+          }
+        }
+      ' \
+    | head -n 12
+)"
+[ -n "$notable_block" ] || notable_block="- (no hunk headers available)"
+
+cat >"$MSG_FILE" <<EOF
+${subject}
+
+Summary:
+- ${shortstat}
+- Branch: ${branch}
+
+Files changed:
+${files_block}
+
+Notable edits:
+${notable_block}
+
+EOF

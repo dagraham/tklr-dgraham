@@ -251,15 +251,15 @@ def word():
 
 
 freq = [
-    "FREQ=WEEKLY;INTERVAL=1",
-    "FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR",
-    "FREQ=WEEKLY;INTERVAL=2",
-    "FREQ=DAILY",
-    "FREQ=DAILY;INTERVAL=2",
-    "FREQ=DAILY;INTERVAL=3",
+    "w",
+    "w &w MO,WE,FR",
+    "w &i 2",
+    "d",
+    "d &i 2",
+    "d &i 3",
 ]
 
-count = [f"COUNT={n}" for n in range(2, 5)]
+counts = [2, 3, 4]
 
 first_of_month = now.replace(day=1).strftime("%Y-%m-%d")
 yesterday_date = (now - ONEDAY).strftime("%Y-%m-%d")
@@ -426,7 +426,8 @@ while len(items) < num_items:
     extent = f" @e {random.choice(duration)}" if (t == "*" and not date) else ""
     if random.choice(repeat):
         items.append(
-            f"{t} {name} @d {description} @s {dtstart}{extent} @r {random.choice(freq)} "
+            f"{t} {name} @d {description} @s {dtstart}{extent} "
+            f"@r {random.choice(freq)} &c {random.choice(counts)} "
         )
     else:
         items.append(f"{t} {name} @d {description} @s {dtstart}{extent}")

@@ -41,6 +41,21 @@ def build_entries() -> list[str]:
         "- Capture idea #idea",
         "? Draft: follow-up email template #draft",
         f"* Project check-in #project @s {tomorrow()} 11:00 @e 30m @b clients/acme",
+        # --- GTD / Tasks View examples -----------------------------------------
+        "~ Inbox capture: order printer paper #gtd",
+        f"~ Deferred to calendar #gtd @s {tomorrow()} 09:00",
+        "~ Waiting on legal review #gtd @c waiting @d Sent to counsel; waiting reply.",
+        "~ Next action: call supplier #gtd @c next @p 2",
+        "~ Someday: learn Rust macros #gtd @c someday",
+        "~ Office context: update desk setup #gtd @c office",
+        "~ Errands context: pick up dry cleaning #gtd @c errands",
+        "~ Home context: replace HVAC filter #gtd @c home",
+        # Jots for processing: only jots without @e/@u should appear in Tasks View inbox
+        "- Jot to process: ask Alex about Q2 plan #gtd",
+        f"- Meeting note to process #gtd @s {today()} 15:10",
+        f"- Time log only (filtered from Tasks View) #gtd @s {today()} 08:30 @e 45m",
+        f"- Tagged use only (filtered from Tasks View) #gtd @s {today()} 12:20 @u admin.email",
+        f"- Time + use (filtered from Tasks View) #gtd @s {today()} 13:40 @e 30m @u focus.deepwork",
     ]
 
 

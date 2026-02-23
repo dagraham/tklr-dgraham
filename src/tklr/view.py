@@ -2803,6 +2803,220 @@ class ReminderRow:
 TAGS = [chr(ord("a") + i) for i in range(26)]  # single-letter tags per page
 
 
+class TasksHierarchyScreen(SearchableScreen):
+    """Two-level Tasks View: contexts at root, tagged reminders per context."""
+
+    def __init__(self, controller, footer_content: str = ""):
+        super().__init__()
+        self.controller = controller
+        self._base_footer = (
+            footer_content
+            or f"[bold {FOOTER}]?[/bold {FOOTER}] Help "
+            f" [bold {FOOTER}]/[/bold {FOOTER}] Search "
+            f" [bold {FOOTER}]a-z[/bold {FOOTER}] Open tagged"
+        )
+        self.footer_content = self._base_footer
+
+        self.mode: str = "contexts"  # "contexts" | "reminders"
+        self.current_page: int = 0
+        self.current_context: str | None = None
+        self.pages: list[tuple[list[str], dict[str, object]]] = []
+        self.context_groups: list[tuple[str, list[dict]]] = []
+        self.list_with_details: Optional[ListWithDetails] = None
+
+    def compose(self) -> ComposeResult:
+        yield Static("", id="scroll_title", classes="title-class", expand=True)
+        self.list_with_details = ListWithDetails(id="list")
+        self.list_with_details.set_detail_key_handler(
+            self.app.make_detail_key_handler(view_name="tasks")
+        )
+        self.list_with_details.set_details_visibility_callback(
+            self._on_details_visibility_change
+        )
+        yield self.list_with_details
+        yield FooterDisplay(self.footer_content)
+
+    def on_mount(self) -> None:
+        self.refresh_hierarchy()
+
+    def next_page(self) -> None:
+        if self.current_page < len(self.pages) - 1:
+            self.current_page += 1
+            self._refresh_page()
+
+    def previous_page(self) -> None:
+        if self.current_page > 0:
+            self.current_page -= 1
+            self._refresh_page()
+
+    def has_next_page(self) -> bool:
+        return self.current_page < len(self.pages) - 1
+
+    def has_prev_page(self) -> bool:
+        return self.current_page > 0
+
+    def show_details_for_tag(self, tag: str) -> None:
+        if not self.pages:
+            return
+        _, tag_map = self.pages[self.current_page]
+        payload = tag_map.get(tag)
+        if payload is None:
+            return
+
+        if self.mode == "contexts":
+            context_index = int(payload)
+            self._open_context(context_index)
+            return
+
+        record_id, job_id, datetime_id, instance_ts = payload
+        title, lines, meta = self.controller.get_details_for_record(
+            record_id, job_id, datetime_id, instance_ts
+        )
+        if self.list_with_details:
+            self.list_with_details.show_details(title, lines, meta)
+
+    def on_key(self, event) -> None:
+        k = event.key
+
+        if k == "escape" and self.mode == "reminders":
+            self.mode = "contexts"
+            self.current_context = None
+            self.pages = self._build_context_pages()
+            self.current_page = 0
+            self._refresh_page()
+            event.stop()
+            return
+
+        if k == "left":
+            if self.has_prev_page():
+                self.previous_page()
+                event.stop()
+                return
+
+        if k == "right":
+            if self.has_next_page():
+                self.next_page()
+                event.stop()
+                return
+
+    def refresh_hierarchy(self) -> None:
+        self.context_groups = self.controller.get_tasks_view_groups()
+        self.mode = "contexts"
+        self.current_context = None
+        self.pages = self._build_context_pages()
+        self.current_page = 0
+        self._refresh_page()
+
+    def _build_context_pages(self) -> list[tuple[list[str], dict[str, object]]]:
+        total = len(self.context_groups)
+        if total == 0:
+            return [
+                (
+                    [
+                        f"[bold {HEADER_COLOR}]Contexts[/bold {HEADER_COLOR}]",
+                        "",
+                        f"[{DIM_STYLE}]No matching tasks or jots.[/{DIM_STYLE}]",
+                    ],
+                    {},
+                )
+            ]
+
+        pages: list[tuple[list[str], dict[str, object]]] = []
+        num_pages = (total + 25) // 26
+        ctx_color = TYPE_TO_COLOR.get("b", "white")
+
+        for page_index in range(num_pages):
+            start = page_index * 26
+            end = min(start + 26, total)
+            page_groups = self.context_groups[start:end]
+
+            rows: list[str] = [
+                f"[bold {HEADER_COLOR}]Contexts[/bold {HEADER_COLOR}]",
+                "",
+            ]
+            tag_map: dict[str, object] = {}
+
+            for i, (context_name, reminders) in enumerate(page_groups):
+                tag = TAGS[i]
+                context_index = start + i
+                tag_map[tag] = context_index
+                count = len(reminders)
+                noun = "reminder" if count == 1 else "reminders"
+                rows.append(
+                    f"  [{DIM_STYLE}]{tag}[/{DIM_STYLE}] "
+                    f"[{ctx_color}]{context_name}[/{ctx_color}] "
+                    f"[{DIM_STYLE}]({count} {noun})[/{DIM_STYLE}]"
+                )
+
+            pages.append((rows, tag_map))
+
+        return pages
+
+    def _build_reminder_pages(self, context_name: str) -> list[tuple[list[str], dict]]:
+        context_lookup = {name: rows for name, rows in self.context_groups}
+        rows = context_lookup.get(context_name, [])
+        if not rows:
+            return [
+                (
+                    [f"[{DIM_STYLE}]No reminders in this context.[/{DIM_STYLE}]"],
+                    {},
+                )
+            ]
+        return self.controller._paginate(rows)
+
+    def _open_context(self, context_index: int) -> None:
+        if not (0 <= context_index < len(self.context_groups)):
+            return
+        context_name, _ = self.context_groups[context_index]
+        self.mode = "reminders"
+        self.current_context = context_name
+        self.pages = self._build_reminder_pages(context_name)
+        self.current_page = 0
+        self._refresh_page()
+
+    def _refresh_page(self) -> None:
+        rows, _tag_map = self.pages[self.current_page] if self.pages else ([], {})
+        if self.list_with_details:
+            self.list_with_details.update_list(rows)
+            if self.list_with_details.has_details_open():
+                self.list_with_details.hide_details()
+        self._refresh_header()
+        self._refresh_footer_text()
+
+    def _refresh_header(self) -> None:
+        bullets = self._page_bullets()
+        if self.mode == "contexts":
+            base = "Tasks"
+        else:
+            base = f"Tasks: {self.current_context or ''}".rstrip()
+        header = f"{base} ({bullets})" if bullets else base
+        self.query_one("#scroll_title", Static).update(header)
+
+    def _page_bullets(self) -> str:
+        n = len(self.pages)
+        if n <= 1:
+            return ""
+        return f"{self.current_page + 1}/{n}"
+
+    def _refresh_footer_text(self) -> None:
+        if self.mode == "contexts":
+            text = self._base_footer
+        else:
+            text = (
+                f"{self._base_footer} "
+                f"[bold {FOOTER}]Esc[/bold {FOOTER}] Back to contexts"
+            )
+        self.footer_content = text
+        try:
+            self.query_one("#custom_footer", FooterDisplay).update(text)
+        except Exception:
+            pass
+
+    def _on_details_visibility_change(self, visible: bool) -> None:
+        # Keep footer text stable for this view while details open/close.
+        self._refresh_footer_text()
+
+
 class TaggedHierarchyScreen(SearchableScreen):
     """
     Tagged hierarchy browser for bins:
@@ -3666,6 +3880,7 @@ class DynamicViewApp(App):
         "agenda": "action_show_agenda",
         "goals": "action_show_goals",
         "query": "action_show_query",
+        "tasks": "action_show_tasks",
         "modified": "action_show_modified",
         "year": "action_show_year",
         # ...
@@ -3687,6 +3902,7 @@ class DynamicViewApp(App):
         ("A", "show_agenda", "Show Agenda"),
         ("G", "show_goals", "Goals"),
         ("B", "show_bins", "Bins"),
+        ("T", "show_tasks", "Tasks"),
         ("Q", "show_query", "Query"),
         ("C", "show_completions", "Completions"),
         ("L", "show_last", "Show Last"),
@@ -5290,6 +5506,15 @@ class DynamicViewApp(App):
     def action_show_bins(self, start_bin_id: int | None = None):
         root_id = start_bin_id or self.controller.get_root_bin_id()
         self.push_screen(TaggedHierarchyScreen(self.controller, root_id))
+
+    def action_show_tasks(self):
+        self.view = "tasks"
+        footer = (
+            f"[bold {FOOTER}]?[/bold {FOOTER}] Help "
+            f"[bold {FOOTER}]/[/bold {FOOTER}] Search "
+            f"[bold {FOOTER}]a-z[/bold {FOOTER}] Open tagged"
+        )
+        self.show_screen(TasksHierarchyScreen(self.controller, footer))
 
     def action_open_with_default(self, record_id: int) -> None:
         """
