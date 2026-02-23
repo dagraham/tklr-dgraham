@@ -75,6 +75,7 @@ two_digit_year = true
 # note_color = "#b56576"
 
 
+
 [alerts]
 # dict[str, str]: character -> command_str.
 # E.g., this entry
@@ -88,6 +89,7 @@ two_digit_year = true
 # start), location, description.
 
 v = '/usr/bin/say -v Alex "{name}, {when}"'
+
 
 # ─── Urgency Configuration ─────────────────────────────────────
 
@@ -149,17 +151,17 @@ max = 3.0
 # "5" (lowest) of `@p` specified in the task. E.g, with "@p 3", the value
 # would correspond to the "3" entry below. Absent an entry for "@p", the
 # value 0.0 is used.
-# Note: "next" is treated as the maximum priority when normalizing urgency.
+# Note: "first" is treated as the maximum priority when normalizing urgency.
 
-"1" = 10.0
+"first" = 10.0
 
-"2" = 8.0
+"second" = 8.0
 
-"3" = 5.0
+"third" = 5.0
 
-"4" = 2.0
+"fourth" = 2.0
 
-"5" = -5.0
+"fifth" = -5.0
 
 
 # In the default settings, a priority of "5" is the only one that yields

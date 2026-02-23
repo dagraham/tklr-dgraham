@@ -2,8 +2,8 @@ from pathlib import Path
 import os
 import sys
 import tomllib
-from pydantic import BaseModel, Field, ValidationError, field_validator
-from typing import Dict, List, Optional
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+from typing import ClassVar, Dict, List, Optional
 from jinja2 import Template
 
 from pydantic import RootModel
@@ -12,7 +12,52 @@ from .mask import generate_secret
 
 
 class PriorityConfig(RootModel[dict[str, float]]):
-    pass
+    DEFAULTS: ClassVar[dict[str, float]] = {
+        "first": 10.0,
+        "second": 8.0,
+        "third": 5.0,
+        "fourth": 2.0,
+        "fifth": -5.0,
+    }
+
+    _ALIASES: ClassVar[dict[str, str]] = {
+        "1": "first",
+        "2": "second",
+        "3": "third",
+        "4": "fourth",
+        "5": "fifth",
+        "next": "first",
+        "high": "second",
+        "medium": "third",
+        "low": "fourth",
+        "someday": "fifth",
+    }
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_priority_names(cls, value):
+        """
+        Canonicalize urgency.priority keys to first..fifth and fill missing defaults.
+
+        Accepts old names (next/high/...) and numeric names ("1".. "5") as input,
+        but always stores/render as first..fifth.
+        """
+        if value is None:
+            return dict(cls.DEFAULTS)
+
+        # RootModel can receive {'root': {...}} or just {...}.
+        raw = (
+            value.get("root") if isinstance(value, dict) and "root" in value else value
+        )
+        if not isinstance(raw, dict):
+            return dict(cls.DEFAULTS)
+
+        normalized = dict(cls.DEFAULTS)
+        for key, val in raw.items():
+            canonical = cls._ALIASES.get(str(key), str(key))
+            if canonical in cls.DEFAULTS and isinstance(val, (int, float)):
+                normalized[canonical] = float(val)
+        return normalized
 
 
 # ─── Config Schema ─────────────────────────────────────────────────
@@ -103,11 +148,11 @@ class UrgencyConfig(BaseModel):
 
     priority: PriorityConfig = PriorityConfig(
         {
-            "1": 10.0,
-            "2": 8.0,
-            "3": 5.0,
-            "4": 2.0,
-            "5": -5.0,
+            "first": 10.0,
+            "second": 8.0,
+            "third": 6.0,
+            "fourth": 4.0,
+            "fifth": 2.0,
         }
     )
 
@@ -283,7 +328,7 @@ max = {{ urgency.tags.max }}
 # "5" (lowest) of `@p` specified in the task. E.g, with "@p 3", the value
 # would correspond to the "3" entry below. Absent an entry for "@p", the
 # value 0.0 is used.
-# Note: "next" is treated as the maximum priority when normalizing urgency.
+# Note: "first" is treated as the maximum priority when normalizing urgency.
 {% for key, value in urgency.priority.items() %}
 "{{ key }}" = {{ value }}
 {% endfor %}
@@ -406,23 +451,23 @@ max = {{ urgency.project.max }}
 # # Priority levels used in urgency calculation.
 # # These are mapped from user input `@p 1` through `@p 5`
 # # so that entering "@p 1" entails the priority value for
-# # "next", "@p 2" the priority value for "high" and so forth.
+# # "first", "@p 2" the priority value for "second" and so forth.
 # #
-# #   @p 1 = next     → most urgent
-# #   @p 2 = high
-# #   @p 3 = medium
-# #   @p 4 = low
-# #   @p 5 = someday  → least urgent
+# #   @p 1 = first     → most urgent
+# #   @p 2 = second
+# #   @p 3 = third
+# #   @p 4 = fourth
+# #   @p 5 = fifth     → least urgent
 # #
 # # Set these values to tune the effect of each level. Note
 # # that omitting @p in a task is equivalent to setting
 # # priority = 0.0 for the task.
 #
-# someday = {{ urgency.priority.someday }}
-# low     = {{ urgency.priority.low }}
-# medium = {{ urgency.priority.medium }}
-# high    = {{ urgency.priority.high }}
-# next    = {{ urgency.priority.next }}
+# fifth  = {{ urgency.priority.fifth }}
+# fourth = {{ urgency.priority.fourth }}
+# third  = {{ urgency.priority.third }}
+# second = {{ urgency.priority.second }}
+# first  = {{ urgency.priority.first }}
 #
 # [bin_orders]
 # # Specify custom ordering of children for a root bin.

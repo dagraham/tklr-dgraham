@@ -2,6 +2,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import json
+import hashlib
 from typing import Optional
 from datetime import date, datetime, time, timedelta
 from dateutil.rrule import rrulestr
@@ -798,10 +799,10 @@ class UrgencyComputer:
         try:
             priority_map = getattr(self.urgency.priority, "root", {})
             if isinstance(priority_map, dict):
-                if "next" in priority_map and isinstance(
-                    priority_map["next"], (int, float)
+                if "first" in priority_map and isinstance(
+                    priority_map["first"], (int, float)
                 ):
-                    max_priority = float(priority_map["next"])
+                    max_priority = float(priority_map["first"])
                 elif "1" in priority_map and isinstance(
                     priority_map["1"], (int, float)
                 ):
@@ -990,16 +991,16 @@ class UrgencyComputer:
         priority = priority_map.get(str(priority_level), 0.0)
         if priority == 0.0:
             name_map = {
-                1: "next",
-                2: "high",
-                3: "medium",
-                4: "low",
-                5: "someday",
+                1: "first",
+                2: "second",
+                3: "third",
+                4: "fourth",
+                5: "fifth",
             }
             name_key = name_map.get(priority_level)
             if name_key is not None:
                 priority = priority_map.get(name_key, priority)
-        # log_msg(f"computed {priority = }")
+        log_msg(f"computed {priority = } from priority_level {priority_level}")
         return priority
 
     def urgency_extent(self, extent_seconds: int) -> float:
@@ -1068,7 +1069,7 @@ class UrgencyComputer:
             # log_msg("pinned, ignoring weights, returning urgency 1.0")
         else:
             urgency = self.compute_partitioned_urgency(weights)
-            # log_msg(f"{weights = }\n  returning {urgency = }")
+            log_msg(f"{weights = }\n  returning {urgency = }")
         return urgency, self.urgency_to_bucket_color(urgency), weights
 
 
@@ -1244,6 +1245,24 @@ class DatabaseManager:
         if not row:
             return "0"
         return row[0] or "0"
+
+    def _urgency_config_version(self) -> str:
+        """
+        Return a stable digest for urgency-related config.
+        Any urgency config change should invalidate cached Urgency rows.
+        """
+        urgency_cfg = getattr(getattr(self, "env", None), "config", None)
+        urgency_cfg = getattr(urgency_cfg, "urgency", None)
+        if urgency_cfg is None:
+            return "0"
+        try:
+            payload = urgency_cfg.model_dump()
+        except Exception:
+            payload = {}
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
+        return hashlib.sha256(encoded).hexdigest()
 
     def format_datetime(self, fmt_dt: str) -> str:
         return format_datetime(fmt_dt, self.ampm)
@@ -2078,11 +2097,22 @@ class DatabaseManager:
         self, records_version: str, force: bool, state_key: str = "urgency"
     ) -> bool:
         state = self._get_state_value(state_key, {})
-        if not force and state.get("version") == records_version:
+        config_version = self._urgency_config_version()
+        if (
+            not force
+            and state.get("version") == records_version
+            and state.get("config_version") == config_version
+        ):
             return False
 
         self.populate_all_urgency()
-        self._set_state_value(state_key, {"version": records_version})
+        self._set_state_value(
+            state_key,
+            {
+                "version": records_version,
+                "config_version": config_version,
+            },
+        )
         return True
 
     def _normalize_tags(self, tags) -> list[str]:

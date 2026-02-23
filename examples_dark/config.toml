@@ -151,17 +151,17 @@ max = 3.0
 # "5" (lowest) of `@p` specified in the task. E.g, with "@p 3", the value
 # would correspond to the "3" entry below. Absent an entry for "@p", the
 # value 0.0 is used.
-# Note: "next" is treated as the maximum priority when normalizing urgency.
+# Note: "first" is treated as the maximum priority when normalizing urgency.
 
-"someday" = -5.0
+"first" = 10.0
 
-"low" = 2.0
+"second" = 8.0
 
-"medium" = 5.0
+"third" = 6.0
 
-"high" = 8.0
+"fourth" = 4.0
 
-"next" = 10.0
+"fifth" = 2.0
 
 
 # In the default settings, a priority of "5" is the only one that yields
