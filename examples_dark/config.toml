@@ -4,6 +4,12 @@ title = "Tklr Configuration"
 # secret: used to encode/decode masked (@m) fields.
 secret = "eAa90BoW8ld1DMNwDsq0WxDuzAaAVCjN"
 
+# num_completions: int >= 0
+# For infinitely repeating tasks (@r with no &c / no &u):
+#   0 -> keep all completions
+#   N -> keep only the N most recent completions
+num_completions = 6
+
 [ui]
 # theme: str = 'dark' | 'light'
 theme = "dark"

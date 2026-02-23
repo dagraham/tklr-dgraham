@@ -2373,7 +2373,55 @@ class DatabaseManager:
                 _fmt_utc(due_dt) if due_dt else None,
             ),
         )
+        self._prune_completion_history_if_needed(record_id)
         self.commit()
+
+    def _completion_limit(self) -> int:
+        cfg = getattr(getattr(self, "env", None), "config", None)
+        value = getattr(cfg, "num_completions", 6)
+        try:
+            limit = int(value)
+        except Exception:
+            return 6
+        return max(0, limit)
+
+    def _is_infinite_repeating_task(self, record_id: int) -> bool:
+        self.cursor.execute(
+            "SELECT itemtype, rruleset FROM Records WHERE id = ?",
+            (record_id,),
+        )
+        row = self.cursor.fetchone()
+        if not row:
+            return False
+        itemtype, rruleset = row
+        if itemtype != "~":
+            return False
+        rule_text = (rruleset or "").upper()
+        return (
+            "RRULE" in rule_text
+            and "COUNT=" not in rule_text
+            and "UNTIL=" not in rule_text
+        )
+
+    def _prune_completion_history_if_needed(self, record_id: int) -> None:
+        limit = self._completion_limit()
+        if limit == 0:
+            return
+        if not self._is_infinite_repeating_task(record_id):
+            return
+        self.cursor.execute(
+            """
+            DELETE FROM Completions
+            WHERE id IN (
+                SELECT id
+                FROM Completions
+                WHERE record_id = ?
+                ORDER BY completed DESC, id DESC
+                LIMIT -1 OFFSET ?
+            )
+            """,
+            (record_id, limit),
+        )
 
     def get_completions(self, record_id: int):
         """

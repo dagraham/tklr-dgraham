@@ -249,13 +249,14 @@ pressing [bold]control[/bold] and [bold]u[/bold] simultaneously.
 [bold] +[/bold]    New Reminder       [bold] Y[/bold]    Yearly Calendar
 [bold] P[/bold]    Palette
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
- [bold]A[/bold]    Agenda              [bold]L[/bold]    Last
- [bold]B[/bold]    Bins                [bold]M[/bold]    Modified
- [bold]C[/bold]    Completions         [bold]N[/bold]    Next
- [bold]F[/bold]    Find                [bold]Q[/bold]    Query
- [bold]G[/bold]    Goals               [bold]R[/bold]    Remaining Alerts
+ [bold]A[/bold]    Agenda              [bold]M[/bold]    Modified
+ [bold]B[/bold]    Bins                [bold]N[/bold]    Next
+ [bold]C[/bold]    Completions         [bold]Q[/bold]    Query
+ [bold]F[/bold]    Find                [bold]R[/bold]    Remaining Alerts
+ [bold]G[/bold]    Goals               [bold]T[/bold]    Tasks
  [bold]H[/bold]    Hash-Tags           [bold]U[/bold]    Jot Uses
  [bold]J[/bold]    Jots                [bold]W[/bold]    Weeks
+ [bold]L[/bold]    Last
 [bold][{HEADER_COLOR}]Weeks View Navigation[/{HEADER_COLOR}][/bold]
  Left/Right cursor keys move by one week.
    Add Shift to jump by 4 weeks.

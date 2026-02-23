@@ -160,6 +160,7 @@ class UrgencyConfig(BaseModel):
 class TklrConfig(BaseModel):
     title: str = "Tklr Configuration"
     secret: str = Field(default_factory=generate_secret)
+    num_completions: int = Field(6, ge=0)
     ui: UIConfig = UIConfig()
     alerts: dict[str, str] = {}
     urgency: UrgencyConfig = UrgencyConfig()
@@ -172,6 +173,12 @@ title = "{{ title }}"
 
 # secret: used to encode/decode masked (@m) fields.
 secret = "{{ secret }}"
+
+# num_completions: int >= 0
+# For infinitely repeating tasks (@r with no &c / no &u):
+#   0 -> keep all completions
+#   N -> keep only the N most recent completions
+num_completions = {{ num_completions }}
 
 [ui]
 # theme: str = 'dark' | 'light'
