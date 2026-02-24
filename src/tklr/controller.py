@@ -34,7 +34,7 @@ from dateutil.rrule import rrulestr
 from dateutil import tz
 from .named_colors import css_named_colors
 
-# Item prefixes that should be coerced to draft ("?") when importing inbox entries.
+# Item prefixes that should be wrapped as draft text when importing inbox entries.
 INBOX_ITEM_PREFIXES = {"*", "~", "^", "!", "%", "?"}
 INBOX_SPLIT_PATTERN = re.compile(r"\n\s*\n")
 
@@ -740,13 +740,14 @@ class Controller:
         leading = text.lstrip()
         if not leading:
             return ""
-        if leading[0] in INBOX_ITEM_PREFIXES:
-            body = leading[1:].lstrip()
-        else:
-            body = leading
-        if not body:
-            return ""
-        return f"? {body}"
+        itemtype = leading[0]
+        if itemtype == "-":
+            return leading
+        if itemtype in INBOX_ITEM_PREFIXES:
+            if itemtype == "?":
+                return leading
+            return f"? {leading}"
+        return f"? {leading}"
 
     def _ingest_inbox_entry(self, entry: str) -> tuple[bool, str | None]:
         try:
