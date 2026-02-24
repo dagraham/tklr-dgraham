@@ -237,33 +237,106 @@ def _generate_since_last_release_summary(current_version: str) -> tuple[str, str
         rev_range = "HEAD"
         baseline_label = "project start"
 
+    ok, log_out = read(f"git log --pretty=format:%s {rev_range}")
+    subjects = [ln.strip() for ln in log_out.splitlines() if ln.strip()] if ok else []
     ok, stat_out = read(f"git diff --shortstat {rev_range}")
     shortstat = stat_out.strip() if ok and stat_out.strip() else "No file-level changes."
 
-    ok, files_out = read(f"git diff --name-only {rev_range}")
-    files = [ln.strip() for ln in files_out.splitlines() if ln.strip()] if ok else []
-    files_preview = ", ".join(files[:6])
-    if len(files) > 6:
-        files_preview += f", +{len(files) - 6} more"
-    if not files_preview:
-        files_preview = "No changed files."
+    def normalize_subject(subject: str) -> str:
+        s = subject.strip()
+        # Strip common conventional-commit prefix: "feat(scope): "
+        s = re.sub(r"^[a-zA-Z]+(?:\([^)]+\))?!?:\s*", "", s)
+        return s
 
-    ok, log_out = read(f"git log --pretty=format:%s {rev_range}")
-    subjects = [ln.strip() for ln in log_out.splitlines() if ln.strip()] if ok else []
-    if subjects:
-        bullets = "\n".join(f"- {s}" for s in subjects[:6])
-        if len(subjects) > 6:
-            bullets += f"\n- (+{len(subjects) - 6} more commits)"
-    else:
-        bullets = "- No commit subjects found."
+    def is_noise_subject(subject: str) -> bool:
+        s = subject.strip().lower()
+        noise_patterns = (
+            r"^merge\b",
+            r"^wip\b",
+            r"^update \d+ files?\b",
+            r"^release \d",
+            r"^bump version\b",
+            r"^version bump\b",
+        )
+        return any(re.search(pat, s) for pat in noise_patterns)
 
-    summary = (
-        f"Since {baseline_label}:\n"
-        f"- {shortstat}\n"
-        f"- Files: {files_preview}\n"
-        "Highlights:\n"
-        f"{bullets}"
+    def classify_subject(subject: str) -> str:
+        s = subject.lower()
+        if re.search(r"\b(fix|bug|correct|resolve|repair|regression|broken)\b", s):
+            return "fixed"
+        if re.search(
+            r"\b(add|added|feature|implement|introduce|support|enable|new view|new)\b",
+            s,
+        ):
+            return "added"
+        if re.search(r"\b(doc|docs|readme|example|examples|guide)\b", s):
+            return "docs"
+        if re.search(r"\b(test|tests|ci|chore|build|refactor|lint|format)\b", s):
+            return "internal"
+        return "changed"
+
+    buckets = {
+        "added": [],
+        "fixed": [],
+        "changed": [],
+        "docs": [],
+        "internal": [],
+    }
+    for raw in subjects:
+        text = normalize_subject(raw)
+        if not text or is_noise_subject(text):
+            continue
+        buckets[classify_subject(text)].append(text)
+
+    def unique(seq: list[str]) -> list[str]:
+        seen = set()
+        out = []
+        for item in seq:
+            key = item.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(item)
+        return out
+
+    for key in buckets:
+        buckets[key] = unique(buckets[key])
+
+    def bulletize(items: list[str], limit: int = 5) -> list[str]:
+        if not items:
+            return []
+        bullets = [f"- {item}" for item in items[:limit]]
+        if len(items) > limit:
+            bullets.append(f"- (+{len(items) - limit} more)")
+        return bullets
+
+    user_visible_count = (
+        len(buckets["added"]) + len(buckets["fixed"]) + len(buckets["changed"])
     )
+    upgrade_line = (
+        f"- {len(buckets['added'])} additions, {len(buckets['fixed'])} fixes, "
+        f"{len(buckets['changed'])} behavior changes."
+    )
+    if user_visible_count == 0:
+        upgrade_line = "- Mostly maintenance/internal updates in this release."
+
+    parts = [f"Since {baseline_label}:", "", "Why upgrade:", upgrade_line]
+
+    section_defs = (
+        ("Added", buckets["added"]),
+        ("Fixed", buckets["fixed"]),
+        ("Changed", buckets["changed"]),
+        ("Docs", buckets["docs"]),
+        ("Internal", buckets["internal"]),
+    )
+    for title, items in section_defs:
+        lines = bulletize(items)
+        if not lines:
+            continue
+        parts.extend(["", f"{title}:", *lines])
+
+    parts.extend(["", "Technical:", f"- {shortstat}"])
+    summary = "\n".join(parts)
     return baseline_label, summary
 
 

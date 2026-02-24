@@ -33,20 +33,42 @@ branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)"
 shortstat="$(git diff --cached --shortstat 2>/dev/null || true)"
 [ -n "$shortstat" ] || shortstat="staged changes ready"
 
-file_count="$(
+staged_files="$(
   git diff --cached --name-only \
-    | sed '/^$/d' \
-    | wc -l \
-    | tr -d ' '
+    | sed '/^$/d'
 )"
+file_count="$(printf '%s\n' "$staged_files" | sed '/^$/d' | wc -l | tr -d ' ')"
 
-if [ "${file_count:-0}" -le 1 ]; then
-  only_file="$(git diff --cached --name-only | head -n 1)"
-  [ -n "$only_file" ] || only_file="change"
-  subject="Update ${only_file}"
-else
-  subject="Update ${file_count} files"
-fi
+pick_focus_file() {
+  # Prefer user-facing files in commit subject when possible.
+  printf '%s\n' "$staged_files" \
+    | awk '
+        /^(README\.md|recent_changes\.md|bump\.py|make_demo\.py|make_examples\.py|make_items\.py)$/ {print; exit}
+        /^src\// {print; exit}
+        {if (!first) first=$0}
+        END {if (!NR) print "changes"; else if (first) print first}
+      '
+}
+
+render_subject() {
+  first="$(printf '%s\n' "$staged_files" | sed -n '1p')"
+  second="$(printf '%s\n' "$staged_files" | sed -n '2p')"
+  [ -n "$first" ] || first="$(pick_focus_file)"
+
+  if [ "${file_count:-0}" -le 1 ]; then
+    printf 'Update %s' "$first"
+    return
+  fi
+  if [ "${file_count:-0}" -eq 2 ]; then
+    printf 'Update %s and %s' "$first" "$second"
+    return
+  fi
+
+  remaining=$((file_count - 2))
+  printf 'Update %s, %s, and %s more' "$first" "$second" "$remaining"
+}
+
+subject="$(render_subject)"
 
 files_block="$(
   git diff --cached --name-status \
