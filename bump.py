@@ -5,10 +5,11 @@ import sys
 import subprocess
 from datetime import datetime
 from pathlib import Path
+import re
+import shlex
 import tomllib
 from tomlkit import parse as toml_parse, dumps as toml_dumps
 import shutil
-import itertools
 
 TWINE_ENV_KEYS = (
     "TWINE_USERNAME",
@@ -19,7 +20,9 @@ TWINE_ENV_KEYS = (
 )
 
 PYPROJECT_PATH = Path("pyproject.toml")
+RECENT_CHANGES_PATH = Path("recent_changes.md")
 MAIN_BRANCH = "master"
+MAX_RECENT_RELEASES = 3
 
 DRY_RUN = "--dry-run" in sys.argv
 
@@ -197,6 +200,109 @@ def write_version(new_version: str):
     PYPROJECT_PATH.write_text(toml_dumps(doc), encoding="utf-8")
 
 
+def _is_release_tag(tag: str) -> bool:
+    """Accept tags like 1.2.3, 1.2.3a1, 1.2.3b2, 1.2.3rc3."""
+    return bool(re.match(r"^\d+\.\d+\.\d+(?:(?:a|b|rc)\d+)?$", tag or ""))
+
+
+def _discover_last_release_tag(current_version: str) -> str | None:
+    ok, out = read("git tag --list")
+    if not ok:
+        return None
+    tags = [t.strip() for t in out.splitlines() if _is_release_tag(t.strip())]
+    if not tags:
+        return None
+    if current_version in tags:
+        return current_version
+    ok, out = read("git tag --list --sort=-creatordate")
+    if not ok:
+        return None
+    for line in out.splitlines():
+        tag = line.strip()
+        if tag in tags:
+            return tag
+    return None
+
+
+def _generate_since_last_release_summary(current_version: str) -> tuple[str, str]:
+    """
+    Return (baseline_label, summary_text) using git history from the latest
+    release-like tag to HEAD. If no tag exists, summarize all history.
+    """
+    baseline = _discover_last_release_tag(current_version)
+    if baseline:
+        rev_range = f"{baseline}..HEAD"
+        baseline_label = baseline
+    else:
+        rev_range = "HEAD"
+        baseline_label = "project start"
+
+    ok, stat_out = read(f"git diff --shortstat {rev_range}")
+    shortstat = stat_out.strip() if ok and stat_out.strip() else "No file-level changes."
+
+    ok, files_out = read(f"git diff --name-only {rev_range}")
+    files = [ln.strip() for ln in files_out.splitlines() if ln.strip()] if ok else []
+    files_preview = ", ".join(files[:6])
+    if len(files) > 6:
+        files_preview += f", +{len(files) - 6} more"
+    if not files_preview:
+        files_preview = "No changed files."
+
+    ok, log_out = read(f"git log --pretty=format:%s {rev_range}")
+    subjects = [ln.strip() for ln in log_out.splitlines() if ln.strip()] if ok else []
+    if subjects:
+        bullets = "\n".join(f"- {s}" for s in subjects[:6])
+        if len(subjects) > 6:
+            bullets += f"\n- (+{len(subjects) - 6} more commits)"
+    else:
+        bullets = "- No commit subjects found."
+
+    summary = (
+        f"Since {baseline_label}:\n"
+        f"- {shortstat}\n"
+        f"- Files: {files_preview}\n"
+        "Highlights:\n"
+        f"{bullets}"
+    )
+    return baseline_label, summary
+
+
+def update_recent_changes_file(
+    *,
+    new_version: str,
+    summary: str,
+    note: str = "",
+    max_releases: int = MAX_RECENT_RELEASES,
+) -> None:
+    """
+    Update recent_changes.md by prepending the current release notes and
+    retaining only the latest `max_releases` sections.
+    """
+    today = datetime.now().date().isoformat()
+    section_lines = [f"## {new_version} — {today}", "", summary.strip()]
+    if note.strip():
+        section_lines.extend(["", f"Note: {note.strip()}"])
+    new_section = "\n".join(section_lines).strip()
+
+    header = "# Recent Changes"
+    existing_text = ""
+    if RECENT_CHANGES_PATH.exists():
+        existing_text = RECENT_CHANGES_PATH.read_text(encoding="utf-8")
+
+    section_pattern = re.compile(r"(?ms)^## .+?(?=^## |\Z)")
+    existing_sections = section_pattern.findall(existing_text)
+    existing_sections = [s.strip() for s in existing_sections if s.strip()]
+
+    # Remove any prior section for this same version.
+    version_prefix = f"## {new_version} "
+    existing_sections = [s for s in existing_sections if not s.startswith(version_prefix)]
+
+    sections = [new_section] + existing_sections[: max(0, max_releases - 1)]
+    body = "\n\n".join(sections).strip()
+
+    RECENT_CHANGES_PATH.write_text(f"{header}\n\n{body}\n", encoding="utf-8")
+
+
 # --- Ensure we're on the main branch ---
 ok, current_branch = read("git rev-parse --abbrev-ref HEAD")
 current_branch = current_branch.strip()
@@ -271,12 +377,24 @@ else:
     sys.exit()
 
 tplus = input(f"Optional {bmsg} message:\n")
-tmsg = f"Tagged version {new_version}. {tplus}"
+baseline_label, auto_summary = _generate_since_last_release_summary(version)
+
+release_subject = f"Release {new_version}"
+release_body_parts = [auto_summary]
+if tplus.strip():
+    release_body_parts.append(f"Note: {tplus.strip()}")
+release_body = "\n\n".join(release_body_parts)
+
+tmsg = f"{release_subject}\n\n{release_body}"
 
 print(f"\nThe tag message for the new version will be:\n{tmsg}\n")
 if DRY_RUN:
     print(f"[dry-run] Would set new version: {new_version}")
     print(f"[dry-run] Would update pyproject.toml")
+    print(
+        f"[dry-run] Would update {RECENT_CHANGES_PATH} "
+        f"(retain last {MAX_RECENT_RELEASES} releases)"
+    )
     print(f"[dry-run] Would commit and tag with message:\n\n{tmsg}\n")
     sys.exit(0)
 
@@ -285,10 +403,29 @@ if input(f"Commit and tag new version: {new_version}? [yN] ").lower() != "y":
     sys.exit()
 
 write_version(new_version)
+update_recent_changes_file(
+    new_version=new_version,
+    summary=auto_summary,
+    note=tplus,
+    max_releases=MAX_RECENT_RELEASES,
+)
 # Skip pre-commit hooks for version bump commits to avoid interference
-run(f"git commit -a -m '{tmsg}' --no-verify")
+run(
+    "git commit -a "
+    f"-m {shlex.quote(release_subject)} "
+    f"-m {shlex.quote(release_body)} "
+    "--no-verify"
+)
 ok, version_info = read("git log --pretty=format:'%ai' -n 1")
-run(f"git tag -a -f '{new_version}' -m '{version_info}'")
+tag_msg = (
+    f"Tagged {new_version}\n"
+    f"Created: {version_info.strip()}\n\n"
+    f"{auto_summary}"
+)
+run(
+    f"git tag -a -f {shlex.quote(new_version)} "
+    f"-m {shlex.quote(tag_msg)}"
+)
 
 # # Generate CHANGES.txt
 # changes_text = f"Recent tagged changes as of {datetime.now()}:\n"
