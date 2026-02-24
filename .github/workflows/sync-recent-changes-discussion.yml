@@ -1,0 +1,38 @@
+name: Sync Recent Changes Discussion
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - recent_changes.md
+      - scripts/sync_recent_changes_discussion.py
+      - .github/workflows/sync-recent-changes-discussion.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  discussions: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate discussion number
+        env:
+          DISCUSSION_NUMBER: ${{ vars.RECENT_CHANGES_DISCUSSION_NUMBER }}
+        run: |
+          if [ -z "${DISCUSSION_NUMBER}" ]; then
+            echo "Set repo variable RECENT_CHANGES_DISCUSSION_NUMBER to the pinned discussion number."
+            exit 1
+          fi
+
+      - name: Sync recent_changes.md to discussion
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DISCUSSION_NUMBER: ${{ vars.RECENT_CHANGES_DISCUSSION_NUMBER }}
+        run: python3 scripts/sync_recent_changes_discussion.py
