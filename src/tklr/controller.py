@@ -34,7 +34,7 @@ from dateutil.rrule import rrulestr
 from dateutil import tz
 from .named_colors import css_named_colors
 
-# Item prefixes that should be wrapped as draft text when importing inbox entries.
+# Item prefixes that should be coerced to draft ("?") when importing inbox entries.
 INBOX_ITEM_PREFIXES = {"*", "~", "^", "!", "%", "?"}
 INBOX_SPLIT_PATTERN = re.compile(r"\n\s*\n")
 
@@ -734,20 +734,20 @@ class Controller:
         return path
 
     def _normalize_inbox_entry(self, entry: str) -> str:
+        # FIXME: maybe omit ? for jots
         text = entry.strip()
         if not text:
             return ""
         leading = text.lstrip()
         if not leading:
             return ""
-        itemtype = leading[0]
-        if itemtype == "-":
-            return leading
-        if itemtype in INBOX_ITEM_PREFIXES:
-            if itemtype == "?":
-                return leading
-            return f"? {leading}"
-        return f"? {leading}"
+        if leading[0] in INBOX_ITEM_PREFIXES:
+            body = leading[1:].lstrip()
+        else:
+            body = leading
+        if not body:
+            return ""
+        return f"? {body}"
 
     def _ingest_inbox_entry(self, entry: str) -> tuple[bool, str | None]:
         try:
@@ -3007,7 +3007,8 @@ class Controller:
         ordered_keys.extend([k for k in bottom_keys if k in grouped_rows])
 
         return [
-            (display_name_by_key.get(key, key), grouped_rows[key]) for key in ordered_keys
+            (display_name_by_key.get(key, key), grouped_rows[key])
+            for key in ordered_keys
         ]
 
     def get_modified(self, yield_rows: bool = False):
