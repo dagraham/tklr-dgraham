@@ -1,6 +1,0 @@
-# Minimal GitHub Pages overrides.
-# Keep the existing site behavior, but disable the default Just-the-Docs
-# "This site is open source. Improve this page." footer line.
-
-gh_edit_link: false
-footer_content: "&nbsp;"
