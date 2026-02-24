@@ -409,9 +409,12 @@ update_recent_changes_file(
     note=tplus,
     max_releases=MAX_RECENT_RELEASES,
 )
+# Stage updated/new release metadata files explicitly. This ensures the first
+# creation of recent_changes.md is included (git commit -a skips untracked files).
+run(f"git add {shlex.quote(str(PYPROJECT_PATH))} {shlex.quote(str(RECENT_CHANGES_PATH))}")
 # Skip pre-commit hooks for version bump commits to avoid interference
 run(
-    "git commit -a "
+    "git commit "
     f"-m {shlex.quote(release_subject)} "
     f"-m {shlex.quote(release_body)} "
     "--no-verify"
