@@ -28,7 +28,7 @@
 </table>
 
 
-Ready to dive deeper? This introduction is best viewed at [GitHub.io](https://dagraham.github.io/tklr-dgraham/). *Tklr* itself is available from [PyPi](https://pypi.org/project/tklr-dgraham/), the source code from [GitHub](https://github.com/dagraham/tklr-dgraham), recent updates at [Recent Changes](recent_changes.md) and further discussion at [Tklr Discussions](https://github.com/dagraham/tklr-dgraham/discussions).
+Ready to dive deeper? This introduction is best viewed at [GitHub.io](https://dagraham.github.io/tklr-dgraham/). *Tklr* itself is available from [PyPi](https://pypi.org/project/tklr-dgraham/), the source code from [GitHub](https://github.com/dagraham/tklr-dgraham), recent updates at [Recent Changes](https://github.com/dagraham/tklr-dgraham/blob/master/recent_changes.md) and further discussion at [Tklr g](https://github.com/dagraham/tklr-dgraham/discussions).
 
 <a id="table-of-contents"></a>
 <h3>Table of Contents</h3>
