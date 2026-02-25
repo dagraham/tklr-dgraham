@@ -4,6 +4,12 @@ title = "Tklr Configuration"
 # secret: used to encode/decode masked (@m) fields.
 secret = "2Bj1ejQiDgD9Sl1jKMXfPCScLmftQ6xY"
 
+# num_completions: int >= 0
+# For infinitely repeating tasks (@r with no &c / no &u):
+#   0 -> keep all completions
+#   N -> keep only the N most recent completions
+num_completions = 6
+
 [ui]
 # theme: str = 'dark' | 'light'
 theme = "dark"
@@ -20,6 +26,10 @@ history_weight = 3
 # agenda_days: int >= 1
 # Number of event days to display in Agenda view / CLI command.
 agenda_days = 3
+
+# minutes: int = 3 | 6 | 12 | 15 | 30
+# Rounding step (in minutes) for jot extents.
+minutes = 6
 
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
@@ -55,6 +65,22 @@ yearfirst = true
 # If true, years are displayed using the last two digits, e.g.,
 # 25 instead of 2025.
 two_digit_year = false
+
+# palette overrides (per theme). Uncomment any entries you want to override.
+# Available keys: label_color, type_color, at_color, am_color, header_color,
+# event_color, available_color, task_color, waiting_color, finished_color,
+# note_color, pastdue_color, notice_color, goal_color, draft_color,
+# bin_color, active_bin_color, chore_color, jot_color, jot_none, jot_extent,
+# jot_use, jot_full, urgency_min_color, urgency_max_color, goal_min_color, goal_max_color
+#
+# [ui.palette.dark]
+# header_color = "#1f4b7a"
+# jot_full = "#9ad1ff"
+#
+# [ui.palette.light]
+# note_color = "#b56576"
+
+
 
 [alerts]
 # dict[str, str]: character -> command_str.
@@ -131,16 +157,17 @@ max = 3.0
 # "5" (lowest) of `@p` specified in the task. E.g, with "@p 3", the value
 # would correspond to the "3" entry below. Absent an entry for "@p", the
 # value 0.0 is used.
+# Note: "first" is treated as the maximum priority when normalizing urgency.
 
-"1" = 10.0
+"first" = 10.0
 
-"2" = 8.0
+"second" = 8.0
 
-"3" = 5.0
+"third" = 5.0
 
-"4" = 2.0
+"fourth" = 2.0
 
-"5" = -5.0
+"fifth" = -5.0
 
 
 # In the default settings, a priority of "5" is the only one that yields
