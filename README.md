@@ -1447,7 +1447,7 @@ This guide walks you through setting up a development environment for `tklr` usi
 
 ### 6.1 Token keys
 
-This is the complete list of keys for both `@-keys` and, when applicable, for their `&-key` attributes.
+The table below gives the complete list of both `@-keys` and, when applicable, their `&-key` attributes.  It is generated from the source code automatically using so it is always up to date.
 
 <!-- BEGIN TOKEN KEYS -->
 
@@ -1500,7 +1500,6 @@ This is the complete list of keys for both `@-keys` and, when applicable, for th
 
 <!-- END TOKEN KEYS -->
 
-The table above is generated from `src/tklr/item.py` using `update_readme.py`.
 
 #### ✅ Step 1: Clone/Update the repository
 
