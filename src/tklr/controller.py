@@ -842,6 +842,8 @@ class Controller:
         self,
         record_id: int,
         edit_fn: Callable[[str], str],
+        *,
+        record_completions: bool = True,
     ) -> bool:
         """
         Load the entry text for record_id, apply edit_fn(text) -> new_text,
@@ -879,7 +881,7 @@ class Controller:
         # completion = getattr(item, "completions", None)
         # if completion:
         #     self.db_manager.add_completion(record_id, completion)
-        if item.completions:
+        if record_completions and item.completions:
             self.db_manager.add_completion(record_id, item.completions)
 
         return True
@@ -912,6 +914,8 @@ class Controller:
         self,
         record_id: int,
         edit_tokens_fn: Callable[[list[dict]], bool],
+        *,
+        record_completions: bool = True,
     ) -> bool:
         """
         Load tokens from Records.tokens for `record_id`, let `edit_tokens_fn`
@@ -961,7 +965,7 @@ class Controller:
 
         # 🔁 NEW: record completion if one was produced
         completion = getattr(item, "completion", None)
-        if completion:
+        if record_completions and completion:
             self.db_manager.add_completion(record_id, completion)
 
         return True
@@ -1145,7 +1149,11 @@ class Controller:
         return False
 
     def _advance_s_to_next_rrule_instance(
-        self, record_id: int, second_instance_text: str
+        self,
+        record_id: int,
+        second_instance_text: str,
+        *,
+        record_completions: bool = True,
     ) -> bool:
         """
         Update @s to point to the second instance (advancing past the first RRULE instance).
@@ -1180,7 +1188,11 @@ class Controller:
                         return True
                 return False
 
-            return self.apply_token_edit(record_id, edit_tokens)
+            return self.apply_token_edit(
+                record_id,
+                edit_tokens,
+                record_completions=record_completions,
+            )
 
         except Exception as e:
             log_msg(f"Error advancing @s: {e}")
@@ -1348,7 +1360,9 @@ class Controller:
             def edit_with_finish(text: str) -> str:
                 return text.rstrip() + f" @f {stamp}"
 
-            changed = self.apply_textual_edit(record_id, edit_with_finish)
+            changed = self.apply_textual_edit(
+                record_id, edit_with_finish, record_completions=False
+            )
             return _return_with_completion(changed)
 
         # Case 2b: 2+ instances → handle based on whether first is RDATE or RRULE
@@ -1363,7 +1377,9 @@ class Controller:
         rruleset_str = rec.get("rruleset") or ""
         if not rruleset_str:
             # No rruleset, just delete first instance
-            res = self.delete_instance(record_id, first_instance_text)
+            res = self.delete_instance(
+                record_id, first_instance_text, record_completions=False
+            )
             return _return_with_completion(res)
 
         # Parse the first instance to get UTC datetime
@@ -1377,7 +1393,9 @@ class Controller:
 
         if is_from_rdate:
             # First instance is from @+ (RDATE) → remove it from @+
-            res = self.delete_instance(record_id, first_instance_text)
+            res = self.delete_instance(
+                record_id, first_instance_text, record_completions=False
+            )
             return _return_with_completion(res)
         else:
             # First instance is from @r (RRULE) → update @s to second instance
@@ -1387,7 +1405,9 @@ class Controller:
                 return _return_with_completion(res)
 
             res = self._advance_s_to_next_rrule_instance(
-                record_id, second_instance_text
+                record_id,
+                second_instance_text,
+                record_completions=False,
             )
             return _return_with_completion(res)
 
@@ -1480,7 +1500,13 @@ class Controller:
                         return True
         return False
 
-    def delete_instance(self, record_id: int, instance_text: str) -> bool:
+    def delete_instance(
+        self,
+        record_id: int,
+        instance_text: str,
+        *,
+        record_completions: bool = True,
+    ) -> bool:
         """
         Delete a specific instance:
         - If instance comes from @+ list, remove it from that list.
@@ -1504,7 +1530,11 @@ class Controller:
                 tokens.append({"token": f"@- {tok_local_str}", "t": "@", "k": "-"})
                 return True
 
-        return self.apply_token_edit(record_id, edit_tokens)
+        return self.apply_token_edit(
+            record_id,
+            edit_tokens,
+            record_completions=record_completions,
+        )
 
     def delete_this_and_future(self, record_id: int, instance_text: str) -> bool:
         """

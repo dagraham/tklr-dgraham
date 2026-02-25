@@ -2362,6 +2362,28 @@ class DatabaseManager:
             return
 
         completed_dt, due_dt = completion
+        completed_str = _fmt_utc(completed_dt)
+        due_str = _fmt_utc(due_dt) if due_dt else None
+
+        # Idempotency guard: avoid duplicate completion rows when finish flows
+        # pass through multiple completion-recording paths.
+        self.cursor.execute(
+            """
+            SELECT 1
+            FROM Completions
+            WHERE record_id = ?
+              AND completed = ?
+              AND (
+                    (due IS NULL AND ? IS NULL)
+                    OR due = ?
+                  )
+            LIMIT 1
+            """,
+            (record_id, completed_str, due_str, due_str),
+        )
+        if self.cursor.fetchone():
+            return
+
         self.cursor.execute(
             """
             INSERT INTO Completions (record_id, completed, due)
@@ -2369,8 +2391,8 @@ class DatabaseManager:
             """,
             (
                 record_id,
-                _fmt_utc(completed_dt),
-                _fmt_utc(due_dt) if due_dt else None,
+                completed_str,
+                due_str,
             ),
         )
         self._prune_completion_history_if_needed(record_id)

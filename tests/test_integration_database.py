@@ -67,6 +67,28 @@ class TestDatabaseOperations:
         # If we get here without exception, population succeeded
         assert True
 
+    def test_finish_task_records_single_completion(
+        self, test_controller, item_factory, frozen_time
+    ):
+        """Finishing a task once should create exactly one completion row."""
+        item = item_factory("~ one-shot task @s 2025-01-15 13:00")
+        assert item.parse_ok
+        record_id = test_controller.add_item(item)
+
+        ok = test_controller.finish_task(
+            record_id=record_id,
+            job_id=None,
+            when=datetime(2025, 1, 15, 12, 0, 0),
+        )
+        assert ok
+
+        test_controller.db_manager.cursor.execute(
+            "SELECT COUNT(*) FROM Completions WHERE record_id = ?",
+            (record_id,),
+        )
+        count = test_controller.db_manager.cursor.fetchone()[0]
+        assert count == 1
+
 
 @pytest.mark.integration
 class TestDatabaseWithRealEntries:
