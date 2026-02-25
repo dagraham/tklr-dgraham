@@ -1,5 +1,25 @@
 # Recent Changes
 
+## 0.0.61 — 2026-02-25
+
+Since 0.0.60:
+
+Why upgrade:
+- Mostly maintenance/internal updates in this release.
+
+Docs:
+- Update README.md token keys section for improved formatting and adjust update_readme.py for better handling of empty types and keys
+- Refactor token keys section in README.md for clarity and simplify type formatting in update_readme.py
+- Enhance README.md with examples for jotting reminders and update token keys table for clarity
+- Update README.md with token keys section and enhance update_readme.py for dynamic content generation
+- Update README.md
+
+Internal:
+- Refactor token handling for completions: update '@k' to 'kompletions', enforce positive integer validation, and adjust related tests for improved error messaging.
+
+Technical:
+- 6 files changed, 360 insertions(+), 42 deletions(-)
+
 ## 0.0.60 — 2026-02-24
 
 Since 0.0.59:
@@ -44,12 +64,3 @@ Technical:
 - 6 files changed, 228 insertions(+), 35 deletions(-)
 
 Note: first tag with the recent_changes messages
-
-## 0.0.58 — 2026-02-24
-
-Since 0.0.57:
-- 10 files changed, 808 insertions(+), 20 deletions(-)
-- Files: .githooks/prepare-commit-msg, README.md, bump.py, make_demo.py, make_examples.py, make_items.py, +4 more
-Highlights:
-- Update bump.py
-- Update 9 files
