@@ -2659,8 +2659,9 @@ class FullScreenList(SearchableScreen):
                 self.header, id="scroll_header", expand=True, classes="header-class"
             )
         self.list_with_details = ListWithDetails(id="list")
+        view_name = getattr(self.app, "view", "next")
         self.list_with_details.set_detail_key_handler(
-            self.app.make_detail_key_handler(view_name="next")
+            self.app.make_detail_key_handler(view_name=view_name)
         )
         yield self.list_with_details
         yield FooterNoticeBar(self.footer_content)
@@ -4204,6 +4205,7 @@ class DynamicViewApp(App):
             # instance-aware info
             instance_ts = meta.get("instance_ts")
             datetime_id = meta.get("datetime_id")
+            completion_id = datetime_id if isinstance(datetime_id, int) else None
             record_payload = meta.get("record") or {}
             tokens_raw = record_payload.get("tokens")
             tokens_list: list[dict] = []
@@ -4291,6 +4293,30 @@ class DynamicViewApp(App):
                     instance_ts=instance_ts,
                     is_repeating=is_repeating,
                 )
+
+            def delete_completion_record() -> None:
+                if completion_id is None:
+                    return
+
+                msg = (
+                    "Delete this completion history row?\n"
+                    "This does not undo reminder completion state."
+                )
+
+                def _after(confirmed: bool | None) -> None:
+                    if not confirmed:
+                        return
+                    deleted = ctrl.delete_completion(completion_id)
+                    if not deleted:
+                        app.notify("Completion row not found.", severity="warning")
+                        return
+                    if hasattr(self, "_close_details_if_open"):
+                        self._close_details_if_open()
+                    if hasattr(app, "refresh_view"):
+                        app.refresh_view()
+                    app.notify("Completion record deleted ✓", severity="info", timeout=1.5)
+
+                app.push_screen(ConfirmPrompt(msg), callback=_after)
 
             def schedule_new_instance() -> None:
                 def _after_dt(dt: datetime | None) -> None:
@@ -4404,6 +4430,12 @@ class DynamicViewApp(App):
                 add_option("Edit", edit_item, enabled=True, hotkey="e")
                 add_option("Clone", clone_item, enabled=True, hotkey="c")
                 add_option("Delete …", delete_item, enabled=True, hotkey="d")
+                add_option(
+                    "Delete completion record",
+                    delete_completion_record,
+                    enabled=(view_name == "completions" and completion_id is not None),
+                    hotkey="x",
+                )
                 add_option(
                     "Place copy in system clipboard",
                     copy_details_to_clipboard,

@@ -3572,15 +3572,22 @@ class Controller:
         pages has the same shape as get_next:
             [ (page_rows: list[str], page_tag_map: dict[str, (record_id, job_id)]) ]
         """
-        records = self.db_manager.get_all_completions()
+        records = self.db_manager.get_all_completions_with_ids()
         header = f"Completions ({len(records)})"
         items = self._build_completion_items(records)
         pages = self._paginate(items)
         return pages, header
 
+    def delete_completion(self, completion_id: int) -> bool:
+        """Delete one completion row by id."""
+        return self.db_manager.delete_completion(completion_id)
+
     def _build_completion_items(
         self,
-        records: list[tuple[int, str, str, str, datetime | None, datetime]],
+        records: list[
+            tuple[int, str, str, str, datetime | None, datetime]
+            | tuple[int, int, str, str, str, datetime | None, datetime]
+        ],
         *,
         empty_message: str | None = None,
     ) -> list[dict]:
@@ -3603,14 +3610,29 @@ class Controller:
 
         year_to_events: OrderedDict[str, list[dict]] = OrderedDict()
 
-        for (
-            record_id,
-            subject,
-            description,
-            itemtype,
-            due_dt,
-            completed_dt,
-        ) in records:
+        for row in records:
+            completion_id: int | None
+            if len(row) == 7:
+                (
+                    completion_id,
+                    record_id,
+                    subject,
+                    description,
+                    itemtype,
+                    due_dt,
+                    completed_dt,
+                ) = row
+            else:
+                (
+                    record_id,
+                    subject,
+                    description,
+                    itemtype,
+                    due_dt,
+                    completed_dt,
+                ) = row
+                completion_id = None
+
             subject = self.apply_flags(record_id, subject or "(untitled)")
             completed_dt = completed_dt.astimezone()
             due_dt = due_dt.astimezone() if due_dt else None
@@ -3626,7 +3648,7 @@ class Controller:
             item = {
                 "record_id": record_id,
                 "job_id": None,
-                "datetime_id": None,
+                "datetime_id": completion_id,
                 "instance_ts": due_dt.strftime("%Y%m%dT%H%M") if due_dt else "none",
                 "text": f"[{type_color}]{itemtype} {when_frag} {subject}[/{type_color}]",
             }

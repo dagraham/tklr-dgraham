@@ -2515,6 +2515,52 @@ class DatabaseManager:
             for (rid, subj, desc, itype, due, comp) in rows
         ]
 
+    def get_all_completions_with_ids(self):
+        """
+        Return all completions across all records, newest first.
+
+        Rows:
+            [(completion_id, record_id, subject, description, itemtype, due_dt, completed_dt)]
+        """
+        self.cursor.execute(
+            """
+            SELECT
+                c.id,
+                r.id,
+                r.subject,
+                r.description,
+                r.itemtype,
+                c.due,
+                c.completed
+            FROM Completions c
+            JOIN Records r ON c.record_id = r.id
+            ORDER BY c.completed DESC, c.id DESC
+            """
+        )
+        rows = self.cursor.fetchall()
+        return [
+            (
+                completion_id,
+                rid,
+                subj,
+                desc,
+                itype,
+                parse_utc_z(due) if due else None,
+                parse_utc_z(comp),
+            )
+            for (completion_id, rid, subj, desc, itype, due, comp) in rows
+        ]
+
+    def delete_completion(self, completion_id: int) -> bool:
+        """
+        Delete one completion row by id.
+        """
+        self.cursor.execute("DELETE FROM Completions WHERE id = ?", (completion_id,))
+        deleted = self.cursor.rowcount > 0
+        if deleted:
+            self.commit()
+        return deleted
+
     def touch_record(self, record_id: int):
         """
         Update the 'modified' timestamp for the given record to the current UTC time.
