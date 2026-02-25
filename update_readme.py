@@ -151,6 +151,15 @@ def _md_escape(text: str) -> str:
     return text.replace("|", "\\|").replace("\n", " ").strip()
 
 
+def _row_sort_key(key: str) -> tuple[str, str]:
+    """
+    Sort rows alphabetically by user-facing @-key and keep grouped subkeys together.
+    """
+    base = _key_to_display(key, include_arg=False)
+    shown = _key_to_display(key, include_arg=True)
+    return (base, shown)
+
+
 def render_token_keys_block() -> str:
     constants = _load_item_constants()
     token_keys: dict[str, list[str]] = constants["token_keys"]
@@ -160,7 +169,10 @@ def render_token_keys_block() -> str:
     allowed = constants["allowed"]
     requires = constants["requires"]
 
-    row_keys = [key for key in token_keys.keys() if key in usage_keys]
+    row_keys = sorted(
+        (key for key in token_keys.keys() if key in usage_keys),
+        key=_row_sort_key,
+    )
 
     lines = [
         "| key | name | allowed | required | requires | multiple |",
