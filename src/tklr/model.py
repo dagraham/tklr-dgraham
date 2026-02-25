@@ -1000,7 +1000,7 @@ class UrgencyComputer:
             name_key = name_map.get(priority_level)
             if name_key is not None:
                 priority = priority_map.get(name_key, priority)
-        log_msg(f"computed {priority = } from priority_level {priority_level}")
+        # log_msg(f"computed {priority = } from priority_level {priority_level}")
         return priority
 
     def urgency_extent(self, extent_seconds: int) -> float:
@@ -1069,7 +1069,7 @@ class UrgencyComputer:
             # log_msg("pinned, ignoring weights, returning urgency 1.0")
         else:
             urgency = self.compute_partitioned_urgency(weights)
-            log_msg(f"{weights = }\n  returning {urgency = }")
+            # log_msg(f"{weights = }\n  returning {urgency = }")
         return urgency, self.urgency_to_bucket_color(urgency), weights
 
 
@@ -3060,7 +3060,7 @@ class DatabaseManager:
             )
 
         self.commit()
-        log_msg("✅ Alerts table updated with today's relevant alerts.")
+        log_msg("✅ Alerts table updated with the relevant alerts for today.")
 
     def populate_alerts_for_record(self, record_id: int):
         """

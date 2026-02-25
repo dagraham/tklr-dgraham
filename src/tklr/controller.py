@@ -734,20 +734,21 @@ class Controller:
         return path
 
     def _normalize_inbox_entry(self, entry: str) -> str:
-        # FIXME: maybe omit ? for jots
         text = entry.strip()
         if not text:
             return ""
         leading = text.lstrip()
         if not leading:
             return ""
-        if leading[0] in INBOX_ITEM_PREFIXES:
-            body = leading[1:].lstrip()
-        else:
-            body = leading
-        if not body:
-            return ""
-        return f"? {body}"
+        itemtype = leading[0]
+        log_msg(f"Normalizing inbox entry: '{entry}' -> itemtype '{itemtype}'")
+        if itemtype == "-":
+            return leading
+        if itemtype in INBOX_ITEM_PREFIXES:
+            if itemtype == "?":
+                return leading
+            return f"? {leading}"
+        return f"? {leading}"
 
     def _ingest_inbox_entry(self, entry: str) -> tuple[bool, str | None]:
         try:
@@ -769,6 +770,7 @@ class Controller:
         Returns:
             (added_count, error_messages)
         """
+        log_msg("Starting inbox sync...")
         path = self._inbox_path()
         try:
             size = path.stat().st_size
@@ -790,6 +792,7 @@ class Controller:
             for chunk in INBOX_SPLIT_PATTERN.split(raw.strip())
             if chunk.strip()
         ]
+        log_msg(f"Found {chunks = } in {raw = }")
         if not chunks:
             try:
                 path.write_text("", encoding="utf-8")
@@ -802,6 +805,7 @@ class Controller:
         leftovers: list[str] = []
 
         for chunk in chunks:
+            log_msg(f"Processing inbox chunk: '{chunk}'")
             normalized = self._normalize_inbox_entry(chunk)
             if not normalized:
                 continue

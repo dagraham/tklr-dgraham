@@ -4601,9 +4601,10 @@ class DynamicViewApp(App):
         self.notify(f"Screenshot saved to: {path}", severity="info", timeout=3)
 
     def _maybe_sync_inbox(self, now: datetime) -> None:
+        log_msg("checking if inbox sync needed")
         if (
             now - getattr(self, "_last_inbox_check", datetime.min)
-        ).total_seconds() < 900:
+        ).total_seconds() < 360:
             return
         self._last_inbox_check = now
         try:
