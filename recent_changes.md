@@ -1,5 +1,24 @@
 # Recent Changes
 
+## 0.0.63 — 2026-02-25
+
+Since 0.0.62:
+
+Why upgrade:
+- 1 additions, 0 fixes, 1 behavior changes.
+
+Added:
+- Implement live attribute matching and deduplication for bin, context, location, and use tokens in Item and Controller
+
+Changed:
+- Remove unnecessary log messages in Controller and enhance recurrence rule descriptions in Item
+
+Docs:
+- Refactor terminology in README.md and item.py for clarity on repetition settings
+
+Technical:
+- 6 files changed, 372 insertions(+), 51 deletions(-)
+
 ## 0.0.62 — 2026-02-25
 
 Since 0.0.61:
@@ -47,24 +66,3 @@ Internal:
 
 Technical:
 - 6 files changed, 360 insertions(+), 42 deletions(-)
-
-## 0.0.60 — 2026-02-24
-
-Since 0.0.59:
-
-Why upgrade:
-- 0 additions, 0 fixes, 2 behavior changes.
-
-Changed:
-- Update src/tklr/controller.py
-- Update .github/workflows/sync-recent-changes-discussion.yml and scripts/sync_recent_changes_discussion.py
-
-Docs:
-- Update README.md
-
-Internal:
-- Refactor inbox entry normalization and logging; adjust sync interval
-- Update src/tklr/controller.py and tests/test_inbox_sync.py
-
-Technical:
-- 7 files changed, 217 insertions(+), 14 deletions(-)
