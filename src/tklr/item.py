@@ -750,11 +750,11 @@ class Item:
         "w": ["wrap", "list of two timeperiods", "do_two_periods"],
         "f": ["finish", "completion done -> due", "do_f"],
         "g": ["goto", "url or filepath", "do_string"],
-        "h": [
-            "completions",
-            "list of completion datetimes",
-            "do_fs",
-        ],
+        # "h": [
+        #     "completions",
+        #     "list of completion datetimes",
+        #     "do_fs",
+        # ],
         "b": ["bin", "forward slash delimited string", "do_b"],
         "l": [
             "label",
