@@ -741,7 +741,6 @@ class Controller:
         if not leading:
             return ""
         itemtype = leading[0]
-        log_msg(f"Normalizing inbox entry: '{entry}' -> itemtype '{itemtype}'")
         if itemtype == "-":
             return leading
         if itemtype in INBOX_ITEM_PREFIXES:
@@ -770,7 +769,6 @@ class Controller:
         Returns:
             (added_count, error_messages)
         """
-        log_msg("Starting inbox sync...")
         path = self._inbox_path()
         try:
             size = path.stat().st_size
@@ -792,7 +790,6 @@ class Controller:
             for chunk in INBOX_SPLIT_PATTERN.split(raw.strip())
             if chunk.strip()
         ]
-        log_msg(f"Found {chunks = } in {raw = }")
         if not chunks:
             try:
                 path.write_text("", encoding="utf-8")
@@ -805,7 +802,6 @@ class Controller:
         leftovers: list[str] = []
 
         for chunk in chunks:
-            log_msg(f"Processing inbox chunk: '{chunk}'")
             normalized = self._normalize_inbox_entry(chunk)
             if not normalized:
                 continue
@@ -1690,7 +1686,6 @@ class Controller:
 
     def toggle_pinned(self, record_id: int):
         self.db_manager.toggle_pinned(record_id)
-        log_msg(f"{record_id = }, {self.db_manager.is_pinned(record_id) = }")
         return self.db_manager.is_pinned(record_id)
 
     def get_entry(self, record_id, job_id=None, instance=None):
@@ -1717,9 +1712,6 @@ class Controller:
         highlight_tokens = True
         entry = format_tokens(tokens, self.width, highlight=highlight_tokens)
         entry = f"[bold {type_color}]{entry[0]}[/bold {type_color}]{entry[1:]}"
-
-        log_msg(f"{rruleset = }")
-        # rruleset = f"\n{11 * ' '}".join(rruleset.splitlines())
 
         instance_line = (
             f"[{label_color}]instance:[/{label_color}] {instance}" if instance else ""
@@ -1856,7 +1848,6 @@ class Controller:
 
         _dts = self.db_manager.get_next_start_datetimes_for_record(record_id)
         first, second = (_dts + [None, None])[:2]
-        log_msg(f"setting meta {first = }, {second = }")
 
         # title = f"[bold]{subject:^{self.width}}[/bold]"
         title = f"[green]{subject:^{self.width}}[/green]"
@@ -1976,7 +1967,6 @@ class Controller:
                 alert_command,
             ) = record
             due.append([alert_id, alert_name, alert_command])
-            log_msg(f"{due[-1] = }")
         return due
 
     def get_active_alerts(self, width: int = 70):
@@ -2000,10 +1990,8 @@ class Controller:
         rows = []
         screen_width = shutil.get_terminal_size((80, 20)).columns
         available_width = max(20, screen_width - 4)  # account for tag prefix
-        log_msg(f"processing {len(alerts)} alerts")
 
         for alert in alerts:
-            log_msg(f"Alert: {alert = }")
             # alert_id, record_id, record_name, start_dt, td, command
             (
                 alert_id,
@@ -2015,7 +2003,6 @@ class Controller:
                 alert_command,
             ) = alert
             if now > datetime_from_timestamp(trigger_datetime):
-                log_msg("skipping - already passed")
                 continue
             # tag_fmt, indx = self.add_tag("alerts", indx, record_id)
             trtime = self.format_datetime(trigger_datetime)
@@ -2027,7 +2014,6 @@ class Controller:
             )
             rows.append({"record_id": record_id, "job_id": None, "text": text})
         pages = self._paginate(rows)
-        log_msg(f"{header = }\n{rows = }\n{pages = }")
         return pages, header
 
     def get_table_and_list(self, start_date: datetime, selected_week: tuple[int, int]):

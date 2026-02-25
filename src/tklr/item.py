@@ -735,7 +735,11 @@ class Item:
             "do_subject",
         ],
         "s": ["scheduled", "starting date or datetime", "do_s"],
-        "r": ["recurrence", "recurrence rule", "do_r"],
+        "r": [
+            "recurrence",
+            "character from (y)ear, (m)onth, (w)eek,  (d)ay, (h)our, mi(n)ute. Append an '&' to add a repetition option.",
+            "do_r",
+        ],
         "o": ["offset", "offset rule", "do_offset"],
         "t": ["target", "a goal target entry such as '3/w'", "do_target"],
         "~": ["job", "job entry", "do_job"],
@@ -769,11 +773,11 @@ class Item:
         ],
         "w": ["wrap", "wrap before, after", "do_wrap"],
         "@": ["@-key", "", "do_at"],
-        "rr": [
-            "repetition",
-            "character from (y)ear, (m)onth, (w)eek,  (d)ay, (h)our, mi(n)ute. Append an '&' to add a repetition option.",
-            "do_frequency",
-        ],
+        # "rr": [
+        #     "repetition",
+        #     "character from (y)ear, (m)onth, (w)eek,  (d)ay, (h)our, mi(n)ute. Append an '&' to add a repetition option.",
+        #     "do_frequency",
+        # ],
         "ri": ["interval", "positive integer", "do_interval"],
         "rm": ["months", "list of integers in 1 ... 12", "do_months"],
         "rd": [
@@ -1326,7 +1330,6 @@ Entry: {self.entry}
         Compact formatting for dates and datetimes using env settings
         for ampm, yearfirst, dayfirst and two_digit year.
         """
-        log_msg(f"formatting {dt = }")
         # Simple user-facing formatter; tweak to match your prefs
         if isinstance(dt, datetime):
             return _fmt_naive(dt)
@@ -2158,7 +2161,12 @@ Entry: {self.entry}
         anchor = group[0]
         parts = anchor["token"].split(maxsplit=1)
         if len(parts) < 2:
-            msg = (False, f"Missing rrule frequency: {tok_text}", [])
+            freq_msg = "character from (y)ear, (m)onth, (w)eek,  (d)ay, (h)our, mi(n)ute.\nAppend an '&' to add a repetition option."
+            msg = (
+                False,
+                f"Missing rrule frequency: {tok_text.rstrip()}\n{freq_msg}",
+                [],
+            )
             self.messages.append(msg)
             return msg
 
