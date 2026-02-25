@@ -616,7 +616,7 @@ requires = {
     "n": ["s"],
     "o": ["s"],
     "+": ["s"],
-    "q": ["s"],
+    # "q": ["s"], #FIXME: was quota for goals in etm - might replace @t for target here allowing @t for another use?
     "-": ["rr"],
     "r": ["s"],
     "rr": ["s"],
