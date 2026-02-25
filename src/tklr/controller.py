@@ -3202,9 +3202,8 @@ class Controller:
                 )
                 if _update_at_token(raw_tokens, "s", formatted_start):
                     tokens_dirty = True
-                if has_k_token and _update_at_token(
-                    raw_tokens, "k", str(num_completed)
-                ):
+                k_value = str(num_completed) if num_completed > 0 else None
+                if has_k_token and _update_at_token(raw_tokens, "k", k_value):
                     tokens_dirty = True
 
             end_dt = start_dt + period_td
@@ -3219,7 +3218,7 @@ class Controller:
                 )
                 if _update_at_token(raw_tokens, "s", formatted_start):
                     tokens_dirty = True
-                if has_k_token and _update_at_token(raw_tokens, "k", "0"):
+                if has_k_token and _update_at_token(raw_tokens, "k", None):
                     tokens_dirty = True
                 num_completed = 0
 

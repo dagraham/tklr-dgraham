@@ -1496,7 +1496,7 @@ The table below is generated from `src/tklr/item.py` using `update_readme.py`.
 | `@~ &m` | mask | ^, ? |   |   | no |
 | `@~ &r` | id and list of requirement ids | ^, ? |   |   | yes |
 | `@~ &s` | scheduled | ^, ? |   | `@s` | no |
-| `@k` | konnection | !, ? |   |   | no |
+| `@k` | kompletions | !, ? |   |   | no |
 
 <!-- END TOKEN KEYS -->
 

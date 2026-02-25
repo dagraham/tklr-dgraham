@@ -1643,7 +1643,7 @@ class EditorScreen(Screen):
             "d": "Description",
             "e": "Extent",
             "g": "Goal",
-            "k": "Keyword",
+            "k": "Kompletions",
             "l": "Location",
             "m": "Mask",
             "n": "Notice",
@@ -1701,7 +1701,14 @@ class EditorScreen(Screen):
             self._set_feedback(panel, s)
             return
 
-        # 2) No errors: describe token at cursor (with normalized preview if available).
+        # 2) Show parse error feedback from token handlers (e.g., invalid @k value).
+        if not getattr(item, "parse_ok", True):
+            parse_message = getattr(item, "parse_message", "") or ""
+            if parse_message:
+                self._set_feedback(panel, parse_message)
+                return
+
+        # 3) No errors: describe token at cursor (with normalized preview if available).
         idx = self._cursor_abs_index()
         tok = self._token_at(idx)
 

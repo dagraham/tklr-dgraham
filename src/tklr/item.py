@@ -831,7 +831,11 @@ class Item:
         ],
         # "~u": ["used time", "timeperiod: datetime", "do_usedtime"],
         "~?": ["job &-key", "enter &-key", "do_ampj"],
-        "k": ["konnection", "not implemented", "do_nothing"],
+        "k": [
+            "kompletions",
+            "positive integer number of completions in current goal period",
+            "do_k",
+        ],
         # "#": ["etm record number", "not implemented", "do_nothing"],
     }
 
@@ -1984,6 +1988,24 @@ Entry: {self.entry}
 
     def do_nothing(self, token):
         return True, "passed", []
+
+    def do_k(self, token):
+        """
+        Validate @k as a positive integer completion count for goals.
+        """
+        raw = token["token"][2:].strip()
+        if not raw:
+            return False, "@k requires a positive integer", []
+        try:
+            value = int(raw)
+        except ValueError:
+            return False, "@k requires a positive integer", []
+        if value <= 0:
+            return False, "@k requires a positive integer", []
+        token["token"] = f"@k {value}"
+        token["t"] = "@"
+        token["k"] = "k"
+        return True, value, []
 
     @classmethod
     def do_paragraph(cls, arg):
@@ -3824,7 +3846,7 @@ Entry: {self.entry}
             Else if @k is greater than or equal to the number of num_completions:
                 record a success
                 increment @s by the allowed period
-                reset @k to 0 or remove it.
+                remove @k.
 
             PDocstring for finish
 
@@ -3839,23 +3861,21 @@ Entry: {self.entry}
             if kompleted_tok := next(
                 (t for t in self.relative_tokens if t.get("k") == "k"), None
             ):
-                done = kompleted_tok["token"][2:].strip()  # remove '@k'
-                done = int(done)
+                ok_k, value_k, _ = self.do_k(kompleted_tok)
+                done = value_k if ok_k else 0
             if done + 1 < num_completions:
                 # increment @k
-                old_done = done
                 done += 1
-                self._replace_or_add_token("k", done)
+                self._replace_or_add_token("k", str(done))
             else:
-                # mark success, increment @s by period_td, reset @k
-                done = 0
+                # mark success, increment @s by period_td, remove @k
                 new_start = due_dt + period_td
                 self.dtstart = self.fmt_user(new_start)
                 self._replace_or_add_token("s", self.dtstart)
                 self.rdstart_str = f"RDATE:{self.dtstart}"
                 self.rruleset = f"RDATE:{self.dtstart}"
                 self.rruleset_dict["START_RDATES"] = self.rdstart_str
-            self._replace_or_add_token("k", str(done))
+                self._remove_tokens({"k"}, token_types={"@"})
             self._remove_tokens({"f"}, token_types={"@"})
             return
 

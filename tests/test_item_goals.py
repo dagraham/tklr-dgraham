@@ -112,9 +112,18 @@ class TestGoalTracking:
             item.finish()
 
         tokens = {t["k"]: t["token"] for t in item.relative_tokens if t.get("t") == "@"}
-        assert tokens["k"] == "@k 0"  # after third completion
+        assert "k" not in tokens  # after third completion
         new_start = parse(tokens["s"][3:].strip())
         assert new_start == starts + timedelta(weeks=1)
+
+    def test_goal_invalid_k_requires_positive_integer(self, frozen_time, item_factory):
+        item = item_factory("! goal sample @s 2025-01-01 09:00 @t 3/1w @k two")
+        assert not item.parse_ok
+        assert "@k requires a positive integer" in item.parse_message
+
+        item_zero = item_factory("! goal sample @s 2025-01-01 09:00 @t 3/1w @k 0")
+        assert not item_zero.parse_ok
+        assert "@k requires a positive integer" in item_zero.parse_message
 
 
 def test_goal_view_filters_inactive_goals(frozen_time, test_controller, item_factory):
