@@ -1,5 +1,33 @@
 # Recent Changes
 
+## 0.0.62 — 2026-02-25
+
+Since 0.0.61:
+
+Why upgrade:
+- 2 additions, 1 fixes, 3 behavior changes.
+
+Added:
+- Implement completion deduplication script and enhance Controller and DatabaseManager for completion management
+- Add record_completions parameter to Controller methods and enhance completion handling in DatabaseManager
+
+Fixed:
+- Fix typo in README.md for token keys section description
+
+Changed:
+- Enhance config.toml with additional settings for num_completions, minutes, and UI palette overrides
+- Comment out completions section in item.py for future reference
+- Update src/tklr/item.py
+
+Docs:
+- Clarify token keys section in README.md and update description for automatic generation from source code
+- Update README.md token keys section for clarity and formatting
+- Enhance README.md token keys section and update update_readme.py for improved sorting of token rows
+- Update README.md and update_readme.py for improved token display logic and formatting
+
+Technical:
+- 10 files changed, 624 insertions(+), 57 deletions(-)
+
 ## 0.0.61 — 2026-02-25
 
 Since 0.0.60:
@@ -40,27 +68,3 @@ Internal:
 
 Technical:
 - 7 files changed, 217 insertions(+), 14 deletions(-)
-
-## 0.0.59 — 2026-02-24
-
-Since 0.0.58:
-
-Why upgrade:
-- 1 additions, 0 fixes, 4 behavior changes.
-
-Added:
-- add recent_changes.md to track project changes
-
-Changed:
-- Update .githooks/commit-msg, .githooks/prepare-commit-msg, and 1 more
-- Update index.md
-- Update _config.yml
-- Update bump.py
-
-Docs:
-- Update README.md
-
-Technical:
-- 6 files changed, 228 insertions(+), 35 deletions(-)
-
-Note: first tag with the recent_changes messages
