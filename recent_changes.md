@@ -1,5 +1,26 @@
 # Recent Changes
 
+## 0.0.60 — 2026-02-24
+
+Since 0.0.59:
+
+Why upgrade:
+- 0 additions, 0 fixes, 2 behavior changes.
+
+Changed:
+- Update src/tklr/controller.py
+- Update .github/workflows/sync-recent-changes-discussion.yml and scripts/sync_recent_changes_discussion.py
+
+Docs:
+- Update README.md
+
+Internal:
+- Refactor inbox entry normalization and logging; adjust sync interval
+- Update src/tklr/controller.py and tests/test_inbox_sync.py
+
+Technical:
+- 7 files changed, 217 insertions(+), 14 deletions(-)
+
 ## 0.0.59 — 2026-02-24
 
 Since 0.0.58:
