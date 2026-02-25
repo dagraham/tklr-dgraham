@@ -1447,58 +1447,60 @@ This guide walks you through setting up a development environment for `tklr` usi
 
 ### 6.1 Token keys
 
-The table below is generated from `src/tklr/item.py` using `update_readme.py`.
+This is the complete list of keys for both `@-keys` and, when applicable, for their `&-key` attributes.
 
 <!-- BEGIN TOKEN KEYS -->
 
-| key | name | allowed | required | requires | multiple |
-| --- | --- | --- | --- | --- | --- |
-| `@+` | rdate | *, ~, ^, %, x, ? |   | `@s` | no |
-| `@-` | exdate | *, ~, ^, %, x, ? |   | `@r` | no |
-| `@a` | alerts | *, ~, ^, %, x, ? |   | `@s` | yes |
-| `@b` | bin | *, ~, ^, %, !, x, ? |   |   | yes |
-| `@c` | context | *, ~, ^, %, !, x, ? |   |   | no |
-| `@d` | details | *, ~, ^, %, !, -, x, ? |   |   | no |
-| `@e` | extent | *, ~, ^, %, -, x, ? |   |   | no |
-| `@f` | finish | ~, ^, !, x, ? |   |   | no |
-| `@g` | goto | *, ~, ^, %, !, x, ? |   |   | no |
-| `@h` | completions | ^, ? |   |   | no |
-| `@k` | kompletions | !, ? |   |   | no |
-| `@l` | label | *, ~, ^, %, !, x, ? |   |   | no |
-| `@m` | mask | *, ~, ^, %, !, x, ? |   |   | no |
-| `@n` | notice | *, ~, ^, %, !, x, ? |   | `@s` | no |
-| `@o` | offset | *, ~, ^, x, ? |   | `@s` | no |
-| `@p` | priority | ~, ^, x, ? |   |   | no |
-| `@r` | recurrence | *, ~, ^, x, ? |   | `@s` | yes |
-| `@r <freq>` | repetition frequency | *, ~, ^, x, ? |   | `@s` | no |
-| `@r &E` | easterdays | *, ~, ^, x, ? |   |   | no |
-| `@r &H` | hours | *, ~, ^, x, ? |   |   | no |
-| `@r &M` | minutes | *, ~, ^, x, ? |   |   | no |
-| `@r &W` | week numbers | *, ~, ^, x, ? |   |   | no |
-| `@r &c` | count | *, ~, ^, x, ? |   |   | no |
-| `@r &d` | monthdays | *, ~, ^, x, ? |   |   | no |
-| `@r &i` | interval | *, ~, ^, x, ? |   |   | no |
-| `@r &m` | months | *, ~, ^, x, ? |   |   | no |
-| `@r &s` | set positions | *, ~, ^, x, ? |   |   | no |
-| `@r &u` | until | *, ~, ^, x, ? |   |   | no |
-| `@r &w` | weekdays | *, ~, ^, x, ? |   |   | no |
-| `@s` | scheduled | *, ~, ^, %, !, -, x, ? | *, ! |   | no |
-| `@t` | target | !, ? | ! |   | no |
-| `@u` | use | -, ? |   |   | no |
-| `@w` | wrap | *, ~, ^, %, x, ? |   |   | no |
-| `@~` | job | ^, x, ? | ^ |   | yes |
-| `@~ &a` | alert | ^, ? |   | `@s` | yes |
-| `@~ &c` | context | ^, ? |   |   | no |
-| `@~ &d` | details | ^, ? |   |   | no |
-| `@~ &e` | extent | ^, ? |   |   | no |
-| `@~ &f` | finish | ^, ? |   |   | no |
-| `@~ &i` | unique id | ^, ? |   |   | no |
-| `@~ &l` | label | ^, ? |   |   | no |
-| `@~ &m` | mask | ^, ? |   |   | no |
-| `@~ &r` | id and list of requirement ids | ^, ? |   |   | yes |
-| `@~ &s` | scheduled | ^, ? |   | `@s` | no |
+| key         | name                           | allowed                | required | requires | multiple |
+| ----------- | ------------------------------ | ---------------------- | -------- | -------- | -------- |
+| `@+`        | rdate                          | *, ~, ^, %, x, ?       |          | `@s`     | no       |
+| `@-`        | exdate                         | *, ~, ^, %, x, ?       |          | `@r`     | no       |
+| `@a`        | alerts                         | *, ~, ^, %, x, ?       |          | `@s`     | yes      |
+| `@b`        | bin                            | *, ~, ^, %, !, x, ?    |          |          | yes      |
+| `@c`        | context                        | *, ~, ^, %, !, x, ?    |          |          | no       |
+| `@d`        | details                        | *, ~, ^, %, !, -, x, ? |          |          | no       |
+| `@e`        | extent                         | *, ~, ^, %, -, x, ?    |          |          | no       |
+| `@f`        | finish                         | ~, ^, !, x, ?          |          |          | no       |
+| `@g`        | goto                           | *, ~, ^, %, !, x, ?    |          |          | no       |
+| `@h`        | completions                    | ^, ?                   |          |          | no       |
+| `@k`        | kompletions                    | !, ?                   |          |          | no       |
+| `@l`        | label                          | *, ~, ^, %, !, x, ?    |          |          | no       |
+| `@m`        | mask                           | *, ~, ^, %, !, x, ?    |          |          | no       |
+| `@n`        | notice                         | *, ~, ^, %, !, x, ?    |          | `@s`     | no       |
+| `@o`        | offset                         | *, ~, ^, x, ?          |          | `@s`     | no       |
+| `@p`        | priority                       | ~, ^, x, ?             |          |          | no       |
+| `@r`        | recurrence                     | *, ~, ^, x, ?          |          | `@s`     | yes      |
+| `@r <freq>` | repetition frequency           | *, ~, ^, x, ?          |          | `@s`     | no       |
+| `@r &E`     | easterdays                     | *, ~, ^, x, ?          |          |          | no       |
+| `@r &H`     | hours                          | *, ~, ^, x, ?          |          |          | no       |
+| `@r &M`     | minutes                        | *, ~, ^, x, ?          |          |          | no       |
+| `@r &W`     | week numbers                   | *, ~, ^, x, ?          |          |          | no       |
+| `@r &c`     | count                          | *, ~, ^, x, ?          |          |          | no       |
+| `@r &d`     | monthdays                      | *, ~, ^, x, ?          |          |          | no       |
+| `@r &i`     | interval                       | *, ~, ^, x, ?          |          |          | no       |
+| `@r &m`     | months                         | *, ~, ^, x, ?          |          |          | no       |
+| `@r &s`     | set positions                  | *, ~, ^, x, ?          |          |          | no       |
+| `@r &u`     | until                          | *, ~, ^, x, ?          |          |          | no       |
+| `@r &w`     | weekdays                       | *, ~, ^, x, ?          |          |          | no       |
+| `@s`        | scheduled                      | *, ~, ^, %, !, -, x, ? | *, !     |          | no       |
+| `@t`        | target                         | !, ?                   | !        |          | no       |
+| `@u`        | use                            | -, ?                   |          |          | no       |
+| `@w`        | wrap                           | *, ~, ^, %, x, ?       |          |          | no       |
+| `@~`        | job                            | ^, x, ?                | ^        |          | yes      |
+| `@~ &a`     | alert                          | ^, ?                   |          | `@s`     | yes      |
+| `@~ &c`     | context                        | ^, ?                   |          |          | no       |
+| `@~ &d`     | details                        | ^, ?                   |          |          | no       |
+| `@~ &e`     | extent                         | ^, ?                   |          |          | no       |
+| `@~ &f`     | finish                         | ^, ?                   |          |          | no       |
+| `@~ &i`     | unique id                      | ^, ?                   |          |          | no       |
+| `@~ &l`     | label                          | ^, ?                   |          |          | no       |
+| `@~ &m`     | mask                           | ^, ?                   |          |          | no       |
+| `@~ &r`     | id and list of requirement ids | ^, ?                   |          |          | yes      |
+| `@~ &s`     | scheduled                      | ^, ?                   |          | `@s`     | no       |
 
 <!-- END TOKEN KEYS -->
+
+The table above is generated from `src/tklr/item.py` using `update_readme.py`.
 
 #### ✅ Step 1: Clone/Update the repository
 
