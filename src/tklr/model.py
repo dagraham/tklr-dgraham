@@ -1803,6 +1803,105 @@ class DatabaseManager:
                 break
         return results
 
+    @staticmethod
+    def _dedupe_casefold(values: list[str], limit: int) -> list[str]:
+        """Return values with case-insensitive de-duplication preserving order."""
+        out: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            folded = value.casefold()
+            if folded in seen:
+                continue
+            seen.add(folded)
+            out.append(value)
+            if len(out) >= limit:
+                break
+        return out
+
+    def find_use_matches(self, fragment: str, limit: int = 8) -> list[str]:
+        """Case-insensitive substring matches for use names."""
+        needle = _clean_use_name(fragment)
+        if len(needle) < 2:
+            return []
+        rows = self.cursor.execute(
+            """
+            SELECT name
+            FROM Uses
+            ORDER BY name COLLATE NOCASE
+        """
+        ).fetchall()
+        matches = [
+            row[0]
+            for row in rows
+            if row and isinstance(row[0], str) and needle.casefold() in row[0].casefold()
+        ]
+        return self._dedupe_casefold(matches, max(1, int(limit or 1)))
+
+    def find_context_matches(self, fragment: str, limit: int = 8) -> list[str]:
+        """Case-insensitive substring matches for stored record contexts."""
+        needle = " ".join((fragment or "").split()).strip()
+        if len(needle) < 2:
+            return []
+        rows = self.cursor.execute(
+            """
+            SELECT DISTINCT context
+            FROM Records
+            WHERE context IS NOT NULL AND TRIM(context) != ''
+            ORDER BY context COLLATE NOCASE
+        """
+        ).fetchall()
+        values = []
+        for row in rows:
+            value = row[0] if row else ""
+            if not isinstance(value, str):
+                continue
+            cleaned = " ".join(value.split()).strip()
+            if not cleaned:
+                continue
+            if needle.casefold() in cleaned.casefold():
+                values.append(cleaned)
+        return self._dedupe_casefold(values, max(1, int(limit or 1)))
+
+    def find_location_matches(self, fragment: str, limit: int = 8) -> list[str]:
+        """Case-insensitive substring matches for @l values found in stored tokens."""
+        needle = " ".join((fragment or "").split()).strip()
+        if len(needle) < 2:
+            return []
+
+        rows = self.cursor.execute(
+            """
+            SELECT tokens
+            FROM Records
+            WHERE tokens IS NOT NULL AND TRIM(tokens) != ''
+        """
+        ).fetchall()
+        values: list[str] = []
+        for row in rows:
+            tokens_raw = row[0] if row else None
+            if not isinstance(tokens_raw, str):
+                continue
+            try:
+                tokens = json.loads(tokens_raw) or []
+            except Exception:
+                continue
+            if not isinstance(tokens, list):
+                continue
+            for tok in tokens:
+                if not isinstance(tok, dict):
+                    continue
+                if tok.get("t") != "@" or tok.get("k") != "l":
+                    continue
+                raw = (tok.get("token") or "").strip()
+                value = raw[2:].strip() if raw.lower().startswith("@l") else ""
+                value = " ".join(value.split()).strip()
+                if not value:
+                    continue
+                if needle.casefold() in value.casefold():
+                    values.append(value)
+
+        values.sort(key=lambda s: s.casefold())
+        return self._dedupe_casefold(values, max(1, int(limit or 1)))
+
     def _resolve_use_id_for_item(
         self, item: Item, *, strict: bool = False
     ) -> int | None:

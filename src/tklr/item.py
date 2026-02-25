@@ -763,7 +763,7 @@ class Item:
         "l": [
             "label",
             "label for job clone",
-            "do_string",
+            "do_location",
         ],
         "m": ["mask", "string to be masked", "do_mask"],
         "p": [
@@ -927,6 +927,7 @@ class Item:
         self.messages = []
         self.validate_messages = []
         self.error_result = None
+        self.live_replacement: tuple[int, int, str] | None = None
 
         # --- schedule / tokens / jobs ---
         self.extent = ""
@@ -1064,6 +1065,7 @@ class Item:
         self.auto_log_seeded = False
         self.auto_log_timestamp = None
         self.error_result = None
+        self.live_replacement = None
         self._tokenize(entry)
         # NOTE: _tokenize sets self.itemtype and self.subject
 
@@ -2075,12 +2077,66 @@ Entry: {self.entry}
         obj = rep = token["token"][2:].strip()
         return obj, rep, []
 
+    def _set_live_replacement(self, token: dict, new_token: str) -> None:
+        """Record a token replacement to be applied to the live editor buffer."""
+        token["token"] = new_token
+        if self.final:
+            return
+        start = token.get("s")
+        end = token.get("e")
+        if isinstance(start, int) and isinstance(end, int):
+            self.live_replacement = (start, end, new_token)
+
+    def _set_token_matches(self, token: dict, matches: list[str]) -> None:
+        if matches:
+            token["_matches"] = matches
+        else:
+            token.pop("_matches", None)
+
+    def _find_attribute_matches(
+        self, at_key: str, fragment: str, limit: int = 8
+    ) -> list[str]:
+        if not self.controller:
+            return []
+        finder = getattr(self.controller, "find_attribute_matches", None)
+        if not callable(finder):
+            return []
+        try:
+            return finder(at_key, fragment, limit=limit) or []
+        except Exception:
+            return []
+
     def do_context(self, token):
         raw = token["token"][2:].strip()
         if not raw:
             return False, "Context cannot be empty", []
-        self.context = " ".join(raw.split())
+        normalized = " ".join(raw.split())
+        matches = self._find_attribute_matches("c", normalized, limit=8)
+        self._set_token_matches(token, matches)
+
+        chosen = normalized
+        if matches and len(matches) == 1:
+            chosen = matches[0]
+            if chosen != normalized:
+                self._set_live_replacement(token, f"@c {chosen}")
+
+        self.context = chosen
         return True, self.context, []
+
+    def do_location(self, token):
+        raw = token["token"][2:].strip()
+        if not raw:
+            return False, "Location cannot be empty", []
+        normalized = " ".join(raw.split())
+        matches = self._find_attribute_matches("l", normalized, limit=8)
+        self._set_token_matches(token, matches)
+
+        chosen = normalized
+        if matches and len(matches) == 1:
+            chosen = matches[0]
+            if chosen != normalized:
+                self._set_live_replacement(token, f"@l {chosen}")
+        return True, chosen, []
 
     def do_use(self, token):
         if self.itemtype != "-":
@@ -2089,6 +2145,24 @@ Entry: {self.entry}
         if not raw:
             return False, "Use cannot be empty", []
         normalized = " ".join(raw.split())
+        matches = self._find_attribute_matches("u", normalized, limit=8)
+        self._set_token_matches(token, matches)
+
+        if matches and len(matches) == 1:
+            chosen = matches[0]
+            if chosen != normalized:
+                self._set_live_replacement(token, f"@u {chosen}")
+            self.use = chosen
+            resolver = getattr(self.controller, "lookup_use", None)
+            if callable(resolver):
+                use = resolver(chosen)
+                if use:
+                    self.use = use["name"]
+                    self.use_id = use["id"]
+                    return True, use["name"], []
+            self.use_id = None
+            return True, chosen, []
+
         resolver = getattr(self.controller, "lookup_use", None)
         if callable(resolver):
             use = resolver(normalized)
@@ -2096,15 +2170,7 @@ Entry: {self.entry}
                 self.use = use["name"]
                 self.use_id = use["id"]
                 return True, use["name"], []
-            suggest_fn = getattr(self.controller, "suggest_uses", None)
-            suggestions = (
-                [u["name"] for u in suggest_fn(normalized, limit=3)]
-                if callable(suggest_fn)
-                else []
-            )
-            suggestion_text = (
-                f"\nClose matches: {', '.join(suggestions)}." if suggestions else ""
-            )
+            suggestion_text = f"\nMatching entries: {', '.join(matches)}." if matches else ""
             hint = (
                 f"Press Ctrl+Shift+Period to add '{normalized}' as a new use "
                 f"or enter an existing one.{suggestion_text}"
@@ -2261,32 +2327,19 @@ Entry: {self.entry}
         - If matches exist: preview; auto-lock when unique/exact.
         - If no matches: show per-segment status, e.g. 'Churchill (new)/quotations/library'.
         """
-        path = token["token"][2:].strip()  # strip '@b'
         rev_dict = self.get_name_to_binpath()  # {leaf_lower: "Leaf/.../Root"}
         path = token["token"][2:].strip()  # after '@b'
         parts = [p.strip() for p in path.split("/") if p.strip()]
+        token.pop("_matches", None)
 
         # Batch/final or no controller dict → one-shot resolve
-        if self.final or not self.get_name_to_binpath():
+        if self.final or not rev_dict:
             if not parts:
                 return False, "Missing bin path after @b", []
-            norm = "/".join(parts)  # Leaf/Parent/.../Root
             token["token"] = f"@b {parts[0]}"  # keep prefix; no decoration
             if not token.get("_b_resolved"):  # append ONCE (batch runs once anyway)
                 self.bin_paths.append(parts)  # store Leaf→…→Root parts
                 token["_b_resolved"] = True
-            return True, token["token"], []
-
-        # Fallback for batch/final or if controller not wired
-        if not rev_dict:
-            if not path:
-                return False, "Missing bin path after @b", []
-            parts = [p.strip() for p in (path or "").split("/") if p.strip()]
-            if not parts:
-                return False, "Missing bin path after @b", []
-            # keep full token; don't truncate to parts[0]
-            token["token"] = f"@b {parts[0]}"
-            # don't append to bin_paths here; do it on save
             return True, token["token"], []
 
         raw = token.get("token", "")
@@ -2300,6 +2353,16 @@ Entry: {self.entry}
             return True, msg, []
 
         paths = list(rev_dict.values())  # existing reversed paths
+        contains_matches = self._find_attribute_matches("b", frag, limit=8)
+        self._set_token_matches(token, contains_matches)
+        if contains_matches and len(contains_matches) == 1:
+            resolved = contains_matches[0]
+            if resolved != frag:
+                self._set_live_replacement(token, f"@b {resolved}")
+            token["_b_new"] = False
+            token["_b_resolved"] = True
+            return True, token["token"], []
+
         matches = _ordered_prefix_matches(paths, frag, limit=24)
 
         if matches:

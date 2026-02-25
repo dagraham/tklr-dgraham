@@ -1501,7 +1501,10 @@ class EditorScreen(Screen):
         """Non-throwing live parse + feedback for current cursor token."""
         if refresh_from_widget and self._text is not None:
             self.entry_text = self._text.text or ""
+        cursor_idx = self._cursor_abs_index()
         self._rebuild_item(final=final)
+        if not final and self._apply_live_replacement(cursor_idx):
+            self._rebuild_item(final=final)
         self._render_feedback()
 
     def _rebuild_item(self, final: bool) -> None:
@@ -1539,6 +1542,54 @@ class EditorScreen(Screen):
         if row >= len(lines):
             return len(self.entry_text or "")
         return sum(len(l) for l in lines[:row]) + min(col, len(lines[row]))
+
+    def _abs_index_to_row_col(self, idx: int) -> tuple[int, int]:
+        """Map absolute index in entry_text to TextArea (row, col)."""
+        text = self.entry_text or ""
+        idx = max(0, min(idx, len(text)))
+        lines = text.splitlines(True)
+        if not lines:
+            return (0, 0)
+        running = 0
+        for row, line in enumerate(lines):
+            line_len = len(line)
+            if idx <= running + line_len:
+                return (row, idx - running)
+            running += line_len
+        return (len(lines) - 1, len(lines[-1]))
+
+    def _apply_live_replacement(self, cursor_idx: int) -> bool:
+        """Apply a token auto-completion suggested by Item parsing."""
+        item = getattr(self, "item", None)
+        if item is None:
+            return False
+        replacement = getattr(item, "live_replacement", None)
+        if not replacement:
+            return False
+        if self._text is None:
+            return False
+        if not isinstance(replacement, tuple) or len(replacement) != 3:
+            return False
+
+        start, end, token_text = replacement
+        if not all(isinstance(x, int) for x in (start, end)) or not isinstance(
+            token_text, str
+        ):
+            return False
+        if not (0 <= start <= end <= len(self.entry_text or "")):
+            return False
+        if not (start <= cursor_idx <= end):
+            return False
+
+        current = self.entry_text or ""
+        updated = current[:start] + token_text + current[end:]
+        if updated == current:
+            return False
+
+        self.entry_text = updated
+        self._text.text = updated
+        self._text.cursor_location = self._abs_index_to_row_col(start + len(token_text))
+        return True
 
     def _format_schedule_preview(self, tok: dict[str, Any]) -> str | None:
         """Return a weekday-inclusive preview for @s tokens if possible."""
@@ -1630,6 +1681,17 @@ class EditorScreen(Screen):
         if len(normalized) > max_total_chars:
             normalized = normalized[: max_total_chars - 1] + "…"
         panel.update(normalized.strip())
+
+    def _match_feedback_suffix(self, tok: dict[str, Any]) -> str:
+        matches = tok.get("_matches")
+        if not isinstance(matches, list) or not matches:
+            return ""
+        shown = [str(x) for x in matches[:8] if isinstance(x, str)]
+        if not shown:
+            return ""
+        more = len(matches) - len(shown)
+        suffix = f" (+{more} more)" if more > 0 else ""
+        return f"\nMatching entries: {', '.join(shown)}{suffix}"
 
     def _render_feedback(self) -> None:
         """Update the feedback panel using only screen state."""
@@ -1736,7 +1798,8 @@ class EditorScreen(Screen):
                     preview = f"@s {formatted}"
             elif key in {"o", "e", "n", "t", "w"}:
                 preview = self._format_timedelta_preview(tok) or ""
-            self._set_feedback(panel, f"{description} {preview or raw}")
+            match_suffix = self._match_feedback_suffix(tok)
+            self._set_feedback(panel, f"{description} {preview or raw}{match_suffix}")
         elif ttype == "&":
             key = tok.get("k", None)
             description = f"{_AMP_DESC.get(key, '')}:" if key else "↳"

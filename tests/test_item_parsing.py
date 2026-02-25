@@ -245,8 +245,77 @@ class TestUseLookup:
         use_factory("Jones, Robert")
         use_factory("Smith, John")
 
-        item = item_factory("- phoned client @u Jonse, Robert")
+        item = item_factory("- phoned client @u Jo")
 
         assert not item.parse_ok
         assert item.last_result
+        assert "Matching entries:" in (item.last_result[1] or "")
         assert "Jones, Robert" in (item.last_result[1] or "")
+        assert "Smith, John" in (item.last_result[1] or "")
+
+
+@pytest.mark.unit
+class TestLiveAttributeMatching:
+    def test_single_use_match_sets_live_replacement(self, item_factory, use_factory):
+        use_factory("exercise.walking")
+
+        item = item_factory("- jog @u walk", final=False)
+
+        assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
+        assert item.live_replacement is not None
+        assert item.live_replacement[2] == "@u exercise.walking"
+
+    def test_single_context_match_sets_live_replacement(
+        self, item_factory, test_controller
+    ):
+        existing = item_factory("~ existing task @c Errands")
+        test_controller.add_item(existing)
+
+        item = item_factory("~ new task @c rand", final=False)
+
+        assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
+        assert item.live_replacement is not None
+        assert item.live_replacement[2] == "@c Errands"
+        context_token = next(
+            tok
+            for tok in item.relative_tokens
+            if tok.get("t") == "@" and tok.get("k") == "c"
+        )
+        assert "Errands" in context_token.get("_matches", [])
+
+    def test_single_location_match_sets_live_replacement(
+        self, item_factory, test_controller
+    ):
+        existing = item_factory("~ existing task @l Home Office")
+        test_controller.add_item(existing)
+
+        item = item_factory("~ new task @l office", final=False)
+
+        assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
+        assert item.live_replacement is not None
+        assert item.live_replacement[2] == "@l Home Office"
+        location_token = next(
+            tok
+            for tok in item.relative_tokens
+            if tok.get("t") == "@" and tok.get("k") == "l"
+        )
+        assert "Home Office" in location_token.get("_matches", [])
+
+    def test_single_bin_match_sets_live_replacement(self, item_factory, test_controller):
+        seed = item_factory("% filing note @b Churchill/quotations/library")
+        test_controller.add_item(seed)
+
+        item = item_factory("~ new task @b chur", final=False)
+
+        assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
+        assert item.live_replacement is not None
+        assert item.live_replacement[2].startswith("@b Churchill/quotations/library")
+        bin_token = next(
+            tok
+            for tok in item.relative_tokens
+            if tok.get("t") == "@" and tok.get("k") == "b"
+        )
+        assert any(
+            match.startswith("Churchill/quotations/library")
+            for match in bin_token.get("_matches", [])
+        )

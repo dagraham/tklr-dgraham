@@ -719,6 +719,39 @@ class Controller:
     def update_use(self, use_id: int, name: str, details: str | None = None) -> dict:
         return self.db_manager.update_use(use_id, name, details)
 
+    def find_attribute_matches(
+        self, at_key: str, fragment: str, limit: int = 8
+    ) -> list[str]:
+        """Return case-insensitive substring matches for a supported @-key."""
+        key = (at_key or "").strip().lower()
+        needle = " ".join((fragment or "").split()).strip()
+        if len(needle) < 2:
+            return []
+        limit = max(1, int(limit or 1))
+
+        if key == "b":
+            paths = list(self.db_manager.bin_cache.name_to_binpath().values())
+            seen: set[str] = set()
+            matches: list[str] = []
+            for path in sorted(paths, key=lambda x: x.casefold()):
+                folded = path.casefold()
+                if needle.casefold() not in folded:
+                    continue
+                if folded in seen:
+                    continue
+                seen.add(folded)
+                matches.append(path)
+                if len(matches) >= limit:
+                    break
+            return matches
+        if key == "u":
+            return self.db_manager.find_use_matches(needle, limit)
+        if key == "c":
+            return self.db_manager.find_context_matches(needle, limit)
+        if key == "l":
+            return self.db_manager.find_location_matches(needle, limit)
+        return []
+
     # ── Inbox processing -------------------------------------------------
     def _inbox_path(self) -> Path:
         path = self.env.home / "inbox.txt"
