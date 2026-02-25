@@ -1447,7 +1447,7 @@ This guide walks you through setting up a development environment for `tklr` usi
 
 ### 6.1 Token keys
 
-The table below gives the complete list of both `@-keys` and, when applicable, their `&-key` attributes.  It is generated from the source code automatically using so it is always up to date.
+The table below gives the complete list of both `@-keys` and, when applicable, their `&-key` attributes.  It is generated from the source code automatically so it is always up to date.
 
 <!-- BEGIN TOKEN KEYS -->
 
