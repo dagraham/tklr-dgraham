@@ -1451,52 +1451,52 @@ The table below is generated from `src/tklr/item.py` using `update_readme.py`.
 
 <!-- BEGIN TOKEN KEYS -->
 
-| key         | name                           | allowed (by types)                                                                                     | required (for types)    | requires (other keys) | multiple |
-| ----------- | ------------------------------ | ------------------------------------------------------------------------------------------------------ | ----------------------- | --------------------- | -------- |
-| `@s`        | scheduled                      | `*` (event), `~` (task), `^` (project), `%` (note), `!` (goal), `-` (jot), `x` (finished), `?` (draft) | `*` (event), `!` (goal) | —                     | no       |
-| `@r`        | recurrence                     | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | `@s`                  | yes      |
-| `@o`        | offset                         | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | `@s`                  | no       |
-| `@t`        | target                         | `!` (goal), `?` (draft)                                                                                | `!` (goal)              | —                     | no       |
-| `@~`        | job                            | `^` (project), `x` (finished), `?` (draft)                                                             | `^` (project)           | —                     | yes      |
-| `@+`        | rdate                          | `*` (event), `~` (task), `^` (project), `%` (note), `x` (finished), `?` (draft)                        | —                       | `@s`                  | no       |
-| `@-`        | exdate                         | `*` (event), `~` (task), `^` (project), `%` (note), `x` (finished), `?` (draft)                        | —                       | `@r <freq>`           | no       |
-| `@a`        | alerts                         | `*` (event), `~` (task), `^` (project), `%` (note), `x` (finished), `?` (draft)                        | —                       | `@s`                  | yes      |
-| `@n`        | notice                         | `*` (event), `~` (task), `^` (project), `%` (note), `!` (goal), `x` (finished), `?` (draft)            | —                       | `@s`                  | no       |
-| `@c`        | context                        | `*` (event), `~` (task), `^` (project), `%` (note), `!` (goal), `x` (finished), `?` (draft)            | —                       | —                     | no       |
-| `@u`        | use                            | `-` (jot), `?` (draft)                                                                                 | —                       | —                     | no       |
-| `@d`        | details                        | `*` (event), `~` (task), `^` (project), `%` (note), `!` (goal), `-` (jot), `x` (finished), `?` (draft) | —                       | —                     | no       |
-| `@e`        | extent                         | `*` (event), `~` (task), `^` (project), `%` (note), `-` (jot), `x` (finished), `?` (draft)             | —                       | —                     | no       |
-| `@w`        | wrap                           | `*` (event), `~` (task), `^` (project), `%` (note), `x` (finished), `?` (draft)                        | —                       | —                     | no       |
-| `@f`        | finish                         | `~` (task), `^` (project), `!` (goal), `x` (finished), `?` (draft)                                     | —                       | —                     | no       |
-| `@g`        | goto                           | `*` (event), `~` (task), `^` (project), `%` (note), `!` (goal), `x` (finished), `?` (draft)            | —                       | —                     | no       |
-| `@h`        | completions                    | `^` (project), `?` (draft)                                                                             | —                       | —                     | no       |
-| `@b`        | bin                            | `*` (event), `~` (task), `^` (project), `%` (note), `!` (goal), `x` (finished), `?` (draft)            | —                       | —                     | yes      |
-| `@l`        | label                          | `*` (event), `~` (task), `^` (project), `%` (note), `!` (goal), `x` (finished), `?` (draft)            | —                       | —                     | no       |
-| `@m`        | mask                           | `*` (event), `~` (task), `^` (project), `%` (note), `!` (goal), `x` (finished), `?` (draft)            | —                       | —                     | no       |
-| `@p`        | priority                       | `~` (task), `^` (project), `x` (finished), `?` (draft)                                                 | —                       | —                     | no       |
-| `@r <freq>` | repetition frequency           | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | `@s`                  | no       |
-| `@r &i`     | interval                       | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | —                     | no       |
-| `@r &m`     | months                         | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | —                     | no       |
-| `@r &d`     | monthdays                      | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | —                     | no       |
-| `@r &E`     | easterdays                     | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | —                     | no       |
-| `@r &H`     | hours                          | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | —                     | no       |
-| `@r &M`     | minutes                        | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | —                     | no       |
-| `@r &w`     | weekdays                       | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | —                     | no       |
-| `@r &W`     | week numbers                   | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | —                     | no       |
-| `@r &c`     | count                          | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | —                     | no       |
-| `@r &u`     | until                          | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | —                     | no       |
-| `@r &s`     | set positions                  | `*` (event), `~` (task), `^` (project), `x` (finished), `?` (draft)                                    | —                       | —                     | no       |
-| `@~ &a`     | alert                          | `^` (project), `?` (draft)                                                                             | —                       | `@s`                  | yes      |
-| `@~ &c`     | context                        | `^` (project), `?` (draft)                                                                             | —                       | —                     | no       |
-| `@~ &d`     | details                        | `^` (project), `?` (draft)                                                                             | —                       | —                     | no       |
-| `@~ &e`     | extent                         | `^` (project), `?` (draft)                                                                             | —                       | —                     | no       |
-| `@~ &f`     | finish                         | `^` (project), `?` (draft)                                                                             | —                       | —                     | no       |
-| `@~ &i`     | unique id                      | `^` (project), `?` (draft)                                                                             | —                       | —                     | no       |
-| `@~ &l`     | label                          | `^` (project), `?` (draft)                                                                             | —                       | —                     | no       |
-| `@~ &m`     | mask                           | `^` (project), `?` (draft)                                                                             | —                       | —                     | no       |
-| `@~ &r`     | id and list of requirement ids | `^` (project), `?` (draft)                                                                             | —                       | —                     | yes      |
-| `@~ &s`     | scheduled                      | `^` (project), `?` (draft)                                                                             | —                       | `@s`                  | no       |
-| `@k`        | konnection                     | `!` (goal), `?` (draft)                                                                                | —                       | —                     | no       |
+| key | name | allowed | required | requires | multiple |
+| --- | --- | --- | --- | --- | --- |
+| `@s` | scheduled | *, ~, ^, %, !, -, x, ? | *, ! | — | no |
+| `@r` | recurrence | *, ~, ^, x, ? | — | `@s` | yes |
+| `@o` | offset | *, ~, ^, x, ? | — | `@s` | no |
+| `@t` | target | !, ? | ! | — | no |
+| `@~` | job | ^, x, ? | ^ | — | yes |
+| `@+` | rdate | *, ~, ^, %, x, ? | — | `@s` | no |
+| `@-` | exdate | *, ~, ^, %, x, ? | — | `@r <freq>` | no |
+| `@a` | alerts | *, ~, ^, %, x, ? | — | `@s` | yes |
+| `@n` | notice | *, ~, ^, %, !, x, ? | — | `@s` | no |
+| `@c` | context | *, ~, ^, %, !, x, ? | — | — | no |
+| `@u` | use | -, ? | — | — | no |
+| `@d` | details | *, ~, ^, %, !, -, x, ? | — | — | no |
+| `@e` | extent | *, ~, ^, %, -, x, ? | — | — | no |
+| `@w` | wrap | *, ~, ^, %, x, ? | — | — | no |
+| `@f` | finish | ~, ^, !, x, ? | — | — | no |
+| `@g` | goto | *, ~, ^, %, !, x, ? | — | — | no |
+| `@h` | completions | ^, ? | — | — | no |
+| `@b` | bin | *, ~, ^, %, !, x, ? | — | — | yes |
+| `@l` | label | *, ~, ^, %, !, x, ? | — | — | no |
+| `@m` | mask | *, ~, ^, %, !, x, ? | — | — | no |
+| `@p` | priority | ~, ^, x, ? | — | — | no |
+| `@r <freq>` | repetition frequency | *, ~, ^, x, ? | — | `@s` | no |
+| `@r &i` | interval | *, ~, ^, x, ? | — | — | no |
+| `@r &m` | months | *, ~, ^, x, ? | — | — | no |
+| `@r &d` | monthdays | *, ~, ^, x, ? | — | — | no |
+| `@r &E` | easterdays | *, ~, ^, x, ? | — | — | no |
+| `@r &H` | hours | *, ~, ^, x, ? | — | — | no |
+| `@r &M` | minutes | *, ~, ^, x, ? | — | — | no |
+| `@r &w` | weekdays | *, ~, ^, x, ? | — | — | no |
+| `@r &W` | week numbers | *, ~, ^, x, ? | — | — | no |
+| `@r &c` | count | *, ~, ^, x, ? | — | — | no |
+| `@r &u` | until | *, ~, ^, x, ? | — | — | no |
+| `@r &s` | set positions | *, ~, ^, x, ? | — | — | no |
+| `@~ &a` | alert | ^, ? | — | `@s` | yes |
+| `@~ &c` | context | ^, ? | — | — | no |
+| `@~ &d` | details | ^, ? | — | — | no |
+| `@~ &e` | extent | ^, ? | — | — | no |
+| `@~ &f` | finish | ^, ? | — | — | no |
+| `@~ &i` | unique id | ^, ? | — | — | no |
+| `@~ &l` | label | ^, ? | — | — | no |
+| `@~ &m` | mask | ^, ? | — | — | no |
+| `@~ &r` | id and list of requirement ids | ^, ? | — | — | yes |
+| `@~ &s` | scheduled | ^, ? | — | `@s` | no |
+| `@k` | konnection | !, ? | — | — | no |
 
 <!-- END TOKEN KEYS -->
 

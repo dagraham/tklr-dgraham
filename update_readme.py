@@ -10,16 +10,6 @@ CONFIG_END = "<!-- END CONFIG -->"
 TOKENS_BEGIN = "<!-- BEGIN TOKEN KEYS -->"
 TOKENS_END = "<!-- END TOKEN KEYS -->"
 
-TYPE_LABELS = {
-    "*": "event",
-    "~": "task",
-    "^": "project",
-    "%": "note",
-    "!": "goal",
-    "-": "jot",
-    "x": "finished",
-    "?": "draft",
-}
 TYPE_ORDER = ["*", "~", "^", "%", "!", "-", "x", "?"]
 TOP_LEVEL_CONSTANTS = [
     "common_methods",
@@ -148,7 +138,7 @@ def _key_to_display(key: str) -> str:
 def _format_types(types: list[str]) -> str:
     if not types:
         return "—"
-    return ", ".join(f"`{t}` ({TYPE_LABELS[t]})" for t in types)
+    return ", ".join(types)
 
 
 def _format_keys(keys: list[str]) -> str:
@@ -173,7 +163,7 @@ def render_token_keys_block() -> str:
     row_keys = [key for key in token_keys.keys() if key in usage_keys]
 
     lines = [
-        "| key | name | allowed (by types) | required (for types) | requires (other keys) | multiple |",
+        "| key | name | allowed | required | requires | multiple |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
 
