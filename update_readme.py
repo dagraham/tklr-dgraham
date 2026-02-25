@@ -121,9 +121,9 @@ def _token_usage_keys(constants: dict[str, Any]) -> set[str]:
     return keys
 
 
-def _key_to_display(key: str) -> str:
+def _key_to_display(key: str, *, include_arg: bool = True) -> str:
     if key == "rr":
-        return "@r <freq>"
+        return "@r <freq>" if include_arg else "@r"
     if key == "~":
         return "@~"
     if len(key) == 1:
@@ -144,7 +144,7 @@ def _format_types(types: list[str]) -> str:
 def _format_keys(keys: list[str]) -> str:
     if not keys:
         return " "
-    return ", ".join(f"`{_key_to_display(key)}`" for key in keys)
+    return ", ".join(f"`{_key_to_display(key, include_arg=False)}`" for key in keys)
 
 
 def _md_escape(text: str) -> str:

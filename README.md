@@ -1459,7 +1459,7 @@ The table below is generated from `src/tklr/item.py` using `update_readme.py`.
 | `@t` | target | !, ? | ! |   | no |
 | `@~` | job | ^, x, ? | ^ |   | yes |
 | `@+` | rdate | *, ~, ^, %, x, ? |   | `@s` | no |
-| `@-` | exdate | *, ~, ^, %, x, ? |   | `@r <freq>` | no |
+| `@-` | exdate | *, ~, ^, %, x, ? |   | `@r` | no |
 | `@a` | alerts | *, ~, ^, %, x, ? |   | `@s` | yes |
 | `@n` | notice | *, ~, ^, %, !, x, ? |   | `@s` | no |
 | `@c` | context | *, ~, ^, %, !, x, ? |   |   | no |
