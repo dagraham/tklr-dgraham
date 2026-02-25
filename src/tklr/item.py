@@ -573,10 +573,8 @@ multiple_allowed = [
     "a",
     "b",
     "r",
-    "t",
     "~",
     "~r",
-    "~t",
     "~a",
 ]
 
@@ -815,7 +813,7 @@ class Item:
         ],
         "~n": ["notice", " notice period", "do_notice"],
         "~c": ["context", " string", "do_string"],
-        "~d": ["description", " string", "do_d"],
+        "~d": ["details", " string", "do_d"],
         "~e": ["extent", " timeperiod", "do_e"],
         "~f": ["finish", " completion done -> due", "do_f"],
         "~i": ["unique id", " integer or string", "do_string"],
