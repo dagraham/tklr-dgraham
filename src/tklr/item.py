@@ -770,7 +770,7 @@ class Item:
         "w": ["wrap", "wrap before, after", "do_wrap"],
         "@": ["@-key", "", "do_at"],
         "rr": [
-            "repetition frequency",
+            "repetition",
             "character from (y)ear, (m)onth, (w)eek,  (d)ay, (h)our, mi(n)ute. Append an '&' to add a repetition option.",
             "do_frequency",
         ],
