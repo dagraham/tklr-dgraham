@@ -1469,7 +1469,6 @@ The table below gives the complete list of both `@-keys` and, when applicable, t
 | `@o` | offset | *, ~, ^, x, ? |   | `@s` | no |
 | `@p` | priority | ~, ^, x, ? |   |   | no |
 | `@r` | recurrence | *, ~, ^, x, ? |   | `@s` | yes |
-| `@r <freq>` | repetition | *, ~, ^, x, ? |   | `@s` | no |
 | `@r &E` | easterdays | *, ~, ^, x, ? |   |   | no |
 | `@r &H` | hours | *, ~, ^, x, ? |   |   | no |
 | `@r &M` | minutes | *, ~, ^, x, ? |   |   | no |
