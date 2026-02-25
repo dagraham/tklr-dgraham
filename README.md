@@ -1453,50 +1453,50 @@ The table below is generated from `src/tklr/item.py` using `update_readme.py`.
 
 | key | name | allowed | required | requires | multiple |
 | --- | --- | --- | --- | --- | --- |
-| `@s` | scheduled | *, ~, ^, %, !, -, x, ? | *, ! | — | no |
-| `@r` | recurrence | *, ~, ^, x, ? | — | `@s` | yes |
-| `@o` | offset | *, ~, ^, x, ? | — | `@s` | no |
-| `@t` | target | !, ? | ! | — | no |
-| `@~` | job | ^, x, ? | ^ | — | yes |
-| `@+` | rdate | *, ~, ^, %, x, ? | — | `@s` | no |
-| `@-` | exdate | *, ~, ^, %, x, ? | — | `@r <freq>` | no |
-| `@a` | alerts | *, ~, ^, %, x, ? | — | `@s` | yes |
-| `@n` | notice | *, ~, ^, %, !, x, ? | — | `@s` | no |
-| `@c` | context | *, ~, ^, %, !, x, ? | — | — | no |
-| `@u` | use | -, ? | — | — | no |
-| `@d` | details | *, ~, ^, %, !, -, x, ? | — | — | no |
-| `@e` | extent | *, ~, ^, %, -, x, ? | — | — | no |
-| `@w` | wrap | *, ~, ^, %, x, ? | — | — | no |
-| `@f` | finish | ~, ^, !, x, ? | — | — | no |
-| `@g` | goto | *, ~, ^, %, !, x, ? | — | — | no |
-| `@h` | completions | ^, ? | — | — | no |
-| `@b` | bin | *, ~, ^, %, !, x, ? | — | — | yes |
-| `@l` | label | *, ~, ^, %, !, x, ? | — | — | no |
-| `@m` | mask | *, ~, ^, %, !, x, ? | — | — | no |
-| `@p` | priority | ~, ^, x, ? | — | — | no |
-| `@r <freq>` | repetition frequency | *, ~, ^, x, ? | — | `@s` | no |
-| `@r &i` | interval | *, ~, ^, x, ? | — | — | no |
-| `@r &m` | months | *, ~, ^, x, ? | — | — | no |
-| `@r &d` | monthdays | *, ~, ^, x, ? | — | — | no |
-| `@r &E` | easterdays | *, ~, ^, x, ? | — | — | no |
-| `@r &H` | hours | *, ~, ^, x, ? | — | — | no |
-| `@r &M` | minutes | *, ~, ^, x, ? | — | — | no |
-| `@r &w` | weekdays | *, ~, ^, x, ? | — | — | no |
-| `@r &W` | week numbers | *, ~, ^, x, ? | — | — | no |
-| `@r &c` | count | *, ~, ^, x, ? | — | — | no |
-| `@r &u` | until | *, ~, ^, x, ? | — | — | no |
-| `@r &s` | set positions | *, ~, ^, x, ? | — | — | no |
-| `@~ &a` | alert | ^, ? | — | `@s` | yes |
-| `@~ &c` | context | ^, ? | — | — | no |
-| `@~ &d` | details | ^, ? | — | — | no |
-| `@~ &e` | extent | ^, ? | — | — | no |
-| `@~ &f` | finish | ^, ? | — | — | no |
-| `@~ &i` | unique id | ^, ? | — | — | no |
-| `@~ &l` | label | ^, ? | — | — | no |
-| `@~ &m` | mask | ^, ? | — | — | no |
-| `@~ &r` | id and list of requirement ids | ^, ? | — | — | yes |
-| `@~ &s` | scheduled | ^, ? | — | `@s` | no |
-| `@k` | konnection | !, ? | — | — | no |
+| `@s` | scheduled | *, ~, ^, %, !, -, x, ? | *, ! |   | no |
+| `@r` | recurrence | *, ~, ^, x, ? |   | `@s` | yes |
+| `@o` | offset | *, ~, ^, x, ? |   | `@s` | no |
+| `@t` | target | !, ? | ! |   | no |
+| `@~` | job | ^, x, ? | ^ |   | yes |
+| `@+` | rdate | *, ~, ^, %, x, ? |   | `@s` | no |
+| `@-` | exdate | *, ~, ^, %, x, ? |   | `@r <freq>` | no |
+| `@a` | alerts | *, ~, ^, %, x, ? |   | `@s` | yes |
+| `@n` | notice | *, ~, ^, %, !, x, ? |   | `@s` | no |
+| `@c` | context | *, ~, ^, %, !, x, ? |   |   | no |
+| `@u` | use | -, ? |   |   | no |
+| `@d` | details | *, ~, ^, %, !, -, x, ? |   |   | no |
+| `@e` | extent | *, ~, ^, %, -, x, ? |   |   | no |
+| `@w` | wrap | *, ~, ^, %, x, ? |   |   | no |
+| `@f` | finish | ~, ^, !, x, ? |   |   | no |
+| `@g` | goto | *, ~, ^, %, !, x, ? |   |   | no |
+| `@h` | completions | ^, ? |   |   | no |
+| `@b` | bin | *, ~, ^, %, !, x, ? |   |   | yes |
+| `@l` | label | *, ~, ^, %, !, x, ? |   |   | no |
+| `@m` | mask | *, ~, ^, %, !, x, ? |   |   | no |
+| `@p` | priority | ~, ^, x, ? |   |   | no |
+| `@r <freq>` | repetition frequency | *, ~, ^, x, ? |   | `@s` | no |
+| `@r &i` | interval | *, ~, ^, x, ? |   |   | no |
+| `@r &m` | months | *, ~, ^, x, ? |   |   | no |
+| `@r &d` | monthdays | *, ~, ^, x, ? |   |   | no |
+| `@r &E` | easterdays | *, ~, ^, x, ? |   |   | no |
+| `@r &H` | hours | *, ~, ^, x, ? |   |   | no |
+| `@r &M` | minutes | *, ~, ^, x, ? |   |   | no |
+| `@r &w` | weekdays | *, ~, ^, x, ? |   |   | no |
+| `@r &W` | week numbers | *, ~, ^, x, ? |   |   | no |
+| `@r &c` | count | *, ~, ^, x, ? |   |   | no |
+| `@r &u` | until | *, ~, ^, x, ? |   |   | no |
+| `@r &s` | set positions | *, ~, ^, x, ? |   |   | no |
+| `@~ &a` | alert | ^, ? |   | `@s` | yes |
+| `@~ &c` | context | ^, ? |   |   | no |
+| `@~ &d` | details | ^, ? |   |   | no |
+| `@~ &e` | extent | ^, ? |   |   | no |
+| `@~ &f` | finish | ^, ? |   |   | no |
+| `@~ &i` | unique id | ^, ? |   |   | no |
+| `@~ &l` | label | ^, ? |   |   | no |
+| `@~ &m` | mask | ^, ? |   |   | no |
+| `@~ &r` | id and list of requirement ids | ^, ? |   |   | yes |
+| `@~ &s` | scheduled | ^, ? |   | `@s` | no |
+| `@k` | konnection | !, ? |   |   | no |
 
 <!-- END TOKEN KEYS -->
 

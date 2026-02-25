@@ -137,13 +137,13 @@ def _key_to_display(key: str) -> str:
 
 def _format_types(types: list[str]) -> str:
     if not types:
-        return "—"
+        return " "
     return ", ".join(types)
 
 
 def _format_keys(keys: list[str]) -> str:
     if not keys:
-        return "—"
+        return " "
     return ", ".join(f"`{_key_to_display(key)}`" for key in keys)
 
 
