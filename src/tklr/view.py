@@ -1704,11 +1704,10 @@ class EditorScreen(Screen):
         matches = tok.get("_matches")
         if not isinstance(matches, list) or not matches:
             return ""
-        shown = [str(x) for x in matches[:8] if isinstance(x, str)]
+        shown = [str(x) for x in matches[:3] if isinstance(x, str)]
         if not shown:
             return ""
-        more = len(matches) - len(shown)
-        suffix = f" (+{more} more)" if more > 0 else ""
+        suffix = ", ..." if len(matches) > 3 else ""
         accept_hint = (
             "\nPress Tab to accept single match."
             if self._token_has_pending_replacement(tok)

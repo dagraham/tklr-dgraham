@@ -2106,12 +2106,20 @@ Entry: {self.entry}
         except Exception:
             return []
 
+    @staticmethod
+    def _format_match_list(matches: list[str], display_limit: int = 3) -> str:
+        shown = [m for m in matches[:display_limit] if isinstance(m, str)]
+        if not shown:
+            return ""
+        trailer = ", ..." if len(matches) > display_limit else ""
+        return f"{', '.join(shown)}{trailer}"
+
     def do_context(self, token):
         raw = token["token"][2:].strip()
         if not raw:
             return False, "Context cannot be empty", []
         normalized = " ".join(raw.split())
-        matches = self._find_attribute_matches("c", normalized, limit=8)
+        matches = self._find_attribute_matches("c", normalized, limit=4)
         self._set_token_matches(token, matches)
 
         chosen = normalized
@@ -2128,7 +2136,7 @@ Entry: {self.entry}
         if not raw:
             return False, "Location cannot be empty", []
         normalized = " ".join(raw.split())
-        matches = self._find_attribute_matches("l", normalized, limit=8)
+        matches = self._find_attribute_matches("l", normalized, limit=4)
         self._set_token_matches(token, matches)
 
         chosen = normalized
@@ -2145,7 +2153,7 @@ Entry: {self.entry}
         if not raw:
             return False, "Use cannot be empty", []
         normalized = " ".join(raw.split())
-        matches = self._find_attribute_matches("u", normalized, limit=8)
+        matches = self._find_attribute_matches("u", normalized, limit=4)
         self._set_token_matches(token, matches)
 
         if matches and len(matches) == 1:
@@ -2170,7 +2178,8 @@ Entry: {self.entry}
                 self.use = use["name"]
                 self.use_id = use["id"]
                 return True, use["name"], []
-            suggestion_text = f"\nMatching entries: {', '.join(matches)}." if matches else ""
+            summary = self._format_match_list(matches, display_limit=3)
+            suggestion_text = f"\nMatching entries: {summary}." if summary else ""
             hint = (
                 f"Press Ctrl+Shift+Period to add '{normalized}' as a new use "
                 f"or enter an existing one.{suggestion_text}"
@@ -2353,7 +2362,7 @@ Entry: {self.entry}
             return True, msg, []
 
         paths = list(rev_dict.values())  # existing reversed paths
-        contains_matches = self._find_attribute_matches("b", frag, limit=8)
+        contains_matches = self._find_attribute_matches("b", frag, limit=4)
         self._set_token_matches(token, contains_matches)
         if contains_matches and len(contains_matches) == 1:
             resolved = contains_matches[0]

@@ -1819,9 +1819,9 @@ class DatabaseManager:
         return out
 
     def find_use_matches(self, fragment: str, limit: int = 8) -> list[str]:
-        """Case-insensitive substring matches for use names."""
+        """Case-insensitive prefix matches for use names."""
         needle = _clean_use_name(fragment)
-        if len(needle) < 2:
+        if len(needle) < 1:
             return []
         rows = self.cursor.execute(
             """
@@ -1833,14 +1833,16 @@ class DatabaseManager:
         matches = [
             row[0]
             for row in rows
-            if row and isinstance(row[0], str) and needle.casefold() in row[0].casefold()
+            if row
+            and isinstance(row[0], str)
+            and row[0].casefold().startswith(needle.casefold())
         ]
         return self._dedupe_casefold(matches, max(1, int(limit or 1)))
 
     def find_context_matches(self, fragment: str, limit: int = 8) -> list[str]:
-        """Case-insensitive substring matches for stored record contexts."""
+        """Case-insensitive prefix matches for stored record contexts."""
         needle = " ".join((fragment or "").split()).strip()
-        if len(needle) < 2:
+        if len(needle) < 1:
             return []
         rows = self.cursor.execute(
             """
@@ -1858,14 +1860,14 @@ class DatabaseManager:
             cleaned = " ".join(value.split()).strip()
             if not cleaned:
                 continue
-            if needle.casefold() in cleaned.casefold():
+            if cleaned.casefold().startswith(needle.casefold()):
                 values.append(cleaned)
         return self._dedupe_casefold(values, max(1, int(limit or 1)))
 
     def find_location_matches(self, fragment: str, limit: int = 8) -> list[str]:
-        """Case-insensitive substring matches for @l values found in stored tokens."""
+        """Case-insensitive prefix matches for @l values found in stored tokens."""
         needle = " ".join((fragment or "").split()).strip()
-        if len(needle) < 2:
+        if len(needle) < 1:
             return []
 
         rows = self.cursor.execute(
@@ -1896,7 +1898,7 @@ class DatabaseManager:
                 value = " ".join(value.split()).strip()
                 if not value:
                     continue
-                if needle.casefold() in value.casefold():
+                if value.casefold().startswith(needle.casefold()):
                     values.append(value)
 
         values.sort(key=lambda s: s.casefold())

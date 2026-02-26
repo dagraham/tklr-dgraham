@@ -722,10 +722,10 @@ class Controller:
     def find_attribute_matches(
         self, at_key: str, fragment: str, limit: int = 8
     ) -> list[str]:
-        """Return case-insensitive substring matches for a supported @-key."""
+        """Return case-insensitive prefix matches for a supported @-key."""
         key = (at_key or "").strip().lower()
         needle = " ".join((fragment or "").split()).strip()
-        if len(needle) < 2:
+        if len(needle) < 1:
             return []
         limit = max(1, int(limit or 1))
 
@@ -735,7 +735,7 @@ class Controller:
             matches: list[str] = []
             for path in sorted(paths, key=lambda x: x.casefold()):
                 folded = path.casefold()
-                if needle.casefold() not in folded:
+                if not folded.startswith(needle.casefold()):
                     continue
                 if folded in seen:
                     continue

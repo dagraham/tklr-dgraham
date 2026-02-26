@@ -243,15 +243,18 @@ class TestUseLookup:
 
     def test_unknown_use_suggests(self, item_factory, use_factory):
         use_factory("Jones, Robert")
-        use_factory("Smith, John")
+        use_factory("Jordan, Alex")
+        use_factory("John, Sam")
+        use_factory("Jules, Max")
 
-        item = item_factory("- phoned client @u Jo")
+        item = item_factory("- phoned client @u J")
 
         assert not item.parse_ok
         assert item.last_result
         assert "Matching entries:" in (item.last_result[1] or "")
         assert "Jones, Robert" in (item.last_result[1] or "")
-        assert "Smith, John" in (item.last_result[1] or "")
+        assert "Jordan, Alex" in (item.last_result[1] or "")
+        assert "..." in (item.last_result[1] or "")
 
 
 @pytest.mark.unit
@@ -259,7 +262,7 @@ class TestLiveAttributeMatching:
     def test_single_use_match_sets_live_replacement(self, item_factory, use_factory):
         use_factory("exercise.walking")
 
-        item = item_factory("- jog @u walk", final=False)
+        item = item_factory("- jog @u e", final=False)
 
         assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
         assert item.live_replacement is not None
@@ -271,7 +274,7 @@ class TestLiveAttributeMatching:
         existing = item_factory("~ existing task @c Errands")
         test_controller.add_item(existing)
 
-        item = item_factory("~ new task @c rand", final=False)
+        item = item_factory("~ new task @c e", final=False)
 
         assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
         assert item.live_replacement is not None
@@ -289,7 +292,7 @@ class TestLiveAttributeMatching:
         existing = item_factory("~ existing task @l Home Office")
         test_controller.add_item(existing)
 
-        item = item_factory("~ new task @l office", final=False)
+        item = item_factory("~ new task @l h", final=False)
 
         assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
         assert item.live_replacement is not None
