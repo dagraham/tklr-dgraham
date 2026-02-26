@@ -530,7 +530,7 @@ type_keys = {
     # '✓': 'finished',  # more a property of a task than an item type
 }
 # common_methods = list("cdgblmnstxz") + ["k", "#"]
-common_methods = list("cdgblmnsx")
+common_methods = list("cdgblmns")
 
 repeating_methods = list("o") + [
     "r",
@@ -772,7 +772,7 @@ class Item:
             "priority from 1 (highest), 2 (high), 3 (medium), 4 (low) to 5 (lowest)",
             "do_priority",
         ],
-        "w": ["wrap", "wrap before, after", "do_wrap"],
+        "w": ["wrap", "wrap timedelta before, timedelta after", "do_wrap"],
         "@": ["@-key", "", "do_at"],
         # "rr": [
         #     "repetition",
