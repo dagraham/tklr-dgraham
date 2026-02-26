@@ -142,7 +142,7 @@ In comparison, here is how the reminder would be created using Apple's Calendar 
     <li>am or pm</li>
   </ul>
   <li>the ending time following the same one by one process</li>
-  <li>the alert by clicking the tab and selecting "15 minutes before" from a list</li>
+  <li>the alert by clicking the tab and selecting <em>15 minutes before</em> from a list</li>
 </ul>
 
 How does <em>tklr</em> support the other Calendar options? 
