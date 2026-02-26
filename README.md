@@ -133,6 +133,7 @@ In comparison, here is how the reminder would be created using Apple's Calendar 
   <li>the type would be selected by clicking on the <em>event</em> tab </li>
   <li>the subject by clicking in the next entry area and entering "Lunch with Ed"</li>
   <li>the scheduled time by clicking in the calendar area and then selecting one by one:
+
   <ul>
     <li>the year</li>
     <li>the month</li>
@@ -141,10 +142,14 @@ In comparison, here is how the reminder would be created using Apple's Calendar 
     <li>the minutes</li>
     <li>am or pm</li>
   </ul>
+
   <li>the ending time following the same one by one process</li>
   <li>the alert by clicking the tab and selecting <em>15 minutes before</em> from a list</li>
-</ul>
 
+</ul>
+</p>
+
+<p>
 How does <em>tklr</em> support the other Calendar options? 
 
 <ul>
@@ -155,7 +160,8 @@ How does <em>tklr</em> support the other Calendar options?
   <li>busy: <code>@e 1h30m</code>; not busy, omit <code>@e</code></li>
   <li>invitees: <code>@i Sam Jones, Bill Smith</code></li>
   <li>notes: <code>@d bring crackers and cheese</code></li>
-  <li>URL: <code>@g https://dagraham.github.io/tklr-dgraham/</code>
+  <li>URL: 
+    <code>@g https://dagraham.github.io/tklr-dgraham/</code>
 </ul>
 
   </p>
