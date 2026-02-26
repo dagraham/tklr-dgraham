@@ -154,10 +154,12 @@ How does <em>tklr</em> support the other Calendar options?
 
 <ul>
   <li>location: <code>@l General Store, Saxapahaw</code></li>
-  <li>all day: March 12 of this year, <code>@s 3/12</code>; not all day: 12pm on March 12 of this year, <code>@s 3/12 12p</code></li>
+  <li>all day: March 12 of this year, <code>@s 3/12</code></li>
+  <li>not all day: 12pm on March 12 of this year, <code>@s 3/12 12p</code></li>
   <li>repeat: weeky, <code>@r w</code></li>
   <li>travel time, thirty minutes before the event and 40 minutes after the event <code>@w 30m, 40m</code> </li>
-  <li>busy: <code>@e 1h30m</code>; not busy, omit <code>@e</code></li>
+  <li>busy: include <code>@e 1h30m</code></li>
+  <li>not busy, omit <code>@e</code></li>
   <li>invitees: <code>@i Sam Jones, Bill Smith</code></li>
   <li>notes: <code>@d bring crackers and cheese</code></li>
   <li>URL: 
