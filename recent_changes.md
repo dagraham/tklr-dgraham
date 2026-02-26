@@ -1,5 +1,26 @@
 # Recent Changes
 
+## 0.0.64 — 2026-02-26
+
+Since 0.0.63:
+
+Why upgrade:
+- 0 additions, 0 fixes, 1 behavior changes.
+
+Changed:
+- Enhance editor functionality by stabilizing focus and adding Tab completion for live replacements for bin, context, location and use.
+
+Docs:
+- Remove repetition entry from the list of @-keys in README.md
+
+Internal:
+- Refactor matching functions to return case-insensitive prefix matches for bins, contexts, locations and uses.  Update related tests for improved accuracy and consistency.
+
+Technical:
+- 6 files changed, 67 insertions(+), 32 deletions(-)
+
+Note: Implemented tab completion for bins, contexts, locations and uses.
+
 ## 0.0.63 — 2026-02-25
 
 Since 0.0.62:
@@ -46,23 +67,3 @@ Docs:
 
 Technical:
 - 10 files changed, 624 insertions(+), 57 deletions(-)
-
-## 0.0.61 — 2026-02-25
-
-Since 0.0.60:
-
-Why upgrade:
-- Mostly maintenance/internal updates in this release.
-
-Docs:
-- Update README.md token keys section for improved formatting and adjust update_readme.py for better handling of empty types and keys
-- Refactor token keys section in README.md for clarity and simplify type formatting in update_readme.py
-- Enhance README.md with examples for jotting reminders and update token keys table for clarity
-- Update README.md with token keys section and enhance update_readme.py for dynamic content generation
-- Update README.md
-
-Internal:
-- Refactor token handling for completions: update '@k' to 'kompletions', enforce positive integer validation, and adjust related tests for improved error messaging.
-
-Technical:
-- 6 files changed, 360 insertions(+), 42 deletions(-)
