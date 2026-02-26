@@ -161,7 +161,7 @@ How does <em>tklr</em> support the other Calendar options?
   <li>invitees: <code>@i Sam Jones, Bill Smith</code></li>
   <li>notes: <code>@d bring crackers and cheese</code></li>
   <li>URL: 
-    <code>@g https://dagraham.github.io/tklr-dgraham/</code>
+    <code>@g https://dagraham.github.io/tklr-dgraham/</code></li>
 </ul>
 
   </p>
