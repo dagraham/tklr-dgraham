@@ -148,16 +148,15 @@ In comparison, here is how the reminder would be created using Apple's Calendar 
 How does <em>tklr</em> support the other Calendar options? 
 
 <ul>
-  <li>location: `@l General Store, Saxapahaw`</li>
-  <li>all day: March 12 of this year, `@s 3/12`; not all day: 12pm on March 12 of this year, `@s 3/12 12p`</li>
-  <li>repeat: weeky, `@r w`</li>
-  <li>travel time, thirty minutes before the event and 40 minutes after the event `@w 30m, 40m` </li>
-  <li>busy: `@e 1h30`; not busy, omit `@e`</li>
-  <li>invitees: `@i Sam Jones, Bill Smith`</li>
-  <li>notes: `@d bring crackers and cheese`
-  <li>URL: `@g https://dagraham.github.io/tklr-dgraham/`
+  <li>location: <code>@l General Store, Saxapahaw</code></li>
+  <li>all day: March 12 of this year, <code>@s 3/12</code>; not all day: 12pm on March 12 of this year, <code>@s 3/12 12p</code></li>
+  <li>repeat: weeky, <code>@r w</code></li>
+  <li>travel time, thirty minutes before the event and 40 minutes after the event <code>@w 30m, 40m</code> </li>
+  <li>busy: <code>@e 1h30m</code>; not busy, omit <code>@e</code></li>
+  <li>invitees: <code>@i Sam Jones, Bill Smith</code></li>
+  <li>notes: <code>@d bring crackers and cheese</code></li>
+  <li>URL: <code>@g https://dagraham.github.io/tklr-dgraham/</code>
 </ul>
-
 
   </p>
 </div>
