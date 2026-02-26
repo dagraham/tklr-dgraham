@@ -126,9 +126,28 @@ Rather than filling out fields in a form to create or edit reminders, a simple e
 <div style="clear: both;"></div>
 
 <div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/AppleCalendar.png" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/AppleCalendar.png" alt="Description" style="float: right; margin-left: 80px; margin-right: 80px; width: 300px; margin-bottom: 10px;">
   <p>
-In comparison, here is how the reminder would appear using Apple's Calendar App. 
+In comparison, here is how the reminder would be created using Apple's Calendar App. 
+<ul>
+  <li>the type would be selected by clicking on the <em>event</em> tab </li>
+  <li>the subject by clicking in the next entry area and entering "Lunch with Ed"</li>
+  <li>the scheduled time by clicking in the calendar area and then selecting one by one:
+  <ul>
+    <li>the year</li>
+    <li>the month</li>
+    <li>the month day</li>
+    <li>the hour</li>
+    <li>the minutes</li>
+    <li>am or pm</li>
+  </ul>
+  <li>the ending time following the same one by one process</li>
+  <li>the alert by clicking the tab and selecting "15 minutes before" from a list</li>
+</ul>
+
+What about the other options? 
+
+
   </p>
 </div>
 <div style="clear: both;"></div>

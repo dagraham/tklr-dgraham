@@ -596,11 +596,11 @@ all_keys = (
     + datetime_methods
     + job_methods
     + repeating_methods
-    + ["u", "k", "t"]
+    + ["u", "k", "t", "i"]
 )
 
 allowed = {
-    "*": common_methods + datetime_methods + repeating_methods + wrap_methods,
+    "*": common_methods + datetime_methods + repeating_methods + wrap_methods + ["i"],
     "x": common_methods + datetime_methods + task_methods + repeating_methods + ["~"],
     "~": common_methods + datetime_methods + task_methods + repeating_methods,
     "!": common_methods + ["s", "t", "f", "k"],
@@ -754,6 +754,7 @@ class Item:
         "w": ["wrap", "list of two timeperiods", "do_two_periods"],
         "f": ["finish", "completion done -> due", "do_f"],
         "g": ["goto", "url or filepath", "do_string"],
+        "i": ["invitees", "comma separated list of names", "do_i"],
         # "h": [
         #     "completions",
         #     "list of completion datetimes",
@@ -915,6 +916,7 @@ class Item:
         self.context = ""
         self.use = ""
         self.use_id = None
+        self.invitees: list[str] = []
         self.description = ""
         self.token_map = {}
         self.parse_ok = False
@@ -1016,6 +1018,9 @@ class Item:
         if self.description:
             parts.append(self.description)
 
+        if getattr(self, "invitees", None):
+            parts.append(f"@i {', '.join(self.invitees)}")
+
         # --- scheduling tokens ---
         if getattr(self, "dtstart_str", None):
             dt = self._get_start_dt()
@@ -1060,6 +1065,7 @@ class Item:
         self.context = ""
         self.use = ""
         self.use_id = None
+        self.invitees = []
         self.had_token_error = False
         self.parse_message = ""
         self.auto_log_seeded = False
@@ -2076,6 +2082,22 @@ Entry: {self.entry}
     def do_string(self, token):
         obj = rep = token["token"][2:].strip()
         return obj, rep, []
+
+    def do_i(self, token):
+        raw = token["token"][2:].strip()
+        if not raw:
+            return False, "Invitees cannot be empty", []
+        parts = [part.strip() for part in raw.split(",")]
+        if not parts or any(not part for part in parts):
+            return (
+                False,
+                "Invitees must be a comma separated list of non-empty names",
+                [],
+            )
+        normalized = ", ".join(parts)
+        self.invitees = parts
+        token["token"] = f"@i {normalized}"
+        return True, normalized, []
 
     def _set_live_replacement(self, token: dict, new_token: str) -> None:
         """Record a token replacement to be applied to the live editor buffer."""
