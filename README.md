@@ -129,7 +129,7 @@ Rather than filling out fields in a form to create or edit reminders, a simple e
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/AppleCalendar.png" alt="Description" style="float: right; margin-left: 80px; margin-right: 80px; width: 300px; margin-bottom: 10px;">
   <p>
-In comparison, here is how the reminder would be created using Apple's Calendar App. 
+In comparison, here is how the reminder would be created using Apple's <em>Calendar</em> App. 
 <ul>
   <li>the type would be selected by clicking on the <em>event</em> tab </li>
   <li>the subject by clicking in the next entry area and entering "Lunch with Ed"</li>
@@ -156,7 +156,7 @@ In comparison, here is how the reminder would be created using Apple's Calendar 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/wrap_noargs.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 <p>
-How does <em>tklr</em> support the other Calendar options? 
+How does <em>tklr</em> support the other <em>Calendar</em> options? 
 
 <ul>
   <li>location: <code>@l General Store, Saxapahaw</code></li>
