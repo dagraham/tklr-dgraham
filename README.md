@@ -132,8 +132,7 @@ In comparison, here is how the reminder would be created using Apple's Calendar 
 <ul>
   <li>the type would be selected by clicking on the <em>event</em> tab </li>
   <li>the subject by clicking in the next entry area and entering "Lunch with Ed"</li>
-  <li>the scheduled time by clicking in the calendar area and then selecting one by one:</li>
-
+  <li>the scheduled time by clicking in the calendar area and then selecting one by one:
   <ul>
     <li>the year</li>
     <li>the month</li>
@@ -142,6 +141,7 @@ In comparison, here is how the reminder would be created using Apple's Calendar 
     <li>the minutes</li>
     <li>am or pm</li>
   </ul>
+  </li>
 
   <li>the ending time following the same one by one process</li>
   <li>the alert by clicking the tab and selecting <em>15 minutes before</em> from a list</li>
