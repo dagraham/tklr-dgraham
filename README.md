@@ -172,6 +172,10 @@ How does <em>tklr</em> support the other Calendar options?
     <code>@g https://dagraham.github.io/tklr-dgraham/</code></li>
 </ul>
   </p>
+</div>
+<div style="clear: both;"></div>
+
+<div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/wrap_args.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 <p>
 How can you remember all the <em>tklr</em> options? 
