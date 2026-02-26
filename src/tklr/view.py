@@ -1317,9 +1317,18 @@ class EditorScreen(Screen):
         event.stop()
 
     def on_key(self, event: events.Key) -> None:
-        """Keep cursor-navigation keys in the editor even if focus drifts."""
+        """Keep editor focus stable and accept tab completions explicitly."""
         if not self._text:
             return
+
+        if event.key == "tab":
+            cursor_idx = self._cursor_abs_index()
+            if self._apply_live_replacement(cursor_idx):
+                self._rebuild_item(final=False)
+                self._render_feedback()
+                self._rebalance_editor_panes()
+                event.stop()
+                return
 
         nav_keys = {
             "up",
@@ -1501,10 +1510,7 @@ class EditorScreen(Screen):
         """Non-throwing live parse + feedback for current cursor token."""
         if refresh_from_widget and self._text is not None:
             self.entry_text = self._text.text or ""
-        cursor_idx = self._cursor_abs_index()
         self._rebuild_item(final=final)
-        if not final and self._apply_live_replacement(cursor_idx):
-            self._rebuild_item(final=final)
         self._render_feedback()
 
     def _rebuild_item(self, final: bool) -> None:
@@ -1682,6 +1688,18 @@ class EditorScreen(Screen):
             normalized = normalized[: max_total_chars - 1] + "…"
         panel.update(normalized.strip())
 
+    def _token_has_pending_replacement(self, tok: dict[str, Any]) -> bool:
+        item = getattr(self, "item", None)
+        repl = getattr(item, "live_replacement", None) if item else None
+        if not isinstance(repl, tuple) or len(repl) != 3:
+            return False
+        rs, re, _text = repl
+        if not isinstance(rs, int) or not isinstance(re, int):
+            return False
+        s = tok.get("s")
+        e = tok.get("e")
+        return isinstance(s, int) and isinstance(e, int) and s == rs and e == re
+
     def _match_feedback_suffix(self, tok: dict[str, Any]) -> str:
         matches = tok.get("_matches")
         if not isinstance(matches, list) or not matches:
@@ -1691,7 +1709,12 @@ class EditorScreen(Screen):
             return ""
         more = len(matches) - len(shown)
         suffix = f" (+{more} more)" if more > 0 else ""
-        return f"\nMatching entries: {', '.join(shown)}{suffix}"
+        accept_hint = (
+            "\nPress Tab to accept single match."
+            if self._token_has_pending_replacement(tok)
+            else ""
+        )
+        return f"\nMatching entries: {', '.join(shown)}{suffix}{accept_hint}"
 
     def _render_feedback(self) -> None:
         """Update the feedback panel using only screen state."""
