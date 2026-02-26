@@ -125,6 +125,14 @@ Rather than filling out fields in a form to create or edit reminders, a simple e
 </div>
 <div style="clear: both;"></div>
 
+<div style="overflow: auto;">
+  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/AppleCalendar.png" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
+  <p>
+In comparison, here is how the reminder would appear using Apple's Calendar App. 
+  </p>
+</div>
+<div style="clear: both;"></div>
+
 
 [↩︎](#table-of-contents)
 
