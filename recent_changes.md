@@ -1,5 +1,43 @@
 # Recent Changes
 
+## 0.0.65 — 2026-02-27
+
+Since 0.0.64:
+
+Why upgrade:
+- 7 additions, 2 fixes, 4 behavior changes.
+
+Added:
+- Added discussion of dayfirst and yearfirst with table to README.md
+- Add invitees feature with parsing and validation in Item class
+- Add SVG screenshot for wrap_args command and improve layout in README.md
+- Add SVG screenshot for wrap_noargs command and improve layout in README.md
+- Add SVG screenshot for wrap_noargs command output
+- (+2 more)
+
+Fixed:
+- Fix list formatting in README.md for scheduled time instructions
+- Fix formatting in README.md for calendar URL example
+
+Changed:
+- Respect dayfirst, yearfirst and two_digit_year settings in Last, Modified, Completed and Task scheduled displays.
+- Update prepare-commit-msg: SOURCE="${2:-}"
+- Refresh agenda when the pin/unpin status of a task is toggled.
+- Refine common methods and wrap descriptions in item.py for clarity
+
+Docs:
+- Update token-keys link in README
+- Refine README.md Makefile and related updates for linting and testing
+- Update README
+- Revise README.md: How can you remember all the <em>tklr</em> options?
+- Revise README.md: In comparison, here is how the reminder would be created
+- (+14 more)
+
+Technical:
+- 15 files changed, 1407 insertions(+), 262 deletions(-)
+
+Note: Respect two_digit_year, dayfirst and yearfirst settings in Last, Modified, Completed and Task scheduled listings.
+
 ## 0.0.64 — 2026-02-26
 
 Since 0.0.63:
@@ -39,31 +77,3 @@ Docs:
 
 Technical:
 - 6 files changed, 372 insertions(+), 51 deletions(-)
-
-## 0.0.62 — 2026-02-25
-
-Since 0.0.61:
-
-Why upgrade:
-- 2 additions, 1 fixes, 3 behavior changes.
-
-Added:
-- Implement completion deduplication script and enhance Controller and DatabaseManager for completion management
-- Add record_completions parameter to Controller methods and enhance completion handling in DatabaseManager
-
-Fixed:
-- Fix typo in README.md for token keys section description
-
-Changed:
-- Enhance config.toml with additional settings for num_completions, minutes, and UI palette overrides
-- Comment out completions section in item.py for future reference
-- Update src/tklr/item.py
-
-Docs:
-- Clarify token keys section in README.md and update description for automatic generation from source code
-- Update README.md token keys section for clarity and formatting
-- Enhance README.md token keys section and update update_readme.py for improved sorting of token rows
-- Update README.md and update_readme.py for improved token display logic and formatting
-
-Technical:
-- 10 files changed, 624 insertions(+), 57 deletions(-)
