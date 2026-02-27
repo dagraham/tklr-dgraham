@@ -150,6 +150,16 @@ In comparison, here is how the reminder would be created using Apple's <em>Calen
 </ul>
 </p>
 
+<p><em>Tklr<em>'s form-free approach is particularly advantageous when entering dates and times. 
+<ul>
+<li>a time: today's date is assumed if a date is not specified, e.g., `@s 11a` is iterpreted as 11:00AM today.</li>
+<li>a weekday: the next date with that weekday is assumed, `@s fri` means the next Friday on or after today.</li>
+<li>a monthday only: the current month is assumed.
+<li>a month and monthday: the current year is assumed. 
+</ul>
+For details see <a href="#21-datetimes">2.1. Datetimes</a>.
+</p>
+
 </div>
 <div style="clear: both;"></div>
 
@@ -891,24 +901,33 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>Press <code>?</code> to display the <em>help</em> information for <em>queries</em>.
   </p>
+
+
 </div>
 <div style="clear: both;"></div>
 
+**Find View**. Looking for a case-insensitive match for a word in either the *subject* or the *details* of a reminder is such a common need that *tklr* provides a short-cut for this query - *Find View*. Instead of pressing `Q` and entering 
 
-<p><em>Find View</em>. Looking for a case-insensitive match for a word in either the <em>subject</em> or the <em>details</em> of a reminder is such a common need that <em>tklr</em> provides a short-cut for this query - <em>Find View</em>. Instead of pressing <code>Q</code> and entering
-</p>
-<pre>includes subject d plumber</pre>
-<p>you can instead press <code>F</code> to open the prompt for <em>Find View</em> and just enter the word being sought
-</p>
-<pre>plumber</pre>
+`includes subject d plumber`
+
+you can press `F` to open the prompt for *Find View* and just enter 
+
+`plumber`
+
+What happens here?
+
+And here?
 
 [↩︎](#table-of-contents)
 
-### 1.11. <em>SQLite3</em> Data Store
+
+### 1.11. SQLite3 Data Store
 
 SQLite offers tangible advantages over TinyDB’s JSON store which - used for *tklr*'s predecessor - especially at the required scale. The embedded SQL engine keeps queries fast even as data grows, thanks to indexed storage and compiled query plans rather than repeatedly parsing whole JSON file. Reliability improves because SQLite wraps writes in ACID transactions so crashes or concurrent edits won’t corrupt the data, whereas TinyDB depends on rewriting the JSON blob. Finally, SQLite’s standard file format means other tools (command-line clients, BI dashboards, scripting languages) can open the same .db directly or even run read-only analytics in parallel, something that’s awkward with a bespoke JSON structure.
 
+
 [↩︎](#table-of-contents)
+
 
 ## 2. Details
 
@@ -937,6 +956,17 @@ When dates and datetimes are recorded, _aware_ datetimes are first converted to 
 When an `@s` scheduled entry specifies a date without a time, i.e., a date instead of a datetime, the interpretation is that the task is due sometime on that day. Specifically, it is not due until `00:00` on that day and not past due until `00:00` on the following day. The interpretation of `@b` and `@u` in this circumstance is similar. For example, if `@s 2025-04-06` is specified with `@b 3d` and `@u 2d` then the task status would change from waiting to pending at `2025-04-03 00:00` and, if not completed, to deleted at `2025-04-09 00:00`.
 
 Note that times can only be specified, stored and displayed in hours and minutes - seconds and microseconds are not supported. Internally datetimes are interpreted as having seconds equal to 0.
+
+The `dayfirst` and `yearfirst` settings in `config.toml` are used to resolve ambiguous date entries involving 2-digit components. E.g., the interpretation of the date "12-10-11" with the various possible settings for dayfirst and yearfirst:
+
+| dayfirst | yearfirst | date     | interpretation | standard       |
+| -------- | --------- | -------- | -------------- | -------------- |
+| True     | True      | 12-10-11 | 2012-11-10     | Y-D-M ??       |
+| True     | False     | 12-10-11 | 2011-10-12     | D-M-Y EU       |
+| False    | True      | 12-10-11 | 2012-10-11     | Y-M-D ISO 8601 |
+| False    | False     | 12-10-11 | 2011-12-10     | M-D-Y US       |
+
+The defaults: dayfirst = false and yearfirst = true correspond to the Y-M-D ISO 8601 standard.
 
 ### 2.2. TimeDeltas
 
