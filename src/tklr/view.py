@@ -1727,7 +1727,6 @@ class EditorScreen(Screen):
             "d": "Description",
             "e": "Extent",
             "g": "Goal",
-            "i": "Invitees",
             "k": "Kompletions",
             "l": "Location",
             "m": "Mask",
@@ -3007,7 +3006,7 @@ class TasksHierarchyScreen(SearchableScreen):
             return [
                 (
                     [
-                        f"[bold {HEADER_COLOR}]Contexts[/bold {HEADER_COLOR}]",
+                        f"[bold {TITLE_COLOR}]Contexts[/bold {TITLE_COLOR}]",
                         "",
                         f"[{DIM_STYLE}]No matching tasks or jots.[/{DIM_STYLE}]",
                     ],
@@ -3025,7 +3024,7 @@ class TasksHierarchyScreen(SearchableScreen):
             page_groups = self.context_groups[start:end]
 
             rows: list[str] = [
-                f"[bold {HEADER_COLOR}]Contexts[/bold {HEADER_COLOR}]",
+                f"[bold {TITLE_COLOR}]Contexts[/bold {TITLE_COLOR}]",
                 "",
             ]
             tag_map: dict[str, object] = {}
@@ -4400,7 +4399,9 @@ class DynamicViewApp(App):
                         self._close_details_if_open()
                     if hasattr(app, "refresh_view"):
                         app.refresh_view()
-                    app.notify("Completion record deleted ✓", severity="info", timeout=1.5)
+                    app.notify(
+                        "Completion record deleted ✓", severity="info", timeout=1.5
+                    )
 
                 app.push_screen(ConfirmPrompt(msg), callback=_after)
 
@@ -4457,8 +4458,21 @@ class DynamicViewApp(App):
 
             def toggle_pin() -> None:
                 ctrl.toggle_pinned(record_id)
-                if hasattr(app, "_reopen_details"):
-                    app._reopen_details(tag_meta=meta)
+
+                # Agenda rows include pin state/order, so redraw that view immediately.
+                if getattr(app, "view", None) == "agenda" and hasattr(
+                    app, "refresh_view"
+                ):
+                    app.refresh_view()
+
+                # Reopen details for the same record so pin state is reflected there too.
+                if hasattr(app, "_screen_show_details"):
+                    title, lines, refreshed_meta = ctrl.get_details_for_record(
+                        record_id, job_id, datetime_id, instance_ts
+                    )
+                    app._screen_show_details(
+                        title, lines, refreshed_meta, push_history=False
+                    )
 
             def show_completions() -> None:
                 title, lines = ctrl.get_record_completions(record_id)
