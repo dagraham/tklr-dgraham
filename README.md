@@ -154,6 +154,9 @@ In comparison, here is how the reminder would be created using Apple's <em>Calen
 
 </ul>
 
+</div>
+<div style="clear: both;"></div>
+
 <p><em>Tklr</em>'s form-free approach is particularly advantageous when entering dates and times. 
 
 <ul>
