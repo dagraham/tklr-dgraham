@@ -107,29 +107,32 @@ Rather than filling out fields in a form to create or edit reminders, a simple e
   </p>
 <p>
   This animation shows the entire process for creating a new reminder. The individual entry steps are listed below.
+</p>
 
 <ul>
-<li>the type character, here an <code>*</code> for an <em>event</em>
-</li>
-<li>the subject, "Lunch with Ed"
-</li>
-<li>the scheduled time, <code>@s 12p</code> - today is assumed
-</li>
-<li>the extent (duration) of the event, <code>@e 1h30m</code> - an hour and thirty minutes
-</li>
-<li>an alert, <code>@e 15m: n</code> - fifteen minutes before the event, trigger a notification
-</li>
-<li>the resulting event displayed in <em>Agenda View</em>
-</li>
+  <li>the type character, here an <code>*</code> for an <em>event</em>
+  </li>
+  <li>the subject, "Lunch with Ed"
+  </li>
+  <li>the scheduled time, <code>@s 12p</code> - today is assumed
+  </li>
+  <li>the extent (duration) of the event, <code>@e 1h30m</code> - an hour and thirty minutes
+  </li>
+  <li>an alert, <code>@e 15m: n</code> - fifteen minutes before the event, trigger a notification
+  </li>
+  <li>the resulting event displayed in <em>Agenda View</em>
+  </li>
 </ul>
-</p>
+
 </div>
 <div style="clear: both;"></div>
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/AppleCalendar.png" alt="Description" style="float: right; margin-left: 80px; margin-right: 80px; width: 300px; margin-bottom: 10px;">
-  <p>
+<p>
 In comparison, here is how the reminder would be created using Apple's <em>Calendar</em> App. 
+</p>
+
 <ul>
   <li>the type would be selected by clicking on the <em>event</em> tab </li>
   <li>the subject by clicking in the next entry area and entering "Lunch with Ed"</li>
@@ -150,7 +153,6 @@ In comparison, here is how the reminder would be created using Apple's <em>Calen
   <li>the alert by clicking the tab and selecting <em>15 minutes before</em> from a list</li>
 
 </ul>
-</p>
 
 <p><em>Tklr<em>'s form-free approach is particularly advantageous when entering dates and times. 
 
