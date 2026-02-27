@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from tklr.item import Item
 
@@ -11,6 +11,10 @@ def _record_id_for_entry(test_controller, test_env, entry: str) -> int:
     item = Item(raw=entry, env=test_env, final=True, controller=test_controller)
     assert item.parse_ok, item.parse_message
     return test_controller.add_item(item)
+
+
+def _tag_count(pages):
+    return sum(len(tag_map) for _rows, tag_map in pages)
 
 
 def test_completion_retention_prunes_infinite_repeating_tasks(test_controller, test_env):
@@ -96,3 +100,61 @@ def test_completions_view_tag_map_includes_completion_id(test_controller, test_e
     db.cursor.execute("SELECT id FROM Completions WHERE record_id = ?", (rid,))
     known_ids = {row[0] for row in db.cursor.fetchall()}
     assert completion_id in known_ids
+
+
+def test_completions_view_omits_midnight_time(test_controller, test_env):
+    rid = _record_id_for_entry(
+        test_controller, test_env, "~ completion formatting @s 2025-01-01"
+    )
+    test_controller.dayfirst = True
+    test_controller.yearfirst = False
+    test_controller.two_digit_year = False
+    test_controller.AMPM = True
+
+    completed_local = datetime(2025, 1, 5, 10, 15).astimezone()
+    test_controller.db_manager.add_completion(rid, (completed_local, None))
+
+    pages, _header = test_controller.get_completions()
+    assert pages
+    rows, _tag_map = pages[0]
+    record_rows = [row for row in rows if "[/not bold]   [" in row]
+    assert record_rows
+    row_text = record_rows[0]
+    assert "[not bold]05-01-2025[/not bold]" in row_text, row_text
+    assert "00:00" not in row_text
+    assert "12a" not in row_text
+
+
+def test_completions_view_keeps_non_midnight_time(test_controller, test_env):
+    rid = _record_id_for_entry(test_controller, test_env, "~ completion time @s 2025-01-01")
+    test_controller.dayfirst = False
+    test_controller.yearfirst = True
+    test_controller.two_digit_year = True
+    test_controller.AMPM = False
+
+    test_controller.db_manager.add_completion(rid, (_dt(2025, 1, 5, 0, 0), None))
+    cursor = test_controller.db_manager.cursor
+    cursor.execute(
+        "UPDATE Completions SET completed = ? WHERE record_id = ?",
+        ("2025-01-05 10:15", rid),
+    )
+    test_controller.db_manager.conn.commit()
+
+    pages, _header = test_controller.get_completions()
+    assert pages
+    rows, _tag_map = pages[0]
+    record_rows = [row for row in rows if "[/not bold]   [" in row]
+    assert record_rows
+    assert "[not bold]25-01-05 10:15[/not bold]" in record_rows[0], record_rows[0]
+
+
+def test_completions_view_paginates_when_tags_exhausted(test_controller, test_env):
+    base_local = datetime(2025, 1, 1, 9, 0).astimezone()
+    for i in range(30):
+        rid = _record_id_for_entry(test_controller, test_env, f"~ completion row {i}")
+        completed_local = base_local + timedelta(minutes=i)
+        test_controller.db_manager.add_completion(rid, (completed_local, None))
+
+    pages, _header = test_controller.get_completions()
+    assert len(pages) >= 2
+    assert _tag_count(pages) == 30

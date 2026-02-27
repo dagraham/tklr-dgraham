@@ -26,7 +26,7 @@ from .versioning import get_version
 from .mask import reveal_mask_tokens
 from .query import QueryEngine, QueryError, QueryResponse
 
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -2823,7 +2823,7 @@ class Controller:
         if not events:
             return [], header
 
-        year_to_events = {}
+        rows = []
 
         for dt_id, id, job_id, subject, description, itemtype, start_ts in events:
             start_dt = datetime_from_timestamp(start_ts)
@@ -2837,44 +2837,19 @@ class Controller:
                     log_msg(f"{e = }")
 
             subject = self.apply_flags(id, subject)
-            day_display = start_dt.strftime("%m-%d")
+            day_display = self.fmt_user_date_only(start_dt)
             timestamp_markup = f"[not bold]{day_display}[/not bold]"
             type_color = TYPE_TO_COLOR[itemtype]
-            item = {
-                "record_id": id,
-                "job_id": job_id,
-                "datetime_id": dt_id,
-                "instance_ts": start_ts,
-                "text": f"{timestamp_markup}   [{type_color}]{itemtype} {subject}[/{type_color}]",
-            }
-            year_to_events.setdefault(start_dt.strftime("%b %Y"), []).append(item)
+            rows.append(
+                {
+                    "record_id": id,
+                    "job_id": job_id,
+                    "datetime_id": dt_id,
+                    "instance_ts": start_ts,
+                    "text": f"{timestamp_markup}   [{type_color}]{itemtype} {subject}[/{type_color}]",
+                }
+            )
 
-        # self.list_tag_to_id.setdefault("next", {})
-        # indx = 0
-        """
-        rows: a list of dicts each with either
-           - { 'record_id': int, 'text': str }  (a taggable record row)
-           - { 'record_id': None, 'text': str }  (a non-taggable header row)
-        page_size: number of taggable rows per page
-        """
-
-        rows = []
-        for ym, events in year_to_events.items():
-            if events:
-                rows.append(
-                    {
-                        "dt_id": None,
-                        "record_id": None,
-                        "job_id": None,
-                        "datetime_id": None,
-                        "instance_ts": None,
-                        "text": f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]",
-                    }
-                )
-                for event in events:
-                    rows.append(event)
-
-        # build 'rows' as a list of dicts with record_id and text
         pages = self._paginate(rows)
         return pages, header
 
@@ -3075,7 +3050,6 @@ class Controller:
         if not records:
             return rows if yield_rows else ([], header)
 
-        current_bucket: str | None = None
         for record_id, subject, itemtype, modified_ts, _desc in records:
             normalized_ts = (
                 modified_ts[:-1]
@@ -3083,19 +3057,7 @@ class Controller:
                 else modified_ts
             )
             bucket_dt = datetime_from_timestamp(normalized_ts)
-            bucket_label = bucket_dt.strftime("%b %Y") if bucket_dt else "Unknown"
-            day_display = bucket_dt.strftime("%m-%d") if bucket_dt else "--"
-            if bucket_label != current_bucket:
-                current_bucket = bucket_label
-                rows.append(
-                    {
-                        "record_id": None,
-                        "job_id": None,
-                        "datetime_id": None,
-                        "instance_ts": None,
-                        "text": f"[not bold][{HEADER_COLOR}]{bucket_label}[/{HEADER_COLOR}][/not bold]",
-                    }
-                )
+            day_display = self.fmt_user_date_only(bucket_dt) if bucket_dt else "--"
 
             subject_text = subject or "(untitled)"
             subject_text = self.apply_flags(record_id, subject_text)
@@ -3460,8 +3422,7 @@ class Controller:
         if not events:
             return [], header
 
-        # use a, ..., z if len(events) <= 26 else use aa, ..., zz
-        year_to_events = {}
+        rows = []
 
         for dt_id, id, job_id, subject, description, itemtype, start_ts in events:
             start_dt = datetime_from_timestamp(start_ts)
@@ -3475,30 +3436,18 @@ class Controller:
                     pass
 
             subject = self.apply_flags(id, subject)
-            day_display = start_dt.strftime("%m-%d")
+            day_display = self.fmt_user_date_only(start_dt)
             timestamp_markup = f"[not bold]{day_display}[/not bold]"
             type_color = TYPE_TO_COLOR[itemtype]
-            item = {
-                "dt_id": dt_id,
-                "record_id": id,
-                "job_id": job_id,
-                "instance_ts": start_ts,
-                "text": f"{timestamp_markup}   [{type_color}]{itemtype} {subject}[/{type_color}]",
-            }
-            year_to_events.setdefault(start_dt.strftime("%b %Y"), []).append(item)
-
-        rows = []
-        for ym, events in year_to_events.items():
-            if events:
-                rows.append(
-                    {
-                        "record_id": None,
-                        "job_id": None,
-                        "text": f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]",
-                    }
-                )
-                for event in events:
-                    rows.append(event)
+            rows.append(
+                {
+                    "dt_id": dt_id,
+                    "record_id": id,
+                    "job_id": job_id,
+                    "instance_ts": start_ts,
+                    "text": f"{timestamp_markup}   [{type_color}]{itemtype} {subject}[/{type_color}]",
+                }
+            )
         pages = self._paginate(rows)
         return pages, header
 
@@ -3627,7 +3576,7 @@ class Controller:
                 }
             ]
 
-        year_to_events: OrderedDict[str, list[dict]] = OrderedDict()
+        rows: list[dict] = []
 
         for row in records:
             completion_id: int | None
@@ -3656,40 +3605,32 @@ class Controller:
             completed_dt = completed_dt.astimezone()
             due_dt = due_dt.astimezone() if due_dt else None
 
-            monthday = completed_dt.strftime("%-m-%d")
-            mode = "12" if self.AMPM else "24"
-            time_part = format_hours_mins(completed_dt, mode)
-            when_str = f"{monthday:>2} {time_part}"
+            date_part = self.fmt_user_date_only(completed_dt)
+            is_midnight = (
+                completed_dt.hour == 0
+                and completed_dt.minute == 0
+                and completed_dt.second == 0
+                and completed_dt.microsecond == 0
+            )
+            if is_midnight:
+                when_str = date_part
+            else:
+                mode = "12" if self.AMPM else "24"
+                time_part = format_hours_mins(completed_dt, mode)
+                when_str = f"{date_part} {time_part}"
 
             type_color = TYPE_TO_COLOR.get(itemtype, "white")
             when_frag = f"[not bold]{when_str}[/not bold]"
 
-            item = {
-                "record_id": record_id,
-                "job_id": None,
-                "datetime_id": completion_id,
-                "instance_ts": due_dt.strftime("%Y%m%dT%H%M") if due_dt else "none",
-                "text": f"[{type_color}]{itemtype} {when_frag} {subject}[/{type_color}]",
-            }
-
-            ym = completed_dt.strftime("%b %Y")
-            year_to_events.setdefault(ym, []).append(item)
-
-        rows: list[dict] = []
-        for ym, events in year_to_events.items():
-            if not events:
-                continue
             rows.append(
                 {
-                    "dt_id": None,
-                    "record_id": None,
+                    "record_id": record_id,
                     "job_id": None,
-                    "datetime_id": None,
-                    "instance_ts": None,
-                    "text": f"[not bold][{HEADER_COLOR}]{ym}[/{HEADER_COLOR}][/not bold]",
+                    "datetime_id": completion_id,
+                    "instance_ts": due_dt.strftime("%Y%m%dT%H%M") if due_dt else "none",
+                    "text": f"{when_frag}   [{type_color}]{itemtype} {subject}[/{type_color}]",
                 }
             )
-            rows.extend(events)
 
         return rows
 

@@ -64,7 +64,7 @@ yearfirst = true
 # two_digit_year: bool = true | false
 # If true, years are displayed using the last two digits, e.g.,
 # 25 instead of 2025.
-two_digit_year = false
+two_digit_year = true
 
 # palette overrides (per theme). Uncomment any entries you want to override.
 # Available keys: label_color, type_color, at_color, am_color, header_color,
