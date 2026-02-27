@@ -161,7 +161,7 @@ In comparison, here is how the reminder would be created using Apple's <em>Calen
   <li>a monthday only: the current month is assumed.</li>
   <li>a month and monthday: the current year is assumed.</li> 
 </ul>
-<p>Details in <a href="#21-datetimes">2.1. Datetimes</a>.</p>
+<p>The details are in <a href="#21-datetimes">2.1. Datetimes</a>.</p>
 
 </div>
 <div style="clear: both;"></div>
@@ -973,7 +973,9 @@ The `dayfirst` and `yearfirst` settings in `config.toml` are used to resolve amb
 | False    | True      | 12-10-11 | 2012-10-11     | Y-M-D ISO 8601 |
 | False    | False     | 12-10-11 | 2011-12-10     | M-D-Y US       |
 
-The defaults: dayfirst = false and yearfirst = true correspond to the Y-M-D ISO 8601 standard.
+The defaults: dayfirst = false and yearfirst = true correspond to the Y-M-D ISO 8601 standard. 
+
+A related setting `ampm` 
 
 ### 2.2. TimeDeltas
 
