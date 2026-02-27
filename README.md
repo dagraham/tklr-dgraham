@@ -161,6 +161,7 @@ In comparison, here is how the reminder would be created using Apple's <em>Calen
   <li>a monthday only: the current month is assumed.</li>
   <li>a month and monthday: the current year is assumed.</li> 
 </ul>
+<p>Details in <a href="#21-datetimes">2.1. Datetimes</a>.</p>
 
 </div>
 <div style="clear: both;"></div>
@@ -184,6 +185,7 @@ In comparison, here is how the reminder would be created using Apple's <em>Calen
   <li>URL: 
     <code>@g https://dagraham.github.io/tklr-dgraham/</code></li>
 </ul>
+<p>All of the token keys are listed in <a href="#218-token-keys">2.18. Token Keys</a>.</p>
 
 </div>
 <div style="clear: both;"></div>
