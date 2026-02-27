@@ -1359,13 +1359,13 @@ with
 </pre>
 
 <p>
-
 would change the color for the <em>task</em> type for the current <em>dark</em> setting from "lightskyblue" to "dodgerblue". Note that either the color name or the hex value can be used.
 </p>
+
 </div>
 <div style="clear: both;"></div>
 
-### 2.18. Token Keys
+### 2.18. Token Keys 
 
 The table below gives the complete list of both `@-keys` and, when applicable, their `&-key` attributes.  It is generated from the source code automatically so it is always up to date.
 
