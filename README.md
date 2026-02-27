@@ -6,13 +6,13 @@
         The term <em>tickler file</em> originally referred to a file system for reminders which used 12 monthly files and 31 daily files. <em>Tklr</em> turns this classic into a local, SQLite-backed reminder system. You enter reminders in plain text; <em>tklr</em> parses dates, recurrence, and metadata as you type, then ranks tasks by urgency and goals by priority.
 </p>
 <p>Why try it?
-<ul>
+</p><ul>
 <li>Form‑free entry with live prompts (no forms to fill).</li>
 <li>CLI and Textual UI with mouse‑free navigation.</li>
 <li>Multiple reminder types: events, tasks, projects, goals, notes, jots, drafts.</li>
 <li>Flexible scheduling (fuzzy dates, recurrence, time zones) powered by <em>dateutil</em>.</li>
 <li>Organized views (Agenda, Next/Last, Queries, bins, hashtags) to surface what matters.</li>
-</ul></p>
+</ul>
 
 <p>If you like fast, local, keyboard‑first tools, <em>tklr</em> gives you a daily brief without a heavyweight app.</p>
     </td>
@@ -585,14 +585,14 @@ These screenshots reflect a configuration setting that rounds reported <code>@e<
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/jots_jots.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>
   <em>Jots View</em> is similar to <em>Weeks View</em> - reminders are grouped by <em>week</em> and then <em>week day</em> with the same key bindings used for navigation. The <em>jots</em> are displayed in different colors for
-  <ul>
+  </p><ul>
    <li>those with neither <code>@e</code> nor <code>@u</code> entries</li>
    <li>those with only <code>@e</code> entries</li>
    <li>those with only <code>@u</code> entries</li>
    <li>those with both <code>@e</code> and <code>@u</code> entries</li>
    </ul>
    When either or both of these attributes are present, they are given in parentheses after the <em>subject</em>.
-  </p>
+  
 </div>
 <div style="clear: both;"></div>
 
@@ -603,7 +603,7 @@ These screenshots reflect a configuration setting that rounds reported <code>@e<
   </p>
   <p>
   The listing for each <em>jot</em> gives
-  <ol>
+  </p><ol>
   <li>tag</li>
   <li><code>@s entry</code> hours:minutes</li>
   <li><code>@s entry</code> month day</li>
@@ -611,7 +611,7 @@ These screenshots reflect a configuration setting that rounds reported <code>@e<
   <li><em>subject</em></li>
   </ol>
   All <em>jots</em> are listed using the same colors as were used in <em>Jots View</em>.
-  </p>
+  
 </div>
 <div style="clear: both;"></div>
 
