@@ -173,6 +173,7 @@ In comparison, here is how the reminder would be created using Apple's <em>Calen
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/wrap_noargs.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 <p>
 How does <em>tklr</em> support the other <em>Calendar</em> options? 
+</p>
 
 <ul>
   <li>location: <code>@l General Store, Saxapahaw</code></li>
@@ -187,7 +188,7 @@ How does <em>tklr</em> support the other <em>Calendar</em> options?
   <li>URL: 
     <code>@g https://dagraham.github.io/tklr-dgraham/</code></li>
 </ul>
-  </p>
+
 </div>
 <div style="clear: both;"></div>
 
