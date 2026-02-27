@@ -166,9 +166,6 @@ In comparison, here is how the reminder would be created using Apple's <em>Calen
   <li>a month and monthday: the current year is assumed.</li> 
 </ul>
 
-<p>For details see <a href="#21-datetimes">2.1. Datetimes</a>.
-</p>
-
 </div>
 <div style="clear: both;"></div>
 
