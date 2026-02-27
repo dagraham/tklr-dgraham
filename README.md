@@ -160,8 +160,9 @@ In comparison, here is how the reminder would be created using Apple's <em>Calen
   <li>a monthday only: the current month is assumed.</li>
   <li>a month and monthday: the current year is assumed.</li> 
 </ul>
+</p>
 
-For details see <a href="#21-datetimes">2.1. Datetimes</a>.
+<p>For details see <a href="#21-datetimes">2.1. Datetimes</a>.
 </p>
 
 </div>
@@ -193,10 +194,11 @@ How does <em>tklr</em> support the other <em>Calendar</em> options?
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/wrap_args.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
 <p>
 How can you remember all the <em>tklr</em> options? 
+</p>
 
-You don't need to. When you are entering a reminder, after you enter character <code>@</code>, the list of available <code>@-keys</code> will be listed below. Most are suggestive, e.g., <code>s</code> for "scheduled", <code>d</code> for "details", and so forth, but you can just enter one of the characters, e.g., <code>@w</code>, and the description will be listed in the feedback below.  
+<p>You don't need to. When you are entering a reminder, after you enter character <code>@</code>, the list of available <code>@-keys</code> will be listed below. Most are suggestive, e.g., <code>s</code> for "scheduled", <code>d</code> for "details", and so forth, but you can just enter one of the characters, e.g., <code>@w</code>, and the description will be listed in the feedback below.</p>
 
-A complete list of all the available keys is given in <a href="#218-token-keys">2.18. Token Keys</a>.
+<p>A complete list of all the available keys is given in <a href="#218-token-keys">2.18. Token Keys</a>.
 </p> 
 
 </div>
