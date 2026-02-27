@@ -153,12 +153,14 @@ In comparison, here is how the reminder would be created using Apple's <em>Calen
 </p>
 
 <p><em>Tklr<em>'s form-free approach is particularly advantageous when entering dates and times. 
+
 <ul>
-<li>a time: today's date is assumed if a date is not specified, e.g., <code>@s 11a</code> is iterpreted as 11:00AM today.</li>
-<li>a weekday: the next date with that weekday is assumed, <code>@s fri</code> means the next Friday on or after today.</li>
-<li>a monthday only: the current month is assumed.</li>
-<li>a month and monthday: the current year is assumed.</li> 
+  <li>a time: today's date is assumed if a date is not specified, e.g., <code>@s 11a</code> is iterpreted as 11:00AM today.</li>
+  <li>a weekday: the next date with that weekday is assumed, <code>@s fri</code> means the next Friday on or after today.</li>
+  <li>a monthday only: the current month is assumed.</li>
+  <li>a month and monthday: the current year is assumed.</li> 
 </ul>
+
 For details see <a href="#21-datetimes">2.1. Datetimes</a>.
 </p>
 
