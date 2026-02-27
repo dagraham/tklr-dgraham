@@ -194,13 +194,16 @@ How can you remember all the <em>tklr</em> options?
 
 You don't need to. When you are entering a reminder, after you enter character <code>@</code>, the list of available <code>@-keys</code> will be listed below. Most are suggestive, e.g., <code>s</code> for "scheduled", <code>d</code> for "details", and so forth, but you can just enter one of the characters, e.g., <code>@w</code>, and the description will be listed in the feedback below.  
 </p>
-<p> A complete list of all the available keys is given in <a href="#218-token-keys">2.18. Token Keys</a></p> 
+
+<p> A complete list of all the available keys is given in <a href="#218-token-keys">2.18. Token Keys</a>.
+</p> 
 
 </div>
 <div style="clear: both;"></div>
 
 
 [↩︎](#table-of-contents)
+
 
 ### 1.2. Reminders to suit the purpose
 
