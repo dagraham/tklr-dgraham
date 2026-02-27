@@ -1,4 +1,3 @@
-<!-- markdownlint-disable MD033 -->
 <table>
   <tr>
     <td style="vertical-align: top; width: 60%;">
@@ -154,9 +153,6 @@ In comparison, here is how the reminder would be created using Apple's <em>Calen
 
 </ul>
 
-</div>
-<div style="clear: both;"></div>
-
 <p><em>Tklr</em>'s form-free approach is particularly advantageous when entering dates and times. 
 
 <ul>
@@ -171,8 +167,8 @@ In comparison, here is how the reminder would be created using Apple's <em>Calen
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/wrap_noargs.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-<p>
-How does <em>tklr</em> support the other <em>Calendar</em> options? 
+
+<p>How does <em>tklr</em> support the other <em>Calendar</em> options? 
 </p>
 
 <ul>
@@ -194,8 +190,8 @@ How does <em>tklr</em> support the other <em>Calendar</em> options?
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/wrap_args.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-<p>
-How can you remember all the <em>tklr</em> options? 
+
+<p>How can you remember all the <em>tklr</em> options? 
 </p>
 
 <p>You don't need to. When you are entering a reminder, after you enter character <code>@</code>, the list of available <code>@-keys</code> will be listed below. Most are suggestive, e.g., <code>s</code> for "scheduled", <code>d</code> for "details", and so forth, but you can just enter one of the characters, e.g., <code>@w</code>, and the description will be listed in the feedback below.
