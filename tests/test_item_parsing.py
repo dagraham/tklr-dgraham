@@ -143,6 +143,28 @@ class TestDescriptions:
 
 
 @pytest.mark.unit
+class TestInvitees:
+    def test_event_invitees_parse(self, item_factory):
+        item = item_factory("* planning session @s 2025-01-10 10:00 @i Alice, Bob")
+
+        assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
+        assert item.invitees == ["Alice", "Bob"]
+
+    def test_event_invitees_require_non_empty_names(self, item_factory):
+        item = item_factory("* planning session @s 2025-01-10 10:00 @i Alice, , Bob")
+
+        assert not item.parse_ok
+        assert item.last_result
+        assert "comma separated list of non-empty names" in (item.last_result[1] or "")
+
+    def test_invitees_not_allowed_for_tasks(self, item_factory):
+        item = item_factory("~ prepare agenda @i Alice")
+
+        assert not item.parse_ok
+        assert "The use of @i is not supported" in (item.parse_message or "")
+
+
+@pytest.mark.unit
 class TestBins:
     """Test bin/category parsing."""
 

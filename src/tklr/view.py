@@ -1727,6 +1727,7 @@ class EditorScreen(Screen):
             "d": "Description",
             "e": "Extent",
             "g": "Goal",
+            "i": "Invitees",
             "k": "Kompletions",
             "l": "Location",
             "m": "Mask",
