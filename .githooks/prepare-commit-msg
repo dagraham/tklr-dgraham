@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Auto-generate a helpful commit message from staged changes.
+# Auto-generate a concise, informative commit subject from staged changes.
 # Runs only for normal commits when the message is otherwise empty.
 
 set -eu
@@ -8,9 +8,7 @@ set -eu
 MSG_FILE="${1:-}"
 SOURCE="${2:-}"
 
-if [ -z "$MSG_FILE" ]; then
-  exit 0
-fi
+[ -n "$MSG_FILE" ] || exit 0
 
 # Do not override explicit messages or Git-generated merge/squash/cherry-pick text.
 case "$SOURCE" in
@@ -29,86 +27,174 @@ if git diff --cached --quiet; then
   exit 0
 fi
 
-branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)"
-shortstat="$(git diff --cached --shortstat 2>/dev/null || true)"
-[ -n "$shortstat" ] || shortstat="staged changes ready"
-
 staged_files="$(
   git diff --cached --name-only \
     | sed '/^$/d'
 )"
 file_count="$(printf '%s\n' "$staged_files" | sed '/^$/d' | wc -l | tr -d ' ')"
+[ "${file_count:-0}" -gt 0 ] || exit 0
 
 pick_focus_file() {
   # Prefer user-facing files in commit subject when possible.
   printf '%s\n' "$staged_files" \
     | awk '
-        /^(README\.md|recent_changes\.md|bump\.py|make_demo\.py|make_examples\.py|make_items\.py)$/ {print; exit}
+        /^(README\.md|recent_changes\.md|CHANGELOG\.md|docs\/)/ {print; exit}
         /^src\// {print; exit}
+        /^tests\// {print; exit}
         {if (!first) first=$0}
         END {if (!NR) print "changes"; else if (first) print first}
       '
 }
 
+basename_of() {
+  printf '%s\n' "$1" | awk -F/ '{print $NF}'
+}
+
+all_markdown=1
+while IFS= read -r f; do
+  case "$f" in
+    *.md) ;;
+    *) all_markdown=0; break ;;
+  esac
+done <<EOF
+$staged_files
+EOF
+
+non_ws_changes=1
+if git diff --cached -w --quiet; then
+  non_ws_changes=0
+fi
+
+focus="$(pick_focus_file)"
+focus_base="$(basename_of "$focus")"
+focus_status="$(
+  git diff --cached --name-status -- "$focus" \
+    | sed -n '1p' \
+    | awk '{print $1}'
+)"
+[ -n "$focus_status" ] || focus_status="M"
+
+context_snippet="$(
+  git diff --cached --unified=0 --no-color -- "$focus" \
+    | awk '
+        /^@@/ {
+          line=$0
+          sub(/^.*@@[[:space:]]*/, "", line)
+          gsub(/[`*#]/, "", line)
+          gsub(/[[:space:]]+/, " ", line)
+          sub(/^[[:space:]]+/, "", line)
+          sub(/[[:space:]]+$/, "", line)
+          if (line != "") {
+            if (length(line) > 56) line=substr(line, 1, 56)
+            print line
+            exit
+          }
+        }
+      '
+)"
+
+has_markdown_table_changes=0
+if [ "${focus_base#*.}" = "md" ] || [ "$focus_base" = "README.md" ]; then
+  if git diff --cached --no-color -- "$focus" | awk '/^[+-][[:space:]]*\|/ {c++} END {exit (c>=4)?0:1}'; then
+    has_markdown_table_changes=1
+  fi
+fi
+
 render_subject() {
-  first="$(printf '%s\n' "$staged_files" | sed -n '1p')"
-  second="$(printf '%s\n' "$staged_files" | sed -n '2p')"
-  [ -n "$first" ] || first="$(pick_focus_file)"
-
-  if [ "${file_count:-0}" -le 1 ]; then
-    printf 'Update %s' "$first"
+  if [ "$non_ws_changes" -eq 0 ]; then
+    if [ "$all_markdown" -eq 1 ]; then
+      if [ "${file_count:-0}" -eq 1 ]; then
+        printf 'Normalize markdown formatting in %s' "$focus_base"
+      else
+        printf 'Normalize markdown formatting across %s files' "$file_count"
+      fi
+      return
+    fi
+    if [ "${file_count:-0}" -eq 1 ]; then
+      printf 'Normalize whitespace in %s' "$focus"
+    else
+      printf 'Normalize whitespace across %s files' "$file_count"
+    fi
     return
   fi
-  if [ "${file_count:-0}" -eq 2 ]; then
-    printf 'Update %s and %s' "$first" "$second"
+
+  if [ "${file_count:-0}" -eq 1 ]; then
+    case "$focus_status" in
+      A)
+        printf 'Add %s' "$focus"
+        return
+        ;;
+      D)
+        printf 'Remove %s' "$focus"
+        return
+        ;;
+      R*)
+        printf 'Rename %s' "$focus"
+        return
+        ;;
+    esac
+
+    case "$focus" in
+      *.md|README.md|docs/*)
+        if [ "$has_markdown_table_changes" -eq 1 ]; then
+          printf 'Refine markdown tables in %s' "$focus_base"
+        elif [ -n "$context_snippet" ]; then
+          printf 'Revise %s: %s' "$focus_base" "$context_snippet"
+        else
+          printf 'Revise documentation in %s' "$focus_base"
+        fi
+        return
+        ;;
+      src/*)
+        if [ -n "$context_snippet" ]; then
+          printf 'Refine %s: %s' "$focus_base" "$context_snippet"
+        else
+          printf 'Refine %s implementation' "$focus_base"
+        fi
+        return
+        ;;
+      tests/*)
+        if [ -n "$context_snippet" ]; then
+          printf 'Update %s: %s' "$focus_base" "$context_snippet"
+        else
+          printf 'Update %s coverage' "$focus_base"
+        fi
+        return
+        ;;
+      *)
+        if [ -n "$context_snippet" ]; then
+          printf 'Update %s: %s' "$focus_base" "$context_snippet"
+        else
+          printf 'Update %s' "$focus"
+        fi
+        return
+        ;;
+    esac
+  fi
+
+  if [ "$all_markdown" -eq 1 ]; then
+    printf 'Revise documentation across %s files' "$file_count"
     return
   fi
 
-  remaining=$((file_count - 2))
-  printf 'Update %s, %s, and %s more' "$first" "$second" "$remaining"
+  printf 'Refine %s and related updates' "$focus_base"
 }
 
 subject="$(render_subject)"
 
-files_block="$(
-  git diff --cached --name-status \
-    | awk '
-        {
-          status=$1
-          $1=""
-          sub(/^\t/, "")
-          printf("- %s %s\n", status, $0)
-        }
-      ' \
-    | head -n 30
-)"
-[ -n "$files_block" ] || files_block="- (unable to determine file list)"
-
-notable_block="$(
-  git diff --cached --unified=0 --no-color \
-    | awk '
-        /^\+\+\+ b\// {file=substr($0, 7); next}
-        /^@@/ {
-          if (file != "") {
-            printf("- %s %s\n", file, $0)
-          }
-        }
-      ' \
-    | head -n 12
-)"
-[ -n "$notable_block" ] || notable_block="- (no hunk headers available)"
-
-cat >"$MSG_FILE" <<EOF
+# Optional verbose body (off by default). Enable with:
+#   TKLR_COMMITMSG_VERBOSE=1 git commit
+if [ "${TKLR_COMMITMSG_VERBOSE:-0}" = "1" ]; then
+  shortstat="$(git diff --cached --shortstat 2>/dev/null || true)"
+  [ -n "$shortstat" ] || shortstat="staged changes ready"
+  branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)"
+  cat >"$MSG_FILE" <<EOF
 ${subject}
 
 Summary:
 - ${shortstat}
 - Branch: ${branch}
-
-Files changed:
-${files_block}
-
-Notable edits:
-${notable_block}
-
 EOF
+else
+  printf '%s\n\n' "$subject" >"$MSG_FILE"
+fi
