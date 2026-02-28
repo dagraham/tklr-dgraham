@@ -43,7 +43,7 @@ Ready to dive deeper? This introduction is best viewed at [GitHub.io](https://da
           <li><a href="#12-reminders-to-suit-the-purpose">1.2. Reminders to suit the purpose</a></li>
           <li><a href="#13-mouse-free-navigation">1.3. Mouse-Free navigation</a></li>
           <li><a href="#14-agenda-view-your-daily-brief">1.4. Agenda View: Your daily brief</a></li>
-          <li><a href="#15-weeks-next-and-last-views-whats-happening-and-when">1.5. Weeks, Next and Last Views: What's happening and when</a></li>
+          <li><a href="#15-weeks-view-and-friends">1.5. Weeks View and friends</a></li>
           <li><a href="#16-jots-and-jot-uses-views-where-did-the-time-go">1.6. Jots and Jot Uses Views: Where did the time go</a></li>
           <li><a href="#17-jots-and-gtd">1.7. Jots and GTD</a></li>
           <li><a href="#18-gtd-and-task-view">1.8. GTD and Task View</a></li>
@@ -549,7 +549,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 [↩︎](#table-of-contents)
 
-### 1.5. Weeks View and friends: What's happening and when
+### 1.5. Weeks View and friends
 
 *Weeks View* is dedicated to displaying each instance of your scheduled reminders one week at a time with a *busy bar* at the top to show the busy days during the week at a glance followed by a day by day listing of the scheduled reminders.
 
