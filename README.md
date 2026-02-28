@@ -708,7 +708,7 @@ Feb 2026: 1.0h
 <p>Your concious mind is made to focus not to store. It keeps reminding you of things you're subconciously trying not to forget whether or not they are relevant to what you are trying to do and, the more you are trying not to forget, the less processing power you have left for the task at hand. These words scarcely do justice to the importance of this observation. 
 </p>
 
-<p>In <em>tklr</em>, the "bucket you can trust" is <em>jots</em> and <em>capture</em> in is the stage devoted to moving the stuff from your head to <em>jots</em>. </p>
+<p>In <em>tklr</em>, the "bucket you can trust" is <em>jots</em> and <em>capture</em> is the stage devoted to moving the stuff from your head to <em>jots</em>. </p>
 
 <h4>Clarify and Organize</h4>
 
