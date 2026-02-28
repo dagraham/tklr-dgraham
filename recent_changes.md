@@ -1,5 +1,23 @@
 # Recent Changes
 
+## 1.0.0 — 2026-02-28
+
+Since 0.0.65:
+
+Why upgrade:
+- 0 additions, 0 fixes, 1 behavior changes.
+
+Changed:
+- Refine markdown explanations for dated list views
+
+Docs:
+- Update README.md section title for weeks view
+
+Technical:
+- 1 file changed, 23 insertions(+), 19 deletions(-)
+
+Note: Production stable - all planned features, methods and tests in place
+
 ## 0.0.65 — 2026-02-27
 
 Since 0.0.64:
@@ -58,22 +76,3 @@ Technical:
 - 6 files changed, 67 insertions(+), 32 deletions(-)
 
 Note: Implemented tab completion for bins, contexts, locations and uses.
-
-## 0.0.63 — 2026-02-25
-
-Since 0.0.62:
-
-Why upgrade:
-- 1 additions, 0 fixes, 1 behavior changes.
-
-Added:
-- Implement live attribute matching and deduplication for bin, context, location, and use tokens in Item and Controller
-
-Changed:
-- Remove unnecessary log messages in Controller and enhance recurrence rule descriptions in Item
-
-Docs:
-- Refactor terminology in README.md and item.py for clarity on repetition settings
-
-Technical:
-- 6 files changed, 372 insertions(+), 51 deletions(-)
