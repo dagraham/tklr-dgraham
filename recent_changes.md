@@ -1,5 +1,29 @@
 # Recent Changes
 
+## 1.0.1 — 2026-03-01
+
+Since 1.0.0:
+
+Why upgrade:
+- 1 additions, 1 fixes, 1 behavior changes.
+
+Added:
+- Revise README.md: added omitted Tasks View to list
+
+Fixed:
+- Implement urgency components retrieval for records and jobs feat: add urgency entry retrieval method in DatabaseManager fix: correct urgency calculation logic in UrgencyComputer test: add integration tests for urgency components and due calculations
+
+Changed:
+- improve commit message validation by normalizing AI-generated prefixes and enforcing leading verb requirement
+
+Docs:
+- Revise README.md: Feb 2026: 1.0h
+
+Technical:
+- 9 files changed, 245 insertions(+), 15 deletions(-)
+
+Note: Added details menu option for tasks to show "Urgency components" for the selected task.
+
 ## 1.0.0 — 2026-02-28
 
 Since 0.0.65:
@@ -55,24 +79,3 @@ Technical:
 - 15 files changed, 1407 insertions(+), 262 deletions(-)
 
 Note: Respect two_digit_year, dayfirst and yearfirst settings in Last, Modified, Completed and Task scheduled listings.
-
-## 0.0.64 — 2026-02-26
-
-Since 0.0.63:
-
-Why upgrade:
-- 0 additions, 0 fixes, 1 behavior changes.
-
-Changed:
-- Enhance editor functionality by stabilizing focus and adding Tab completion for live replacements for bin, context, location and use.
-
-Docs:
-- Remove repetition entry from the list of @-keys in README.md
-
-Internal:
-- Refactor matching functions to return case-insensitive prefix matches for bins, contexts, locations and uses.  Update related tests for improved accuracy and consistency.
-
-Technical:
-- 6 files changed, 67 insertions(+), 32 deletions(-)
-
-Note: Implemented tab completion for bins, contexts, locations and uses.
