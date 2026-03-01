@@ -25,22 +25,35 @@ esac
 
 is_bad=0
 
+# Normalize common AI-generated prefixes before validation:
+# - list markers ("- ", "* ", "1. ")
+# - conventional commit prefixes ("feat:", "fix(scope):", ...)
+normalized_subject="$subject"
+normalized_subject="$(
+  printf '%s\n' "$normalized_subject" \
+    | sed -E 's/^[[:space:]]*[-*][[:space:]]+//; s/^[[:space:]]*[0-9]+[.)][[:space:]]+//'
+)"
+normalized_subject="$(
+  printf '%s\n' "$normalized_subject" \
+    | sed -E 's/^[[:space:]]*(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?(!)?:[[:space:]]+//I'
+)"
+
 # Require at least two words.
-word_count="$(printf '%s\n' "$subject" | awk '{print NF}')"
+word_count="$(printf '%s\n' "$normalized_subject" | awk '{print NF}')"
 if [ "${word_count:-0}" -lt 2 ]; then
   is_bad=1
 fi
 
 # Reject vague subjects that don't explain user-visible intent.
-if printf '%s\n' "$subject" | grep -Eiq '^(update|change|misc|wip|stuff|tmp|test)([[:space:]]+[0-9]+[[:space:]]+files?)?$'; then
+if printf '%s\n' "$normalized_subject" | grep -Eiq '^(update|change|misc|wip|stuff|tmp|test)([[:space:]]+[0-9]+[[:space:]]+files?)?$'; then
   is_bad=1
 fi
-if printf '%s\n' "$subject" | grep -Eiq '^(update|change)[[:space:]]+[0-9]+[[:space:]]+files?$'; then
+if printf '%s\n' "$normalized_subject" | grep -Eiq '^(update|change)[[:space:]]+[0-9]+[[:space:]]+files?$'; then
   is_bad=1
 fi
 
 # Encourage leading verb.
-if ! printf '%s\n' "$subject" | grep -Eq '^[A-Z][a-z]+'; then
+if ! printf '%s\n' "$normalized_subject" | grep -Eiq '^[a-z][a-z-]+'; then
   is_bad=1
 fi
 
@@ -48,6 +61,7 @@ if [ "$is_bad" -ne 0 ]; then
   cat >&2 <<'EOF'
 Commit message subject is too vague.
 Use: Verb + What Changed
+Conventional prefixes like "feat:" and "fix(scope):" are accepted.
 Examples:
   Add Task View context navigation
   Fix inbox selection in Tasks View
