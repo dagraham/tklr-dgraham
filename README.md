@@ -712,7 +712,7 @@ Feb 2026: 1.0h
 
 <h4>Clarify and Organize</h4>
 
-<p>With your stuff safely stored in <em>jots</em> the next two stages are concerned with clarifying organizing them. The phrase <em>In to Empty</em> is a motto in <em>GTD</em>, meaning that the result of applying the illustrated work flow is that every <em>inbox</em> item will have gone into one of the green boxes, leaving the <em>inbox</em> empty. There is, however, one destinaton in <em>tklr</em> for <em>jots</em> not imagined in <em>GTD</em> - the magenta <em>used time</em> box for records of time spent. Let's step through the flow and see how all this works. 
+<p>With your stuff safely stored in <em>jots</em> the next two stages are concerned with clarifying and organizing them. The phrase <em>In to Empty</em> is a motto in <em>GTD</em>, meaning that the result of applying the illustrated work flow is that every <em>inbox</em> item will have gone into one of the green boxes, leaving the <em>inbox</em> empty. There is, however, one destinaton in <em>tklr</em> for <em>jots</em> not imagined in <em>GTD</em> - the magenta <em>used time</em> box for records of time spent. Let's step through the flow and see how all this works. 
 </p>
 
 <h4>Actionable? No</h4>
