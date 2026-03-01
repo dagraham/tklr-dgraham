@@ -489,6 +489,7 @@ Each of the main views in *tklr* can be opened by pressing a single key - the fi
 | Next             |   N   | The next instance of reminders after today                |
 | Query            |   Q   | List matches for a specified query                        |
 | Remaining Alerts |   R   | List remaining alerts for the today                       |
+| Tasks            |   T   | List tasks grouped by category                            |
 | Jot Uses         |   U   | Jots with totals by month and use                         |
 | Weeks            |   W   | Scheduled reminders by week and weekday                   |
 
