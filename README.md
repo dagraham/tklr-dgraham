@@ -328,7 +328,9 @@ Here are some illustrations of how the various types.
 <code>~ fill birdfeeders @s 3p sat @n 1d @o 12d
 </code>
   </pre>
-<p>Because of the <code>@o 12d</code> <em>offset</em> attribute, when this task is completed the <code>@s</code> <em>scheduled</em> datetime will automatically reset to the datetime that falls precisely 12 days after the completion datetime. Whether they are filled early or late, they will still need to be refilled 12 days after they were last filled.  Because of the <code>@n 1d</code> <em>notice</em> attribute, this task will <em>not</em> appear in the <em>Agenda View</em> task list until the the current datetime is within one day of the <em>scheduled</em> datetime.
+<p>Because of the <code>@o 12d</code> <em>offset</em> attribute, when this task is completed the <code>@s</code> <em>scheduled</em> datetime will automatically reset to the datetime that falls precisely 12 days after the completion datetime. Whether they are filled early or late, they will still need to be refilled 12 days after they were last filled.</p>
+
+<p>Because of the <code>@n 1d</code> <em>notice</em> attribute, this task will <em>not</em> appear in the <em>Agenda View</em> task list until the current datetime is within one day of the <em>scheduled</em> datetime. Without this <em>notice</em> attribute, the default would have been to use the <em>offset</em> value as an implicit <em>notice</em> setting, i.e., not to display the task until the current datetime is within 12 days of the <em>scheduled</em> datetime. 
 </p>
 </div>
 <div style="clear:both;"></div>
