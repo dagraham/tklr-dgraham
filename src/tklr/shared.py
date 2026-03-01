@@ -22,7 +22,7 @@ env = TklrEnvironment()
 ELLIPSIS_CHAR = "…"
 
 REPEATING = "↻"  # Flag for @r and/or @+ reminders
-OFFFSET = "⌁"  # Flag for offset task
+OFFSET = "⌁"  # Flag for offset task
 
 CORAL = "#FF7F50"
 CORNSILK = "#FFF8DC"
@@ -287,6 +287,7 @@ def _apply_type_color_overrides(overrides: dict[str, str] | None = None) -> None
         lookup = _TYPE_COLOR_ALIASES.get(normalized.lower(), normalized)
         if lookup in TYPE_TO_COLOR:
             TYPE_TO_COLOR[lookup] = value.strip()
+
 
 apply_theme_palette("dark", apply_overrides=False)
 

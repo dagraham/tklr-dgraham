@@ -340,9 +340,6 @@ max = {{ urgency.tags.max }}
 "{{ key }}" = {{ value }}
 {% endfor %}
 
-# In the default settings, a priority of "5" is the only one that yields
-# a negative value, `-5`, and thus reduces the urgency of the task.
-
 [urgency.description]
 # The "description" urgency equals "max" if the task has an "@d" entry and
 # 0.0 otherwise.

@@ -3673,6 +3673,94 @@ class Controller:
 
         return title, lines
 
+    def get_record_urgency_components(
+        self,
+        record_id: int,
+        job_id: int | None = None,
+    ) -> tuple[str, list[str]]:
+        """
+        Return (title, lines) describing urgency score components for a record/job.
+        """
+        record_dict = self.db_manager.get_record_as_dictionary(record_id) or {}
+        subject = record_dict.get("subject") or "(untitled)"
+        title = f"Urgency components for {subject}"
+
+        row = self.db_manager.get_urgency_entry(record_id, job_id)
+        if not row:
+            return title, [
+                "No urgency entry is currently available for this reminder.",
+                "The reminder may be outside its notice window and hidden from urgency ranking.",
+            ]
+
+        urgency, _color, status, weights_raw, resolved_job_id, resolved_subject = row
+        display_subject = resolved_subject or subject
+        lines: list[str] = []
+        lines.append(f"[{label_color}]subject:[/{label_color}] {display_subject}")
+        if resolved_job_id is not None:
+            lines.append(f"[{label_color}]job:[/{label_color}] {resolved_job_id}")
+        lines.append(f"[{label_color}]status:[/{label_color}] {status}")
+        lines.append(f"[{label_color}]urgency:[/{label_color}] {urgency:.6f}")
+        lines.append(
+            f"[{label_color}]agenda score:[/{label_color}] {round(100 * urgency):>3}"
+        )
+
+        weights: dict[str, float] = {}
+        if isinstance(weights_raw, str) and weights_raw.strip():
+            try:
+                parsed = json.loads(weights_raw)
+                if isinstance(parsed, dict):
+                    for key, value in parsed.items():
+                        try:
+                            weights[str(key)] = float(value)
+                        except (TypeError, ValueError):
+                            continue
+            except Exception:
+                weights = {}
+
+        if not weights:
+            if self.db_manager.is_pinned(record_id):
+                lines.extend(
+                    [
+                        "",
+                        "This reminder is pinned, so urgency is forced to 1.0.",
+                        "No component weights are used while pinned.",
+                    ]
+                )
+            else:
+                lines.extend(["", "No component weights are available."])
+            return title, lines
+
+        positive = sum(value for value in weights.values() if value > 0.0)
+        negative = sum(abs(value) for value in weights.values() if value < 0.0)
+        max_possible = float(self.db_manager.compute_urgency.MAX_POSSIBLE_URGENCY)
+
+        lines.extend(
+            [
+                "",
+                f"[{label_color}]formula:[/{label_color}] (positive - negative) / max",
+                f"[{label_color}]positive:[/{label_color}] {positive:.6f}",
+                f"[{label_color}]negative:[/{label_color}] {negative:.6f}",
+                f"[{label_color}]max:[/{label_color}] {max_possible:.6f}",
+                "",
+                f"[{label_color}]components:[/{label_color}]",
+            ]
+        )
+
+        for key, value in sorted(weights.items(), key=lambda kv: (-abs(kv[1]), kv[0])):
+            sign = "+" if value >= 0 else "-"
+            lines.append(f"  {key:<11} {sign}{abs(value):.6f}")
+
+        if job_id is None and resolved_job_id is not None:
+            lines.extend(
+                [
+                    "",
+                    "No record-level urgency row exists for this project.",
+                    "Showing the highest-urgency available job instead.",
+                ]
+            )
+
+        return title, lines
+
     def get_record_repetitions(self, record_id: int, *, limit: int = 20):
         """
         Return (title, lines) describing the next few repetitions for a record.

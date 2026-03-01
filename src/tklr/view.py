@@ -4485,6 +4485,13 @@ class DynamicViewApp(App):
                 if hasattr(app, "_screen_show_details"):
                     app._screen_show_details(title, lines, meta, push_history=True)
 
+            def show_urgency_components() -> None:
+                title, lines = ctrl.get_record_urgency_components(
+                    record_id, job_id=job_id
+                )
+                if hasattr(app, "_screen_show_details"):
+                    app._screen_show_details(title, lines, meta, push_history=True)
+
             def copy_details_to_clipboard() -> None:
                 scr = getattr(app, "screen", None)
                 lwd = getattr(scr, "list_with_details", None)
@@ -4538,10 +4545,10 @@ class DynamicViewApp(App):
                     hotkey="x",
                 )
                 add_option(
-                    "Place copy in system clipboard",
+                    "Save to system clipboard",
                     copy_details_to_clipboard,
                     enabled=True,
-                    hotkey="p",
+                    hotkey="s",
                 )
                 # add_option("Schedule new instance", schedule_new_instance, enabled=True)
                 # add_option(
@@ -4553,7 +4560,13 @@ class DynamicViewApp(App):
                     "Open link with default", goto_item, enabled=has_links, hotkey="g"
                 )
                 add_option("Touch", touch_item, enabled=True, hotkey="t")
-                add_option("Pin/Unpin", toggle_pin, enabled=itemtype == "~", hotkey="u")
+                add_option(
+                    "Urgency components",
+                    show_urgency_components,
+                    enabled=itemtype in "~^",
+                    hotkey="u",
+                )
+                add_option("Pin/Unpin", toggle_pin, enabled=itemtype == "~", hotkey="p")
                 add_option(
                     "History of completions",
                     show_completions,
@@ -4561,7 +4574,7 @@ class DynamicViewApp(App):
                     hotkey="h",
                 )
                 add_option(
-                    "Show repetitions", show_repetitions, enabled=has_rrule, hotkey="r"
+                    "Repetitions", show_repetitions, enabled=has_rrule, hotkey="r"
                 )
 
                 if not options:

@@ -905,11 +905,12 @@ class UrgencyComputer:
         if due_seconds and due_max and interval:
             interval_seconds = td_str_to_seconds(interval)
             # log_msg(f"{due_max = }, {interval = }, {interval_seconds = }")
+            # Ramp from 0 at (due - interval) to due_max at due.
             return max(
                 0.0,
                 min(
                     due_max,
-                    due_max * (1.0 - (now_seconds - due_seconds) / interval_seconds),
+                    due_max * (1.0 - (due_seconds - now_seconds) / interval_seconds),
                 ),
             )
         return 0.0
@@ -4132,6 +4133,59 @@ class DatabaseManager:
             """
         )
         return self.cursor.fetchall()
+
+    def get_urgency_entry(
+        self,
+        record_id: int,
+        job_id: int | None = None,
+    ) -> tuple[float, str | None, str, str | None, int | None, str] | None:
+        """
+        Return one urgency row for a record/job selection.
+
+        Tuple shape:
+            (urgency, color, status, weights_json, resolved_job_id, subject)
+
+        If ``job_id`` is ``None`` and no record-level urgency row exists,
+        the highest-urgency job row for the record is returned.
+        """
+        if job_id is None:
+            self.cursor.execute(
+                """
+                SELECT
+                    urgency,
+                    color,
+                    status,
+                    weights,
+                    job_id,
+                    subject
+                FROM Urgency
+                WHERE record_id = ?
+                ORDER BY
+                    CASE WHEN job_id IS NULL THEN 0 ELSE 1 END,
+                    urgency DESC,
+                    id ASC
+                LIMIT 1
+                """,
+                (record_id,),
+            )
+        else:
+            self.cursor.execute(
+                """
+                SELECT
+                    urgency,
+                    color,
+                    status,
+                    weights,
+                    job_id,
+                    subject
+                FROM Urgency
+                WHERE record_id = ? AND job_id = ?
+                ORDER BY id ASC
+                LIMIT 1
+                """,
+                (record_id, job_id),
+            )
+        return self.cursor.fetchone()
 
     def process_events(self, start_date, end_date):
         """
