@@ -84,3 +84,28 @@ def test_modified_view_paginates_when_tags_exhausted(test_controller, item_facto
     pages, _ = test_controller.get_modified()
     assert len(pages) >= 2
     assert _tag_count(pages) == 30
+
+
+@pytest.mark.unit
+def test_modified_view_dims_unchanged_year_month_components(test_controller, item_factory):
+    test_controller.dayfirst = False
+    test_controller.yearfirst = True
+    test_controller.two_digit_year = False
+
+    ids = []
+    for entry in ["% note newer", "% note older"]:
+        item = item_factory(entry)
+        assert item.parse_ok
+        ids.append(test_controller.add_item(item))
+
+    cursor = test_controller.db_manager.cursor
+    cursor.execute("UPDATE Records SET modified = ? WHERE id = ?", ("20250105T0830", ids[0]))
+    cursor.execute("UPDATE Records SET modified = ? WHERE id = ?", ("20250103T0830", ids[1]))
+    test_controller.db_manager.conn.commit()
+
+    rows = test_controller.get_modified(yield_rows=True)
+    assert len(rows) >= 2
+    second_row = rows[1]["text"]
+    dim = test_controller.dim_style
+    assert f"[{dim}]2025[/{dim}]" in second_row
+    assert f"[{dim}]01[/{dim}]" in second_row

@@ -158,3 +158,28 @@ def test_completions_view_paginates_when_tags_exhausted(test_controller, test_en
     pages, _header = test_controller.get_completions()
     assert len(pages) >= 2
     assert _tag_count(pages) == 30
+
+
+def test_completions_view_dims_unchanged_year_month_components(
+    test_controller, test_env
+):
+    test_controller.dayfirst = False
+    test_controller.yearfirst = True
+    test_controller.two_digit_year = False
+    test_controller.AMPM = False
+
+    rid_new = _record_id_for_entry(test_controller, test_env, "~ newer completion")
+    rid_old = _record_id_for_entry(test_controller, test_env, "~ older completion")
+    test_controller.db_manager.add_completion(rid_new, (_dt(2025, 1, 5, 10, 15), None))
+    test_controller.db_manager.add_completion(rid_old, (_dt(2025, 1, 3, 10, 15), None))
+
+    pages, _header = test_controller.get_completions()
+    assert pages
+    rows, _tag_map = pages[0]
+    record_rows = [row for row in rows if "[/not bold]   [" in row]
+    assert len(record_rows) >= 2
+
+    second_row = record_rows[1]
+    dim = test_controller.dim_style
+    assert f"[{dim}]2025[/{dim}]" in second_row, second_row
+    assert f"[{dim}]01[/{dim}]" in second_row, second_row

@@ -3,6 +3,12 @@ from datetime import datetime, timedelta
 import pytest
 
 
+def _strip_markup(text: str) -> str:
+    import re
+
+    return re.sub(r"\[[^\]]+\]", "", text)
+
+
 def _record_lines(pages):
     for page_rows, _ in pages:
         for row in page_rows:
@@ -35,7 +41,7 @@ def test_last_view_shows_numeric_ymd_by_default(
 
     pages, _ = test_controller.get_last()
     row_text = _first_record_line(pages)
-    assert "[not bold]24-12-31[/not bold]" in row_text, row_text
+    assert "24-12-31" in _strip_markup(row_text), row_text
     assert ":" not in row_text
 
 
@@ -54,7 +60,7 @@ def test_next_view_shows_numeric_ymd_by_default(
 
     pages, _ = test_controller.get_next()
     row_text = _first_record_line(pages)
-    assert "[not bold]25-01-05[/not bold]" in row_text, row_text
+    assert "25-01-05" in _strip_markup(row_text), row_text
     assert ":" not in row_text
 
 
@@ -73,7 +79,7 @@ def test_last_view_honors_dayfirst_yearfirst_and_two_digit_year(
 
     pages, _ = test_controller.get_last()
     row_text = _first_record_line(pages)
-    assert "[not bold]31-12-2024[/not bold]" in row_text, row_text
+    assert "31-12-2024" in _strip_markup(row_text), row_text
 
 
 @pytest.mark.unit
@@ -91,7 +97,7 @@ def test_next_view_honors_dayfirst_yearfirst_and_two_digit_year(
 
     pages, _ = test_controller.get_next()
     row_text = _first_record_line(pages)
-    assert "[not bold]05-01-2025[/not bold]" in row_text, row_text
+    assert "05-01-2025" in _strip_markup(row_text), row_text
 
 
 @pytest.mark.unit
@@ -108,8 +114,12 @@ def test_next_view_stays_ascending(frozen_time, test_controller, item_factory):
 
     pages, _ = test_controller.get_next()
     lines = list(_record_lines(pages))
-    assert "[not bold]2025-01-03[/not bold]" in lines[0], lines[0]
-    assert "[not bold]2025-01-05[/not bold]" in lines[1], lines[1]
+    assert "2025-01-03" in _strip_markup(lines[0]), lines[0]
+    assert "2025-01-05" in _strip_markup(lines[1]), lines[1]
+    dim = test_controller.dim_style
+    assert f"[{dim}]2025[/{dim}]" in lines[1], lines[1]
+    assert f"[{dim}]01[/{dim}]" in lines[1], lines[1]
+    assert f"[{dim}]-[/{dim}]" in lines[1], lines[1]
 
 
 @pytest.mark.unit
@@ -126,8 +136,8 @@ def test_last_view_stays_descending(frozen_time, test_controller, item_factory):
 
     pages, _ = test_controller.get_last()
     lines = list(_record_lines(pages))
-    assert "[not bold]2024-12-31[/not bold]" in lines[0], lines[0]
-    assert "[not bold]2024-12-30[/not bold]" in lines[1], lines[1]
+    assert "2024-12-31" in _strip_markup(lines[0]), lines[0]
+    assert "2024-12-30" in _strip_markup(lines[1]), lines[1]
 
 
 @pytest.mark.unit

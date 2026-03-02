@@ -590,6 +590,85 @@ class Controller:
         fmt = f"{year_token}-{dm}" if self.yearfirst else f"{dm}-{year_token}"
         return dt_date.strftime(fmt)
 
+    def _date_component_order(self) -> tuple[str, str, str]:
+        if self.yearfirst:
+            return ("Y", "M", "D")
+        if self.dayfirst:
+            return ("D", "M", "Y")
+        return ("M", "D", "Y")
+
+    def _to_date_only(self, value: date | datetime | None) -> date | None:
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        return None
+
+    def _format_comparison_date(
+        self,
+        current: date | datetime | None,
+        previous: date | datetime | None,
+        *,
+        wrap_not_bold: bool = True,
+    ) -> str:
+        """
+        Format a date with component-level dimming based on change vs. previous row.
+
+        Rules:
+        - First row (or changed year): Y/M/D highlighted
+        - Changed month: M/D highlighted, Y dimmed
+        - Changed day: D highlighted, Y/M dimmed
+        - Same day: Y/M/D dimmed
+        - '-' separator is highlighted only when it joins highlighted components.
+        """
+        current_date = self._to_date_only(current)
+        previous_date = self._to_date_only(previous)
+        if current_date is None:
+            rendered_missing = f"[{self.dim_style}]--[/{self.dim_style}]"
+            return (
+                f"[not bold]{rendered_missing}[/not bold]"
+                if wrap_not_bold
+                else rendered_missing
+            )
+
+        year_token = "%y" if self.two_digit_year else "%Y"
+        parts = {
+            "Y": current_date.strftime(year_token),
+            "M": current_date.strftime("%m"),
+            "D": current_date.strftime("%d"),
+        }
+        order = self._date_component_order()
+
+        if previous_date is None or current_date.year != previous_date.year:
+            highlighted = {"Y": True, "M": True, "D": True}
+        elif current_date.month != previous_date.month:
+            highlighted = {"Y": False, "M": True, "D": True}
+        elif current_date.day != previous_date.day:
+            highlighted = {"Y": False, "M": False, "D": True}
+        else:
+            highlighted = {"Y": False, "M": False, "D": False}
+
+        def style_component(key: str) -> str:
+            text = parts[key]
+            if highlighted[key]:
+                return text
+            return f"[{self.dim_style}]{text}[/{self.dim_style}]"
+
+        def style_sep(left_key: str, right_key: str) -> str:
+            if highlighted[left_key] and highlighted[right_key]:
+                return "-"
+            return f"[{self.dim_style}]-[/{self.dim_style}]"
+
+        a, b, c = order
+        rendered = (
+            f"{style_component(a)}"
+            f"{style_sep(a, b)}"
+            f"{style_component(b)}"
+            f"{style_sep(b, c)}"
+            f"{style_component(c)}"
+        )
+        return f"[not bold]{rendered}[/not bold]" if wrap_not_bold else rendered
+
     def _paginate(
         self, rows: List[dict], page_size: int = 26
     ) -> List[Tuple[List[str], Dict[str, Tuple[int, int | None, int | None]]]]:
@@ -2828,7 +2907,18 @@ class Controller:
 
         rows = []
 
-        for dt_id, id, job_id, subject, description, itemtype, start_ts in events:
+        previous_bucket: date | None = None
+        for idx, (
+            dt_id,
+            id,
+            job_id,
+            subject,
+            description,
+            itemtype,
+            start_ts,
+        ) in enumerate(events):
+            if idx % 26 == 0:
+                previous_bucket = None
             start_dt = datetime_from_timestamp(start_ts)
             subject = self.apply_anniversary_if_needed(id, subject, start_dt)
             if job_id is not None:
@@ -2840,8 +2930,9 @@ class Controller:
                     log_msg(f"{e = }")
 
             subject = self.apply_flags(id, subject)
-            day_display = self.fmt_user_date_only(start_dt)
-            timestamp_markup = f"[not bold]{day_display}[/not bold]"
+            bucket_date = start_dt.date() if start_dt else None
+            timestamp_markup = self._format_comparison_date(bucket_date, previous_bucket)
+            previous_bucket = bucket_date
             type_color = TYPE_TO_COLOR[itemtype]
             rows.append(
                 {
@@ -2988,9 +3079,6 @@ class Controller:
                     target_keys = ["inbox"]
 
             for key in target_keys:
-                row_text = base_text
-                if key == "scheduled" and scheduled_display:
-                    row_text = f"[not bold]{scheduled_display}[/not bold]  {base_text}"
                 row = {
                     "record_id": record_id,
                     "job_id": None,
@@ -2998,7 +3086,9 @@ class Controller:
                     "instance_ts": None,
                     "sort_subject": subject_plain.casefold(),
                     "sort_scheduled_date": scheduled_sort_date,
-                    "text": row_text,
+                    "scheduled_display": scheduled_display,
+                    "base_text": base_text,
+                    "text": base_text,
                 }
                 grouped_rows.setdefault(key, []).append(dict(row))
 
@@ -3012,6 +3102,24 @@ class Controller:
                         r.get("record_id", 0),
                     )
                 )
+                previous_scheduled: date | None = None
+                for idx, row in enumerate(rows):
+                    if idx % 26 == 0:
+                        previous_scheduled = None
+                    scheduled_date = row.get("sort_scheduled_date")
+                    if isinstance(scheduled_date, date):
+                        prefix = self._format_comparison_date(
+                            scheduled_date, previous_scheduled
+                        )
+                        previous_scheduled = scheduled_date
+                    else:
+                        fallback_display = (row.get("scheduled_display") or "").strip()
+                        if fallback_display:
+                            prefix = f"[not bold]{fallback_display}[/not bold]"
+                        else:
+                            prefix = self._format_comparison_date(None, previous_scheduled)
+                        previous_scheduled = None
+                    row["text"] = f"{prefix}  {row.get('base_text', '')}"
             else:
                 rows.sort(
                     key=lambda r: (r.get("sort_subject", ""), r.get("record_id", 0))
@@ -3019,6 +3127,8 @@ class Controller:
             for row in rows:
                 row.pop("sort_subject", None)
                 row.pop("sort_scheduled_date", None)
+                row.pop("scheduled_display", None)
+                row.pop("base_text", None)
 
         top_keys = ["inbox", "waiting", "next"]
         bottom_keys = ["someday", "scheduled"]
@@ -3053,18 +3163,22 @@ class Controller:
         if not records:
             return rows if yield_rows else ([], header)
 
-        for record_id, subject, itemtype, modified_ts, _desc in records:
+        previous_bucket: date | None = None
+        for idx, (record_id, subject, itemtype, modified_ts, _desc) in enumerate(records):
+            if idx % 26 == 0:
+                previous_bucket = None
             normalized_ts = (
                 modified_ts[:-1]
                 if modified_ts and modified_ts.endswith("Z")
                 else modified_ts
             )
             bucket_dt = datetime_from_timestamp(normalized_ts)
-            day_display = self.fmt_user_date_only(bucket_dt) if bucket_dt else "--"
 
             subject_text = subject or "(untitled)"
             subject_text = self.apply_flags(record_id, subject_text)
-            timestamp_markup = f"[not bold]{day_display}[/not bold]"
+            bucket_date = bucket_dt.date() if bucket_dt else None
+            timestamp_markup = self._format_comparison_date(bucket_date, previous_bucket)
+            previous_bucket = bucket_date
             type_color = TYPE_TO_COLOR.get(itemtype, "white")
 
             rows.append(
@@ -3427,7 +3541,18 @@ class Controller:
 
         rows = []
 
-        for dt_id, id, job_id, subject, description, itemtype, start_ts in events:
+        previous_bucket: date | None = None
+        for idx, (
+            dt_id,
+            id,
+            job_id,
+            subject,
+            description,
+            itemtype,
+            start_ts,
+        ) in enumerate(events):
+            if idx % 26 == 0:
+                previous_bucket = None
             start_dt = datetime_from_timestamp(start_ts)
             subject = self.apply_anniversary_if_needed(id, subject, start_dt)
             if job_id is not None:
@@ -3439,8 +3564,9 @@ class Controller:
                     pass
 
             subject = self.apply_flags(id, subject)
-            day_display = self.fmt_user_date_only(start_dt)
-            timestamp_markup = f"[not bold]{day_display}[/not bold]"
+            bucket_date = start_dt.date() if start_dt else None
+            timestamp_markup = self._format_comparison_date(bucket_date, previous_bucket)
+            previous_bucket = bucket_date
             type_color = TYPE_TO_COLOR[itemtype]
             rows.append(
                 {
@@ -3580,8 +3706,11 @@ class Controller:
             ]
 
         rows: list[dict] = []
+        previous_completion_date: date | None = None
 
-        for row in records:
+        for idx, row in enumerate(records):
+            if idx % 26 == 0:
+                previous_completion_date = None
             completion_id: int | None
             if len(row) == 7:
                 (
@@ -3608,7 +3737,12 @@ class Controller:
             completed_dt = completed_dt.astimezone()
             due_dt = due_dt.astimezone() if due_dt else None
 
-            date_part = self.fmt_user_date_only(completed_dt)
+            date_inner = self._format_comparison_date(
+                completed_dt.date(),
+                previous_completion_date,
+                wrap_not_bold=False,
+            )
+            previous_completion_date = completed_dt.date()
             is_midnight = (
                 completed_dt.hour == 0
                 and completed_dt.minute == 0
@@ -3616,11 +3750,11 @@ class Controller:
                 and completed_dt.microsecond == 0
             )
             if is_midnight:
-                when_str = date_part
+                when_str = date_inner
             else:
                 mode = "12" if self.AMPM else "24"
                 time_part = format_hours_mins(completed_dt, mode)
-                when_str = f"{date_part} {time_part}"
+                when_str = f"{date_inner} {time_part}"
 
             type_color = TYPE_TO_COLOR.get(itemtype, "white")
             when_frag = f"[not bold]{when_str}[/not bold]"

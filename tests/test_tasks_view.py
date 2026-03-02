@@ -1,4 +1,12 @@
+from datetime import date
+
 import pytest
+
+
+def _strip_markup(text: str) -> str:
+    import re
+
+    return re.sub(r"\[[^\]]+\]", "", text)
 
 
 @pytest.mark.integration
@@ -35,7 +43,8 @@ def test_tasks_view_groups_contexts_and_jots(test_controller, item_factory, use_
 
     assert len(scheduled_rows) == 1
     assert "task scheduled" in scheduled_rows[0]["text"]
-    assert "25-01-10" in scheduled_rows[0]["text"]
+    expected = test_controller.fmt_user_date_only(date(2025, 1, 10))
+    assert expected in _strip_markup(scheduled_rows[0]["text"])
 
     assert len(inbox_rows) == 2
     inbox_text = " ".join(r["text"] for r in inbox_rows)
@@ -92,3 +101,32 @@ def test_tasks_view_scheduled_sorted_by_date(test_controller, item_factory):
 
     assert "aaa sooner" in scheduled_rows[0]["text"]
     assert "zzz later" in scheduled_rows[1]["text"]
+
+
+@pytest.mark.integration
+def test_tasks_view_scheduled_rows_dim_unchanged_year_month(test_controller, item_factory):
+    test_controller.dayfirst = False
+    test_controller.yearfirst = True
+    test_controller.two_digit_year = False
+
+    entries = [
+        "~ task one @s 2025-01-05",
+        "~ task two @s 2025-01-20",
+    ]
+    for entry in entries:
+        item = item_factory(entry)
+        assert item.parse_ok, item.parse_message
+        test_controller.add_item(item)
+
+    groups = dict(test_controller.get_tasks_view_groups())
+    scheduled_rows = groups["scheduled"]
+    assert len(scheduled_rows) == 2
+
+    first_text = scheduled_rows[0]["text"]
+    second_text = scheduled_rows[1]["text"]
+    dim = test_controller.dim_style
+
+    assert "2025-01-05" in _strip_markup(first_text)
+    assert "2025-01-20" in _strip_markup(second_text)
+    assert f"[{dim}]2025[/{dim}]" in second_text
+    assert f"[{dim}]01[/{dim}]" in second_text
