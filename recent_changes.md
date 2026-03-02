@@ -1,5 +1,21 @@
 # Recent Changes
 
+## 1.0.4 — 2026-03-02
+
+Since 1.0.3:
+
+Why upgrade:
+- 1 additions, 0 fixes, 1 behavior changes.
+
+Added:
+- update terminology in README and code bindings to replace 'Next' with 'Later' and 'Last' with 'Earlier' and add "N" as a binding for create new.
+
+Changed:
+- clean up config file comments and improve key bindings layout in view.py
+
+Technical:
+- 4 files changed, 51 insertions(+), 44 deletions(-)
+
 ## 1.0.3 — 2026-03-02
 
 Since 1.0.2:
@@ -30,27 +46,3 @@ Docs:
 
 Technical:
 - 4 files changed, 38 insertions(+), 4 deletions(-)
-
-## 1.0.1 — 2026-03-01
-
-Since 1.0.0:
-
-Why upgrade:
-- 1 additions, 1 fixes, 1 behavior changes.
-
-Added:
-- Revise README.md: added omitted Tasks View to list
-
-Fixed:
-- Implement urgency components retrieval for records and jobs feat: add urgency entry retrieval method in DatabaseManager fix: correct urgency calculation logic in UrgencyComputer test: add integration tests for urgency components and due calculations
-
-Changed:
-- improve commit message validation by normalizing AI-generated prefixes and enforcing leading verb requirement
-
-Docs:
-- Revise README.md: Feb 2026: 1.0h
-
-Technical:
-- 9 files changed, 245 insertions(+), 15 deletions(-)
-
-Note: Added details menu option for tasks to show "Urgency components" for the selected task.
