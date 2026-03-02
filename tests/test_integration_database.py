@@ -5,8 +5,9 @@ These tests verify that items can be properly added to the database,
 retrieved, and that dependent tables are populated correctly.
 """
 
+import json
 import pytest
-from datetime import datetime
+from datetime import date, datetime
 from tklr.item import Item
 
 
@@ -88,6 +89,35 @@ class TestDatabaseOperations:
         )
         count = test_controller.db_manager.cursor.fetchone()[0]
         assert count == 1
+
+    def test_finish_repeating_date_only_task_advances_schedule(
+        self, test_controller, item_factory, freeze_at
+    ):
+        """Finishing a repeating date-only task should advance @s without tz errors."""
+        with freeze_at("2026-03-02 11:51:00"):
+            item = item_factory("~ monthly #gour @s 2026-02-25 @r m")
+            assert item.parse_ok, item.parse_message
+            record_id = test_controller.add_item(item)
+            test_controller.db_manager.populate_dependent_tables(force=True)
+
+            ok = test_controller.finish_task(
+                record_id=record_id,
+                job_id=None,
+                when=datetime(2026, 3, 2, 11, 51, 0),
+            )
+            assert ok
+
+            record = test_controller.db_manager.get_record_as_dictionary(record_id) or {}
+            tokens_raw = record.get("tokens") or "[]"
+            tokens = json.loads(tokens_raw) if isinstance(tokens_raw, str) else tokens_raw
+            s_token = next(
+                (tok for tok in tokens if tok.get("t") == "@" and tok.get("k") == "s"),
+                None,
+            )
+            assert s_token is not None
+
+            expected = test_controller.fmt_user(date(2026, 4, 25))
+            assert s_token.get("token") == f"@s {expected}"
 
 
 @pytest.mark.integration

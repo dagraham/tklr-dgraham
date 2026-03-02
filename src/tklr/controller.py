@@ -1201,7 +1201,10 @@ class Controller:
             # Convert to local naive for user display
             from dateutil import tz
 
-            if second_dt.tzinfo is not None:
+            if isinstance(second_dt, date) and not isinstance(second_dt, datetime):
+                # Preserve date-only instances as dates so @s remains date-only.
+                second_local = second_dt
+            elif second_dt.tzinfo is not None:
                 second_local = second_dt.astimezone(tz.tzlocal()).replace(tzinfo=None)
             else:
                 second_local = second_dt
