@@ -1,5 +1,20 @@
 # Recent Changes
 
+## 1.0.3 — 2026-03-02
+
+Since 1.0.2:
+
+Why upgrade:
+- 1 additions, 0 fixes, 0 behavior changes.
+
+Added:
+- implement date formatting for comparison in controller feat(tests): add tests for unchanged year and month components in various views
+
+Technical:
+- 5 files changed, 258 insertions(+), 26 deletions(-)
+
+Note: Highlight year, month and monthday changes in views listing reminders by date.
+
 ## 1.0.2 — 2026-03-02
 
 Since 1.0.1:
@@ -39,21 +54,3 @@ Technical:
 - 9 files changed, 245 insertions(+), 15 deletions(-)
 
 Note: Added details menu option for tasks to show "Urgency components" for the selected task.
-
-## 1.0.0 — 2026-02-28
-
-Since 0.0.65:
-
-Why upgrade:
-- 0 additions, 0 fixes, 1 behavior changes.
-
-Changed:
-- Refine markdown explanations for dated list views
-
-Docs:
-- Update README.md section title for weeks view
-
-Technical:
-- 1 file changed, 23 insertions(+), 19 deletions(-)
-
-Note: Production stable - all planned features, methods and tests in place
