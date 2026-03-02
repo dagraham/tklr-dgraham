@@ -1,5 +1,21 @@
 # Recent Changes
 
+## 1.0.2 — 2026-03-02
+
+Since 1.0.1:
+
+Why upgrade:
+- 1 additions, 0 fixes, 0 behavior changes.
+
+Added:
+- preserve date-only instances in time zone conversion test: add test for finishing repeating date-only tasks advancing schedule
+
+Docs:
+- update README to improve clarity on offset and notice attributes
+
+Technical:
+- 4 files changed, 38 insertions(+), 4 deletions(-)
+
 ## 1.0.1 — 2026-03-01
 
 Since 1.0.0:
@@ -41,41 +57,3 @@ Technical:
 - 1 file changed, 23 insertions(+), 19 deletions(-)
 
 Note: Production stable - all planned features, methods and tests in place
-
-## 0.0.65 — 2026-02-27
-
-Since 0.0.64:
-
-Why upgrade:
-- 7 additions, 2 fixes, 4 behavior changes.
-
-Added:
-- Added discussion of dayfirst and yearfirst with table to README.md
-- Add invitees feature with parsing and validation in Item class
-- Add SVG screenshot for wrap_args command and improve layout in README.md
-- Add SVG screenshot for wrap_noargs command and improve layout in README.md
-- Add SVG screenshot for wrap_noargs command output
-- (+2 more)
-
-Fixed:
-- Fix list formatting in README.md for scheduled time instructions
-- Fix formatting in README.md for calendar URL example
-
-Changed:
-- Respect dayfirst, yearfirst and two_digit_year settings in Last, Modified, Completed and Task scheduled displays.
-- Update prepare-commit-msg: SOURCE="${2:-}"
-- Refresh agenda when the pin/unpin status of a task is toggled.
-- Refine common methods and wrap descriptions in item.py for clarity
-
-Docs:
-- Update token-keys link in README
-- Refine README.md Makefile and related updates for linting and testing
-- Update README
-- Revise README.md: How can you remember all the <em>tklr</em> options?
-- Revise README.md: In comparison, here is how the reminder would be created
-- (+14 more)
-
-Technical:
-- 15 files changed, 1407 insertions(+), 262 deletions(-)
-
-Note: Respect two_digit_year, dayfirst and yearfirst settings in Last, Modified, Completed and Task scheduled listings.
