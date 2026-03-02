@@ -247,18 +247,18 @@ in the footer area of the main views. You can also
 check for updates manually by pressing [bold]^u[/bold], i.e.,
 pressing [bold]control[/bold] and [bold]u[/bold] simultaneously.
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
-[bold]^q[/bold]    Quit               [bold]^r[/bold]    Record Screenshot
-[bold] +[/bold]    New Reminder       [bold] N[/bold]    New Reminder
-[bold] P[/bold]    Palette            [bold] Y[/bold]    Yearly Calendar
+[bold]^q[/bold]    Quit              [bold]^r[/bold]    Record Screenshot
+[bold] +[/bold]    New Reminder      [bold] N[/bold]    New Reminder
+[bold] P[/bold]    Palette           [bold] Y[/bold]    Yearly Calendar
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
- [bold]A[/bold]    Agenda              [bold]M[/bold]    Modified
- [bold]B[/bold]    Bins                [bold]L[/bold]    Later
- [bold]C[/bold]    Completions         [bold]Q[/bold]    Query
- [bold]F[/bold]    Find                [bold]R[/bold]    Remaining Alerts
- [bold]G[/bold]    Goals               [bold]T[/bold]    Tasks
- [bold]H[/bold]    Hash-Tags           [bold]U[/bold]    Jot Uses
- [bold]J[/bold]    Jots                [bold]W[/bold]    Weeks
- [bold]E[/bold]    Earlier
+ [bold]A[/bold]    Agenda             [bold]M[/bold]    Modified
+ [bold]B[/bold]    Bins               [bold]L[/bold]    Later
+ [bold]C[/bold]    Completions        [bold]Q[/bold]    Query
+ [bold]E[/bold]    Earlier            [bold]R[/bold]    Remaining Alerts
+ [bold]F[/bold]    Find               [bold]T[/bold]    Tasks
+ [bold]G[/bold]    Goals              [bold]U[/bold]    Jot Uses
+ [bold]H[/bold]    Hash-Tags          [bold]W[/bold]    Weeks
+ [bold]J[/bold]    Jots               
 [bold][{HEADER_COLOR}]Weeks View Navigation[/{HEADER_COLOR}][/bold]
  Left/Right cursor keys move by one week.
    Add Shift to jump by 4 weeks.
@@ -4540,16 +4540,26 @@ class DynamicViewApp(App):
                 def new_item() -> None:
                     app.action_new_reminder()
 
-                add_option("Finish", finish_item, enabled=itemtype in "~^!", hotkey="f")
-                add_option("Edit", edit_item, enabled=True, hotkey="e")
                 add_option("Clone", clone_item, enabled=True, hotkey="c")
-                add_option("New reminder", new_item, enabled=True, hotkey="n")
                 add_option("Delete …", delete_item, enabled=True, hotkey="d")
+                add_option("Edit", edit_item, enabled=True, hotkey="e")
+                add_option("Finish", finish_item, enabled=itemtype in "~^!", hotkey="f")
                 add_option(
-                    "Delete completion record",
-                    delete_completion_record,
-                    enabled=(view_name == "completions" and completion_id is not None),
-                    hotkey="x",
+                    "Grasp the link - open with default app",
+                    goto_item,
+                    enabled=has_links,
+                    hotkey="g",
+                )
+                add_option(
+                    "History of completions",
+                    show_completions,
+                    enabled=itemtype in "~^",
+                    hotkey="h",
+                )
+                # add_option("New reminder", new_item, enabled=True, hotkey="n")
+                add_option("Pin/Unpin", toggle_pin, enabled=itemtype == "~", hotkey="p")
+                add_option(
+                    "Repetitions", show_repetitions, enabled=has_rrule, hotkey="r"
                 )
                 add_option(
                     "Save to system clipboard",
@@ -4557,6 +4567,7 @@ class DynamicViewApp(App):
                     enabled=True,
                     hotkey="s",
                 )
+                add_option("Touch", touch_item, enabled=True, hotkey="t")
                 # add_option("Schedule new instance", schedule_new_instance, enabled=True)
                 # add_option(
                 #     "Reschedule instance" if instance_ts else "Reschedule",
@@ -4564,24 +4575,16 @@ class DynamicViewApp(App):
                 #     enabled=True,
                 # )
                 add_option(
-                    "Open link with default", goto_item, enabled=has_links, hotkey="g"
-                )
-                add_option("Touch", touch_item, enabled=True, hotkey="t")
-                add_option(
                     "Urgency components",
                     show_urgency_components,
                     enabled=itemtype in "~^",
                     hotkey="u",
                 )
-                add_option("Pin/Unpin", toggle_pin, enabled=itemtype == "~", hotkey="p")
                 add_option(
-                    "History of completions",
-                    show_completions,
-                    enabled=itemtype in "~^",
-                    hotkey="h",
-                )
-                add_option(
-                    "Repetitions", show_repetitions, enabled=has_rrule, hotkey="r"
+                    "Delete completion record",
+                    delete_completion_record,
+                    enabled=(view_name == "completions" and completion_id is not None),
+                    hotkey="x",
                 )
 
                 if not options:
