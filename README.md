@@ -11,7 +11,7 @@
 <li>CLI and Textual UI with mouse‑free navigation.</li>
 <li>Multiple reminder types: events, tasks, projects, goals, notes, jots, drafts.</li>
 <li>Flexible scheduling (fuzzy dates, recurrence, time zones) powered by <em>dateutil</em>.</li>
-<li>Organized views (Agenda, Next/Last, Queries, bins, hashtags) to surface what matters.</li>
+<li>Organized views (Agenda, Later/Earlier, Queries, bins, hashtags) to surface what matters.</li>
 </ul>
 
 <p>If you like fast, local, keyboard‑first tools, <em>tklr</em> gives you a daily brief without a heavyweight app.</p>
@@ -409,7 +409,7 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
 Tracking where a resource goes is the key to managing any scarce resource - your time is no exception. A *jot* is a reminder type designed to facilitate this purpose. It provides a way of *quickly* recording a *jot* of time-stamped information as a *message to self*. It is sufficiently different from the other reminder types to warrant some discussion before giving an example.
 
-Imagine that *tklr* is running on your computer and that, in the midst of your hectic day, you could reach over, press "+" to create a new reminder, enter "-" to make it a *jot* and follow with the *subject* - a *brief* phrase - just enough to trigger your memory later. Then press Ctrl+S to save - an automatic timestamp will be added.
+Imagine that *tklr* is running on your computer and that, in the midst of your hectic day, you could reach over, press "+" (or "N") to create a new reminder, enter "-" to make it a *jot* and follow with the *subject* - a *brief* phrase - just enough to trigger your memory later. Then press Ctrl+S to save - an automatic timestamp will be added.
 
 What might you do with these *jots*? As is, these jots can provide a record of what you were doing and when.  At the cost of a few seconds per *jot* you can have a daily record of when and what you were doing or thinking. Press "J" to see a list of all your *jots* grouped by week and weekday and, as with all other reminder views in *tklr*, tagged with lower case letters, a, b, c, .... for easy access.
 
@@ -486,9 +486,9 @@ Each of the main views in *tklr* can be opened by pressing a single key - the fi
 | Goals            |   G   | Case insensitive search in subjects and details           |
 | Hash-Tags        |   H   | List reminders with tags grouped by tag                   |
 | Jots             |   J   | Jots by week and weekday                                  |
-| Last             |   L   | The last instance of reminders before today               |
+| Earlier          |   E   | The most recent instance of reminders before today        |
 | Modified         |   M   | All reminders sorted by modified timestamp (newest first) |
-| Next             |   N   | The next instance of reminders after today                |
+| Later            |   L   | The next instance of reminders after today                |
 | Query            |   Q   | List matches for a specified query                        |
 | Remaining Alerts |   R   | List remaining alerts for the today                       |
 | Tasks            |   T   | List tasks grouped by category                            |
@@ -556,7 +556,7 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 *Weeks View* is dedicated to displaying each instance of your scheduled reminders one week at a time with a *busy bar* at the top to show the busy days during the week at a glance followed by a day by day listing of the scheduled reminders.
 
-Two supporting views are limited to displaying a single instance of each scheduled reminder. *Next View*, bound to <code>N</code>, lists the *first* instance occurring on or after the current date in *ascending* order and *Last View*, bound to <code>L</code>, lists the most recent instance occurring *before* the current date in *descending* order. When did you last have your car serviced? *Last View* is the place to look. When is your next dental appointment? *Next View* has the answer. 
+Two supporting views are limited to displaying a single instance of each scheduled reminder. *Later View*, bound to <code>L</code>, lists the *first* instance occurring on or after the current date in *ascending* order and *Earlier View*, bound to <code>E</code>, lists the most recent instance occurring *before* the current date in *descending* order. When did you last have your car serviced? *Earlier View* is the place to look. When is your next dental appointment? *Later View* has the answer. 
 
 Two other views list reminders by datetime but not by the scheduled one. *Modified View*, bound to <code>M</code>, lists <strong>all</strong> reminders, whether or not they have an <code>@s</code> entry, by the *modified* timestamp in *descending* order (newest first). What to check a reminder you just modified? It will be first in *Modified View*. In contrast, *Completions View* only lists tasks with recorded completions by those datetimes in descending order (newest first). 
 

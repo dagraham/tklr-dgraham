@@ -2897,10 +2897,10 @@ class Controller:
 
     def get_next(self):
         """
-        Fetch and format description for the next instances.
+        Fetch and format description for later instances.
         """
         events = self.db_manager.get_next_instances()
-        header = f"Next Instances ({len(events)})"
+        header = f"Later Instances ({len(events)})"
 
         if not events:
             return [], header
@@ -3530,10 +3530,10 @@ class Controller:
 
     def get_last(self):
         """
-        Fetch and format description for the next instances.
+        Fetch and format description for earlier instances.
         """
         events = self.db_manager.get_last_instances()
-        header = f"Last instances ({len(events)})"
+        header = f"Earlier instances ({len(events)})"
         # description = [f"[not bold][{HEADER_COLOR}]{header}[/{HEADER_COLOR}][/not bold]"]
 
         if not events:

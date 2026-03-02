@@ -202,6 +202,8 @@ def build_details_help(meta: dict) -> list[str]:
         "",
         "[bold]Enter[/bold] Open reminder menu",
         "[bold]Esc[/bold] Close details view",
+        "[bold]+[/bold] New reminder",
+        "[bold]N[/bold] New reminder",
     ]
     return lines
 
@@ -246,17 +248,17 @@ check for updates manually by pressing [bold]^u[/bold], i.e.,
 pressing [bold]control[/bold] and [bold]u[/bold] simultaneously.
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
 [bold]^q[/bold]    Quit               [bold]^r[/bold]    Record Screenshot
-[bold] +[/bold]    New Reminder       [bold] Y[/bold]    Yearly Calendar
-[bold] P[/bold]    Palette
+[bold] +[/bold]    New Reminder       [bold] N[/bold]    New Reminder
+[bold] P[/bold]    Palette            [bold] Y[/bold]    Yearly Calendar
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
  [bold]A[/bold]    Agenda              [bold]M[/bold]    Modified
- [bold]B[/bold]    Bins                [bold]N[/bold]    Next
+ [bold]B[/bold]    Bins                [bold]L[/bold]    Later
  [bold]C[/bold]    Completions         [bold]Q[/bold]    Query
  [bold]F[/bold]    Find                [bold]R[/bold]    Remaining Alerts
  [bold]G[/bold]    Goals               [bold]T[/bold]    Tasks
  [bold]H[/bold]    Hash-Tags           [bold]U[/bold]    Jot Uses
  [bold]J[/bold]    Jots                [bold]W[/bold]    Weeks
- [bold]L[/bold]    Last
+ [bold]E[/bold]    Earlier
 [bold][{HEADER_COLOR}]Weeks View Navigation[/{HEADER_COLOR}][/bold]
  Left/Right cursor keys move by one week.
    Add Shift to jump by 4 weeks.
@@ -651,7 +653,7 @@ class ListWithDetails(Container):
             cmd = k  # leave other keys as-is (unlikely used)
 
         # Allow only the detail commands you use (uppercase)
-        ALLOWED = {"E", "D", "F", "P", "N", "R", "T", "CTRL+R"}
+        ALLOWED = {"D", "F", "P", "R", "T", "CTRL+R"}
         if cmd in ALLOWED:
             try:
                 self._detail_key_handler(cmd, self.details_meta or {})
@@ -3999,9 +4001,9 @@ class DynamicViewApp(App):
         ("T", "show_tasks", "Tasks"),
         ("Q", "show_query", "Query"),
         ("C", "show_completions", "Completions"),
-        ("L", "show_last", "Show Last"),
+        ("E", "show_last", "Show Earlier"),
         ("M", "show_modified", "Show Modified"),
-        ("N", "show_next", "Show Next"),
+        ("L", "show_next", "Show Later"),
         ("H", "show_tags", "Show Hash-Tags"),
         ("F", "show_find", "Find"),
         ("J", "show_jots", "Jots"),
@@ -4012,6 +4014,7 @@ class DynamicViewApp(App):
         ("Y", "show_year", "Year"),
         ("?", "show_help", "Help"),
         ("ctrl+q", "quit", "Quit"),
+        ("N", "new_reminder", "Add new reminder"),
         ("ctrl+n", "new_reminder", "Add new reminder"),
         ("+", "new_reminder", "Add new reminder"),
         ("ctrl+r", "detail_repetitions", "Show Repetitions"),
@@ -4534,9 +4537,13 @@ class DynamicViewApp(App):
                         options.append(label)
                     callbacks[label] = func
 
+                def new_item() -> None:
+                    app.action_new_reminder()
+
                 add_option("Finish", finish_item, enabled=itemtype in "~^!", hotkey="f")
                 add_option("Edit", edit_item, enabled=True, hotkey="e")
                 add_option("Clone", clone_item, enabled=True, hotkey="c")
+                add_option("New reminder", new_item, enabled=True, hotkey="n")
                 add_option("Delete …", delete_item, enabled=True, hotkey="d")
                 add_option(
                     "Delete completion record",
