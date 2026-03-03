@@ -558,9 +558,9 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 
 Two supporting views are limited to displaying a single instance of each scheduled reminder. *Later View*, bound to <code>L</code>, lists the *first* instance occurring on or after the current date in *ascending* order and *Earlier View*, bound to <code>E</code>, lists the most recent instance occurring *before* the current date in *descending* order. When did you last have your car serviced? *Earlier View* is the place to look. When is your next dental appointment? *Later View* has the answer. 
 
-Two other views list reminders by datetime but not by the scheduled one. *Modified View*, bound to <code>M</code>, lists <strong>all</strong> reminders, whether or not they have an <code>@s</code> entry, by the *modified* timestamp in *descending* order (newest first). What to check a reminder you just modified? It will be first in *Modified View*. In contrast, *Completions View* only lists tasks with recorded completions by those datetimes in descending order (newest first). 
+Two other views list reminders by datetime but not by the scheduled one. *Modified View*, bound to <code>M</code>, lists <strong>all</strong> reminders, whether or not they have an <code>@s</code> entry, by the *modified* timestamp in *descending* order (newest first). Want to check a reminder you just modified? It will be first in *Modified View*. In contrast, *Completions View* only lists *tasks with recorded completions* by the completed datetime in descending order (newest first). 
 
-A final datetime listing is provided the *scheduled* category in *Tasks View* which lists scheduled tasks by their due datetimes in ascending order (oldest first).  
+A final datetime listing is provided the *scheduled* category in *Tasks View* which lists scheduled *tasks* by their due datetimes in ascending order (oldest first).  
 
 In all of these views other than Weeks, each row begins with a numeric date that respects your `config.toml` settings for `dayfirst`, `yearfirst` and `two_digit_year`.
 
