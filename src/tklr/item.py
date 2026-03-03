@@ -1541,14 +1541,19 @@ Entry: {self.entry}
             {"token": itemtype, "s": 0, "e": 1, "t": "itemtype"}
         )
 
-        # --- subject (everything until the next '@') ---
+        # --- subject (everything until the first token boundary) ---
         cursor = 1
         n_chars = len(entry)
         while cursor < n_chars and entry[cursor].isspace():
             cursor += 1
         subject_start = cursor
-        while cursor < n_chars and entry[cursor] != "@":
-            cursor += 1
+        token_boundary = re.search(
+            r"(?:(?<=^)|(?<=\s))[@&][\w~+\-]+(?:\s+|$)", entry[subject_start:]
+        )
+        if token_boundary:
+            cursor = subject_start + token_boundary.start()
+        else:
+            cursor = n_chars
         subject_slice = entry[subject_start:cursor]
         self.subject = subject_slice.strip()
         self.relative_tokens.append(
@@ -1558,8 +1563,12 @@ Entry: {self.entry}
         # --- option tokens (@ / &) ---
         remainder_start = cursor
         remainder = entry[remainder_start:]
+        # Token values can contain '@' and '&' (e.g., emails) as long as they do not
+        # begin a new token at whitespace boundary.
         pattern = (
-            r"(?:(?<=^)|(?<=\s))(@[\w~+\-]+ [^@&]+)|(?:(?<=^)|(?<=\s))(&\w+ [^@&]+)"
+            r"(?:(?<=^)|(?<=\s))"
+            r"((?:@[\w~+\-]+|&\w+)\s+[\s\S]*?)"
+            r"(?=\s+[@&][\w~+\-]+(?:\s+|$)|$)"
         )
         for match in re.finditer(pattern, remainder):
             token_text = match.group(0)

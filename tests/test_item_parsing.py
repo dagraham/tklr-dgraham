@@ -141,6 +141,30 @@ class TestDescriptions:
         assert "Title" in item.description
         assert "This" in item.description
 
+    def test_description_allows_email_address(self, item_factory):
+        item = item_factory("~ task @d Contact dnlgrhm@pm.me for follow-up")
+
+        assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
+        assert "dnlgrhm@pm.me" in item.description
+        detail_tokens = [
+            tok
+            for tok in item.relative_tokens
+            if tok.get("t") == "@" and tok.get("k") == "d"
+        ]
+        assert detail_tokens
+        assert "dnlgrhm@pm.me" in detail_tokens[0]["token"]
+
+    def test_non_space_at_is_literal_but_space_at_starts_token(self, item_factory):
+        item = item_factory("~ task @d Contact dnlgrhm@pm.me @s 2025-01-01")
+
+        assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
+        assert "dnlgrhm@pm.me" in item.description
+
+        at_tokens = [tok for tok in item.relative_tokens if tok.get("t") == "@"]
+        keys = [tok.get("k") for tok in at_tokens]
+        assert "d" in keys
+        assert "s" in keys
+
 
 @pytest.mark.unit
 class TestInvitees:
