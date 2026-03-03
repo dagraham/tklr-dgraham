@@ -161,7 +161,7 @@ class TklrConfig(BaseModel):
     title: str = "Tklr Configuration"
     secret: str = Field(default_factory=generate_secret)
     num_completions: int = Field(6, ge=0)
-    num_logs: int = Field(0, ge=0)
+    num_logs: int = Field(3, ge=0)
     ui: UIConfig = UIConfig()
     alerts: dict[str, str] = {}
     urgency: UrgencyConfig = UrgencyConfig()
