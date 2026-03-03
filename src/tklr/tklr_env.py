@@ -161,6 +161,7 @@ class TklrConfig(BaseModel):
     title: str = "Tklr Configuration"
     secret: str = Field(default_factory=generate_secret)
     num_completions: int = Field(6, ge=0)
+    num_logs: int = Field(0, ge=0)
     ui: UIConfig = UIConfig()
     alerts: dict[str, str] = {}
     urgency: UrgencyConfig = UrgencyConfig()
@@ -179,6 +180,12 @@ secret = "{{ secret }}"
 #   0 -> keep all completions
 #   N -> keep only the N most recent completions
 num_completions = {{ num_completions }}
+
+# num_logs: int >= 0
+# For daily log files "logs/log_YYMMDD.md" and "logs/bug_YYMMDD.md":
+#   0 -> keep all log files
+#   N -> keep only the N most recent files for each kind (log and bug)
+num_logs = {{ num_logs }}
 
 [ui]
 # theme: str = 'dark' | 'light'

@@ -3,6 +3,7 @@ import textwrap
 import shutil
 import re
 import os
+import tomllib
 from rich import print as rich_print
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal, Tuple
@@ -856,6 +857,60 @@ def _default_log_relative_path(kind: str) -> Path:
     return Path("logs") / f"{kind}_{suffix}.md"
 
 
+def _get_num_logs_limit() -> int:
+    """
+    Return configured daily log retention count.
+    0 means disabled (keep all files).
+    """
+    default = 0
+    runtime_home = _get_runtime_home()
+    config_path = runtime_home / "config.toml"
+    value = default
+
+    if runtime_home == env.home:
+        try:
+            value = int(getattr(env.config, "num_logs", default))
+        except Exception:
+            value = default
+    elif config_path.exists():
+        try:
+            with open(config_path, "rb") as fh:
+                data = tomllib.load(fh)
+            value = int(data.get("num_logs", default))
+        except Exception:
+            value = default
+
+    return max(value, 0)
+
+
+def _prune_daily_log_files(kind: str, keep: int) -> None:
+    """
+    Keep at most `keep` daily files of the form logs/<kind>_YYMMDD.md.
+    """
+    if keep <= 0:
+        return
+
+    logs_dir = _get_runtime_home() / "logs"
+    if not logs_dir.exists():
+        return
+
+    files = sorted(logs_dir.glob(f"{kind}_[0-9][0-9][0-9][0-9][0-9][0-9].md"))
+    stale = files[:-keep]
+    for path in stale:
+        try:
+            path.unlink()
+        except OSError:
+            continue
+
+
+def _apply_log_retention() -> None:
+    keep = _get_num_logs_limit()
+    if keep <= 0:
+        return
+    _prune_daily_log_files("log", keep)
+    _prune_daily_log_files("bug", keep)
+
+
 def log_msg(
     msg: str,
     file_path: str | Path | None = None,
@@ -903,6 +958,7 @@ def log_msg(
     lines.append("\n\n")
 
     # Best-effort file logging; fall back to console when the file is unwritable.
+    use_default_path = file_path is None
     if file_path is None:
         file_path = _default_log_relative_path("log")
     log_path = _resolve_log_file_path(file_path)
@@ -911,6 +967,8 @@ def log_msg(
     try:
         with open(log_path, "a") as f:
             f.writelines(lines)
+        if use_default_path:
+            _apply_log_retention()
     except OSError:
         print_output = True
 
@@ -964,6 +1022,7 @@ def bug_msg(
     )
     lines.append("\n\n")
 
+    use_default_path = file_path is None
     if file_path is None:
         file_path = _default_log_relative_path("bug")
     log_path = _resolve_log_file_path(file_path)
@@ -972,6 +1031,8 @@ def bug_msg(
     try:
         with open(log_path, "a") as f:
             f.writelines(lines)
+        if use_default_path:
+            _apply_log_retention()
     except OSError:
         print_output = True
 
