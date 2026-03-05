@@ -10,6 +10,12 @@ secret = "eAa90BoW8ld1DMNwDsq0WxDuzAaAVCjN"
 #   N -> keep only the N most recent completions
 num_completions = 6
 
+# num_logs: int >= 0
+# For daily log files "logs/log_YYMMDD.md" and "logs/bug_YYMMDD.md":
+#   0 -> keep all log files
+#   N -> keep only the N most recent files for each kind (log and bug)
+num_logs = 3
+
 [ui]
 # theme: str = 'dark' | 'light'
 theme = "dark"
@@ -169,9 +175,6 @@ max = 3.0
 
 "fifth" = 2.0
 
-
-# In the default settings, a priority of "5" is the only one that yields
-# a negative value, `-5`, and thus reduces the urgency of the task.
 
 [urgency.description]
 # The "description" urgency equals "max" if the task has an "@d" entry and

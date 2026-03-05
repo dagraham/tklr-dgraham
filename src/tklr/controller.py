@@ -1089,8 +1089,10 @@ class Controller:
         Convert a DateTimes TEXT (like 'YYYYMMDD', 'YYYYMMDDTHHMMSS', etc.)
         into a local-naive datetime using your existing parse helper.
         """
-        dt = parse(text)  # you already have this
-        return self._dt_local_naive(dt)
+        parsed = parse(text)  # you already have this
+        if isinstance(parsed, date) and not isinstance(parsed, datetime):
+            parsed = datetime.combine(parsed, datetime.min.time())
+        return self._dt_local_naive(parsed)
 
     def _is_s_plus_no_r(self, tokens: list[dict]) -> bool:
         has_s = any(t.get("t") == "@" and t.get("k") == "s" for t in tokens)
@@ -3991,7 +3993,7 @@ class Controller:
         goals_rows, goal_count, goals_header = self.get_goals(
             yield_rows=True, include_future=False
         )
-        tasks_by_urgency = self.get_agenda_tasks()
+        tasks_by_urgency = self.get_agenda_tasks(now=now)
 
         goals_section: list[dict] = []
         if goal_count:
@@ -4184,7 +4186,25 @@ class Controller:
 
         return rows
 
-    def get_agenda_tasks(self):
+    def _agenda_due_prefix(self, instance_ts: str | None, now: datetime) -> str:
+        """
+        Return the Agenda due marker for a task based on its next scheduled date.
+        """
+        if not instance_ts:
+            return ""
+        try:
+            due_local = self._instance_local_from_text(instance_ts)
+        except Exception:
+            return ""
+
+        day_delta = (due_local.date() - now.date()).days
+        if day_delta < 0:
+            return f"{day_delta}d"
+        if day_delta <= 7:
+            return f"+{day_delta}d"
+        return ""
+
+    def get_agenda_tasks(self, now: datetime | None = None):
         """
         Returns rows suitable for the Agenda Tasks pane.
 
@@ -4197,6 +4217,9 @@ class Controller:
             "text": str,
         }
         """
+        if now is None:
+            now = datetime.now()
+
         tasks_by_urgency = []
 
         # Use the JOIN with Pinned so pins persist across restarts
@@ -4248,6 +4271,10 @@ class Controller:
                 min_hex_color=urgency_min,
                 max_hex_color=urgency_max,
             )
+            due_prefix = self._agenda_due_prefix(instance_ts, now)
+            subject_text = self.apply_flags(record_id, subject)
+            if due_prefix:
+                subject_text = f"{due_prefix} {subject_text}"
 
             rows.append(
                 {
@@ -4255,7 +4282,7 @@ class Controller:
                     "job_id": job_id,
                     "datetime_id": datetime_id,  # 👈 earliest DateTimes.id, or None
                     "instance_ts": instance_ts,  # 👈 earliest start_datetime TEXT, or None
-                    "text": f"[{color}]{urgency_str}  {self.apply_flags(record_id, subject)}[/{color}]",
+                    "text": f"[{color}]{urgency_str}  {subject_text}[/{color}]",
                 }
             )
 
