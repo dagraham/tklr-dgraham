@@ -1,5 +1,23 @@
 # Recent Changes
 
+## 1.0.6 — 2026-03-05
+
+Since 1.0.5:
+
+Why upgrade:
+- 1 additions, 0 fixes, 0 behavior changes.
+
+Added:
+- add num_logs configuration option add agenda task relative due date  prefix handling add integration tests for agenda tasks due prefix functionality
+
+Docs:
+- update README to enhance descriptions and clarify developer guide
+
+Technical:
+- 5 files changed, 95 insertions(+), 10 deletions(-)
+
+Note: Add relative due date indictors to tasks wiin the tasks section of agenda view
+
 ## 1.0.5 — 2026-03-03
 
 Since 1.0.4:
@@ -35,18 +53,3 @@ Changed:
 
 Technical:
 - 4 files changed, 51 insertions(+), 44 deletions(-)
-
-## 1.0.3 — 2026-03-02
-
-Since 1.0.2:
-
-Why upgrade:
-- 1 additions, 0 fixes, 0 behavior changes.
-
-Added:
-- implement date formatting for comparison in controller feat(tests): add tests for unchanged year and month components in various views
-
-Technical:
-- 5 files changed, 258 insertions(+), 26 deletions(-)
-
-Note: Highlight year, month and monthday changes in views listing reminders by date.
