@@ -9,24 +9,35 @@ on:
       - scripts/sync_recent_changes_discussion.py
       - .github/workflows/sync-recent-changes-discussion.yml
   workflow_dispatch:
+    inputs:
+      discussion_number:
+        description: "Optional GitHub Discussion number override"
+        required: false
+        type: string
 
 permissions:
   contents: read
   discussions: write
 
+concurrency:
+  group: sync-recent-changes-discussion
+  cancel-in-progress: true
+
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DISCUSSION_NUMBER: >-
+        ${{ inputs.discussion_number || vars.RECENT_CHANGES_DISCUSSION_NUMBER }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Validate discussion number
-        env:
-          DISCUSSION_NUMBER: ${{ vars.RECENT_CHANGES_DISCUSSION_NUMBER }}
         run: |
           if [ -z "${DISCUSSION_NUMBER}" ]; then
-            echo "Set repo variable RECENT_CHANGES_DISCUSSION_NUMBER to the pinned discussion number."
+            echo "Set repo variable RECENT_CHANGES_DISCUSSION_NUMBER or provide workflow_dispatch input discussion_number."
             exit 1
           fi
 
@@ -34,5 +45,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          DISCUSSION_NUMBER: ${{ vars.RECENT_CHANGES_DISCUSSION_NUMBER }}
         run: python3 scripts/sync_recent_changes_discussion.py
