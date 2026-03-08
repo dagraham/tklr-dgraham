@@ -21,6 +21,11 @@ history_weight = 3
 # Number of event days to display in Agenda view / CLI command.
 agenda_days = 3
 
+# cli_rich: bool = true | false
+# Use Rich colors/styling by default for CLI commands that support
+# the --rich/--plain override pair.
+cli_rich = false
+
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
 # Prefix with '!' to run a standalone command/script (no automatic 'tklr').

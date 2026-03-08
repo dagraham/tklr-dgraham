@@ -140,6 +140,12 @@ def _format_home_candidates() -> str:
     return "\n".join(candidates)
 
 
+def _resolve_rich_output(env: TklrEnvironment, rich: Optional[bool]) -> bool:
+    if rich is not None:
+        return rich
+    return bool(getattr(env.config.ui, "cli_rich", False))
+
+
 def get_raw_from_file(path: str) -> str:
     with open(path, "r", encoding="utf-8") as f:
         return f.read().strip()
@@ -370,8 +376,16 @@ def check(ctx, entry):
 )
 @click.option(
     "--rich",
-    is_flag=True,
-    help="Use Rich colors/styling (default output is plain).",
+    "rich",
+    flag_value=True,
+    default=None,
+    help="Use Rich colors/styling for this command.",
+)
+@click.option(
+    "--plain",
+    "rich",
+    flag_value=False,
+    help="Disable Rich colors/styling for this command.",
 )
 @click.option(
     "--ids",
@@ -394,11 +408,12 @@ def agenda(ctx, width, rich, ids):
 
     controller = Controller(db, env)
     rows = controller.get_agenda(yield_rows=True)
+    rich = _resolve_rich_output(env, rich)
 
     if verbose:
         print(f"[blue]Displaying agenda with {len(rows)} items[/blue]")
 
-    # ---- console: plain by default; markup only if --rich ----
+    # ---- console: config default unless overridden by --rich/--plain ----
     is_tty = sys.stdout.isatty()
     console = Console(
         force_terminal=rich and is_tty,
@@ -624,8 +639,16 @@ def _format_alert_trigger_display(trigger_text: str, ampm: bool) -> str:
 )
 @click.option(
     "--rich",
-    is_flag=True,
-    help="Use Rich colors/styling (default output is plain).",
+    "rich",
+    flag_value=True,
+    default=None,
+    help="Use Rich colors/styling for this command.",
+)
+@click.option(
+    "--plain",
+    "rich",
+    flag_value=False,
+    help="Disable Rich colors/styling for this command.",
 )
 @click.option(
     "--ids",
@@ -653,6 +676,7 @@ def weeks(ctx, start_opt, end_opt, width, rich, ids):
     if verbose:
         print(f"tklr version: {get_version()}")
         print(f"using home directory: {env.get_home()}")
+    rich = _resolve_rich_output(env, rich)
 
     # ---- 1) parse start / end into Monday .. Sunday range ----
     if not start_opt or start_opt.lower() == "today":
@@ -677,7 +701,7 @@ def weeks(ctx, start_opt, end_opt, width, rich, ids):
     events = dbm.get_events_for_period(start_dt, end_dt)
     by_date = _group_instances_by_date_for_weeks(events, dbm, controller)
 
-    # ---- 3) console: plain by default; markup only if --rich ----
+    # ---- 3) console: config default unless overridden by --rich/--plain ----
     is_tty = sys.stdout.isatty()
     console = Console(
         force_terminal=rich and is_tty,
@@ -784,8 +808,16 @@ def weeks(ctx, start_opt, end_opt, width, rich, ids):
 )
 @click.option(
     "--rich",
-    is_flag=True,
-    help="Use Rich colors/styling (default output is plain).",
+    "rich",
+    flag_value=True,
+    default=None,
+    help="Use Rich colors/styling for this command.",
+)
+@click.option(
+    "--plain",
+    "rich",
+    flag_value=False,
+    help="Disable Rich colors/styling for this command.",
 )
 @click.option(
     "--ids",
@@ -814,6 +846,7 @@ def days(ctx, start_opt, end_opt, width, rich, ids):
     if verbose:
         print(f"tklr version: {get_version()}")
         print(f"using home directory: {env.get_home()}")
+    rich = _resolve_rich_output(env, rich)
 
     # ---- 1) parse start / end into date range ----
     if not start_opt or start_opt.lower() == "today":
@@ -835,7 +868,7 @@ def days(ctx, start_opt, end_opt, width, rich, ids):
     events = dbm.get_events_for_period(start_dt, end_dt)
     by_date = _group_instances_by_date_for_weeks(events, dbm, controller)
 
-    # ---- 3) console: plain by default; markup only if --rich ----
+    # ---- 3) console: config default unless overridden by --rich/--plain ----
     is_tty = sys.stdout.isatty()
     console = Console(
         force_terminal=rich and is_tty,

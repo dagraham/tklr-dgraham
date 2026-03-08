@@ -70,6 +70,7 @@ class UIConfig(BaseModel):
     two_digit_year: bool = True
     history_weight: int = 3
     agenda_days: int = Field(3, ge=1)
+    cli_rich: bool = False
     minutes: int = 6
     palette: Dict[str, Dict[str, str]] = Field(default_factory=dict)
     current_command: str = ""
@@ -203,6 +204,11 @@ history_weight = {{ ui.history_weight }}
 # agenda_days: int >= 1
 # Number of event days to display in Agenda view / CLI command.
 agenda_days = {{ ui.agenda_days }}
+
+# cli_rich: bool = true | false
+# Use Rich colors/styling by default for CLI commands that support
+# the --rich/--plain override pair.
+cli_rich = {{ ui.cli_rich | lower }}
 
 # minutes: int = 3 | 6 | 12 | 15 | 30
 # Rounding step (in minutes) for jot extents.
