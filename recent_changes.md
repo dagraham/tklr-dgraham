@@ -1,5 +1,18 @@
 # Recent Changes
 
+## 1.0.7 — 2026-03-08
+
+Since 1.0.6:
+
+Why upgrade:
+- 1 additions, 0 fixes, 0 behavior changes.
+
+Added:
+- added support for rich output configuration in CLI commands
+
+Technical:
+- 4 files changed, 161 insertions(+), 9 deletions(-)
+
 ## 1.0.6 — 2026-03-05
 
 Since 1.0.5:
@@ -37,19 +50,3 @@ Docs:
 
 Technical:
 - 6 files changed, 137 insertions(+), 6 deletions(-)
-
-## 1.0.4 — 2026-03-02
-
-Since 1.0.3:
-
-Why upgrade:
-- 1 additions, 0 fixes, 1 behavior changes.
-
-Added:
-- update terminology in README and code bindings to replace 'Next' with 'Later' and 'Last' with 'Earlier' and add "N" as a binding for create new.
-
-Changed:
-- clean up config file comments and improve key bindings layout in view.py
-
-Technical:
-- 4 files changed, 51 insertions(+), 44 deletions(-)
