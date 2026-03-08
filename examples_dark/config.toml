@@ -33,6 +33,11 @@ history_weight = 3
 # Number of event days to display in Agenda view / CLI command.
 agenda_days = 3
 
+# cli_rich: bool = true | false
+# Use Rich colors/styling by default for CLI commands that support
+# the --rich/--plain override pair.
+cli_rich = false
+
 # minutes: int = 3 | 6 | 12 | 15 | 30
 # Rounding step (in minutes) for jot extents.
 minutes = 6

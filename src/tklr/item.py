@@ -1576,19 +1576,20 @@ Entry: {self.entry}
             end_pos = remainder_start + match.end()
             token_type = "@" if token_text.startswith("@") else "&"
             key = token_text[1:3].strip()
-            self.relative_tokens.append(
-                {
-                    "token": token_text,
-                    "s": start_pos,
-                    "e": end_pos,
-                    "t": token_type,
-                    "k": key,
-                }
-            )
+            token = {
+                "token": token_text,
+                "s": start_pos,
+                "e": end_pos,
+                "t": token_type,
+                "k": key,
+            }
+            if token_type == "@" and not token_text[2:].strip():
+                token["incomplete"] = True
+            self.relative_tokens.append(token)
 
         # --- partial token handling (user still typing) ---
         partial_token = None
-        at_partial = re.search(r"@([A-Za-z]?)$", entry)
+        at_partial = re.search(r"@([A-Za-z~+\-]?)$", entry)
         if at_partial and " " not in at_partial.group(0):
             partial_token = {
                 "token": "@" + at_partial.group(1),
@@ -1599,7 +1600,7 @@ Entry: {self.entry}
                 "incomplete": True,
             }
         else:
-            at_space_partial = re.search(r"@([A-Za-z]+)\s*$", entry)
+            at_space_partial = re.search(r"@([A-Za-z~+\-]+)\s*$", entry)
             if at_space_partial:
                 partial_token = {
                     "token": entry[len(entry) - len(at_space_partial.group(0)) :],
@@ -1782,7 +1783,10 @@ Entry: {self.entry}
                 # the leading space is needed for parsing
                 content = f" {content}"
             return number, summary, content
-        return None, text  # If no match, return None for number and the entire string
+        stripped = (text or "").strip()
+        if stripped.startswith("@~"):
+            return None, stripped[2:].strip(), None
+        return None, stripped, None
 
     @classmethod
     def from_dict(cls, data: dict):

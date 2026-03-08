@@ -167,6 +167,22 @@ class TestDescriptions:
 
 
 @pytest.mark.unit
+class TestProjectLiveEditing:
+    def test_incomplete_project_job_line_does_not_crash(self, item_factory):
+        entry = """^ Project test
+  @~ step 1
+  @~
+  @~ step 3
+"""
+
+        item = item_factory(entry, final=False)
+
+        assert item.itemtype == "^"
+        assert item.subject == "Project test"
+        assert any(tok.get("k") == "~" for tok in item.relative_tokens)
+
+
+@pytest.mark.unit
 class TestInvitees:
     def test_event_invitees_parse(self, item_factory):
         item = item_factory("* planning session @s 2025-01-10 10:00 @i Alice, Bob")
