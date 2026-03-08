@@ -1,5 +1,18 @@
 # Recent Changes
 
+## 1.0.8rc0 — 2026-03-08
+
+Since 1.0.8:
+
+Why upgrade:
+- 0 additions, 0 fixes, 1 behavior changes.
+
+Changed:
+- Updated sync-recent-changes-discussion avoiding copilot hooks.
+
+Technical:
+- 1 file changed, 14 insertions(+), 4 deletions(-)
+
 ## 1.0.8 — 2026-03-08
 
 Since 1.0.7:
@@ -25,21 +38,3 @@ Added:
 
 Technical:
 - 4 files changed, 161 insertions(+), 9 deletions(-)
-
-## 1.0.6 — 2026-03-05
-
-Since 1.0.5:
-
-Why upgrade:
-- 1 additions, 0 fixes, 0 behavior changes.
-
-Added:
-- add num_logs configuration option add agenda task relative due date  prefix handling add integration tests for agenda tasks due prefix functionality
-
-Docs:
-- update README to enhance descriptions and clarify developer guide
-
-Technical:
-- 5 files changed, 95 insertions(+), 10 deletions(-)
-
-Note: Add relative due date indictors to tasks wiin the tasks section of agenda view
