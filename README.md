@@ -233,7 +233,7 @@ Here are some illustrations of how the various types.
   <li><a href="#125-a-complicated-but-regularly-repeating-task-vote-for-president">1.2.5. A <em>complicated</em> but regularly repeating task: vote for president</a></li>
   <li><a href="#126-an-offset-task-fill-bird-feeders">1.2.6. An <em>offset task</em>: fill bird feeders</a></li>
   <li><a href="#127-a-note-a-favorite-churchill-quotation">1.2.7. A <em>note</em>: a favorite Churchill quotation</a></li>
-  <li><a href="#128-a-project-build-a-dog-house-with-component-tasks">1.2.8. A <em>project</em>: build a dog house with component tasks</a></li>
+  <li><a href="#128-projects-with-and-without-prerequisites">1.2.8. <em>projects</em>: with and without prerequisites</a></li>
   <li><a href="#129-a-goal-interval-training-3-times-each-week">1.2.9. A <em>goal</em>: interval training 3 times each week</a></li>
   <li><a href="#1210-a-jot-taking-a-walk">1.2.10. A <em>jot</em>: taking a walk</a></li>
   <li><a href="#1211-a-draft-reminder-meet-alex-for-coffee---time-to-be-determined">1.2.11. A <em>draft</em> reminder: meet Alex for coffee - time to be determined</a></li>
@@ -368,19 +368,36 @@ It is worth noting the different roles of two attributes in events and tasks.
 
 <a id="doghouse-example"></a>
 
-#### 1.2.8. A _project_: build a dog house with component tasks
+#### 1.2.8. _projects_: with and without prerequisites
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
-<code>^ Build dog house
-  @~ pick up materials &r 1 &e 4h
-  @~ cut pieces &r 2: 1 &e 3h
-  @~ assemble &r 3: 2 &e 2h
-  @~ sand &r 4: 3 &e 1h
-  @~ paint &r 5: 4 &e 4h
+<code>
+^ Build dog house
+  @~ pick up materials &r 1 
+  @~ cut pieces &r 2: 1 
+  @~ assemble &r 3: 2 
+  @~ sand &r 4: 3
+  @~ paint &r 5: 4 
+  @d these tasks must be done in order, 
+     each is a prerequiste for the next
+</code>
+<code>
+^ Apply fertilizer
+  @~ daffodils behind house @r 1
+  @~ azalias by entrance @r 2 
+  @~ crepe myrtles by driveway @r 3 
+  @d these tasks can be done in any order, 
+     none is a prerequisite for another
 </code>
   </pre>
-      <p>The beginning <code>^</code> makes this a <i>project</i>. This is a collection of related tasks specified by the <code>@~</code> entries. In each task, the <code>&r X: Y</code> <em>requires</em> attribute sets <code>X</code> as the label for the task and sets the task labeled <code>Y</code> as a requirement or prerequisite for <code>X</code>. E.g., <code>&r 3: 2</code> establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. The <code>&e</code> <i>extent</i> entries give estimates of the times required to complete the various tasks.
+      <p>The beginning <code>^</code> makes these reminders <i>projects</i>. The first is a collection of related tasks specified by the <code>@~</code> entries. In each task, the <code>&r X: Y</code> <em>requires</em> attribute sets <code>X</code> as the label for the task and sets the task labeled <code>Y</code> as a requirement or prerequisite for <code>X</code>. E.g., <code>&r 3: 2</code> establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. 
+      </p>
+      <p>
+      The second is also a collection of related tasks but none of the <code>&r X</code> entries specify either of the other tasks as a prerequisite. These tasks can be done in any order.   
+      </p>
+      <p>
+      The labels provided by the <code>&r</code> entries are required, with or without prerequisites, for each of the component <code>@~</code> tasks. 
       </p>
     </div>
 <div style="clear:both;"></div>
@@ -1602,7 +1619,7 @@ The *tklr* settings mirror standard usage in <code>strftime</code>.
 
 ### 5.5. <code>@~</code> project task/job modifier changes
 
-The modifiers used in <code>@~</code> <em>project task</em> entries are significantly changed from the <em>etm</em> <code>@j</code> <em>job</em> entries. In <em>tklr</em>, the optional <code>&r</code> <em>requires</em> modifier replaces both the <code>&i</code> <em>id</em> and the <code>&p</code> <em>prerequisite</em> modifiers. See [doghouse project](#doghouse-example) for an example of the new usage.
+The modifiers used in <code>@~</code> <em>project task</em> entries are significantly changed from the <em>etm</em> <code>@j</code> <em>job</em> entries. In <em>tklr</em>, the optional <code>&r</code> <em>requires</em> modifier replaces both the <code>&i</code> <em>id</em> and the <code>&p</code> <em>prerequisite</em> modifiers. See [projects](#doghouse-example) for an example of the new usage.
 
 ## 6. Developer Guide
 
