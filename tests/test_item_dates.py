@@ -109,6 +109,7 @@ class TestTimezones:
 
         assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
         # Should be timezone-naive
+        assert item.tz_str == "none"
 
     def test_utc_timezone(self, frozen_time, item_factory):
         """Test parsing with UTC timezone."""
@@ -127,6 +128,7 @@ class TestTimezones:
 
         assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
         # Should be timezone-aware (Pacific)
+        assert item.tz_str == "US/Pacific"
 
     def test_cet_timezone(self, frozen_time, item_factory):
         """Test parsing with CET timezone."""

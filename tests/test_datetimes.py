@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 
 import pytest
 
@@ -73,5 +74,70 @@ def test_rdate_rows_use_local_time(isolated_env, monkeypatch, tz_name):
     ).fetchall()
     assert repeat_rows[0][0].endswith("1100")
     assert repeat_rows[1][0].endswith("1100")
+
+    dbm.conn.close()
+
+
+@pytest.mark.parametrize("tz_name", ["US/Eastern"])
+def test_aware_weekly_recurrence_keeps_local_wall_time_across_dst(
+    isolated_env, monkeypatch, tz_name
+):
+    """
+    Aware recurring reminders are stored in UTC, but each generated instance
+    should be expanded in the record's timezone before conversion back to the
+    viewer's local timezone. This keeps an 8:00 AM US/Eastern series at 8:00 AM
+    after the March 8, 2026 DST transition.
+    """
+
+    monkeypatch.setenv("TZ", tz_name)
+    if hasattr(time, "tzset"):
+        time.tzset()
+
+    dbm = DatabaseManager(
+        str(isolated_env.db_path),
+        isolated_env,
+        reset=True,
+        auto_populate=False,
+    )
+
+    item = Item(
+        env=isolated_env,
+        raw=(
+            "* pickleball @s 2026-01-05 8:00AM @e 90m "
+            "@r w &w MO, TH @- 20260129T0800"
+        ),
+        final=True,
+    )
+    record_id = dbm.add_item(item)
+
+    dbm.generate_datetimes_for_record(
+        record_id,
+        clear_existing=True,
+        window=(datetime(2026, 3, 1), datetime(2026, 3, 31, 23, 59)),
+    )
+    dbm.conn.commit()
+
+    (rruleset,) = dbm.cursor.execute(
+        "SELECT rruleset FROM Records WHERE id=?",
+        (record_id,),
+    ).fetchone()
+    assert "DTSTART:20260105T1300Z" in rruleset
+    assert "EXDATE:20260129T1300Z" in rruleset
+
+    rows = dbm.cursor.execute(
+        "SELECT start_datetime FROM DateTimes WHERE record_id=? ORDER BY start_datetime",
+        (record_id,),
+    ).fetchall()
+    assert rows == [
+        ("20260302T0800",),
+        ("20260305T0800",),
+        ("20260309T0800",),
+        ("20260312T0800",),
+        ("20260316T0800",),
+        ("20260319T0800",),
+        ("20260323T0800",),
+        ("20260326T0800",),
+        ("20260330T0800",),
+    ]
 
     dbm.conn.close()

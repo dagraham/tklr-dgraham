@@ -2,6 +2,7 @@ import re
 from copy import deepcopy
 import shutil
 import json
+import os
 
 # from dateutil.parser import parse as duparse
 from dateutil.rrule import rruleset, rrulestr
@@ -117,6 +118,9 @@ def _fmt_utc_Z(dt: datetime) -> str:
 
 def _local_tzname() -> str:
     # string name is sometimes handy for UI/logging
+    tz_env = (os.environ.get("TZ") or "").strip()
+    if tz_env:
+        return tz_env
     try:
         return get_localzone_name()
     except Exception:
@@ -963,8 +967,8 @@ class Item:
 
         # --- timezone defaults (match your previous working code) ---
 
-        self.timezone = get_localzone_name()
-        self.tz_str = local_timezone
+        self.timezone = _local_tzname()
+        self.tz_str = _local_tzname()
 
         # TODO: remove these
         self.skip_token_positions = set()
@@ -1351,7 +1355,7 @@ Entry: {self.entry}
         """
         Returns (obj, kind, tz_name_used)
         kind ∈ {'date','naive','aware','error'}
-        tz_name_used: tz string ('' means local), or None for date/naive/error
+        tz_name_used: timezone name string, or None for date/naive/error
         On error: (None, 'error', <message>)
         """
         core, zdir = _split_z_directive(user_text)
@@ -1369,11 +1373,13 @@ Entry: {self.entry}
                 zone = tz.gettz(zdir)
                 if zone is None:
                     return None, "error", f"Unknown timezone: {zdir!r}"
+                tz_name = zdir
             else:
                 zone = tz.tzlocal()
+                tz_name = _local_tzname()
 
             now_aware = datetime.now(zone)
-            return _ensure_utc(now_aware), "aware", zone
+            return _ensure_utc(now_aware), "aware", tz_name
 
         try:
             obj = parse_dt(core, dayfirst=self.dayfirst, yearfirst=self.yearfirst)
@@ -1404,14 +1410,14 @@ Entry: {self.entry}
             if zone is None:
                 # >>> HARD FAIL on invalid tz <<<
                 return None, "error", f"Unknown timezone: {zdir!r}"
-            tz_used = zdir
+            tz_name = zdir
         else:
             zone = tz.tzlocal()
-            tz_used = ""  # '' means "local tz"
+            tz_name = _local_tzname()
 
         obj_aware = _attach_zone(obj, zone)
         obj_utc = _ensure_utc(obj_aware)
-        return obj_utc, "aware", zone
+        return obj_utc, "aware", tz_name
 
     def collect_grouped_tokens(self, anchor_keys: set[str]) -> list[list[dict]]:
         """
@@ -2338,14 +2344,25 @@ Entry: {self.entry}
                 compact = self._serialize_date(obj)
                 self.s_kind = "date"
                 self.s_tz = None
+                self.timezone = None
+                self.tz_str = "none"
             elif kind == "naive":
                 compact = self._serialize_naive_dt(obj)
                 self.s_kind = "naive"
                 self.s_tz = None
+                self.timezone = None
+                self.tz_str = "none"
             else:  # aware
-                compact = self._serialize_aware_dt(obj, tz_used)
+                zone_name = tz_used or _local_tzname()
+                zone = tz.gettz(zone_name)
+                compact = self._serialize_aware_dt(obj, zone or tz.UTC)
                 self.s_kind = "aware"
-                self.s_tz = tz_used  # '' == local
+                self.s_tz = zone or tz.UTC
+                try:
+                    self.timezone = ZoneInfo(zone_name) if zone_name else None
+                except Exception:
+                    self.timezone = None
+                self.tz_str = zone_name or "none"
 
             # compact = self._serialize_date_or_datetime(obj)
 

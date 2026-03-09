@@ -3449,6 +3449,74 @@ class DatabaseManager:
                 normalized.append(line)
         return "\n".join(normalized)
 
+    def _format_rrule_datetime_for_timezone(self, value: str, zone) -> str:
+        text = (value or "").strip()
+        if not text:
+            return text
+        try:
+            dt = dateutil_parser.parse(text)
+        except Exception:
+            return text
+
+        if isinstance(dt, datetime):
+            if dt.tzinfo is not None:
+                dt = dt.astimezone(zone)
+            fmt = "%Y%m%dT%H%M%S" if dt.second else "%Y%m%dT%H%M"
+            return dt.strftime(fmt)
+        if isinstance(dt, date):
+            return dt.strftime("%Y%m%d")
+        return text
+
+    def _localize_rruleset(self, rule_str: str, timezone_name: str | None) -> str:
+        tz_name = (timezone_name or "").strip()
+        if not rule_str or not tz_name or tz_name.lower() == "none":
+            return rule_str
+
+        zone = tz.gettz(tz_name)
+        if zone is None:
+            return rule_str
+
+        localized: list[str] = []
+        for raw_line in rule_str.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+
+            upper = line.upper()
+            if upper.startswith("DTSTART;VALUE=DATE:"):
+                localized.append(line)
+                continue
+            if upper.startswith("DTSTART;TZID="):
+                localized.append(line)
+                continue
+            if upper.startswith("DTSTART:"):
+                _, body = line.split(":", 1)
+                local_body = self._format_rrule_datetime_for_timezone(body, zone)
+                if "T" in local_body:
+                    localized.append(f"DTSTART;TZID={tz_name}:{local_body}")
+                else:
+                    localized.append(f"DTSTART;VALUE=DATE:{local_body}")
+                continue
+            if upper.startswith("RDATE;TZID=") or upper.startswith("EXDATE;TZID="):
+                localized.append(line)
+                continue
+            if upper.startswith("RDATE:") or upper.startswith("EXDATE:"):
+                prefix, body = line.split(":", 1)
+                parts = [
+                    self._format_rrule_datetime_for_timezone(part, zone)
+                    for part in body.split(",")
+                    if part
+                ]
+                if parts and all("T" not in part for part in parts):
+                    localized.append(f"{prefix}:{','.join(parts)}")
+                else:
+                    localized.append(f"{prefix};TZID={tz_name}:{','.join(parts)}")
+                continue
+
+            localized.append(line)
+
+        return "\n".join(localized)
+
     @staticmethod
     def _week_key(year: int, week: int) -> tuple[int, int]:
         return (year, week)
@@ -3662,7 +3730,7 @@ class DatabaseManager:
         """
         # Fetch core fields including itemtype and jobs JSON
         self.cursor.execute(
-            "SELECT itemtype, rruleset, extent, jobs, processed FROM Records WHERE id=?",
+            "SELECT itemtype, rruleset, timezone, extent, jobs, processed FROM Records WHERE id=?",
             (record_id,),
         )
         row = self.cursor.fetchone()
@@ -3670,10 +3738,13 @@ class DatabaseManager:
             log_msg(f"⚠️ No record found id={record_id}")
             return
 
-        itemtype, rruleset, record_extent, jobs_json, processed = row
+        itemtype, rruleset, record_timezone, record_extent, jobs_json, processed = row
         raw_rule = (rruleset or "").replace("\\N", "\n").replace("\\n", "\n")
-        is_aware = "Z" in raw_rule
         rule_str = self._normalize_rruleset(raw_rule)
+        has_rrule = "RRULE" in rule_str
+        if has_rrule:
+            rule_str = self._localize_rruleset(rule_str, record_timezone)
+        is_aware = ("Z" in raw_rule) or ("TZID=" in rule_str)
 
         # Nothing to do without any schedule
         if not rule_str:
@@ -3690,12 +3761,11 @@ class DatabaseManager:
         has_jobs = bool(jobs)
         # log_msg(f"{has_jobs = }, {jobs = }")
 
-        has_rrule = "RRULE" in rule_str
         is_finite = (not has_rrule) or ("COUNT=" in rule_str) or ("UNTIL=" in rule_str)
 
         # Build parent recurrence iterator
         try:
-            rule = rrulestr(rule_str)
+            rule = rrulestr(rule_str, tzids=lambda name: tz.gettz(name))
         except Exception as e:
             log_msg(
                 f"rrulestr failed for record {record_id}: {e}\n---\n{rule_str}\n---"
