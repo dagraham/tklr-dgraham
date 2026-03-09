@@ -1,5 +1,18 @@
 # Recent Changes
 
+## 1.0.10 — 2026-03-09
+
+Since 1.0.9:
+
+Why upgrade:
+- 1 additions, 0 fixes, 0 behavior changes.
+
+Added:
+- Add datetime derived versioning to DatabaseManager and update methods to use it
+
+Technical:
+- 1 file changed, 11 insertions(+), 4 deletions(-)
+
 ## 1.0.9 — 2026-03-09
 
 Since 1.0.8rc0:
@@ -35,16 +48,3 @@ Changed:
 
 Technical:
 - 1 file changed, 14 insertions(+), 4 deletions(-)
-
-## 1.0.8 — 2026-03-08
-
-Since 1.0.7:
-
-Why upgrade:
-- 0 additions, 1 fixes, 0 behavior changes.
-
-Fixed:
-- Fixed bug in processing incomplete project task entries
-
-Technical:
-- 4 files changed, 42 insertions(+), 12 deletions(-)
