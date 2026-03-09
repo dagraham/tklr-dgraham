@@ -96,3 +96,29 @@ def test_invalid_query_raises():
     engine = QueryEngine()
     with pytest.raises(QueryError):
         engine.run("", [])
+
+
+def test_exists_supports_project_job_requires_modifier():
+    engine = QueryEngine()
+    records = [
+        make_record(
+            1,
+            "^",
+            "Doghouse",
+            [
+                {"t": "@", "k": "~", "token": "@~ cut pieces"},
+                {"t": "&", "k": "r", "token": "&r 2: 1"},
+            ],
+        ),
+        make_record(
+            2,
+            "^",
+            "Garden",
+            [
+                {"t": "@", "k": "~", "token": "@~ plant bulbs"},
+            ],
+        ),
+    ]
+
+    response = engine.run("exists ~r", records)
+    assert [match.record_id for match in response.matches] == [1]

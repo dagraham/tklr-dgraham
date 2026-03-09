@@ -181,6 +181,19 @@ class TestProjectLiveEditing:
         assert item.subject == "Project test"
         assert any(tok.get("k") == "~" for tok in item.relative_tokens)
 
+    def test_project_job_requires_r_label_on_final_parse(self, item_factory):
+        item = item_factory("^ Project test @~ step 1", final=True)
+
+        assert not item.parse_ok
+        assert "Each @~ job requires an &r label" in (item.parse_message or "")
+
+    def test_project_job_missing_r_label_survives_second_finalize(self, item_factory):
+        item = item_factory("^ Project test @~ step 1", final=True)
+        item.finalize_record()
+
+        assert not item.parse_ok
+        assert "Each @~ job requires an &r label" in (item.parse_message or "")
+
 
 @pytest.mark.unit
 class TestInvitees:

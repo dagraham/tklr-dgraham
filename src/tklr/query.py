@@ -74,9 +74,11 @@ class RecordView:
     def _populate_from_tokens(self, tokens: Sequence[dict]) -> None:
         self._field_map["itemtype"] = [self.itemtype]
         self._field_map["subject"] = [self.subject]
+        modifier_scope: str | None = None
         for token in tokens:
             if token.get("t") == "@":
                 key = (token.get("k") or "").lower()
+                modifier_scope = "~" if key == "~" else None
                 if not key:
                     continue
                 if key == "m":
@@ -86,10 +88,23 @@ class RecordView:
                 if value is None:
                     continue
                 self._field_map.setdefault(key, []).append(value)
+            elif token.get("t") == "&":
+                if not modifier_scope:
+                    continue
+                key = (token.get("k") or "").lower()
+                if not key:
+                    continue
+                value = self._extract_token_value(token)
+                if value is None:
+                    continue
+                self._field_map.setdefault(f"{modifier_scope}{key}", []).append(value)
             elif token.get("t") == "subject":
+                modifier_scope = None
                 text = (token.get("token") or "").strip()
                 if text:
                     self._field_map["subject"].append(text)
+            else:
+                modifier_scope = None
 
     def _extract_token_value(self, token: dict) -> str | None:
         raw = token.get("token")
@@ -97,7 +112,8 @@ class RecordView:
             return None
         raw = str(raw).strip()
         key = token.get("k") or ""
-        prefix = f"@{key}"
+        token_type = token.get("t") if token.get("t") in {"@", "&"} else "@"
+        prefix = f"{token_type}{key}"
         if raw.startswith(prefix):
             value = raw[len(prefix) :].strip()
         else:

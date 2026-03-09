@@ -1166,6 +1166,11 @@ class Item:
         if self.itemtype == "^":
             jobset = self.build_jobs()
             success, finalized = self.finalize_jobs(jobset)
+            if not success:
+                self.parse_ok = False
+                self.had_token_error = True
+                self.parse_message = str(finalized)
+                return
         # rruleset is needed to get the next two occurrences
 
         if self.has_f:
@@ -3315,7 +3320,19 @@ Entry: {self.entry}
         if not jobs:
             return False, "No jobs to process"
         if not self.parse_ok:
-            return False, "Error parsing job tokens"
+            return False, self.parse_message or "Error parsing job tokens"
+
+        missing_ids = [
+            job.get("~") or f"job {idx}"
+            for idx, job in enumerate(jobs, start=1)
+            if "id" not in job
+        ]
+        if missing_ids:
+            return (
+                False,
+                "Each @~ job requires an &r label. Missing for: "
+                + ", ".join(missing_ids),
+            )
 
         # index by id
         job_map = {j["id"]: j for j in jobs if "id" in j}
