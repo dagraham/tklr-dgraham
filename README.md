@@ -388,7 +388,7 @@ It is worth noting the different roles of two attributes in events and tasks.
   @~ azalias by entrance &r 2 
   @~ crepe myrtles by driveway &r 3 
   @d these tasks can be done in any order, 
-     none is a prerequisite for another
+     none have prerequisites
 </code>
   </pre>
       <p>The beginning <code>^</code> makes these reminders <i>projects</i>. The first is a collection of related tasks specified by the <code>@~</code> entries. In each task, the <code>&r X: Y</code> <em>requires</em> attribute sets <code>X</code> as the label for the task and sets the task labeled <code>Y</code> as a requirement or prerequisite for <code>X</code>. E.g., <code>&r 3: 2</code> establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. 
