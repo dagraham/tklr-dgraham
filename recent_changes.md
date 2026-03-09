@@ -1,5 +1,20 @@
 # Recent Changes
 
+## 1.0.11 — 2026-03-09
+
+Since 1.0.10:
+
+Why upgrade:
+- 0 additions, 0 fixes, 1 behavior changes.
+
+Changed:
+- Enhance job parsing to require &r label for @~ jobs and improve error messaging
+
+Technical:
+- 4 files changed, 74 insertions(+), 2 deletions(-)
+
+Note: Require &r labels in project @~ tasks
+
 ## 1.0.10 — 2026-03-09
 
 Since 1.0.9:
@@ -35,16 +50,3 @@ Technical:
 - 5 files changed, 256 insertions(+), 25 deletions(-)
 
 Note: Daylight saving time fix
-
-## 1.0.8rc0 — 2026-03-08
-
-Since 1.0.8:
-
-Why upgrade:
-- 0 additions, 0 fixes, 1 behavior changes.
-
-Changed:
-- Updated sync-recent-changes-discussion avoiding copilot hooks.
-
-Technical:
-- 1 file changed, 14 insertions(+), 4 deletions(-)
