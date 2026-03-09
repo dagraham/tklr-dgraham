@@ -74,6 +74,8 @@ BIN_PATHS = [
     ["video", "library"],
 ]
 
+DATETIME_DERIVED_VERSION = "2026-03-09-dst-timezone"
+
 
 def regexp(pattern, value):
     try:
@@ -1247,6 +1249,10 @@ class DatabaseManager:
             return "0"
         return row[0] or "0"
 
+    def _schedule_version(self, records_version: str | None = None) -> str:
+        base = records_version or self._records_version()
+        return f"{DATETIME_DERIVED_VERSION}:{base}"
+
     def _urgency_config_version(self) -> str:
         """
         Return a stable digest for urgency-related config.
@@ -2083,13 +2089,14 @@ class DatabaseManager:
         yr, wk = datetime.now().isocalendar()[:2]
         today_key = date.today().isoformat()
         records_version = self._records_version()
+        schedule_version = self._schedule_version(records_version)
 
         work_done = False
-        work_done |= self._maybe_extend_datetimes(yr, wk, 12, records_version, force)
-        work_done |= self._maybe_populate_alerts(today_key, records_version, force)
-        work_done |= self._maybe_populate_notice(today_key, records_version, force)
+        work_done |= self._maybe_extend_datetimes(yr, wk, 12, schedule_version, force)
+        work_done |= self._maybe_populate_alerts(today_key, schedule_version, force)
+        work_done |= self._maybe_populate_notice(today_key, schedule_version, force)
         work_done |= self._maybe_refresh_busy_tables(force)
-        work_done |= self._maybe_populate_urgency(records_version, force)
+        work_done |= self._maybe_populate_urgency(schedule_version, force)
 
         self.after_save_needed = False
 
