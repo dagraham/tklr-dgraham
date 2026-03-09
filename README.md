@@ -1591,7 +1591,6 @@ would indicate that "9a fri" is to be interpreted as an <em>aware</em> datetime 
 | % journal |  % note   |
 
 
-
 ### 5.3. Attribute Changes
 
 |     etm     |         tklr          |
@@ -1616,6 +1615,66 @@ would indicate that "9a fri" is to be interpreted as an <em>aware</em> datetime 
 | &m monthdays | &d monthdays |
 
 The *tklr* settings mirror standard usage in <code>strftime</code>.
+
+### 5.5. Migrating reminders from <em>etm</em> to <em>tklr</em>
+
+<div style="overflow:auto;">
+  <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
+<code>
+% tklr migrate --help
+Usage: tklr migrate [OPTIONS] ETM_DIR
+
+  Convert ETM reminders into a Tklr batch-entry file
+  for the current home.
+
+  Migrated reminders will be extracted from the
+  ``etm.json`` file in ETM_DIR .
+
+  Example:
+
+    tklr --home ~/.config/tklr migrate ~/etm
+
+Options:
+  --outfile FILE       Defaults to [--home]/etm.txt
+  --secret TEXT        Secret from etm cfg.yaml used
+                       to decode @m values. Absent a
+                       valid 'secret', @m values will
+                       be left encoded. (default:
+                       None)
+  --record-ids         Append @# tags with the
+                       original etm record ids.
+                       (default: False)
+  --include-archive    Include archived etm entries.
+                       (default: False)
+  --types [*|-|%|~|!]  Restrict migration to specific
+                       etm item types (default: all).
+  --help               Show this message and exit.
+</code>
+<code>
+% tklr add --help   
+Usage: tklr add [OPTIONS] [ENTRY]...
+
+Options:
+  -f, --file PATH  Path to file with multiple entries.
+  --batch          Use editor to create multiple
+                   entries separated by blank lines.
+  --help           Show this message and exit.
+</code>
+  </pre>
+      <p>The <em>tklr</em> <code>migrate</code> command can be used to export your <em>etm</em> reminders from <code>etm.json</code> to a text file from which they can be imported into </em>tklr</em>. 
+      </p>
+      <p>Once the text file is available, the <em>tklr</em> <code>add</code> command can be used to import the reminders from the text file into <em>tklr</em>.
+      </p> 
+    </div>
+<div style="clear:both;"></div>
+
+<p>Here's an example of the complete process for the case in which the <em>etm</em> home directory is <code>~/etm</code> and the <em>tklr</em> home directory is <code>~/tklr</code>:
+</p>
+<pre>
+% tklr --home ~/tklr migrate ~/etm
+% tklr --home ~/tklr add -f ~/tklr/etm.txt
+</pre>
+
 
 ### 5.5. <code>@~</code> project task/job modifier changes
 
