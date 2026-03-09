@@ -384,9 +384,9 @@ It is worth noting the different roles of two attributes in events and tasks.
 </code>
 <code>
 ^ Apply fertilizer
-  @~ daffodils behind house @r 1
-  @~ azalias by entrance @r 2 
-  @~ crepe myrtles by driveway @r 3 
+  @~ daffodils behind house &r 1
+  @~ azalias by entrance &r 2 
+  @~ crepe myrtles by driveway &r 3 
   @d these tasks can be done in any order, 
      none is a prerequisite for another
 </code>
