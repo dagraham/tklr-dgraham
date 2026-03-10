@@ -1666,23 +1666,22 @@ Options:
                    entries separated by blank lines.
   --help           Show this message and exit.
 </code>
-  </pre>
-      <p>The <em>tklr</em> <code>migrate</code> command can be used to export your <em>etm</em> reminders from <code>etm.json</code> to a text file from which they can be imported into </em>tklr</em>. 
-      </p>
-      <p>Once the text file is available, the <em>tklr</em> <code>add</code> command can be used to import the reminders from the text file into <em>tklr</em>.
-      </p> 
-    </div>
-<div style="clear:both;"></div>
-
-<p>Here's an example of the complete process for the case in which the <em>etm</em> home directory is <code>~/etm</code> and the <em>tklr</em> home directory is <code>~/tklr</code>:
-</p>
+</pre>
+    <p>The <em>tklr</em> <code>migrate</code> command can be used to export your <em>etm</em> reminders from <code>etm.json</code> to a text file from which they can be imported into </em>tklr</em>. 
+    </p>
+    <p>Once the text file is available, the <em>tklr</em> <code>add</code> command can be used to import the reminders from the text file into <em>tklr</em>.
+    </p> 
+    <p>Here's an example of the complete process for the case in which the <em>etm</em> home directory is <code>~/etm</code> and the <em>tklr</em> home directory is <code>~/tklr</code>:
+    </p>
 <pre>
 % tklr --home ~/tklr migrate ~/etm
 % tklr --home ~/tklr add -f ~/tklr/etm.txt
 </pre>
+    </div>
+<div style="clear:both;"></div>
 
 
-### 5.5. <code>@~</code> project task/job modifier changes
+### 5.6. <code>@~</code> project task/job modifier changes
 
 The modifiers used in <code>@~</code> <em>project task</em> entries are significantly changed from the <em>etm</em> <code>@j</code> <em>job</em> entries. In <em>tklr</em>, the optional <code>&r</code> <em>requires</em> modifier replaces both the <code>&i</code> <em>id</em> and the <code>&p</code> <em>prerequisite</em> modifiers. See [projects](#doghouse-example) for an example of the new usage.
 
