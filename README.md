@@ -1003,6 +1003,9 @@ The defaults: dayfirst = false and yearfirst = true correspond to the Y-M-D ISO 
 
 A related setting `ampm` 
 
+
+[↩︎](#table-of-contents)
+
 ### 2.2. TimeDeltas
 
 An <em>timedelta</em> is just a period of time and is entered in _tklr_ using expressions such as
@@ -1567,6 +1570,9 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 </div>
 <div style="clear: both;"></div>
 
+
+[↩︎](#table-of-contents)
+
 ## 5. Coming from <em>etm</em>
 
 The basic entry format is essentially the same in *tklr* as it was in *etm*. There are a few changes to reminder types, attributes (specified with <code>@-keys</code>) and their modifiers (specified with <code>&-keys</code>) - these are documented below.
@@ -1679,6 +1685,9 @@ Options:
 ### 5.5. <code>@~</code> project task/job modifier changes
 
 The modifiers used in <code>@~</code> <em>project task</em> entries are significantly changed from the <em>etm</em> <code>@j</code> <em>job</em> entries. In <em>tklr</em>, the optional <code>&r</code> <em>requires</em> modifier replaces both the <code>&i</code> <em>id</em> and the <code>&p</code> <em>prerequisite</em> modifiers. See [projects](#doghouse-example) for an example of the new usage.
+
+
+[↩︎](#table-of-contents)
 
 ## 6. Developer Guide
 
