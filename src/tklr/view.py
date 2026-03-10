@@ -1745,7 +1745,7 @@ class EditorScreen(Screen):
             "z": "Timezone",
         }
         _AMP_DESC = {
-            "r": "Repetiton frequency",
+            "r": "task id[: prerequisite id(s)]",
             "c": "Count",
             "d": "By month day",
             "m": "By month",

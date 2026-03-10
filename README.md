@@ -391,7 +391,7 @@ It is worth noting the different roles of two attributes in events and tasks.
      none have prerequisites
 </code>
   </pre>
-      <p>The beginning <code>^</code> makes these reminders <i>projects</i>. The first is a collection of related tasks specified by the <code>@~</code> entries. In each task, the <code>&r X: Y</code> <em>requires</em> attribute sets <code>X</code> as the label for the task and sets the task labeled <code>Y</code> as a requirement or prerequisite for <code>X</code>. E.g., <code>&r 3: 2</code> establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. 
+      <p>The beginning <code>^</code> makes these reminders <i>projects</i>. The first is a collection of related tasks specified by the <code>@~</code> entries. In each task, the <code>&r X: Y</code> <em>requires</em> attribute sets the integer <code>X</code> as the label for the task and sets the task labeled with integer <code>Y</code> as a requirement or prerequisite for <code>X</code>. E.g., <code>&r 3: 2</code> establishes "3" as the label for assemble and "2" (cut pieces) as a prerequisite. 
       </p>
       <p>
       The second is also a collection of related tasks but none of the <code>&r X</code> entries specify either of the other tasks as a prerequisite. These tasks can be done in any order.   
@@ -1620,9 +1620,13 @@ would indicate that "9a fri" is to be interpreted as an <em>aware</em> datetime 
 |  &M months   |  &m months   |
 | &m monthdays | &d monthdays |
 
-The *tklr* settings mirror standard usage in <code>strftime</code>.
+These *tklr* settings mirror standard usage in <code>strftime</code>.
 
-### 5.5. Migrating reminders from <em>etm</em> to <em>tklr</em>
+### 5.5. <code>@~</code> project task/job modifier changes
+
+The modifiers used in <code>@~</code> <em>project task</em> entries are significantly changed from the <em>etm</em> <code>@j</code> <em>job</em> entries. In <em>tklr</em>, the <code>&r</code> modifier is required and replaces both the <code>&i</code> <em>id</em> and the <code>&p</code> <em>prerequisite</em> modifiers. See [projects](#doghouse-example) for an example of the new usage.
+
+### 5.6. Migrating reminders from <em>etm</em> to <em>tklr</em>
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
@@ -1679,11 +1683,6 @@ Options:
 </pre>
     </div>
 <div style="clear:both;"></div>
-
-
-### 5.6. <code>@~</code> project task/job modifier changes
-
-The modifiers used in <code>@~</code> <em>project task</em> entries are significantly changed from the <em>etm</em> <code>@j</code> <em>job</em> entries. In <em>tklr</em>, the optional <code>&r</code> <em>requires</em> modifier replaces both the <code>&i</code> <em>id</em> and the <code>&p</code> <em>prerequisite</em> modifiers. See [projects](#doghouse-example) for an example of the new usage.
 
 
 [↩︎](#table-of-contents)
