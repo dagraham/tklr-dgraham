@@ -10,6 +10,7 @@
 <li>Form‑free entry with live prompts (no forms to fill).</li>
 <li>CLI and Textual UI with mouse‑free navigation.</li>
 <li>Multiple reminder types: events, tasks, projects, goals, notes, jots, drafts.</li>
+<li>GTD support (Capture, Clarify, Organize) using <em>jots</em>.</li>
 <li>Flexible scheduling (fuzzy dates, recurrence, time zones) powered by <em>dateutil</em>.</li>
 <li>Organized views (Agenda, Later/Earlier, Queries, bins, hashtags) to surface what matters.</li>
 </ul>
@@ -426,9 +427,9 @@ In either case, `@k` is reset to zero and `@s` is reset to the previous value *p
 
 Tracking where a resource goes is the key to managing any scarce resource - your time is no exception. A *jot* is a reminder type designed to facilitate this purpose. It provides a way of *quickly* recording a *jot* of time-stamped information as a *message to self*. It is sufficiently different from the other reminder types to warrant some discussion before giving an example.
 
-Imagine that *tklr* is running on your computer and that, in the midst of your hectic day, you could reach over, press "+" (or "N") to create a new reminder, enter "-" to make it a *jot* and follow with the *subject* - a *brief* phrase - just enough to trigger your memory later. Then press Ctrl+S to save - an automatic timestamp will be added.
+Imagine that *tklr* is running on your computer and that, in the midst of your hectic day, you could reach over, press "N" to create a new reminder, enter "-" to make it a *jot* and add a *subject* - a *brief* phrase - just enough to trigger your memory later. Then press Ctrl+S to save - a timestamp will automatically be added.
 
-What might you do with these *jots*? As is, these jots can provide a record of what you were doing and when.  At the cost of a few seconds per *jot* you can have a daily record of when and what you were doing or thinking. Press "J" to see a list of all your *jots* grouped by week and weekday and, as with all other reminder views in *tklr*, tagged with lower case letters, a, b, c, .... for easy access.
+What might you do with these *jots*? As is, these jots can provide a record of what you were doing and when.  At the cost of a few seconds per *jot* you can have a daily record of when and what you were doing or thinking. Press "J" to see a list of all your *jots* grouped by week and weekday and, as with all other reminder views in *tklr*, tagged with lower case letters, a, b, c, .... for instant access.
 
 When you have time, you might want to:
 - flush out the *subject* or add a `@d` *details* entry to provide extra detail.
@@ -608,6 +609,8 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
 ### 1.6. Jots and Jot Uses Views: Where did the time go
 
 These screenshots reflect a configuration setting that rounds reported <code>@e</code> times up to the next integer multiple of <code>6</code> minutes and thus reports times in hours and tenths.
+
+The examples focus upon personal uses of time such as exercise and meditation but they might equally well have displayed professional uses involving different projects or clients.
 
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/jots_jots.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
