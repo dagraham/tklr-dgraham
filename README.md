@@ -1462,7 +1462,11 @@ The table below gives the complete list of both `@-keys` and, when applicable, t
 
 ### 3.1. Installing _tklr_
 
-As usual with <em>python</em> applications, <em>tklr</em> can be installed in the usual way from <em>PyPI</em> using either <code>pip</code> or <code>pipx</code>. This <code>pip</code> command can be used either to install for the first time or to upgrade an existing installation:
+As usual with <em>python</em> applications, <em>tklr</em> can be installed from <em>PyPI</em> using either <code>pip</code> or <code>pipx</code>.
+
+On some Linux distributions, however, the system <em>python</em> installation is managed by the operating system and protected from direct <code>pip</code> installs. This helps prevent conflicts with distro-managed <em>python</em> packages that the OS itself may depend on. In such cases, <code>pipx</code> is usually the best choice for command-line applications such as <em>tklr</em> because it installs each application in its own isolated environment while still making the <code>tklr</code> command available in your shell.
+
+If you are using <code>pip</code>, the following command can be used either to install for the first time or to upgrade an existing installation:
 
 ```
 pip install -U tklr-dgraham
