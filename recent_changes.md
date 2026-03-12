@@ -1,5 +1,26 @@
 # Recent Changes
 
+## 1.0.13 — 2026-03-12
+
+Since 1.0.12:
+
+Why upgrade:
+- 1 additions, 0 fixes, 1 behavior changes.
+
+Added:
+- Updated README with GTD support and improve clarity in examples
+
+Changed:
+- update condition for checking needed keys in item parsing feat: handle trailing ampersand in frequency part and provide feedback for missing rrule frequency
+
+Docs:
+- update installation instructions for tklr in README.md
+- update README to clarify reminder import behavior and jot handling
+- update README to clarify jot recording behavior in inbox.txt
+
+Technical:
+- 3 files changed, 66 insertions(+), 6 deletions(-)
+
 ## 1.0.12 — 2026-03-10
 
 Since 1.0.11:
@@ -33,16 +54,3 @@ Technical:
 - 4 files changed, 74 insertions(+), 2 deletions(-)
 
 Note: Require &r labels in project @~ tasks
-
-## 1.0.10 — 2026-03-09
-
-Since 1.0.9:
-
-Why upgrade:
-- 1 additions, 0 fixes, 0 behavior changes.
-
-Added:
-- Add datetime derived versioning to DatabaseManager and update methods to use it
-
-Technical:
-- 1 file changed, 11 insertions(+), 4 deletions(-)
