@@ -194,6 +194,34 @@ class TestProjectLiveEditing:
         assert not item.parse_ok
         assert "Each @~ job requires an &r label" in (item.parse_message or "")
 
+    def test_live_project_schedule_feedback_is_not_hidden_by_missing_job(
+        self, item_factory
+    ):
+        item = item_factory("^ project @s s", final=False)
+
+        assert not item.parse_ok
+        assert "Required keys not yet provided" not in (item.parse_message or "")
+        assert "Error parsing 's'" in (item.parse_message or "")
+
+    def test_live_project_bare_at_still_shows_required_and_available_keys(
+        self, item_factory
+    ):
+        item = item_factory("^ project @", final=False)
+
+        assert not item.parse_ok
+        assert "@ available @-keys:" in (item.parse_message or "")
+        assert "required: ~" in (item.parse_message or "")
+        assert "optional:" in (item.parse_message or "")
+
+    def test_live_project_rrule_trailing_amp_is_treated_as_incomplete_modifier(
+        self, item_factory
+    ):
+        item = item_factory("^ project @s sat @r m &\n@~ step one", final=False)
+
+        assert not item.parse_ok
+        assert "supported frequency" not in (item.parse_message or "")
+        assert "repetition &-key: enter &-key" in (item.parse_message or "")
+
 
 @pytest.mark.unit
 class TestInvitees:

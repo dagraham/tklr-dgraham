@@ -1298,7 +1298,7 @@ Entry: {self.entry}
                     )
                 used_ampkeys.append(this_ampkey)
 
-        if needed:
+        if needed and self.final:
             needed_keys = ", ".join("@" + k for k in needed)
             needed_msg = (
                 # f"Required keys not yet provided: {needed_keys} in {self.entry = }"
@@ -2291,7 +2291,23 @@ Entry: {self.entry}
             self.messages.append(msg)
             return msg
 
-        freq_code = parts[1].strip().lower()
+        freq_part = parts[1].strip()
+        trailing_amp = False
+        if freq_part.endswith("&"):
+            freq_part = freq_part[:-1].rstrip()
+            trailing_amp = True
+
+        if not freq_part:
+            freq_msg = "character from (y)ear, (m)onth, (w)eek,  (d)ay, (h)our, mi(n)ute.\nAppend an '&' to add a repetition option."
+            msg = (
+                False,
+                f"Missing rrule frequency: {tok_text.rstrip()}\n{freq_msg}",
+                [],
+            )
+            self.messages.append(msg)
+            return msg
+
+        freq_code = freq_part.lower()
         if freq_code not in self.freq_map:
             keys = ", ".join(f"{k} ({v})" for k, v in self.freq_map.items())
             msg = (
@@ -2307,6 +2323,11 @@ Entry: {self.entry}
         self.rrule_tokens.append(
             {"token": f"{self.freq_map[freq_code]}", "t": "&", "k": "FREQ"}
         )
+
+        if trailing_amp:
+            msg = (False, f"{': '.join(self.token_keys['r?'][:2])}", [])
+            self.messages.append(msg)
+            return msg
 
         # Parse following &-tokens in this @r group (e.g., &i 3, &c 10, &u 20250101, &m..., &w..., &d...)
         for t in group[1:]:
