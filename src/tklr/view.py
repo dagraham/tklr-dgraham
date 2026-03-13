@@ -4484,7 +4484,9 @@ class DynamicViewApp(App):
                     app._screen_show_details(title, lines, meta, push_history=True)
 
             def show_repetitions() -> None:
-                title, lines = ctrl.get_record_repetitions(record_id)
+                title, lines = ctrl.get_record_repetitions(
+                    record_id, instance_ts=instance_ts
+                )
                 if hasattr(app, "_screen_show_details"):
                     app._screen_show_details(title, lines, meta, push_history=True)
 

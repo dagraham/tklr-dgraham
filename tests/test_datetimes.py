@@ -141,3 +141,77 @@ def test_aware_weekly_recurrence_keeps_local_wall_time_across_dst(
     ]
 
     dbm.conn.close()
+
+
+def test_repetitions_fallback_handles_aware_rrules_without_datetime_rows(
+    test_controller, item_factory, freeze_at
+):
+    item = item_factory(
+        "* test for mel @s 2026-02-27 8:00AM @r w @a 0m: n",
+        final=True,
+    )
+    record_id = test_controller.add_item(item)
+
+    test_controller.db_manager.cursor.execute(
+        "DELETE FROM DateTimes WHERE record_id = ?",
+        (record_id,),
+    )
+    test_controller.db_manager.conn.commit()
+
+    with freeze_at("2026-03-13 11:37:00"):
+        title, lines = test_controller.get_record_repetitions(record_id, limit=3)
+
+    assert title == "Repetitions for test for mel"
+    assert lines
+    assert not any("Unable to parse rruleset" in line for line in lines)
+    assert lines[0].startswith("Next ")
+
+
+def test_repetitions_can_start_from_selected_instance_with_datetime_rows(
+    test_controller, item_factory, freeze_at
+):
+    item = item_factory("* weekly check-in @s 2026-02-27 8:00AM @r w", final=True)
+    record_id = test_controller.add_item(item)
+
+    test_controller.db_manager.generate_datetimes_for_record(
+        record_id,
+        clear_existing=True,
+        window=(datetime(2026, 2, 1), datetime(2026, 4, 30, 23, 59)),
+    )
+    test_controller.db_manager.conn.commit()
+
+    with freeze_at("2026-03-13 11:37:00"):
+        title, lines = test_controller.get_record_repetitions(
+            record_id,
+            limit=3,
+            instance_ts="20260327T0800",
+        )
+
+    assert title == "Repetitions for weekly check-in"
+    assert lines[0] == "Next 3 occurrence(s):"
+    assert lines[1] == f"  • {test_controller.fmt_user(datetime(2026, 3, 27, 8, 0))}"
+    assert lines[2] == f"  • {test_controller.fmt_user(datetime(2026, 4, 3, 8, 0))}"
+
+
+def test_repetitions_fallback_can_start_from_selected_instance(
+    test_controller, item_factory, freeze_at
+):
+    item = item_factory("* weekly fallback @s 2026-02-27 8:00AM @r w", final=True)
+    record_id = test_controller.add_item(item)
+
+    test_controller.db_manager.cursor.execute(
+        "DELETE FROM DateTimes WHERE record_id = ?",
+        (record_id,),
+    )
+    test_controller.db_manager.conn.commit()
+
+    with freeze_at("2026-03-13 11:37:00"):
+        title, lines = test_controller.get_record_repetitions(
+            record_id,
+            limit=3,
+            instance_ts="20260327T0800",
+        )
+
+    assert title == "Repetitions for weekly fallback"
+    assert lines[0] == "Next 3 occurrence(s):"
+    assert lines[1] == f"  • {test_controller.fmt_user(datetime(2026, 3, 27, 8, 0))}"

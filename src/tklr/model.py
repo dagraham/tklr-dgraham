@@ -4659,13 +4659,18 @@ class DatabaseManager:
         return [row[0] for row in self.cursor.fetchall()]
 
     def get_upcoming_instances_for_record(
-        self, record_id: int, *, limit: int = 20
+        self,
+        record_id: int,
+        *,
+        limit: int = 20,
+        start_at: str | None = None,
     ) -> list[tuple[str, str | None]]:
         """
-        Return up to `limit` upcoming instances (start/end) for a record.
+        Return up to `limit` instances (start/end) for a record beginning at
+        `start_at` or, by default, at the current local time.
         """
         limit = max(1, int(limit)) if limit else 1
-        now_key = _fmt_naive(datetime.now())
+        start_key = start_at or _fmt_naive(datetime.now())
         self.cursor.execute(
             """
             SELECT start_datetime, end_datetime
@@ -4675,7 +4680,7 @@ class DatabaseManager:
             ORDER BY start_datetime ASC
             LIMIT ?
             """,
-            (record_id, now_key, limit),
+            (record_id, start_key, limit),
         )
         return [(row[0], row[1]) for row in self.cursor.fetchall()]
 

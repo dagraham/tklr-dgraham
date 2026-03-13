@@ -3900,13 +3900,20 @@ class Controller:
 
         return title, lines
 
-    def get_record_repetitions(self, record_id: int, *, limit: int = 20):
+    def get_record_repetitions(
+        self,
+        record_id: int,
+        *,
+        limit: int = 20,
+        instance_ts: str | None = None,
+    ):
         """
         Return (title, lines) describing the next few repetitions for a record.
         """
         record_dict = self.db_manager.get_record_as_dictionary(record_id) or {}
         subject = record_dict.get("subject") or "(untitled)"
         rruleset = (record_dict.get("rruleset") or "").strip()
+        record_timezone = record_dict.get("timezone")
         tokens_raw = record_dict.get("tokens")
         tokens_list: list[dict] = []
         if isinstance(tokens_raw, str):
@@ -3927,9 +3934,6 @@ class Controller:
             return title, ["This reminder has no @r schedule."]
 
         lines: list[str] = []
-        upcoming_rows = self.db_manager.get_upcoming_instances_for_record(
-            record_id, limit=limit
-        )
 
         def _parse_dt(text: str | None) -> datetime | None:
             if not text:
@@ -3939,14 +3943,47 @@ class Controller:
             except Exception:
                 return None
 
+        anchor_dt = _parse_dt(instance_ts)
+        start_key = _fmt_naive(anchor_dt) if anchor_dt else None
+
         occurrences: list[tuple[datetime | None, datetime | None]] = [
-            (_parse_dt(start), _parse_dt(end)) for start, end in upcoming_rows
+            (_parse_dt(start), _parse_dt(end))
+            for start, end in self.db_manager.get_upcoming_instances_for_record(
+                record_id,
+                limit=limit,
+                start_at=start_key,
+            )
         ]
 
         if not occurrences and rruleset:
             try:
-                rule = rrulestr(rruleset)
-                cursor = datetime.now()
+                rule_str = self.db_manager._normalize_rruleset(
+                    rruleset.replace("\\N", "\n").replace("\\n", "\n")
+                )
+                if "RRULE" in rule_str:
+                    rule_str = self.db_manager._localize_rruleset(
+                        rule_str, record_timezone
+                    )
+                rule = rrulestr(rule_str, tzids=lambda name: tz.gettz(name))
+                rule_dtstart = getattr(rule, "_dtstart", None)
+                if anchor_dt is not None:
+                    if (
+                        isinstance(rule_dtstart, datetime)
+                        and rule_dtstart.tzinfo is not None
+                    ):
+                        cursor = (
+                            anchor_dt.replace(tzinfo=tz.tzlocal())
+                            .astimezone(rule_dtstart.tzinfo)
+                        )
+                    else:
+                        cursor = anchor_dt
+                elif (
+                    isinstance(rule_dtstart, datetime)
+                    and rule_dtstart.tzinfo is not None
+                ):
+                    cursor = datetime.now(rule_dtstart.tzinfo)
+                else:
+                    cursor = datetime.now()
                 for _ in range(limit):
                     nxt = rule.after(cursor, inc=True)
                     if not nxt:
