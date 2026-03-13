@@ -1,49 +1,44 @@
-import re
-from copy import deepcopy
-import shutil
 import json
 import os
-
-# from dateutil.parser import parse as duparse
-from dateutil.rrule import rruleset, rrulestr
-from datetime import date, datetime, timedelta
-from datetime import tzinfo
+import re
+import shutil
 
 # from dateutil.tz import gettz
 # import pytz
 import textwrap
-from dateutil import tz
-from dateutil.tz import gettz
+from copy import deepcopy
+
+# item.py
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta, tzinfo
 
 # from collections import defaultdict
 from math import ceil
 
-from typing import Iterable, List
-
-from typing import Union, Optional, Tuple
-from zoneinfo import ZoneInfo
-
-# item.py
-from dataclasses import dataclass
-from dateutil.parser import parse as parse_dt
-
 # from tklr.model import dt_to_dtstr
 from pathlib import Path
+from typing import Iterable, List, Optional, Tuple, Union
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
+from dateutil import tz
+from dateutil.parser import parse as parse_dt
 
-from .shared import (
-    log_msg,
-    bug_msg,
-    _to_local_naive,
-    print_msg,
-    fmt_utc_z,
-    parse_utc_z,
-    timedelta_str_to_seconds,
-)
+# from dateutil.parser import parse as duparse
+from dateutil.rrule import rruleset, rrulestr
+from dateutil.tz import gettz
 from tzlocal import get_localzone_name
 
 from .mask import obfuscate_mask_tokens, reveal_mask_tokens
+from .shared import (
+    _to_local_naive,
+    bug_msg,
+    fmt_utc_z,
+    log_msg,
+    parse_utc_z,
+    print_msg,
+    timedelta_str_to_seconds,
+)
 
 local_timezone = get_localzone_name()  # e.g., "America/New_York"
 
@@ -714,14 +709,6 @@ class Paragraph:
         unwrapped_text = "\n".join(unwrapped_paragraphs)
 
         return unwrapped_text
-
-
-# @dataclass
-# class FinishResult:
-#     new_relative_tokens: list  # tokens to persist
-#     new_rruleset: str | None  # possibly None/"" if no more repeats
-#     due_ts_used: int | None  # the occurrence this finish applies to
-#     finished_final: bool  # True -> no more occurrences
 
 
 class Item:
