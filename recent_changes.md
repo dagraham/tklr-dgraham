@@ -1,5 +1,20 @@
 # Recent Changes
 
+## 1.0.14 — 2026-03-13
+
+Since 1.0.13:
+
+Why upgrade:
+- 0 additions, 1 fixes, 0 behavior changes.
+
+Fixed:
+- Fixed several live-editing and recurrence regressions. Project entry feedback now preserves useful in-progress guidance: live @s parsing errors are no longer hidden by the project’s missing required @~ job, a bare trailing & in @r input is treated as an incomplete repetition modifier instead of an invalid frequency, and entering a bare @ still shows the required and available attribute keys. Repetitions handling was also corrected in two ways: the fallback parser for stored rruleset values now avoids naive/aware datetime comparison errors and respects localized wall time across DST, and the repetitions view now anchors its list on the selected instance shown in Details rather than always starting from the current time. Regression tests were added for all of these cases.
+
+Technical:
+- 5 files changed, 130 insertions(+), 10134 deletions(-)
+
+Note: Fixed bug in batch add involving repetitions across DST.
+
 ## 1.0.13 — 2026-03-12
 
 Since 1.0.12:
@@ -39,18 +54,3 @@ Docs:
 
 Technical:
 - 2 files changed, 24 insertions(+), 17 deletions(-)
-
-## 1.0.11 — 2026-03-09
-
-Since 1.0.10:
-
-Why upgrade:
-- 0 additions, 0 fixes, 1 behavior changes.
-
-Changed:
-- Enhance job parsing to require &r label for @~ jobs and improve error messaging
-
-Technical:
-- 4 files changed, 74 insertions(+), 2 deletions(-)
-
-Note: Require &r labels in project @~ tasks
