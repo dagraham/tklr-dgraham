@@ -1,5 +1,19 @@
 # Recent Changes
 
+## 1.0.15 — 2026-03-22
+
+Since 1.0.14:
+
+Why upgrade:
+- 0 additions, 0 fixes, 2 behavior changes.
+
+Changed:
+- Display on first instance of a repeating event in the events section of Agenda View.
+- Clean up imports and remove unused FinishResult
+
+Technical:
+- 3 files changed, 135 insertions(+), 115 deletions(-)
+
 ## 1.0.14 — 2026-03-13
 
 Since 1.0.13:
@@ -35,22 +49,3 @@ Docs:
 
 Technical:
 - 3 files changed, 66 insertions(+), 6 deletions(-)
-
-## 1.0.12 — 2026-03-10
-
-Since 1.0.11:
-
-Why upgrade:
-- 1 additions, 1 fixes, 0 behavior changes.
-
-Added:
-- Added table of contents links in README for better navigation
-
-Fixed:
-- Update README to clarify tklr settings and migration process Correct description of the 'r' modifier in EditorScreen
-
-Docs:
-- Update README with migration command details and task modifier changes
-
-Technical:
-- 2 files changed, 24 insertions(+), 17 deletions(-)
