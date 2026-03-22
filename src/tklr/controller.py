@@ -1,128 +1,124 @@
 from __future__ import annotations
-from packaging.version import parse as parse_version
-from importlib.metadata import version
-from datetime import datetime, timedelta, date, timezone
 
-import re
+import calendar
 import inspect
-import math
-from typing import List, Tuple, Optional, Dict, Any, Set
-import shutil
-import calendar
-import calendar
-import subprocess
-import shlex
-import textwrap
-import sys
-
-
 import json
-from typing import Literal
-from .item import Item
-from .model import DatabaseManager, UrgencyComputer, td_str_to_seconds
-from .model import _fmt_naive
-from . import shared as shared_colors
-from .versioning import get_version
-from .mask import reveal_mask_tokens
-from .query import QueryEngine, QueryError, QueryResponse
-
+import math
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import textwrap
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta, timezone
+from importlib.metadata import version
 from pathlib import Path
+from typing import Any, Dict, List, Literal, Optional, Set, Tuple
 from zoneinfo import ZoneInfo
-from dateutil.rrule import rrulestr
+
 from dateutil import tz
+from dateutil.rrule import rrulestr
+from packaging.version import parse as parse_version
+
+from . import shared as shared_colors
+from .item import Item
+from .mask import reveal_mask_tokens
+from .model import DatabaseManager, UrgencyComputer, _fmt_naive, td_str_to_seconds
 from .named_colors import css_named_colors
+from .query import QueryEngine, QueryError, QueryResponse
+from .versioning import get_version
 
 # Item prefixes that should be coerced to draft ("?") when importing inbox entries.
 INBOX_ITEM_PREFIXES = {"*", "~", "^", "!", "%", "?"}
 INBOX_SPLIT_PATTERN = re.compile(r"\n\s*\n")
 
 # import sqlite3
+from tklr.tklr_env import TklrEnvironment
+from tklr.view import ChildBinRow, ReminderRow
+
 from .shared import (
-    TYPE_TO_COLOR,
-    JOT_COLOR_NONE,
-    JOT_COLOR_EXTENT,
-    JOT_COLOR_USE,
-    JOT_COLOR_FULL,
+    ACTIVE_EVENT,
+    ALLDAY_COLOR,
+    AVAILABLE_COLOR,
+    BUSY_COLOR,
+    BUSY_FRAME_COLOR,
+    CHORE_COLOR,
+    CONF_COLOR,
     CORNSILK,
     DARK_GRAY,
     DARK_GREY,
     DARK_OLIVEGREEN,
     DARK_ORANGE,
     DARK_SALMON,
+    DAY_COLOR,
+    DIM_COLOR,
+    DRAFT_COLOR,
+    EVENT_COLOR,
+    FINISHED_COLOR,
+    FRAME_COLOR,
+    GOAL_COLOR,
     GOLD,
     GOLDENROD,
+    HEADER_COLOR,
+    JOT_COLOR_EXTENT,
+    JOT_COLOR_FULL,
+    JOT_COLOR_NONE,
+    JOT_COLOR_USE,
     KHAKI,
     LAWN_GREEN,
     LEMON_CHIFFON,
     LIGHT_CORAL,
     LIGHT_SKY_BLUE,
     LIME_GREEN,
+    MATCH_COLOR,
+    NOTE_COLOR,
+    NOTICE_COLOR,
     ORANGE_RED,
     PALE_GREEN,
+    PASSED_EVENT,
+    PASTDUE_COLOR,
     PEACHPUFF,
     SALMON,
     SANDY_BROWN,
     SEA_GREEN,
-    SLATE_GREY,
-    TOMATO,
-    DAY_COLOR,
-    FRAME_COLOR,
-    DIM_COLOR,
-    ALLDAY_COLOR,
-    EVENT_COLOR,
-    NOTE_COLOR,
-    PASSED_EVENT,
-    ACTIVE_EVENT,
-    TASK_COLOR,
-    AVAILABLE_COLOR,
-    WAITING_COLOR,
-    FINISHED_COLOR,
-    GOAL_COLOR,
-    CHORE_COLOR,
-    PASTDUE_COLOR,
-    NOTICE_COLOR,
-    DRAFT_COLOR,
-    TODAY_COLOR,
     SELECTED_BACKGROUND,
-    MATCH_COLOR,
+    SLATE_GREY,
+    TASK_COLOR,
     TITLE_COLOR,
-    BUSY_COLOR,
-    CONF_COLOR,
-    BUSY_FRAME_COLOR,
-    HEADER_COLOR,
-    label_color,
-    type_color,
-    at_color,
+    TODAY_COLOR,
+    TOMATO,
+    TYPE_TO_COLOR,
+    WAITING_COLOR,
+    _to_local_naive,
     am_color,
     apply_theme_palette,
-    parse_month_spec,
-    log_msg,
+    at_color,
     bug_msg,
-    _to_local_naive,
+    calculate_4_week_start,
+    datetime_from_timestamp,
+    datetime_in_words,
+    fmt_utc_z,
+    format_date_range,
+    format_datetime,
+    format_decimal_hours,
+    format_iso_week,
     format_time_range,
     format_timedelta,
-    datetime_from_timestamp,
-    format_datetime,
-    datetime_in_words,
-    truncate_string,
-    parse,
-    fmt_utc_z,
-    timedelta_str_to_seconds,
-    indx_to_tag,
-    round_seconds_to_step_minutes,
-    format_decimal_hours,
-    format_date_range,
-    format_iso_week,
-    get_previous_yrwk,
     get_next_yrwk,
-    calculate_4_week_start,
+    get_previous_yrwk,
+    indx_to_tag,
     is_all_day_text,
+    label_color,
+    log_msg,
+    parse,
+    parse_month_spec,
+    round_seconds_to_step_minutes,
+    timedelta_str_to_seconds,
+    truncate_string,
+    type_color,
 )
-from tklr.tklr_env import TklrEnvironment
-from tklr.view import ChildBinRow, ReminderRow
-
 
 VERSION = get_version()
 
@@ -2933,7 +2929,9 @@ class Controller:
 
             subject = self.apply_flags(id, subject)
             bucket_date = start_dt.date() if start_dt else None
-            timestamp_markup = self._format_comparison_date(bucket_date, previous_bucket)
+            timestamp_markup = self._format_comparison_date(
+                bucket_date, previous_bucket
+            )
             previous_bucket = bucket_date
             type_color = TYPE_TO_COLOR[itemtype]
             rows.append(
@@ -3119,7 +3117,9 @@ class Controller:
                         if fallback_display:
                             prefix = f"[not bold]{fallback_display}[/not bold]"
                         else:
-                            prefix = self._format_comparison_date(None, previous_scheduled)
+                            prefix = self._format_comparison_date(
+                                None, previous_scheduled
+                            )
                         previous_scheduled = None
                     row["text"] = f"{prefix}  {row.get('base_text', '')}"
             else:
@@ -3166,7 +3166,9 @@ class Controller:
             return rows if yield_rows else ([], header)
 
         previous_bucket: date | None = None
-        for idx, (record_id, subject, itemtype, modified_ts, _desc) in enumerate(records):
+        for idx, (record_id, subject, itemtype, modified_ts, _desc) in enumerate(
+            records
+        ):
             if idx % 26 == 0:
                 previous_bucket = None
             normalized_ts = (
@@ -3179,7 +3181,9 @@ class Controller:
             subject_text = subject or "(untitled)"
             subject_text = self.apply_flags(record_id, subject_text)
             bucket_date = bucket_dt.date() if bucket_dt else None
-            timestamp_markup = self._format_comparison_date(bucket_date, previous_bucket)
+            timestamp_markup = self._format_comparison_date(
+                bucket_date, previous_bucket
+            )
             previous_bucket = bucket_date
             type_color = TYPE_TO_COLOR.get(itemtype, "white")
 
@@ -3567,7 +3571,9 @@ class Controller:
 
             subject = self.apply_flags(id, subject)
             bucket_date = start_dt.date() if start_dt else None
-            timestamp_markup = self._format_comparison_date(bucket_date, previous_bucket)
+            timestamp_markup = self._format_comparison_date(
+                bucket_date, previous_bucket
+            )
             previous_bucket = bucket_date
             type_color = TYPE_TO_COLOR[itemtype]
             rows.append(
@@ -3971,9 +3977,8 @@ class Controller:
                         isinstance(rule_dtstart, datetime)
                         and rule_dtstart.tzinfo is not None
                     ):
-                        cursor = (
-                            anchor_dt.replace(tzinfo=tz.tzlocal())
-                            .astimezone(rule_dtstart.tzinfo)
+                        cursor = anchor_dt.replace(tzinfo=tz.tzlocal()).astimezone(
+                            rule_dtstart.tzinfo
                         )
                     else:
                         cursor = anchor_dt
@@ -4134,9 +4139,14 @@ class Controller:
         # 4) Build events_by_date only for allowed dates
         events_by_date: dict[date, list[dict]] = {}
 
+        seen_event_records: set[int] = set()
+
         for d in allowed_dates:
             entries = grouped_by_date.get(d, [])
             for _, (dt_id, start_ts, end_ts, subject, record_id, job_id) in entries:
+                if record_id in seen_event_records:
+                    continue
+                seen_event_records.add(record_id)
                 start_dt = datetime_from_timestamp(start_ts)
                 if start_dt is not None:
                     subject = self.apply_anniversary_if_needed(

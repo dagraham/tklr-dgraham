@@ -4,11 +4,13 @@ Tests for goal items.
 These tests verify goal parsing and tracking functionality.
 """
 
-import pytest
 from datetime import datetime, timedelta
-from tklr.item import Item
-from tklr.controller import Controller
+
+import pytest
 from dateutil.parser import parse
+
+from tklr.controller import Controller
+from tklr.item import Item
 
 
 @pytest.mark.unit
@@ -198,5 +200,26 @@ def test_agenda_event_window_respects_config(temp_db_path, test_env):
             if row["record_id"] is None and row.get("text", "").strip()
         ]
         assert len(header_rows) == 2
+    finally:
+        ctrl.db_manager.conn.close()
+
+
+def test_agenda_shows_only_first_instance_of_repeating_event(temp_db_path, test_env):
+    test_env.config.ui.agenda_days = 3
+    ctrl = Controller(str(temp_db_path), test_env, reset=True)
+    try:
+        base_dt = datetime(2025, 1, 1, 8, 0)
+        _add_entry(
+            ctrl,
+            test_env,
+            "* daily standup @s 2025-01-01 09:00 @r d &c 5",
+        )
+        ctrl.db_manager.populate_dependent_tables()
+
+        rows = ctrl.get_agenda_events(now=base_dt)
+        event_rows = [row for row in rows if "daily standup" in row.get("text", "")]
+
+        assert len(event_rows) == 1
+        assert event_rows[0]["instance_ts"] == "20250101T0900"
     finally:
         ctrl.db_manager.conn.close()
