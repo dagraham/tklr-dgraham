@@ -4139,14 +4139,9 @@ class Controller:
         # 4) Build events_by_date only for allowed dates
         events_by_date: dict[date, list[dict]] = {}
 
-        seen_event_records: set[int] = set()
-
         for d in allowed_dates:
             entries = grouped_by_date.get(d, [])
             for _, (dt_id, start_ts, end_ts, subject, record_id, job_id) in entries:
-                if record_id in seen_event_records:
-                    continue
-                seen_event_records.add(record_id)
                 start_dt = datetime_from_timestamp(start_ts)
                 if start_dt is not None:
                     subject = self.apply_anniversary_if_needed(
