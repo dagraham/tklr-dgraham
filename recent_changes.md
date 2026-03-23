@@ -1,5 +1,18 @@
 # Recent Changes
 
+## 1.0.16 — 2026-03-23
+
+Since 1.0.15:
+
+Why upgrade:
+- 0 additions, 0 fixes, 1 behavior changes.
+
+Changed:
+- Reverted last change. Show all instances of repeating events in Agenda view that fall within the relevant period.
+
+Technical:
+- 2 files changed, 26 deletions(-)
+
 ## 1.0.15 — 2026-03-22
 
 Since 1.0.14:
@@ -28,24 +41,3 @@ Technical:
 - 5 files changed, 130 insertions(+), 10134 deletions(-)
 
 Note: Fixed bug in batch add involving repetitions across DST.
-
-## 1.0.13 — 2026-03-12
-
-Since 1.0.12:
-
-Why upgrade:
-- 1 additions, 0 fixes, 1 behavior changes.
-
-Added:
-- Updated README with GTD support and improve clarity in examples
-
-Changed:
-- update condition for checking needed keys in item parsing feat: handle trailing ampersand in frequency part and provide feedback for missing rrule frequency
-
-Docs:
-- update installation instructions for tklr in README.md
-- update README to clarify reminder import behavior and jot handling
-- update README to clarify jot recording behavior in inbox.txt
-
-Technical:
-- 3 files changed, 66 insertions(+), 6 deletions(-)
