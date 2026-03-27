@@ -4002,8 +4002,24 @@ class Controller:
             return title, ["No upcoming repetitions were found."]
 
         lines.append(f"Next {len(occurrences)} occurrence(s):")
+        has_extent = any(
+            isinstance(tok, dict) and tok.get("t") == "@" and tok.get("k") == "e"
+            for tok in tokens_list
+        )
         for start_dt, end_dt in occurrences:
-            start_display = self.fmt_user(start_dt) if start_dt else "—"
+            if (
+                start_dt
+                and isinstance(start_dt, datetime)
+                and start_dt.hour == 0
+                and start_dt.minute == 0
+                and start_dt.second == 0
+                and start_dt.microsecond == 0
+                and end_dt is None
+                and not has_extent
+            ):
+                start_display = self.fmt_user_date_only(start_dt)
+            else:
+                start_display = self.fmt_user(start_dt) if start_dt else "—"
             if end_dt:
                 end_display = self.fmt_user(end_dt)
                 lines.append(f"  • {start_display} → {end_display}")

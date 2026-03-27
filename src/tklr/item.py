@@ -187,14 +187,53 @@ def local_dtstr_to_utc(dt: str) -> str:
     if not obj:
         return False, f"Could not parse {obj = }"
 
-    # If the parser returns a datetime at 00:00:00, treat it as a date (your chosen convention)
-    # if isinstance(obj, datetime) and obj.hour == obj.minute == obj.second == 0:
-    #     return True, obj.strftime("%Y%m%d")
-
     if isinstance(obj, date) and not isinstance(obj, datetime):
         return True, obj.strftime("%Y%m%d")
 
     return True, obj.astimezone(tz.UTC).strftime("%Y%m%dT%H%MZ")
+
+
+def normalize_until_for_dtstart(until_value: str, dtstart_str: str) -> tuple[bool, str]:
+    """
+    Normalize an RRULE UNTIL value so it is compatible with the current DTSTART.
+
+    RFC 5545 requires UNTIL to be UTC when DTSTART is timezone-aware. For
+    date-based DTSTART values, UNTIL should remain a date. For floating/naive
+    DTSTART values, UNTIL should remain floating as well.
+    """
+    dtstart_str = (dtstart_str or "").strip()
+    until_value = (until_value or "").strip()
+
+    if not until_value:
+        return False, "UNTIL is empty"
+
+    if dtstart_str.startswith("DTSTART;VALUE=DATE:"):
+        obj = parse_dt(until_value)
+        if not obj:
+            return False, f"Could not parse UNTIL value: {until_value}"
+        if isinstance(obj, datetime):
+            obj = obj.date()
+        return True, obj.strftime("%Y%m%d")
+
+    if dtstart_str.startswith("DTSTART:"):
+        dtstart_compact = dtstart_str.split(":", 1)[1].strip()
+
+        if dtstart_compact.endswith("Z"):
+            return local_dtstr_to_utc(until_value)
+
+        obj = parse_dt(until_value)
+        if not obj:
+            return False, f"Could not parse UNTIL value: {until_value}"
+
+        if isinstance(obj, date) and not isinstance(obj, datetime):
+            return True, obj.strftime("%Y%m%dT0000")
+
+        if obj.tzinfo is not None:
+            return True, obj.astimezone(tz.UTC).strftime("%Y%m%dT%H%MZ")
+
+        return True, obj.strftime("%Y%m%dT%H%M")
+
+    return local_dtstr_to_utc(until_value)
 
 
 # --- parse a possible trailing " z <tzspec>" directive ---
@@ -3218,7 +3257,9 @@ Entry: {self.entry}
             key = key.strip()
             value = value.strip()
             if key == "u":
-                ok, res = local_dtstr_to_utc(value)
+                ok, res = normalize_until_for_dtstart(
+                    value, getattr(self, "dtstart_str", "")
+                )
                 value = res if ok else ""
             elif ", " in value:
                 value = ",".join(value.split(", "))

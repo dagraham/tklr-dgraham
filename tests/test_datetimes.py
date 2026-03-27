@@ -1,11 +1,11 @@
 import time
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
 
-from tklr.tklr_env import TklrEnvironment
-from tklr.model import DatabaseManager
 from tklr.item import Item
+from tklr.model import DatabaseManager
+from tklr.tklr_env import TklrEnvironment
 
 
 @pytest.fixture
@@ -103,8 +103,7 @@ def test_aware_weekly_recurrence_keeps_local_wall_time_across_dst(
     item = Item(
         env=isolated_env,
         raw=(
-            "* pickleball @s 2026-01-05 8:00AM @e 90m "
-            "@r w &w MO, TH @- 20260129T0800"
+            "* pickleball @s 2026-01-05 8:00AM @e 90m @r w &w MO, TH @- 20260129T0800"
         ),
         final=True,
     )
@@ -215,3 +214,79 @@ def test_repetitions_fallback_can_start_from_selected_instance(
     assert title == "Repetitions for weekly fallback"
     assert lines[0] == "Next 3 occurrence(s):"
     assert lines[1] == f"  • {test_controller.fmt_user(datetime(2026, 3, 27, 8, 0))}"
+
+
+def test_repetitions_fallback_handles_aware_until_date_without_parse_error(
+    test_controller, item_factory, freeze_at
+):
+    item = item_factory(
+        "* maintenance aware until @s 2026-03-20 @r d &u 2026-03-22",
+        final=True,
+    )
+    record_id = test_controller.add_item(item)
+
+    test_controller.db_manager.cursor.execute(
+        "DELETE FROM DateTimes WHERE record_id = ?",
+        (record_id,),
+    )
+    test_controller.db_manager.conn.commit()
+
+    with freeze_at("2026-03-19 11:37:00"):
+        title, lines = test_controller.get_record_repetitions(record_id, limit=3)
+
+    assert title == "Repetitions for maintenance aware until"
+    assert lines
+    assert not any("Unable to parse rruleset" in line for line in lines)
+    assert lines[0] == "Next 3 occurrence(s):"
+    assert lines[1] == f"  • {test_controller.fmt_user_date_only(date(2026, 3, 20))}"
+    assert lines[2] == f"  • {test_controller.fmt_user_date_only(date(2026, 3, 21))}"
+    assert lines[3] == f"  • {test_controller.fmt_user_date_only(date(2026, 3, 22))}"
+
+
+def test_repetitions_all_day_midnight_without_extent_hide_time(
+    test_controller, item_factory, freeze_at
+):
+    item = item_factory("* maintenance @s 2026-03-20 @r d &u 2026-03-22", final=True)
+    record_id = test_controller.add_item(item)
+
+    test_controller.db_manager.cursor.execute(
+        "DELETE FROM DateTimes WHERE record_id = ?",
+        (record_id,),
+    )
+    test_controller.db_manager.conn.commit()
+
+    with freeze_at("2026-03-19 11:37:00"):
+        title, lines = test_controller.get_record_repetitions(record_id, limit=3)
+
+    assert title == "Repetitions for maintenance"
+    assert lines[0] == "Next 3 occurrence(s):"
+    assert lines[1] == f"  • {test_controller.fmt_user_date_only(date(2026, 3, 20))}"
+    assert lines[2] == f"  • {test_controller.fmt_user_date_only(date(2026, 3, 21))}"
+    assert lines[3] == f"  • {test_controller.fmt_user_date_only(date(2026, 3, 22))}"
+
+
+def test_repetitions_midnight_with_extent_keep_time(
+    test_controller, item_factory, freeze_at
+):
+    item = item_factory(
+        "* midnight event @s 2026-03-20 00:00 @e 1h @r d &u 2026-03-22",
+        final=True,
+    )
+    record_id = test_controller.add_item(item)
+
+    test_controller.db_manager.cursor.execute(
+        "DELETE FROM DateTimes WHERE record_id = ?",
+        (record_id,),
+    )
+    test_controller.db_manager.conn.commit()
+
+    with freeze_at("2026-03-19 11:37:00"):
+        title, lines = test_controller.get_record_repetitions(record_id, limit=3)
+
+    assert title == "Repetitions for midnight event"
+    assert lines[0] == "Next 3 occurrence(s):"
+    assert "00:00" in lines[1] or "12:00" in lines[1]
+    assert lines[1] != f"  • {test_controller.fmt_user_date_only(date(2026, 3, 20))}"
+    assert test_controller.fmt_user_date_only(
+        date(2026, 3, 20)
+    ) != test_controller.fmt_user(datetime(2026, 3, 20, 0, 0))
