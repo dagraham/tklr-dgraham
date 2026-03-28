@@ -1,54 +1,51 @@
 from __future__ import annotations
-import os
-import sqlite3
-import json
-import hashlib
-from typing import Optional
-from datetime import date, datetime, time, timedelta
-from dateutil.rrule import rrulestr
-from dateutil import parser as dateutil_parser
-import unicodedata
-import difflib
 
-from typing import List, Tuple, Optional, Dict, Any, Set, Iterable
-from rich import print
-from tklr.tklr_env import TklrEnvironment
-from tklr.mask import reveal_mask_tokens
-from dateutil import tz
+import difflib
+import hashlib
+import json
+import os
+import re
+import shutil
+import sqlite3
+import unicodedata
+from collections import defaultdict, deque
+from dataclasses import dataclass, field
+from datetime import date, datetime, time, timedelta
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 # from dateutil.tz import gettz
 # import math
 import numpy as np
-from pathlib import Path
-from dataclasses import dataclass, field
-
-import shutil
+from dateutil import parser as dateutil_parser
+from dateutil import tz
+from dateutil.rrule import rrulestr
+from rich import print
 
 # from textwrap import indent
 from rich.console import Console
 from rich.text import Text
 
+from tklr.mask import reveal_mask_tokens
+from tklr.tklr_env import TklrEnvironment
 
+from .item import Item
 from .shared import (
-    log_msg,
-    bug_msg,
-    parse,
-    format_datetime,
     _to_local_naive,
+    bug_msg,
     datetime_from_timestamp,
-    duration_in_words,
     datetime_in_words,
-    fmt_utc_z,
-    parse_utc_z,
+    duration_in_words,
     fmt_user,
+    fmt_utc_z,
+    format_datetime,
     get_anchor,
     has_zero_time_component,
     is_all_day_text,
+    log_msg,
+    parse,
+    parse_utc_z,
 )
-
-import re
-from .item import Item
-from collections import defaultdict, deque
 
 TAG_RE = re.compile(r"(?<!\w)#([A-Za-z0-9]+)")
 
@@ -964,14 +961,12 @@ class UrgencyComputer:
         # log_msg(f"computed {recent_contribution = }")
         return recent_contribution
 
-    def urgency_age(self, modified_seconds: int, now_seconds: int) -> float:
+    def urgency_age(self, created_seconds: int, now_seconds: int) -> float:
         """
         This function calculates the urgency contribution for a task based
-        on the current datetime relative to the (last) modified datetime. It
-        represents a combination of a decreasing contribution from recent_max
-        based on how recently it was modified and an increasing contribution
-        from 0 based on how long ago it was modified. The maximum of the two
-        is the age contribution.
+        on the current datetime relative to the created datetime. It
+        represents an increasing contribution from 0 based on how long ago
+        the task was created, capped at age_max.
         """
         age_contribution = 0
         age_interval = self.urgency.age.interval
@@ -983,7 +978,7 @@ class UrgencyComputer:
                 0.0,
                 min(
                     age_max,
-                    age_max * (now_seconds - modified_seconds) / age_interval_seconds,
+                    age_max * (now_seconds - created_seconds) / age_interval_seconds,
                 ),
             )
         # log_msg(f"computed {age_contribution = }")
@@ -1058,7 +1053,7 @@ class UrgencyComputer:
         weights = {
             "due": self.urgency_due(kwargs.get("due"), kwargs["now"]),
             "pastdue": self.urgency_pastdue(kwargs.get("due"), kwargs["now"]),
-            "age": self.urgency_age(kwargs["modified"], kwargs["now"]),
+            "age": self.urgency_age(kwargs["created"], kwargs["now"]),
             "recent": self.urgency_recent(kwargs["modified"], kwargs["now"]),
             "priority": self.urgency_priority(kwargs.get("priority_level")),
             "extent": self.urgency_extent(kwargs["extent"]),
@@ -4764,6 +4759,7 @@ class DatabaseManager:
         record_id = record["id"]
         itemtype = record["itemtype"]
         # log_msg(f"{record_id = }, {pinned = }, {record = }")
+        created_seconds = dt_str_to_seconds(record["created"])
         modified_seconds = dt_str_to_seconds(record["modified"])
         extent_seconds = td_str_to_seconds(record.get("extent", "0m"))
         # notice_seconds will be 0 in the absence of notice
@@ -4836,6 +4832,7 @@ class DatabaseManager:
 
                 urgency, color, weights = self.compute_urgency.from_args_and_weights(
                     now=now_seconds,
+                    created=created_seconds,
                     modified=modified_seconds,
                     due=job_due,
                     extent=job_extent,
@@ -4871,6 +4868,7 @@ class DatabaseManager:
             if not hide:
                 urgency, color, weights = self.compute_urgency.from_args_and_weights(
                     now=now_seconds,
+                    created=created_seconds,
                     modified=modified_seconds,
                     due=due_seconds,
                     extent=extent_seconds,

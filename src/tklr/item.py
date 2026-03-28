@@ -781,7 +781,7 @@ class Item:
         "u": ["use", "use to which jot extent applies", "do_use"],
         "d": ["details", "expanded notes", "do_d"],
         "e": ["extent", "timeperiod", "do_e"],
-        "w": ["wrap", "list of two timeperiods", "do_two_periods"],
+        # "w": ["wrap", "list of two timeperiods", "do_two_periods"],
         "f": ["finish", "completion done -> due", "do_f"],
         "g": ["goto", "url or filepath", "do_string"],
         "i": ["invitees", "comma separated list of names", "do_i"],
@@ -2793,9 +2793,9 @@ Entry: {self.entry}
 
         return True, f"BYMINUTE={rep}"
 
-    @classmethod
-    def do_two_periods(cls, arg: List[str]) -> str:
-        return True, "not implemented", []
+    # @classmethod
+    # def do_two_periods(cls, arg: List[str]) -> str:
+    #     return True, "not implemented", []
 
     def do_mask(self, token: dict) -> tuple[bool, str, list]:
         """

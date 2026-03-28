@@ -4,7 +4,7 @@ from datetime import date, datetime
 import pytest
 
 from tklr.item import Item
-from tklr.model import DatabaseManager
+from tklr.model import DatabaseManager, UrgencyComputer
 from tklr.tklr_env import TklrEnvironment
 
 
@@ -290,3 +290,37 @@ def test_repetitions_midnight_with_extent_keep_time(
     assert test_controller.fmt_user_date_only(
         date(2026, 3, 20)
     ) != test_controller.fmt_user(datetime(2026, 3, 20, 0, 0))
+
+
+def test_urgency_age_uses_created_while_recent_uses_modified(isolated_env, freeze_at):
+    urgency = UrgencyComputer(isolated_env)
+
+    with freeze_at("2025-01-11 12:00:00"):
+        now_seconds = int(datetime.now().timestamp())
+        created_seconds = int(datetime(2025, 1, 1, 12, 0, 0).timestamp())
+        modified_seconds = int(datetime(2025, 1, 10, 12, 0, 0).timestamp())
+
+        age = urgency.urgency_age(created_seconds, now_seconds)
+        recent = urgency.urgency_recent(modified_seconds, now_seconds)
+
+        assert age == urgency.urgency_age(created_seconds, now_seconds)
+        assert recent == urgency.urgency_recent(modified_seconds, now_seconds)
+        assert age != urgency.urgency_age(modified_seconds, now_seconds)
+        assert recent != urgency.urgency_recent(created_seconds, now_seconds)
+
+        _, _, weights = urgency.from_args_and_weights(
+            now=now_seconds,
+            created=created_seconds,
+            modified=modified_seconds,
+            due=None,
+            extent=0,
+            priority_level=0,
+            description=False,
+            jobs=False,
+            pinned=False,
+        )
+
+    assert weights["age"] == age
+    assert weights["recent"] == recent
+    assert weights["age"] != urgency.urgency_age(modified_seconds, now_seconds)
+    assert weights["recent"] != urgency.urgency_recent(created_seconds, now_seconds)
