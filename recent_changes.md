@@ -1,5 +1,21 @@
 # Recent Changes
 
+## 1.0.18 — 2026-03-28
+
+Since 1.0.17:
+
+Why upgrade:
+- 1 additions, 0 fixes, 1 behavior changes.
+
+Added:
+- Validate alert commands and add parse warnings
+
+Changed:
+- Use created time for urgency age
+
+Technical:
+- 4 files changed, 112 insertions(+), 55 deletions(-)
+
 ## 1.0.17 — 2026-03-27
 
 Since 1.0.16:
@@ -25,17 +41,3 @@ Changed:
 
 Technical:
 - 2 files changed, 26 deletions(-)
-
-## 1.0.15 — 2026-03-22
-
-Since 1.0.14:
-
-Why upgrade:
-- 0 additions, 0 fixes, 2 behavior changes.
-
-Changed:
-- Display on first instance of a repeating event in the events section of Agenda View.
-- Clean up imports and remove unused FinishResult
-
-Technical:
-- 3 files changed, 135 insertions(+), 115 deletions(-)
