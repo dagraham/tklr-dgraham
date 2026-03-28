@@ -1102,6 +1102,7 @@ class Item:
         self.auto_log_timestamp = None
         self.error_result = None
         self.live_replacement = None
+        self.parse_warnings = []
         self._tokenize(entry)
         # NOTE: _tokenize sets self.itemtype and self.subject
 
@@ -1116,6 +1117,8 @@ class Item:
         self.parse_ok = not self.had_token_error
         if self.had_token_error and self.error_result:
             self.last_result = self.error_result
+        elif self.parse_warnings:
+            self.parse_message = "\n".join(self.parse_warnings)
 
         if self.final:
             self.finalize_record()
@@ -1799,6 +1802,8 @@ Entry: {self.entry}
             self.last_result = (is_valid, result, token)
             if is_valid:
                 self.parse_ok = True
+                if sub_tokens:
+                    self.parse_warnings.extend(sub_tokens)
             else:
                 self.parse_ok = False
                 self.had_token_error = True
@@ -1964,30 +1969,40 @@ Entry: {self.entry}
         probs = []
         issues = []
         res = ""
-        ok = True
+        cfg = getattr(getattr(self.env, "config", None), "alerts", None)
+        defined_alerts = set(cfg.keys()) if isinstance(cfg, dict) else set()
+        built_in_alerts = {"n"}
+
         for cmd in [x.strip() for x in commands.split(",")]:
             if not cmd:
                 continue
-            if is_lowercase_letter(cmd):
-                cmds.append(cmd)
-            else:
-                ok = False
-                probs.append(f"  Invalid command: {cmd}")
+            if not is_lowercase_letter(cmd):
+                probs.append(f"  Invalid alert command: {cmd}")
+                continue
+            if cmd not in built_in_alerts and cmd not in defined_alerts:
+                probs.append(f"  Undefined alert command: {cmd}")
+                continue
+            cmds.append(cmd)
+
         for td in [x.strip() for x in timedeltas.split(",")]:
             if not td:
                 continue
-            ok, td_seconds = timedelta_str_to_seconds(td)
-            if ok:
+            td_ok, td_seconds = timedelta_str_to_seconds(td)
+            if td_ok:
                 secs.append(str(td_seconds))
                 tds.append(td)
             else:
-                ok = False
                 probs.append(f"  Invalid timeperiod: {td}")
-        if ok:
+        # if ok:
+        #     res = f"{', '.join(tds)}: {', '.join(cmds)}"
+        #     self.alerts.append(res)
+        # else:
+        #     issues.append("; ".join(probs))
+        if probs:
+            issues.append("; ".join(probs))
+        else:
             res = f"{', '.join(tds)}: {', '.join(cmds)}"
             self.alerts.append(res)
-        else:
-            issues.append("; ".join(probs))
         if issues:
             return False, "\n".join(issues), []
         return True, res, []
@@ -2643,7 +2658,7 @@ Entry: {self.entry}
         if problems:
             probs = []
             probs.append(", ".join(bad))
-            probs.append("\n", join(problems))
+            probs.extend(problems)
             probs_str = "\n".join(probs)
             problem_str = f"Problem entries: {probs_str}"
         good = []

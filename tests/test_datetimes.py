@@ -324,3 +324,13 @@ def test_urgency_age_uses_created_while_recent_uses_modified(isolated_env, freez
     assert weights["recent"] == recent
     assert weights["age"] != urgency.urgency_age(modified_seconds, now_seconds)
     assert weights["recent"] != urgency.urgency_recent(created_seconds, now_seconds)
+
+
+def test_undefined_alert_command_fails_parse(item_factory):
+    item = item_factory(
+        "~ alert warning example @s 2026-03-20 9:00 @a 0m: x", final=True
+    )
+
+    assert not item.parse_ok
+    assert "Undefined alert command: x" in item.parse_message
+    assert "0m: x" not in item.alerts
