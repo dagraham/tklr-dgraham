@@ -961,12 +961,11 @@ class ChoicePrompt(ModalScreen[Optional[str]]):
 
 class ConfirmPrompt(ModalScreen[Optional[bool]]):
     """
-    Simple yes/no/escape confirm dialog.
+    Simple yes/no confirm dialog.
 
     Returns:
         True  -> user confirmed ("yes")
-        False -> user explicitly said "no"
-        None  -> user cancelled with ESC
+        False -> user kept editing ("no")
     """
 
     def __init__(self, message: str):
@@ -982,17 +981,15 @@ class ConfirmPrompt(ModalScreen[Optional[bool]]):
                 yield Static(self.message, id="confirm_message")
 
             yield Static(
-                "Press [bold yellow]Y[/bold yellow] for yes, "
-                "[bold yellow]N[/bold yellow] for no, or [bold yellow]ESC[/bold yellow] to cancel.",
+                "Press [bold yellow]Y[/bold yellow] to discard or "
+                "[bold yellow]N[/bold yellow] to keep editing.",
                 id="confirm_instructions",
             )
 
     def on_key(self, event) -> None:
         key = event.key.lower()
 
-        if key == "escape":
-            self.dismiss(None)
-        elif key == "y":
+        if key == "y":
             self.dismiss(True)
         elif key == "n":
             self.dismiss(False)
@@ -1270,7 +1267,6 @@ class EditorScreen(Screen):
                 "Edit the entry below as desired, then press",
                 (
                     f"[bold {FOOTER}]{SAVE_LABEL}[/bold {FOOTER}] to save"
-                    f", [bold {FOOTER}]F2[/bold {FOOTER}] to add the current @u value as a use,"
                     f" or [bold {FOOTER}]{CANCEL_LABEL}[/bold {FOOTER}] to cancel"
                 ),
             ]
