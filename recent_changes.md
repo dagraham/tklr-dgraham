@@ -1,5 +1,21 @@
 # Recent Changes
 
+## 1.0.19 — 2026-03-29
+
+Since 1.0.18:
+
+Why upgrade:
+- 1 additions, 0 fixes, 0 behavior changes.
+
+Added:
+- Add F2 shortcut to create uses from @u tokens
+
+Internal:
+- Use monkeypatch to set EditorScreen.app in tests
+
+Technical:
+- 3 files changed, 170 insertions(+), 83 deletions(-)
+
 ## 1.0.18 — 2026-03-28
 
 Since 1.0.17:
@@ -28,16 +44,3 @@ Fixed:
 
 Technical:
 - 3 files changed, 143 insertions(+), 11 deletions(-)
-
-## 1.0.16 — 2026-03-23
-
-Since 1.0.15:
-
-Why upgrade:
-- 0 additions, 0 fixes, 1 behavior changes.
-
-Changed:
-- Reverted last change. Show all instances of repeating events in Agenda view that fall within the relevant period.
-
-Technical:
-- 2 files changed, 26 deletions(-)
