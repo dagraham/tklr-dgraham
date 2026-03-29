@@ -1462,24 +1462,26 @@ The table below gives the complete list of both `@-keys` and, when applicable, t
 
 ### 3.1. Installing _tklr_
 
-As usual with <em>python</em> applications, <em>tklr</em> can be installed from <em>PyPI</em> using either <code>pip</code> or <code>pipx</code>.
-
-On some Linux distributions, however, the system <em>python</em> installation is managed by the operating system and protected from direct <code>pip</code> installs. This helps prevent conflicts with distro-managed <em>python</em> packages that the OS itself may depend on. In such cases, <code>pipx</code> is usually the best choice for command-line applications such as <em>tklr</em> because it installs each application in its own isolated environment while still making the <code>tklr</code> command available in your shell.
-
-If you are using <code>pip</code>, the following command can be used either to install for the first time or to upgrade an existing installation:
-
+As a standalone command-line application, <em>tklr</em> is best installed from <em>PyPI</em> using <code>pipx</code>. Before installing, check which version of <code>python3</code> you already have:
 ```
-pip install -U tklr-dgraham
+python3 --version
 ```
 
-With <code>pipx</code>, two different commands are needed. For the initial installation:
+On some Linux distributions, the system <em>python</em> installation is managed by the operating system and protected from direct <code>pip</code> installs. This helps prevent conflicts with distro-managed <em>python</em> packages that the OS itself may depend on. <code>pipx</code> avoids these issues by installing each application in its own isolated environment while still making the <code>tklr</code> command available in your shell.
+
+If <code>python3 --version</code> reports Python 3.12 or newer, install <em>tklr</em> with:
 ```
-pipx install tklr-dgraham
+pipx install --python python3 tklr-dgraham
 ```
 
 To upgrade an existing installation:
 ```
 pipx upgrade tklr-dgraham
+```
+
+<em>Tklr</em> requires Python 3.12 or newer. If <code>python3 --version</code> reports an older version, first install a newer Python and then tell <code>pipx</code> explicitly which Python 3.12+ interpreter to use. For example, if you use <code>pyenv</code>:
+```
+pipx install --python ~/.pyenv/versions/3.13.0/bin/python tklr-dgraham
 ```
 
 ### 3.2 Starting tklr for the first time
