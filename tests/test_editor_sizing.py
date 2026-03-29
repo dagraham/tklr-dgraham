@@ -88,3 +88,85 @@ def test_on_key_ignores_week_nav_when_modal_screen_active_right():
 
     assert calls["prev"] == 0
     assert calls["next"] == 0
+
+
+class _DummyTextArea:
+    def __init__(self):
+        self.text = ""
+        self.focused = False
+        self.cursor_location = (0, 0)
+
+    def focus(self) -> None:
+        self.focused = True
+
+
+class _DummyApp:
+    def __init__(self):
+        self.notifications = []
+
+    def notify(self, message: str, **kwargs) -> None:
+        self.notifications.append((message, kwargs))
+
+
+def test_create_use_registers_existing_u_token_without_cursor_dependency(
+    test_controller,
+):
+    screen = EditorScreen(test_controller, seed_text="~ note about plants")
+    screen.entry_text = "~ note about plants @u garden"
+    screen._text = _DummyTextArea()
+    screen.app = _DummyApp()
+    screen.item.relative_tokens = [{"k": "u", "token": "@u garden", "s": 20, "e": 29}]
+    screen._cursor_abs_index = lambda: 0
+    screen._token_at = lambda idx: None
+    screen._live_parse_and_feedback = lambda final=False, refresh_from_widget=False: (
+        None
+    )
+
+    screen.action_create_use()
+
+    use = test_controller.lookup_use("garden")
+    assert use is not None
+    assert use["name"] == "garden"
+    assert screen.entry_text.endswith("@u garden")
+    assert screen._text.text == screen.entry_text
+    assert any('Use "garden" created.' in msg for msg, _ in screen.app.notifications)
+
+
+def test_create_use_replaces_existing_u_token_with_canonical_name(test_controller):
+    test_controller.add_use("Garden", "")
+    screen = EditorScreen(test_controller, seed_text="~ note @u garden")
+    screen.entry_text = "~ note @u garden"
+    screen._text = _DummyTextArea()
+    screen.app = _DummyApp()
+    screen.item.relative_tokens = [{"k": "u", "token": "@u garden", "s": 7, "e": 16}]
+    screen._cursor_abs_index = lambda: 0
+    screen._token_at = lambda idx: None
+    screen._live_parse_and_feedback = lambda final=False, refresh_from_widget=False: (
+        None
+    )
+
+    screen.action_create_use()
+
+    assert screen.entry_text == "~ note @u Garden"
+    assert screen._text.text == "~ note @u Garden"
+    assert any('Use "Garden" created.' in msg for msg, _ in screen.app.notifications)
+
+
+def test_create_use_requires_existing_u_token_when_absent(test_controller):
+    screen = EditorScreen(test_controller, seed_text="~ note without use")
+    screen.entry_text = "~ note without use"
+    screen._text = _DummyTextArea()
+    screen.app = _DummyApp()
+    screen.item.relative_tokens = []
+    screen._cursor_abs_index = lambda: len(screen.entry_text)
+    screen._token_at = lambda idx: None
+    screen._live_parse_and_feedback = lambda final=False, refresh_from_widget=False: (
+        None
+    )
+
+    screen.action_create_use()
+
+    assert test_controller.lookup_use("use") is None
+    assert any(
+        "This reminder has no @u token." in msg for msg, _ in screen.app.notifications
+    )

@@ -2268,8 +2268,8 @@ Entry: {self.entry}
             summary = self._format_match_list(matches, display_limit=3)
             suggestion_text = f"\nMatching entries: {summary}." if summary else ""
             hint = (
-                f"Press Ctrl+Shift+Period to add '{normalized}' as a new use "
-                f"or enter an existing one.{suggestion_text}"
+                f"Press F2 to add '{normalized}' as a new use "
+                f"or replace it with an existing use.{suggestion_text}"
             )
             return (False, hint, [])
         self.use = normalized
