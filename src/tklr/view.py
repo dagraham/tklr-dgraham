@@ -121,8 +121,8 @@ BIN_COLOR = TOMATO
 SCREENSHOT_BINDING = "ctrl+r"
 SAVE_BINDING = "ctrl+s"
 SAVE_LABEL = "^s"
-CANCEL_BINDING = "ctrl+escape"
-CANCEL_LABEL = "^esc"
+CANCEL_BINDING = "escape"
+CANCEL_LABEL = "esc"
 NOTE_COLOR = DARK_SALMON
 NOTICE_COLOR = GOLD
 
@@ -1066,6 +1066,7 @@ class UseEditorPrompt(ModalScreen[tuple[str, str] | None]):
     BINDINGS = [
         (SAVE_BINDING, "save_use", "Save"),
         (CANCEL_BINDING, "cancel_use", "Cancel"),
+        ("ctrl+z", "cancel_use", "Cancel"),
     ]
 
     def __init__(
@@ -1239,6 +1240,7 @@ class EditorScreen(Screen):
         self.controller = controller
         self.record_id = record_id
         self.entry_text = seed_text
+        self._original_text = seed_text
         self._pending_use_name: str | None = None
         self._pending_use_span: tuple[int, int] | None = None
 
@@ -1403,7 +1405,25 @@ class EditorScreen(Screen):
         self.dismiss({"changed": True, "record_id": self.record_id})
 
     def action_close(self) -> None:
-        self.dismiss(None)  # close without saving
+        current_text = ""
+        if self._text is not None:
+            current_text = self._text.text or ""
+        else:
+            current_text = self.entry_text or ""
+
+        original_text = self._original_text or ""
+        if current_text == original_text:
+            self.dismiss(None)
+            return
+
+        def _after_confirm(result: Optional[bool]) -> None:
+            if result is True:
+                self.dismiss(None)
+
+        self.app.push_screen(
+            ConfirmPrompt("Discard unsaved changes?"),
+            callback=_after_confirm,
+        )
 
     def action_create_use(self) -> None:
         token = next(

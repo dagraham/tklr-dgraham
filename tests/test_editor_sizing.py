@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from tklr.view import DynamicViewApp, EditorScreen
+from tklr.view import ConfirmPrompt, DynamicViewApp, EditorScreen
 
 
 def test_entry_height_has_practical_minimum():
@@ -90,6 +90,18 @@ def test_on_key_ignores_week_nav_when_modal_screen_active_right():
     assert calls["next"] == 0
 
 
+class _DummyScreenApp:
+    def __init__(self):
+        self.notifications = []
+        self.pushed = []
+
+    def notify(self, message: str, **kwargs) -> None:
+        self.notifications.append((message, kwargs))
+
+    def push_screen(self, screen, callback=None) -> None:
+        self.pushed.append((screen, callback))
+
+
 class _DummyTextArea:
     def __init__(self):
         self.text = ""
@@ -100,12 +112,8 @@ class _DummyTextArea:
         self.focused = True
 
 
-class _DummyApp:
-    def __init__(self):
-        self.notifications = []
-
-    def notify(self, message: str, **kwargs) -> None:
-        self.notifications.append((message, kwargs))
+class _DummyApp(_DummyScreenApp):
+    pass
 
 
 def test_create_use_registers_existing_u_token_without_cursor_dependency(
@@ -175,3 +183,81 @@ def test_create_use_requires_existing_u_token_when_absent(test_controller, monke
     assert any(
         "This reminder has no @u token." in msg for msg, _ in dummy_app.notifications
     )
+
+
+def test_action_close_dismisses_immediately_when_editor_unmodified(
+    test_controller, monkeypatch
+):
+    screen = EditorScreen(test_controller, seed_text="~ note")
+    screen.entry_text = "~ note"
+    screen._text = _DummyTextArea()
+    screen._text.text = "~ note"
+    dummy_app = _DummyScreenApp()
+    monkeypatch.setattr(EditorScreen, "app", property(lambda self: dummy_app))
+    dismissed = []
+    screen.dismiss = lambda result=None: dismissed.append(result)
+
+    screen.action_close()
+
+    assert dismissed == [None]
+    assert dummy_app.pushed == []
+
+
+def test_action_close_prompts_when_editor_modified(test_controller, monkeypatch):
+    screen = EditorScreen(test_controller, seed_text="~ note")
+    screen.entry_text = "~ note"
+    screen._text = _DummyTextArea()
+    screen._text.text = "~ note changed"
+    dummy_app = _DummyScreenApp()
+    monkeypatch.setattr(EditorScreen, "app", property(lambda self: dummy_app))
+    dismissed = []
+    screen.dismiss = lambda result=None: dismissed.append(result)
+
+    screen.action_close()
+
+    assert dismissed == []
+    assert len(dummy_app.pushed) == 1
+    prompt, callback = dummy_app.pushed[0]
+    assert isinstance(prompt, ConfirmPrompt)
+    assert prompt.message == "Discard unsaved changes?"
+    assert callback is not None
+
+
+def test_action_close_confirm_discard_dismisses_modified_editor(
+    test_controller, monkeypatch
+):
+    screen = EditorScreen(test_controller, seed_text="~ note")
+    screen.entry_text = "~ note"
+    screen._text = _DummyTextArea()
+    screen._text.text = "~ note changed"
+    dummy_app = _DummyScreenApp()
+    monkeypatch.setattr(EditorScreen, "app", property(lambda self: dummy_app))
+    dismissed = []
+    screen.dismiss = lambda result=None: dismissed.append(result)
+
+    screen.action_close()
+
+    prompt, callback = dummy_app.pushed[0]
+    assert isinstance(prompt, ConfirmPrompt)
+    callback(True)
+
+    assert dismissed == [None]
+
+
+def test_action_close_cancel_discard_keeps_editor_open(test_controller, monkeypatch):
+    screen = EditorScreen(test_controller, seed_text="~ note")
+    screen.entry_text = "~ note"
+    screen._text = _DummyTextArea()
+    screen._text.text = "~ note changed"
+    dummy_app = _DummyScreenApp()
+    monkeypatch.setattr(EditorScreen, "app", property(lambda self: dummy_app))
+    dismissed = []
+    screen.dismiss = lambda result=None: dismissed.append(result)
+
+    screen.action_close()
+
+    prompt, callback = dummy_app.pushed[0]
+    assert isinstance(prompt, ConfirmPrompt)
+    callback(False)
+
+    assert dismissed == []
