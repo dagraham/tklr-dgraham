@@ -1,5 +1,19 @@
 # Recent Changes
 
+## 1.0.20 — 2026-03-29
+
+Since 1.0.19:
+
+Why upgrade:
+- 0 additions, 0 fixes, 2 behavior changes.
+
+Changed:
+- Exclude numpy 2.4.0 from pyproject dependencies
+- Prompt before closing editor with unsaved changes
+
+Technical:
+- 3 files changed, 117 insertions(+), 11 deletions(-)
+
 ## 1.0.19 — 2026-03-29
 
 Since 1.0.18:
@@ -31,16 +45,3 @@ Changed:
 
 Technical:
 - 4 files changed, 112 insertions(+), 55 deletions(-)
-
-## 1.0.17 — 2026-03-27
-
-Since 1.0.16:
-
-Why upgrade:
-- 0 additions, 1 fixes, 0 behavior changes.
-
-Fixed:
-- Fix recurrence UNTIL normalization for timezone-aware DTSTART
-
-Technical:
-- 3 files changed, 143 insertions(+), 11 deletions(-)
