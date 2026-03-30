@@ -3804,16 +3804,22 @@ class DatabaseManager:
                         yield cur
                 else:
                     # default horizon for infinite rules
-                    start = datetime.now()
+                    # For repeating tasks, generate from DTSTART so the current due
+                    # anchor is preserved even when it lies before "now".
+                    rule_dtstart = getattr(rule, "_dtstart", None)
+                    if itemtype == "~" and rule_dtstart is not None:
+                        start = rule_dtstart
+                    else:
+                        start = datetime.now()
                     end = start + timedelta(weeks=12)
                     try:
                         occs = rule.between(start, end, inc=True)
                     except TypeError:
-                        occs = rule.between(
-                            start.replace(tzinfo=tz.UTC),
-                            end.replace(tzinfo=tz.UTC),
-                            inc=True,
-                        )
+                        if getattr(start, "tzinfo", None) is None:
+                            start = start.replace(tzinfo=tz.UTC)
+                        if getattr(end, "tzinfo", None) is None:
+                            end = end.replace(tzinfo=tz.UTC)
+                        occs = rule.between(start, end, inc=True)
                     for cur in occs:
                         yield cur
 
@@ -4346,8 +4352,9 @@ class DatabaseManager:
         self, record_id: int, job_id: int | None = None
     ) -> int | None:
         """
-        Return the epoch seconds for the next scheduled start in DateTimes.
-        If there is no future start, fall back to the earliest historical start.
+        Return the epoch seconds for the earliest scheduled start in DateTimes.
+        For repeating tasks, the earliest occurrence is the current due anchor and
+        remains relevant until the task is explicitly finished.
         """
 
         sql = "SELECT start_datetime FROM DateTimes WHERE record_id = ?"
@@ -4364,18 +4371,12 @@ class DatabaseManager:
         if not rows:
             return None
 
-        now = datetime.now()
-        fallback: int | None = None
         for (start_text,) in rows:
             start_dt = datetime_from_timestamp(start_text)
             if not start_dt:
                 continue
-            start_seconds = round(start_dt.timestamp())
-            if start_dt >= now:
-                return start_seconds
-            if fallback is None:
-                fallback = start_seconds
-        return fallback
+            return round(start_dt.timestamp())
+        return None
 
     def _offset_seconds_from_record(self, record: dict) -> int | None:
         """Extract the first @o interval (in seconds) from stored tokens."""

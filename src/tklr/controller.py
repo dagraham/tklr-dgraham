@@ -4258,9 +4258,7 @@ class Controller:
         day_delta = (due_local.date() - now.date()).days
         if day_delta < 0:
             return f"{day_delta}d"
-        if day_delta <= 7:
-            return f"+{day_delta}d"
-        return ""
+        return f"+{day_delta}d"
 
     def get_agenda_tasks(self, now: datetime | None = None):
         """
