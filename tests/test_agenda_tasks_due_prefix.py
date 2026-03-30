@@ -1,5 +1,5 @@
-from datetime import datetime
 import re
+from datetime import datetime
 
 import pytest
 
@@ -15,7 +15,9 @@ def _add_entry(test_controller, item_factory, entry: str) -> None:
 
 
 @pytest.mark.integration
-def test_agenda_tasks_due_prefix_for_overdue_and_next_week(test_controller, item_factory):
+def test_agenda_tasks_due_prefix_for_overdue_and_next_week(
+    test_controller, item_factory
+):
     _add_entry(test_controller, item_factory, "~ overdue task @s 2025-01-06")
     _add_entry(test_controller, item_factory, "~ due today task @s 2025-01-10")
     _add_entry(test_controller, item_factory, "~ due soon task @s 2025-01-13")
@@ -33,12 +35,13 @@ def test_agenda_tasks_due_prefix_for_overdue_and_next_week(test_controller, item
     assert "-4d overdue task" in overdue
     assert "+0d due today task" in today
     assert "+3d due soon task" in soon
-    assert "due later task" in later
-    assert "+10d" not in later
+    assert "+10d due later task" in later
 
 
 @pytest.mark.integration
-def test_agenda_tasks_due_prefix_uses_current_date_not_time(test_controller, item_factory):
+def test_agenda_tasks_due_prefix_uses_current_date_not_time(
+    test_controller, item_factory
+):
     _add_entry(test_controller, item_factory, "~ morning deadline @s 2025-01-10 09:00")
     test_controller.db_manager.populate_dependent_tables(force=True)
 
