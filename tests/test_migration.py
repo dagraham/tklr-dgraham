@@ -82,7 +82,15 @@ def test_migration_appends_etm_metadata_tags_to_description():
     assert (
         "@d Modi neque eius dolor modi quiquia eius tempora. "
         "#etm13_20260402T1155_20261204T1135"
-    ) in tokens
+    ) not in tokens
+    assert (
+        "@d Modi neque eius dolor modi quiquia eius tempora. "
+        "#lorem #etm13_20260402T1155_20261204T1135"
+    ) not in tokens
+    assert any(
+        token.startswith("@d ") and "#etm13_20260402T1155_20261204T1135" in token
+        for token in tokens
+    )
 
 
 def test_migration_creates_description_from_etm_metadata_when_absent():
@@ -95,7 +103,11 @@ def test_migration_creates_description_from_etm_metadata_when_absent():
 
     tokens = etm_to_tokens(item, "13", include_record_id=False, secret=None)
 
-    assert "@d #etm13_20260402T1155_20261204T1135" in tokens
+    assert "@d #etm13_20260402T1155_20261204T1135" not in tokens
+    assert any(
+        token.startswith("@d ") and "#etm13_20260402T1155_20261204T1135" in token
+        for token in tokens
+    )
 
 
 def test_migration_index_field_maps_only_bin_portion_to_reminder_bin():
