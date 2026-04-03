@@ -25,7 +25,6 @@ BARE_DT = re.compile(r"^(\d{8})T(\d{4})([ANZ]?)$")
 AND_KEY_MAP = {
     "n": "M",
     "h": "H",
-    "M": "m",
 }
 
 TYPE_MAP = {
@@ -33,7 +32,7 @@ TYPE_MAP = {
     "-": "~",
     "%": "%",
     "!": "?",
-    "~": "+",
+    "~": "!",
 }
 
 MASK_PREFIX = "{M}:"
@@ -109,6 +108,70 @@ def format_subvalue(val: Any) -> list[str]:
     else:
         results.append(str(val))
     return results
+
+
+def format_etm_datetime_token(val: Any) -> str | None:
+    if not isinstance(val, str):
+        return None
+    if m := TAG_PATTERNS["T"].match(val):
+        ts, kind = m.groups()
+        suffix = " z UTC" if kind in ("A", "Z") else ""
+        return f"{ts}{suffix}"
+    if m := BARE_DT.match(val):
+        ymd, hm, suf = m.groups()
+        suffix = " z UTC" if suf in ("A", "Z") else ""
+        return f"{ymd}T{hm}{suffix}"
+    return None
+
+
+def split_index_bin_and_use(val: Any) -> tuple[str | None, str | None]:
+    vals = format_subvalue(val)
+    if not vals:
+        return None, None
+    parts = [p.strip() for p in vals[0].split(",", 1)]
+    if len(parts) == 2:
+        left = parts[0] or None
+        right = parts[1] or None
+        return left, right
+    only = parts[0].strip() if parts else ""
+    return (only or None), None
+
+
+def etm_to_jot_tokens(item: dict) -> list[list[str]]:
+    if "u" not in item or "i" not in item:
+        return []
+
+    bin_name, use_name = split_index_bin_and_use(item.get("i"))
+    if not bin_name or not use_name:
+        return []
+
+    summary = str(item.get("summary", "")).strip()
+    used_entries = item.get("u")
+    if not isinstance(used_entries, list):
+        return []
+
+    jot_entries: list[list[str]] = []
+    for used in used_entries:
+        if not (isinstance(used, list) and len(used) == 2):
+            continue
+
+        extent_vals = format_subvalue(used[0])
+        extent = extent_vals[0].strip() if extent_vals else ""
+        scheduled = format_etm_datetime_token(used[1])
+
+        if not extent or not scheduled:
+            continue
+
+        tokens = [
+            f"- {summary}".rstrip(),
+            f"@s {scheduled}",
+            f"@e {extent}",
+            f"@u {use_name}",
+            f"@b {bin_name}",
+        ]
+        jot_entries.append(tokens)
+
+    return jot_entries
 
 
 def reorder_tokens(tokens: list[str]) -> list[str]:
@@ -190,9 +253,27 @@ def etm_to_tokens(
     description_value: str | None = None
     description_insert_index: int | None = None
     hashtag_suffix: list[str] = []
+    metadata_suffix: list[str] = []
+    created_vals = format_subvalue(item.get("created"))
+    created_tag = None
+    if created_vals:
+        created_tag = (
+            created_vals[0].replace("-", "").replace(":", "").replace(" ", "T")
+        )
+    modified_vals = format_subvalue(item.get("modified"))
+    modified_tag = None
+    if modified_vals:
+        modified_tag = (
+            modified_vals[0].replace("-", "").replace(":", "").replace(" ", "T")
+        )
+    if key is not None and created_tag:
+        meta = f"#etm{key}_{created_tag}"
+        if modified_tag:
+            meta = f"{meta}_{modified_tag}"
+        metadata_suffix.append(meta)
 
     for k, v in item.items():
-        if k in {"itemtype", "summary", "created", "modified", "h", "k", "q"}:
+        if k in {"itemtype", "summary", "created", "modified", "h", "k"}:
             continue
         if k == "d":
             description_value = str(v)
@@ -216,7 +297,9 @@ def etm_to_tokens(
             tokens.append(f"@n {v}d")
             continue
         if k == "i":
-            tokens.append(f"@b {v}")
+            bin_name, _use_name = split_index_bin_and_use(v)
+            if bin_name:
+                tokens.append(f"@b {bin_name}")
             continue
         if k == "z" and v == "float":
             tokens.append("@z none")
@@ -231,10 +314,8 @@ def etm_to_tokens(
             if vals:
                 s = vals[0]
                 if "->" in s:
-                    left, right = [t.strip() for t in s.split("->", 1)]
-                    tokens.append(
-                        f"@f {left}" if left == right else f"@f {left}, {right}"
-                    )
+                    _left, right = [t.strip() for t in s.split("->", 1)]
+                    tokens.append(f"@f {right}")
                 else:
                     tokens.append(f"@f {s}")
             continue
@@ -330,6 +411,16 @@ def etm_to_tokens(
             if vals:
                 tokens.append(f"@o {', '.join(vals)}")
             continue
+        if k == "q":
+            if isinstance(v, list) and len(v) >= 2:
+                count = str(v[0]).strip()
+                period = str(v[1]).strip()
+                if period and period[0].isdigit():
+                    target = f"{count}/{period}"
+                else:
+                    target = f"{count}/1{period}"
+                tokens.append(f"@t {target}")
+            continue
         if k == "m":
             vals = format_subvalue(v)
             if vals:
@@ -347,10 +438,15 @@ def etm_to_tokens(
         if vals:
             tokens.append(f"@{k} {', '.join(vals)}")
 
-    if description_value is not None or hashtag_suffix:
+    if description_value is not None or hashtag_suffix or metadata_suffix:
         content = description_value or ""
+        suffix_parts: list[str] = []
         if hashtag_suffix:
-            suffix = " ".join(hashtag_suffix)
+            suffix_parts.extend(hashtag_suffix)
+        if metadata_suffix:
+            suffix_parts.extend(metadata_suffix)
+        if suffix_parts:
+            suffix = " ".join(suffix_parts)
             content = f"{content} {suffix}" if content else suffix
         _append_description_token(tokens, content, description_insert_index)
 
@@ -396,7 +492,7 @@ def migrate_etm_directory(
                 continue
             tokens = etm_to_tokens(
                 item,
-                record_id if include_record_ids else None,
+                record_id,
                 include_record_id=include_record_ids,
                 secret=secret,
             )
@@ -404,6 +500,13 @@ def migrate_etm_directory(
             out_lines.append("...")
             out_lines.append("")
             count += 1
+
+            jot_entries = etm_to_jot_tokens(item)
+            for jot_tokens in jot_entries:
+                out_lines.append(tokens_to_entry(jot_tokens))
+                out_lines.append("...")
+                out_lines.append("")
+                count += 1
 
     text = "\n".join(out_lines).rstrip() + ("\n" if out_lines else "")
     outfile.parent.mkdir(parents=True, exist_ok=True)

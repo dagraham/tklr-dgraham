@@ -408,7 +408,7 @@ It is worth noting the different roles of two attributes in events and tasks.
 
 <div style="overflow:auto;">
   <pre style="float:right; margin-left:20px; width:460px; background:#111; color:#ddd; padding:12px; border-radius:6px;">
-<code>! interval training @s 2026-01-05 @o 3/1w
+<code>! interval training @s 2026-01-05 @t 3/1w
 </code>
   </pre>
   <p>The beginning <code>!</code> type character makes this reminder a <i>goal</i> with the following <code>interval training</code> as the <i>subject</i>. The <code>@t 3/1w</code> attribute is required and sets the <i>target</i> to be 3 completions during the period of one week starting at midnight on '2026-01-05', because of the <code>@s</code> attribute, and ending one week later at midnight on '2026-01-12', because of the '1w' target period.

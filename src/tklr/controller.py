@@ -1824,7 +1824,12 @@ class Controller:
         # in _apply_theme_colors() so contrast remains readable.
         highlight_tokens = True
         entry = format_tokens(tokens, self.width, highlight=highlight_tokens)
-        entry = f"[bold {type_color}]{entry[0]}[/bold {type_color}]{entry[1:]}"
+        if entry:
+            entry = f"[bold {type_color}]{entry[0]}[/bold {type_color}]{entry[1:]}"
+        else:
+            subject = self.get_record_core(record_id).get("subject") or "(untitled)"
+            itemtype = self.get_record_core(record_id).get("itemtype") or "?"
+            entry = f"[bold {type_color}]{itemtype}[/bold {type_color}] {subject}"
 
         instance_line = (
             f"[{label_color}]instance:[/{label_color}] {instance}" if instance else ""

@@ -1,43 +1,39 @@
-import sys
-import os
 import json
+import os
 import shutil
+import sys
 import textwrap
-import click
-from pathlib import Path
-from rich import print
-from typing import Dict, List, Tuple, Optional
-
 from collections import defaultdict
+from datetime import date, datetime, time, timedelta
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
-from rich.console import Console
-from rich.text import Text
-from rich.table import Table
-from rich import box
-
+import click
 from dateutil import parser as dt_parser
+from rich import box, print
+from rich.console import Console
+from rich.table import Table
+from rich.text import Text
 
-from tklr.item import Item
 from tklr.controller import Controller
-from tklr.model import DatabaseManager, td_str_to_seconds
-from tklr.view import DynamicViewApp
-from tklr.tklr_env import TklrEnvironment, collapse_home
+from tklr.item import Item
 from tklr.migration import MIGRATION_ITEM_TYPES, migrate_etm_directory
+from tklr.model import DatabaseManager, td_str_to_seconds
+from tklr.query import QueryError
+from tklr.shared import (
+    TYPE_TO_COLOR,
+    datetime_from_timestamp,
+    format_decimal_hours,
+    format_iso_week,
+    format_time_range,
+    parse_month_spec,
+    round_seconds_to_step_minutes,
+)
+from tklr.tklr_env import TklrEnvironment, collapse_home
 
 # from tklr.view_agenda import run_agenda_view
 from tklr.versioning import get_version
-from tklr.shared import (
-    format_time_range,
-    format_iso_week,
-    TYPE_TO_COLOR,
-    parse_month_spec,
-    datetime_from_timestamp,
-    round_seconds_to_step_minutes,
-    format_decimal_hours,
-)
-from tklr.query import QueryError
-
-from datetime import date, datetime, timedelta, time
+from tklr.view import DynamicViewApp
 
 
 class _DateParam(click.ParamType):
@@ -254,12 +250,69 @@ def add(ctx, entry, file, batch):
         return split_entries(result)
 
     def process_entry(entry_str: str) -> bool:
+        def normalize_parse_message(msg: str) -> str:
+            return " ".join((msg or "").split())
+
+        def make_draft_entry(raw_entry: str, parse_message: str) -> str:
+            lines = raw_entry.splitlines()
+            if not lines:
+                return raw_entry
+
+            lines[0] = f"? {lines[0]}"
+            error_text = f"Import error: {normalize_parse_message(parse_message)}"
+
+            for i, line in enumerate(lines):
+                if line.startswith("@d "):
+                    lines[i] = f"{line} {error_text}"
+                    break
+            else:
+                lines.append(f"@d {error_text}")
+
+            return "\n".join(lines)
+
+        def should_autocreate_use() -> bool:
+            return bool(file or batch or not sys.stdin.isatty())
+
+        def extract_unknown_use_name(msg: str) -> str | None:
+            if not msg:
+                return None
+            prefix = "Press F2 to add '"
+            suffix = "' as a new use or replace it with an existing use."
+            start = msg.find(prefix)
+            if start == -1:
+                return None
+            start += len(prefix)
+            end = msg.find(suffix, start)
+            if end == -1:
+                return None
+            use_name = msg[start:end].strip()
+            return use_name or None
+
         msg = None
+        item = None
         try:
             item = Item(env=env, raw=entry_str, final=True, controller=controller)
-            if not item.parse_ok or not item.itemtype:
-                # pm = "\n".join(item.parse_message)
-                # tks = "\n".join(item.relative_tokens)
+            if (not item.parse_ok or not item.itemtype) and should_autocreate_use():
+                unknown_use = extract_unknown_use_name(item.parse_message)
+                if unknown_use:
+                    try:
+                        controller.add_use(unknown_use, "")
+                    except ValueError:
+                        pass
+                    item = Item(
+                        env=env, raw=entry_str, final=True, controller=controller
+                    )
+
+            if (not item.parse_ok or not item.itemtype) and should_autocreate_use():
+                draft_entry = make_draft_entry(entry_str, item.parse_message)
+                draft_item = Item(
+                    env=env, raw=draft_entry, final=True, controller=controller
+                )
+                if draft_item.parse_ok and draft_item.itemtype:
+                    item = draft_item
+                else:
+                    msg = f"\n[red]✘ Invalid entry[/red] \nentry: {entry_str}\nparse_message: {item.parse_message}\ndraft_entry: {draft_entry}\ndraft_parse_message: {draft_item.parse_message}\ntokens: {item.relative_tokens}"
+            elif not item.parse_ok or not item.itemtype:
                 msg = f"\n[red]✘ Invalid entry[/red] \nentry: {entry_str}\nparse_message: {item.parse_message}\ntokens: {item.relative_tokens}"
         except Exception as e:
             msg = f"\n[red]✘ Internal error during parsing:[/red]\nentry: {entry_str}\nexception: {e}"

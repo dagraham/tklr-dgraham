@@ -642,7 +642,7 @@ allowed = {
     "x": common_methods + datetime_methods + task_methods + repeating_methods + ["~"],
     "~": common_methods + datetime_methods + task_methods + repeating_methods,
     "!": common_methods + ["s", "t", "f", "k"],
-    "-": ["s", "u", "d", "e"],  # s will default to now if missing
+    "-": ["s", "u", "d", "e", "b"],  # s will default to now if missing
     "^": common_methods + datetime_methods + job_methods + repeating_methods,
     "%": common_methods + datetime_methods,
     "?": all_keys,
@@ -1110,6 +1110,21 @@ class Item:
         if self.parse_message:
             self.parse_ok = False
             return f"parse failed: {self.parse_message = }"
+
+        if self.itemtype == "?":
+            self.parse_ok = True
+            self.parse_message = ""
+            self.tokens = [
+                {
+                    "token": self.entry,
+                    "s": 0,
+                    "e": len(self.entry),
+                    "t": "raw",
+                    "k": "",
+                }
+            ]
+            self.last_result = (True, self.entry, self.tokens[0])
+            return
 
         self._ensure_log_timestamp()
         self._parse_tokens(entry)
@@ -2011,41 +2026,60 @@ Entry: {self.entry}
         """
         Process a requires string for a job.
         Format:
-            N
+            ID
             or
-            N:M[,K...]
-        where N is the primary id, and M,K,... are dependency ids.
+            ID:REQ1[,REQ2...]
+        where each identifier is either an integer or a single lowercase letter.
 
         Returns:
-            (True, "", primary, dependencies) on success
-            (False, "error message", None, None) on failure
+            (True, primary, dependencies) on success
+            (False, "error message", []) on failure
         """
+
+        def parse_job_label(value: str) -> int | str:
+            label = value.strip()
+            if not label:
+                raise ValueError("missing label")
+            if label.isdigit():
+                return int(label)
+            if len(label) == 1 and label in LETTER_SET:
+                return label
+            raise ValueError("labels must be integers or single lowercase letters")
+
         requires = token["token"][2:].strip()
+        if not requires:
+            return (
+                False,
+                "Invalid requires token: missing label after &r. "
+                "Use &r ID or &r ID:REQ1,REQ2 where labels are integers or single lowercase letters.",
+                [],
+            )
 
         try:
             if ":" in requires:
                 primary_str, deps_str = requires.split(":", 1)
-                primary = int(primary_str.strip())
+                primary = parse_job_label(primary_str)
                 dependencies = []
                 for part in deps_str.split(","):
                     part = part.strip()
                     if part == "":
                         continue
                     try:
-                        dependencies.append(int(part))
-                    except ValueError:
+                        dependencies.append(parse_job_label(part))
+                    except ValueError as e:
                         return (
                             False,
-                            f"Invalid dependency value: '{part}' in token '{requires}'",
+                            f"Invalid dependency label '{part}' in token '{requires}': {e}",
                             [],
                         )
             else:
-                primary = int(requires.strip())
+                primary = parse_job_label(requires)
                 dependencies = []
         except ValueError as e:
             return (
                 False,
-                f"Invalid requires token: '{requires}' ({e})",
+                f"Invalid requires token '{requires}': {e}. "
+                "Use &r ID or &r ID:REQ1,REQ2 where labels are integers or single lowercase letters.",
                 [],
             )
 
