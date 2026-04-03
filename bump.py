@@ -1,15 +1,17 @@
 #!/usr/bin/env -S uv run python
 
 import os
-import sys
-import subprocess
-from datetime import datetime
-from pathlib import Path
 import re
 import shlex
-import tomllib
-from tomlkit import parse as toml_parse, dumps as toml_dumps
 import shutil
+import subprocess
+import sys
+import tomllib
+from datetime import datetime
+from pathlib import Path
+
+from tomlkit import dumps as toml_dumps
+from tomlkit import parse as toml_parse
 
 TWINE_ENV_KEYS = (
     "TWINE_USERNAME",
@@ -56,7 +58,7 @@ def exec_cmd(cmd: str, *, env=None, stream: bool = False):
     try:
         if stream:
             # inherit parent's stdio -> live output
-            res = subprocess.run(cmd, shell=True, env=env, check=True)
+            _ = subprocess.run(cmd, shell=True, env=env, check=True)
             return True, ""  # nothing captured
         else:
             out = subprocess.check_output(
@@ -240,7 +242,9 @@ def _generate_since_last_release_summary(current_version: str) -> tuple[str, str
     ok, log_out = read(f"git log --pretty=format:%s {rev_range}")
     subjects = [ln.strip() for ln in log_out.splitlines() if ln.strip()] if ok else []
     ok, stat_out = read(f"git diff --shortstat {rev_range}")
-    shortstat = stat_out.strip() if ok and stat_out.strip() else "No file-level changes."
+    shortstat = (
+        stat_out.strip() if ok and stat_out.strip() else "No file-level changes."
+    )
 
     def normalize_subject(subject: str) -> str:
         s = subject.strip()
@@ -368,7 +372,9 @@ def update_recent_changes_file(
 
     # Remove any prior section for this same version.
     version_prefix = f"## {new_version} "
-    existing_sections = [s for s in existing_sections if not s.startswith(version_prefix)]
+    existing_sections = [
+        s for s in existing_sections if not s.startswith(version_prefix)
+    ]
 
     sections = [new_section] + existing_sections[: max(0, max_releases - 1)]
     body = "\n\n".join(sections).strip()
@@ -463,7 +469,7 @@ tmsg = f"{release_subject}\n\n{release_body}"
 print(f"\nThe tag message for the new version will be:\n{tmsg}\n")
 if DRY_RUN:
     print(f"[dry-run] Would set new version: {new_version}")
-    print(f"[dry-run] Would update pyproject.toml")
+    print("[dry-run] Would update pyproject.toml")
     print(
         f"[dry-run] Would update {RECENT_CHANGES_PATH} "
         f"(retain last {MAX_RECENT_RELEASES} releases)"
@@ -484,7 +490,9 @@ update_recent_changes_file(
 )
 # Stage updated/new release metadata files explicitly. This ensures the first
 # creation of recent_changes.md is included (git commit -a skips untracked files).
-run(f"git add {shlex.quote(str(PYPROJECT_PATH))} {shlex.quote(str(RECENT_CHANGES_PATH))}")
+run(
+    f"git add {shlex.quote(str(PYPROJECT_PATH))} {shlex.quote(str(RECENT_CHANGES_PATH))}"
+)
 # Skip pre-commit hooks for version bump commits to avoid interference
 run(
     "git commit "
@@ -493,15 +501,8 @@ run(
     "--no-verify"
 )
 ok, version_info = read("git log --pretty=format:'%ai' -n 1")
-tag_msg = (
-    f"Tagged {new_version}\n"
-    f"Created: {version_info.strip()}\n\n"
-    f"{auto_summary}"
-)
-run(
-    f"git tag -a -f {shlex.quote(new_version)} "
-    f"-m {shlex.quote(tag_msg)}"
-)
+tag_msg = f"Tagged {new_version}\nCreated: {version_info.strip()}\n\n{auto_summary}"
+run(f"git tag -a -f {shlex.quote(new_version)} -m {shlex.quote(tag_msg)}")
 
 # # Generate CHANGES.txt
 # changes_text = f"Recent tagged changes as of {datetime.now()}:\n"
