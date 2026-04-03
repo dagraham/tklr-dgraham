@@ -1,5 +1,23 @@
 # Recent Changes
 
+## 1.0.23 — 2026-04-03
+
+Since 1.0.22:
+
+Why upgrade:
+- 0 additions, 0 fixes, 4 behavior changes.
+
+Changed:
+- Append ETM metadata tag to description
+- Allow ETM tag within description token
+- Clean up formatting and imports in bump.py
+- Enhance ETM migration and import parsing
+
+Technical:
+- 7 files changed, 428 insertions(+), 72 deletions(-)
+
+Note: Migration improvements and bug fixes.
+
 ## 1.0.22 — 2026-03-30
 
 Since 1.0.21:
@@ -29,17 +47,3 @@ Changed:
 
 Technical:
 - 1 file changed, 5 insertions(+), 9 deletions(-)
-
-## 1.0.20 — 2026-03-29
-
-Since 1.0.19:
-
-Why upgrade:
-- 0 additions, 0 fixes, 2 behavior changes.
-
-Changed:
-- Exclude numpy 2.4.0 from pyproject dependencies
-- Prompt before closing editor with unsaved changes
-
-Technical:
-- 3 files changed, 117 insertions(+), 11 deletions(-)
