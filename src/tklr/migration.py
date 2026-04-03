@@ -253,7 +253,7 @@ def etm_to_tokens(
     description_value: str | None = None
     description_insert_index: int | None = None
     hashtag_suffix: list[str] = []
-    metadata_suffix: list[str] = []
+    metadata_text = ""
     created_vals = format_subvalue(item.get("created"))
     created_tag = None
     if created_vals:
@@ -267,10 +267,9 @@ def etm_to_tokens(
             modified_vals[0].replace("-", "").replace(":", "").replace(" ", "T")
         )
     if key is not None and created_tag:
-        meta = f"#etm{key}_{created_tag}"
+        metadata_text = f"#etm{key}_{created_tag}"
         if modified_tag:
-            meta = f"{meta}_{modified_tag}"
-        metadata_suffix.append(meta)
+            metadata_text = f"{metadata_text}_{modified_tag}"
 
     for k, v in item.items():
         if k in {"itemtype", "summary", "created", "modified", "h", "k"}:
@@ -438,13 +437,18 @@ def etm_to_tokens(
         if vals:
             tokens.append(f"@{k} {', '.join(vals)}")
 
-    if description_value is not None or hashtag_suffix or metadata_suffix:
+    if metadata_text:
+        description_value = (
+            f"{description_value} {metadata_text}".strip()
+            if description_value
+            else metadata_text
+        )
+
+    if description_value is not None or hashtag_suffix:
         content = description_value or ""
         suffix_parts: list[str] = []
         if hashtag_suffix:
             suffix_parts.extend(hashtag_suffix)
-        if metadata_suffix:
-            suffix_parts.extend(metadata_suffix)
         if suffix_parts:
             suffix = " ".join(suffix_parts)
             content = f"{content} {suffix}" if content else suffix
