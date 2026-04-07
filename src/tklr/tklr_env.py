@@ -1,23 +1,29 @@
-from pathlib import Path
 import os
 import sys
 import tomllib
-from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+from pathlib import Path
 from typing import ClassVar, Dict, List, Optional
-from jinja2 import Template
 
-from pydantic import RootModel
+from jinja2 import Template
+from pydantic import (
+    BaseModel,
+    Field,
+    RootModel,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from .mask import generate_secret
 
 
 class PriorityConfig(RootModel[dict[str, float]]):
     DEFAULTS: ClassVar[dict[str, float]] = {
-        "first": 10.0,
-        "second": 8.0,
-        "third": 5.0,
-        "fourth": 2.0,
-        "fifth": -5.0,
+        "first": 16.0,
+        "second": 10.0,
+        "third": 4.0,
+        "fourth": 0.0,
+        "fifth": -2.0,
     }
 
     _ALIASES: ClassVar[dict[str, str]] = {
@@ -26,10 +32,10 @@ class PriorityConfig(RootModel[dict[str, float]]):
         "3": "third",
         "4": "fourth",
         "5": "fifth",
-        "next": "first",
-        "high": "second",
-        "medium": "third",
-        "low": "fourth",
+        "high": "first",
+        "medim": "second",
+        "low": "third",
+        "none": "fourth",
         "someday": "fifth",
     }
 
@@ -85,42 +91,42 @@ class UIConfig(BaseModel):
 
 
 class DueConfig(BaseModel):
-    interval: str = "1w"
-    max: float = 8.0
+    interval: str = "7d"
+    max: float = 14.0
 
 
 class PastdueConfig(BaseModel):
-    interval: str = "2d"
+    interval: str = "1d"
     max: float = 2.0
 
 
 class RecentConfig(BaseModel):
-    interval: str = "2w"
-    max: float = 4.0
+    interval: str = "6d"
+    max: float = 5.0
 
 
 class AgeConfig(BaseModel):
-    interval: str = "26w"
-    max: float = 10.0
+    interval: str = "96d"
+    max: float = 16.0
 
 
 class ExtentConfig(BaseModel):
-    interval: str = "12h"
-    max: float = 4.0
+    interval: str = "6h"
+    max: float = 2.0
 
 
 class BlockingConfig(BaseModel):
-    count: int = 3
-    max: float = 6.0
+    count: int = 2
+    max: float = 2.0
 
 
 class TagsConfig(BaseModel):
     count: int = 3
-    max: float = 3.0
+    max: float = 2.0
 
 
 class ProjectConfig(BaseModel):
-    max: float = 3.0
+    max: float = 2.0
 
 
 class DescriptionConfig(BaseModel):
@@ -136,7 +142,7 @@ class ColorsConfig(BaseModel):
 
 class UrgencyConfig(BaseModel):
     colors: ColorsConfig = ColorsConfig()
-    project: float = 2.0
+    # project: float = 2.0
     due: DueConfig = DueConfig()
     pastdue: PastdueConfig = PastdueConfig()
     recent: RecentConfig = RecentConfig()
@@ -149,11 +155,11 @@ class UrgencyConfig(BaseModel):
 
     priority: PriorityConfig = PriorityConfig(
         {
-            "first": 10.0,
-            "second": 8.0,
-            "third": 6.0,
-            "fourth": 4.0,
-            "fifth": 2.0,
+            "first": 16.0,
+            "second": 10.0,
+            "third": 4.0,
+            "fourth": 0.0,
+            "fifth": -2.0,
         }
     )
 

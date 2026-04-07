@@ -30,6 +30,10 @@ from tklr.shared import (
     round_seconds_to_step_minutes,
 )
 from tklr.tklr_env import TklrEnvironment, collapse_home
+from tklr.urgency_design import (
+    compute_urgency_screening_report,
+    format_urgency_screening_report,
+)
 
 # from tklr.view_agenda import run_agenda_view
 from tklr.versioning import get_version
@@ -1411,6 +1415,41 @@ def details(ctx, record_id, rich):
     help="Restrict migration to specific etm item types (default: all).",
 )
 @click.pass_context
+@cli.command("urgency-report")
+@click.option("--json", "as_json", is_flag=True, help="Output JSON.")
+@click.option(
+    "--now",
+    "now_text",
+    help="Reference datetime for the screening design, e.g. '2026-04-01 12:00'.",
+)
+@click.option(
+    "--design",
+    type=click.Choice(["base", "structure"]),
+    default="base",
+    show_default=True,
+    help="Screening design to use.",
+)
+@click.pass_context
+def urgency_report(ctx, as_json, now_text, design):
+    """
+    Show a small screening report illustrating how the current urgency settings
+    affect a balanced set of synthetic task examples.
+    """
+    env = ctx.obj["ENV"]
+    report_now = None
+    if now_text:
+        report_now = dt_parser.parse(now_text)
+
+    rows = compute_urgency_screening_report(env, now_dt=report_now, design=design)
+
+    if as_json:
+        click.echo(json.dumps(rows, indent=2))
+        return
+
+    for line in format_urgency_screening_report(env, rows, design=design):
+        click.echo(line)
+
+
 def migrate(
     ctx,
     etm_dir,

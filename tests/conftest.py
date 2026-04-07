@@ -8,16 +8,17 @@ This module provides common fixtures used across all test files, including:
 - Test data factories
 """
 
-import pytest
-import tempfile
 import shutil
-from pathlib import Path
+import tempfile
 from datetime import datetime, timedelta
+from pathlib import Path
+
+import pytest
 from freezegun import freeze_time
 
-from tklr.tklr_env import TklrEnvironment
 from tklr.controller import Controller
 from tklr.item import Item
+from tklr.tklr_env import TklrEnvironment
 
 
 @pytest.fixture
@@ -65,6 +66,21 @@ def test_env():
 
 
 @pytest.fixture
+def isolated_env(tmp_path, monkeypatch):
+    """
+    Create a throwaway TKLR_HOME so tests never touch local data.
+    """
+    home = tmp_path / "tklr-home"
+    monkeypatch.delenv("TKLR_HOME", raising=False)
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    monkeypatch.setenv("TKLR_HOME", str(home))
+
+    env = TklrEnvironment()
+    env.ensure(init_config=True, init_db_fn=None)
+    return env
+
+
+@pytest.fixture
 def temp_db_path(tmp_path):
     """
     Provides a temporary database path that will be cleaned up after the test.
@@ -85,7 +101,7 @@ def test_controller(temp_db_path, test_env):
     yield ctrl
     # Close database connection to avoid ResourceWarning
     try:
-        if hasattr(ctrl, 'db_manager') and hasattr(ctrl.db_manager, 'conn'):
+        if hasattr(ctrl, "db_manager") and hasattr(ctrl.db_manager, "conn"):
             ctrl.db_manager.conn.close()
     except Exception:
         pass  # Ignore errors during cleanup
@@ -109,42 +125,33 @@ def sample_items():
         "simple_task": "~ simple task",
         "simple_event": "* simple event",
         "simple_journal": "% simple journal entry",
-
         # Tasks with dates
         "task_today": f"~ task today @s {today}",
         "task_tomorrow": f"~ task tomorrow @s {tomorrow}",
         "task_yesterday": f"~ task yesterday @s {yesterday}",
-
         # Tasks with priorities
         "task_priority_1": "~ high priority task @p 1",
         "task_priority_2": "~ medium priority task @p 2",
         "task_priority_3": "~ low priority task @p 3",
-
         # Events with times
         "event_with_time": f"* meeting @s {today} 10:00 @e 1h",
         "event_all_day": f"* all day event @s {today}",
-
         # Repeating items
         "daily_task": f"~ daily task @s {today} @r d",
         "weekly_event": f"* weekly meeting @s {today} 14:00 @e 1h @r w",
         "monthly_reminder": f"~ monthly reminder @s {today} @r m",
-
         # Timezones
         "naive_time": f"* noon meeting @s {today} 12:00 z none",
         "utc_time": f"* utc meeting @s {today} 12:00 z UTC",
         "pacific_time": f"* pacific meeting @s {today} 12:00 z US/Pacific",
-
         # Complex items
         "task_with_description": f"~ task with details @s {today} @d This is a detailed description #tag",
         "task_with_bins": f"~ categorized task @b work/projects @b urgent/tags",
-
         # Finished items
         "finished_task": f"~ finished task @s {yesterday} @f {today}",
-
         # Items with offsets
         "task_with_offset": f"~ weekly task @s {yesterday} @o 7d",
         "task_with_learn_offset": f"~ adaptive task @s {yesterday} @o ~7d",
-
         # Goals
         "simple_goal": f"! fitness goal @s {today} @t 3/1w",
     }
@@ -160,8 +167,11 @@ def item_factory(test_env, test_controller):
             item = item_factory("~ task @s 2025-01-01")
             assert item.parse_ok
     """
+
     def _create_item(entry_str: str, final: bool = True) -> Item:
-        return Item(raw=entry_str, env=test_env, final=final, controller=test_controller)
+        return Item(
+            raw=entry_str, env=test_env, final=final, controller=test_controller
+        )
 
     return _create_item
 
@@ -171,6 +181,7 @@ def use_factory(test_controller):
     """
     Helper fixture to create uses for tests that rely on @u lookup.
     """
+
     def _create(name: str = "General", details: str = ""):
         return test_controller.db_manager.add_use(name, details)
 
@@ -197,6 +208,7 @@ def populated_controller(test_controller, item_factory, sample_items):
 
 
 # Utility fixtures for common test scenarios
+
 
 @pytest.fixture
 def mock_now(frozen_time):
@@ -239,6 +251,7 @@ def future_context(freeze_at):
 
 # Helper functions
 
+
 def bin_path_contains_prefix(bin_paths, prefix):
     """
     Check if any bin path starts with the given prefix.
@@ -267,7 +280,4 @@ def bin_path_contains_prefix(bin_paths, prefix):
         ["Churchill", "quotations", "library"] because it skips "quotations".
     """
     prefix_tuple = tuple(prefix)
-    return any(
-        tuple(path[:len(prefix_tuple)]) == prefix_tuple
-        for path in bin_paths
-    )
+    return any(tuple(path[: len(prefix_tuple)]) == prefix_tuple for path in bin_paths)

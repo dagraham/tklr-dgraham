@@ -819,14 +819,20 @@ class UrgencyComputer:
         except Exception:
             max_priority = 0.0
 
-        self.MAX_POSSIBLE_URGENCY = (
-            sum(
-                comp.max
-                for comp in vars(self.urgency).values()
-                if hasattr(comp, "max") and isinstance(comp.max, (int, float))
-            )
-            + max_priority
+        scheduled_max = float(self.urgency.due.max) + float(self.urgency.pastdue.max)
+        inactivity_max = max(
+            float(self.urgency.age.max), float(self.urgency.recent.max)
         )
+        primary_max = max(scheduled_max, inactivity_max, max_priority)
+        secondary_max = (
+            float(self.urgency.extent.max)
+            + float(self.urgency.blocking.max)
+            + float(self.urgency.tags.max)
+            + float(self.urgency.project.max)
+            + float(self.urgency.description.max)
+        )
+
+        self.MAX_POSSIBLE_URGENCY = primary_max + secondary_max
         self.BUCKETS = self.get_urgency_color_buckets()
 
     def hex_to_rgb(self, hex_color: str) -> Tuple[int, int, int]:
@@ -882,12 +888,16 @@ class UrgencyComputer:
         - Negative weights pull urgency down
         - Equal weights → urgency = 0
 
+        Non-numeric metadata entries in ``weights`` are ignored.
+
         Returns:
             urgency ∈ [-1.0, 1.0]
         """
-        Wp = 0.0 + sum(w for w in weights.values() if w > 0)
+        numeric_weights = [w for w in weights.values() if isinstance(w, (int, float))]
 
-        Wn = 0.0 + sum(abs(w) for w in weights.values() if w < 0)
+        Wp = 0.0 + sum(w for w in numeric_weights if w > 0)
+
+        Wn = 0.0 + sum(abs(w) for w in numeric_weights if w < 0)
 
         urgency = (Wp - Wn) / self.MAX_POSSIBLE_URGENCY
         return urgency
@@ -1050,17 +1060,65 @@ class UrgencyComputer:
     def from_args_and_weights(self, **kwargs):
         if bool(kwargs.get("pinned", False)):
             return 1.0, self.urgency_to_bucket_color(1.0), {}
+
+        due_weight = self.urgency_due(kwargs.get("due"), kwargs["now"])
+        pastdue_weight = self.urgency_pastdue(kwargs.get("due"), kwargs["now"])
+        scheduled_weight = due_weight + pastdue_weight
+
+        priority_level = kwargs.get("priority_level")
+        priority_weight = (
+            self.urgency_priority(priority_level) if priority_level is not None else 0.0
+        )
+
+        age_weight = self.urgency_age(kwargs["created"], kwargs["now"])
+        recent_weight = self.urgency_recent(kwargs["modified"], kwargs["now"])
+        inactivity_weight = max(age_weight, recent_weight)
+
+        primary_weight = max(scheduled_weight, priority_weight, inactivity_weight)
+
+        if primary_weight == scheduled_weight:
+            kept_due = due_weight
+            kept_pastdue = pastdue_weight
+            kept_priority = 0.0
+            kept_age = 0.0
+            kept_recent = 0.0
+        elif primary_weight == priority_weight:
+            kept_due = 0.0
+            kept_pastdue = 0.0
+            kept_priority = priority_weight
+            kept_age = 0.0
+            kept_recent = 0.0
+        else:
+            kept_due = 0.0
+            kept_pastdue = 0.0
+            kept_priority = 0.0
+            kept_age = age_weight if age_weight >= recent_weight else 0.0
+            kept_recent = recent_weight if recent_weight > age_weight else 0.0
+
         weights = {
-            "due": self.urgency_due(kwargs.get("due"), kwargs["now"]),
-            "pastdue": self.urgency_pastdue(kwargs.get("due"), kwargs["now"]),
-            "age": self.urgency_age(kwargs["created"], kwargs["now"]),
-            "recent": self.urgency_recent(kwargs["modified"], kwargs["now"]),
-            "priority": self.urgency_priority(kwargs.get("priority_level")),
+            "due": kept_due,
+            "pastdue": kept_pastdue,
+            "age": kept_age,
+            "recent": kept_recent,
+            "priority": kept_priority,
             "extent": self.urgency_extent(kwargs["extent"]),
             "blocking": self.urgency_blocking(kwargs.get("blocking", 0.0)),
             "tags": self.urgency_tags(kwargs.get("tags", 0)),
             "description": self.urgency_description(kwargs.get("description", False)),
-            "project": 1.0 if bool(kwargs.get("jobs", False)) else 0.0,
+            "project": self.urgency_project(bool(kwargs.get("jobs", False))),
+        }
+        weights["args"] = {
+            "now": kwargs.get("now"),
+            "created": kwargs.get("created"),
+            "modified": kwargs.get("modified"),
+            "due": kwargs.get("due"),
+            "priority_level": kwargs.get("priority_level"),
+            "extent": kwargs.get("extent"),
+            "blocking": kwargs.get("blocking", 0.0),
+            "tags": kwargs.get("tags", 0),
+            "description": kwargs.get("description", False),
+            "jobs": kwargs.get("jobs", False),
+            "pinned": kwargs.get("pinned", False),
         }
         if bool(kwargs.get("pinned", False)):
             urgency = 1.0

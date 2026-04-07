@@ -535,7 +535,7 @@ Everything you might want to do to a reminder, to edit, finish, reschedule, dele
 *Agenda view* displays
 
 1. The next few days of <em>events</em> beginning with today
-2. Active <em>goals</em> ordered by their *priority*
+2. Active <em>goals</em> ordered by their *relative completion rate*
 3. Available <em>tasks</em> ordered by their *urgency*
 
 Times are displayed in the screenshots using _24-hour_ notation. An option can be set to display times using _am/pm_ notation instead.
@@ -549,14 +549,14 @@ alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-b
   </p>
     <p>There is also a draft entry tagged <em>e</em> and displayed in red. This is simply a reminder whose item type is <code>?</code>. This is used to flag a reminder as incomplete as would be the case, e.g., if a final datetime for the event had not yet been finalized. Draft reminders are also displayed on the current, first day in Agenda view until the item type is changed.
     </p>
-    <p>The list for *goals* includes all goals which have not been completed on the current date, sorted and color coded by their *priority*, which is listed in the first column after the tags. The details for precisely how *priority* is calculated will be described later but the basic idea involves comparing</p>
+    <p>The list for *goals* includes all goals which have not been completed on the current date, sorted and color coded by their *relative completion rate*, which is listed in the first column after the tags. The details for precisely how *relative completion rate* is calculated will be described later but the basic idea involves comparing</p>
 
   <ol>
     <li>the rate at which completions would currently need to occur to complete the goal</li>
     <li>the rate originally specified in the goal</li>
   </ol>
 
-  <p>The higher the current rate relative to the original, the higher the *priority*.</p>
+  <p>The higher the current rate relative to the original, the higher the *relative completion rate*.</p>
 
   <p>The list for *tasks* includes all tasks with the possible exception of tasks with both an `@s` (specifying a *due datetime*) and an `@n` entry (specifying a *notification period*).  Suppose, for example, that `@s 2026-01-30` and `@n 2d`. The role of these combined entries is to say that the task needs to be finished by `2026-01-30` but you don't want to be bothered about it until two days before that date. This task won't appear in the list until `2026-01-28`.</p>
 

@@ -1,24 +1,11 @@
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pytest
 
 from tklr.item import Item
 from tklr.model import DatabaseManager, UrgencyComputer
 from tklr.tklr_env import TklrEnvironment
-
-
-@pytest.fixture
-def isolated_env(tmp_path, monkeypatch):
-    """Create a throwaway TKLR_HOME so tests never touch local data."""
-    home = tmp_path / "tklr-home"
-    monkeypatch.delenv("TKLR_HOME", raising=False)
-    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
-    monkeypatch.setenv("TKLR_HOME", str(home))
-
-    env = TklrEnvironment()
-    env.ensure(init_config=True, init_db_fn=None)
-    return env
 
 
 @pytest.mark.parametrize("tz_name", ["Etc/GMT+5"])
@@ -326,6 +313,97 @@ def test_urgency_age_uses_created_while_recent_uses_modified(isolated_env, freez
     assert weights["recent"] != urgency.urgency_recent(created_seconds, now_seconds)
 
 
+def test_urgency_scheduled_tasks_use_scheduled_primary_channel_when_stronger(
+    isolated_env, freeze_at
+):
+    urgency = UrgencyComputer(isolated_env)
+
+    with freeze_at("2025-01-11 12:00:00"):
+        now = datetime.now()
+        now_seconds = int(now.timestamp())
+        created_seconds = int((now - timedelta(days=180)).timestamp())
+        modified_seconds = int((now - timedelta(hours=1)).timestamp())
+        due_seconds = int((now + timedelta(days=1)).timestamp())
+
+        _, _, weights = urgency.from_args_and_weights(
+            now=now_seconds,
+            created=created_seconds,
+            modified=modified_seconds,
+            due=due_seconds,
+            extent=0,
+            priority_level=5,
+            description=False,
+            jobs=False,
+            pinned=False,
+        )
+
+    assert weights["due"] > 0
+    assert weights["pastdue"] == 0
+    assert weights["priority"] == 0
+    assert weights["age"] == 0
+    assert weights["recent"] == 0
+
+
+def test_urgency_prioritized_unscheduled_tasks_use_priority_primary_channel(
+    isolated_env, freeze_at
+):
+    urgency = UrgencyComputer(isolated_env)
+
+    with freeze_at("2025-01-11 12:00:00"):
+        now = datetime.now()
+        now_seconds = int(now.timestamp())
+        created_seconds = int((now - timedelta(days=180)).timestamp())
+        modified_seconds = int((now - timedelta(hours=1)).timestamp())
+
+        _, _, weights = urgency.from_args_and_weights(
+            now=now_seconds,
+            created=created_seconds,
+            modified=modified_seconds,
+            due=None,
+            extent=0,
+            priority_level=1,
+            description=False,
+            jobs=False,
+            pinned=False,
+        )
+
+    assert weights["due"] == 0
+    assert weights["pastdue"] == 0
+    assert weights["priority"] == urgency.urgency_priority(1)
+    assert weights["age"] == 0
+    assert weights["recent"] == 0
+
+
+def test_urgency_unscheduled_unprioritized_tasks_use_stronger_inactivity_component(
+    isolated_env, freeze_at
+):
+    urgency = UrgencyComputer(isolated_env)
+
+    with freeze_at("2025-01-11 12:00:00"):
+        now = datetime.now()
+        now_seconds = int(now.timestamp())
+        created_seconds = int((now - timedelta(days=180)).timestamp())
+        modified_seconds = int((now - timedelta(hours=1)).timestamp())
+
+        _, _, weights = urgency.from_args_and_weights(
+            now=now_seconds,
+            created=created_seconds,
+            modified=modified_seconds,
+            due=None,
+            extent=0,
+            priority_level=None,
+            description=False,
+            jobs=False,
+            pinned=False,
+        )
+
+    assert weights["due"] == 0
+    assert weights["pastdue"] == 0
+    assert weights["priority"] == 0
+    assert weights["age"] == urgency.urgency_age(created_seconds, now_seconds)
+    assert weights["recent"] == 0
+
+
 def test_undefined_alert_command_fails_parse(item_factory):
     item = item_factory(
         "~ alert warning example @s 2026-03-20 9:00 @a 0m: x", final=True
@@ -334,3 +412,53 @@ def test_undefined_alert_command_fails_parse(item_factory):
     assert not item.parse_ok
     assert "Undefined alert command: x" in item.parse_message
     assert "0m: x" not in item.alerts
+
+
+def test_urgency_scheduled_and_prioritized_task_uses_stronger_primary_contribution(
+    isolated_env, freeze_at
+):
+    urgency = UrgencyComputer(isolated_env)
+
+    with freeze_at("2025-01-11 12:00:00"):
+        now = datetime.now()
+        now_seconds = int(now.timestamp())
+        created_seconds = int((now - timedelta(days=180)).timestamp())
+        modified_seconds = int((now - timedelta(hours=1)).timestamp())
+
+        due_soon_seconds = int((now + timedelta(days=1)).timestamp())
+        _, _, scheduled_dominant_weights = urgency.from_args_and_weights(
+            now=now_seconds,
+            created=created_seconds,
+            modified=modified_seconds,
+            due=due_soon_seconds,
+            extent=0,
+            priority_level=5,
+            description=False,
+            jobs=False,
+            pinned=False,
+        )
+
+        far_future_seconds = int((now + timedelta(days=30)).timestamp())
+        _, _, priority_dominant_weights = urgency.from_args_and_weights(
+            now=now_seconds,
+            created=created_seconds,
+            modified=modified_seconds,
+            due=far_future_seconds,
+            extent=0,
+            priority_level=1,
+            description=False,
+            jobs=False,
+            pinned=False,
+        )
+
+    assert scheduled_dominant_weights["due"] > 0
+    assert scheduled_dominant_weights["pastdue"] == 0
+    assert scheduled_dominant_weights["priority"] == 0
+    assert scheduled_dominant_weights["age"] == 0
+    assert scheduled_dominant_weights["recent"] == 0
+
+    assert priority_dominant_weights["due"] == 0
+    assert priority_dominant_weights["pastdue"] == 0
+    assert priority_dominant_weights["priority"] == urgency.urgency_priority(1)
+    assert priority_dominant_weights["age"] == 0
+    assert priority_dominant_weights["recent"] == 0

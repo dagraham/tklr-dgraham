@@ -2,7 +2,7 @@
 title = "Tklr Configuration"
 
 # secret: used to encode/decode masked (@m) fields.
-secret = "2Bj1ejQiDgD9Sl1jKMXfPCScLmftQ6xY"
+secret = "mvnJLlOzfL6sCBJ06NLmcUoiRUANlf63"
 
 # num_completions: int >= 0
 # For infinitely repeating tasks (@r with no &c / no &u):
@@ -22,7 +22,7 @@ theme = "dark"
 
 # ampm: bool = true | false
 # Use 12 hour AM/PM when true else 24 hour
-ampm = true
+ampm = false
 
 # history_weight: int
 # Apply this weight to the prior history when computing
@@ -47,7 +47,7 @@ minutes = 6
 # Prefix with '!' to run a standalone command/script (no automatic 'tklr').
 # The output of this command will be written to "current.txt" in the Tklr home
 # directory.
-current_command = "/Users/dag/.local/bin/write_agenda.sh "
+current_command = ""
 
 # dayfirst and yearfirst settings
 # These settings are used to resolve ambiguous date entries involving
@@ -105,8 +105,6 @@ two_digit_year = true
 # Additional keys: start (scheduled datetime), time (spoken version of
 # start), location, description.
 
-v = '/usr/bin/say -v Alex "{name}, {when}"'
-
 
 # ─── Urgency Configuration ─────────────────────────────────────
 
@@ -117,51 +115,51 @@ v = '/usr/bin/say -v Alex "{name}, {when}"'
 # These colors are used for tasks in the urgency listing.
 min_hex_color = "#6495ed"
 max_hex_color = "#ffff00"
-min_urgency = 0.5
+min_urgency = 0.0
 steps = 10
 
 [urgency.due]
 # The "due" urgency increases from 0.0 to "max" as now passes from
 # due - interval to due.
-interval = "1w"
-max = 8.0
+interval = "7d"
+max = 14.0
 
 
 [urgency.pastdue]
 # The "pastdue" urgency increases from 0.0 to "max" as now passes
 # from due to due + interval.
-interval = "2d"
+interval = "1d"
 max = 2.0
 
 [urgency.recent]
 # The "recent" urgency decreases from "max" to 0.0 as now passes
 # from modified to modified + interval.
-interval = "2w"
-max = 4.0
+interval = "6d"
+max = 5.0
 
 [urgency.age]
 # The "age" urgency  increases from 0.0 to "max" as now increases
 # from modified to modified + interval.
-interval = "26w"
-max = 10.0
+interval = "96d"
+max = 16.0
 
 [urgency.extent]
 # The "extent" urgency increases from 0.0 when extent = "0m" to "max"
 # when extent >= interval.
-interval = "12h"
-max = 4.0
+interval = "6h"
+max = 2.0
 
 [urgency.blocking]
 # The "blocking" urgency increases from 0.0 when blocked = 0 to "max"
 # when blocked >= count.
-count = 3
-max = 6.0
+count = 2
+max = 2.0
 
 [urgency.tags]
 # The "tags" urgency increases from 0.0 when tags = 0 to "max" when
 # when tags >= count.
 count = 3
-max = 3.0
+max = 2.0
 
 [urgency.priority]
 # The "priority" urgency corresponds to the value from "1" (highest) to
@@ -170,15 +168,15 @@ max = 3.0
 # value 0.0 is used.
 # Note: "first" is treated as the maximum priority when normalizing urgency.
 
-"first" = 10.0
+"first" = 16.0
 
-"second" = 8.0
+"second" = 10.0
 
-"third" = 5.0
+"third" = 4.0
 
-"fourth" = 2.0
+"fourth" = 0.0
 
-"fifth" = -5.0
+"fifth" = -2.0
 
 
 [urgency.description]
@@ -189,11 +187,9 @@ max = 2.0
 [urgency.project]
 # The "project" urgency equals "max" if the task belongs to a project and
 # 0.0 otherwise.
-max = 3.0
+max = 2.0
 
 [bin_orders]
 # Specify custom ordering of children for a root bin.
 # Example:
 #   seedbed = ["germinating", "sprouting", "growing", "flowering"]
-
-seedbed = ["seed","germination","seedling","growth","flowering"]
