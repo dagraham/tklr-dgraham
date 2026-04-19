@@ -1,5 +1,22 @@
 # Recent Changes
 
+## 1.0.24 — 2026-04-19
+
+Since 1.0.23:
+
+Why upgrade:
+- 2 additions, 0 fixes, 0 behavior changes.
+
+Added:
+- Redesign urgency computation and add screening report
+- Add urgency screening tools and tests
+
+Internal:
+- REFactor urgency report command and model summary
+
+Technical:
+- 11 files changed, 1199 insertions(+), 131 deletions(-)
+
 ## 1.0.23 — 2026-04-03
 
 Since 1.0.22:
@@ -34,16 +51,3 @@ Internal:
 
 Technical:
 - 4 files changed, 37 insertions(+), 33 deletions(-)
-
-## 1.0.21 — 2026-03-29
-
-Since 1.0.20:
-
-Why upgrade:
-- 0 additions, 0 fixes, 1 behavior changes.
-
-Changed:
-- Simplify ConfirmPrompt to yes/no only
-
-Technical:
-- 1 file changed, 5 insertions(+), 9 deletions(-)
