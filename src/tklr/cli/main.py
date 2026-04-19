@@ -32,7 +32,10 @@ from tklr.shared import (
 from tklr.tklr_env import TklrEnvironment, collapse_home
 from tklr.urgency_design import (
     compute_urgency_screening_report,
-    format_urgency_screening_report,
+    format_task_urgency_explanation,
+    format_urgency_report,
+    get_urgency_computed_values,
+    get_urgency_model_summary,
 )
 
 # from tklr.view_agenda import run_agenda_view
@@ -1420,34 +1423,154 @@ def details(ctx, record_id, rich):
 @click.option(
     "--now",
     "now_text",
-    help="Reference datetime for the screening design, e.g. '2026-04-01 12:00'.",
+    help="Reference datetime for the screening examples, e.g. '2026-04-01 12:00'.",
 )
 @click.option(
-    "--design",
-    type=click.Choice(["base", "structure"]),
-    default="base",
-    show_default=True,
-    help="Screening design to use.",
+    "--rich",
+    "rich",
+    flag_value=True,
+    default=None,
+    help="Use Rich colors/styling for this command.",
+)
+@click.option(
+    "--plain",
+    "rich",
+    flag_value=False,
+    help="Disable Rich colors/styling for this command.",
+)
+@click.option(
+    "--width",
+    type=click.IntRange(20, 300),
+    default=None,
+    help="Maximum line width for detail lines (default: terminal width).",
 )
 @click.pass_context
-def urgency_report(ctx, as_json, now_text, design):
+def urgency_report(ctx, as_json, now_text, rich, width):
     """
-    Show a small screening report illustrating how the current urgency settings
-    affect a balanced set of synthetic task examples.
+    Show the urgency model settings and the current ranking of all tasks,
+    with a per-task breakdown of how each urgency score was computed.
     """
     env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
     report_now = None
     if now_text:
         report_now = dt_parser.parse(now_text)
 
-    rows = compute_urgency_screening_report(env, now_dt=report_now, design=design)
+    rows = compute_urgency_screening_report(env, now_dt=report_now)
 
     if as_json:
-        click.echo(json.dumps(rows, indent=2))
+        payload = {
+            "model": get_urgency_model_summary(env),
+            "computed": get_urgency_computed_values(env),
+            "rows": rows,
+        }
+        click.echo(json.dumps(payload, indent=2))
         return
 
-    for line in format_urgency_screening_report(env, rows, design=design):
+    # ── model settings section (plain click.echo, same as before) ──────────
+    for line in format_urgency_report(env, rows):
         click.echo(line)
+
+    # ── ranked tasks section ────────────────────────────────────────────────
+    rich = _resolve_rich_output(env, rich)
+    is_tty = sys.stdout.isatty()
+    console = Console(
+        force_terminal=rich and is_tty,
+        no_color=not rich,
+        markup=rich,
+        highlight=False,
+    )
+
+    controller = Controller(db_path, env)
+    if width is None:
+        width = shutil.get_terminal_size().columns - 2
+    controller.width = max(20, width - 8)
+    now = datetime.now()
+    urgency_records = controller.db_manager.get_urgency()
+    computed = get_urgency_computed_values(env)
+    max_possible = computed["maximum_possible_urgency"]
+
+    console.print(f"Tasks ({len(urgency_records)})")
+
+    for (
+        record_id,
+        job_id,
+        subject,
+        urgency,
+        color,
+        status,
+        weights_raw,
+        pinned,
+        datetime_id,
+        instance_ts,
+    ) in urgency_records:
+        urgency_pct = round(100 * urgency)
+        due_prefix = controller._agenda_due_prefix(instance_ts, now)
+        subject_text = controller.apply_flags(record_id, subject)
+        if due_prefix:
+            subject_text = f"{due_prefix} {subject_text}"
+
+        # Task line (mirrors agenda Tasks section)
+        _print_markup_or_plain(console, f"  {urgency_pct:>3}  {subject_text}", rich)
+
+        # Parse weights JSON
+        weights: dict = {}
+        if weights_raw:
+            try:
+                parsed = json.loads(weights_raw)
+                if isinstance(parsed, dict):
+                    weights = parsed
+            except Exception:
+                pass
+
+        # Urgency explanation block
+        if pinned:
+            console.print(
+                "      pinned (urgency forced to 100%)", markup=False, highlight=False
+            )
+        else:
+            for line in format_task_urgency_explanation(
+                weights, urgency_pct, max_possible
+            ):
+                console.print(line, markup=False, highlight=False)
+
+        # Detail lines (entry + rruleset + id/cr/md), indented 6 spaces.
+        # Each "line" from get_details_for_record may contain embedded \n
+        # (format_tokens joins @d / @m blocks that way).  Split and re-indent.
+        try:
+            _, detail_lines, _ = controller.get_details_for_record(
+                record_id,
+                job_id=job_id,
+                datetime_id=datetime_id,
+                instance_ts=instance_ts,
+            )
+            detail_indent = "      "  # 6 spaces — first line of every detail element
+            cont_indent = "        "  # 8 spaces — continuation sub-lines within entry
+            first_content_line = True
+            for line in detail_lines:
+                plain = _plain_from_markup(line)
+                if not plain.strip():
+                    continue
+                sub_lines = line.split("\n")
+                for i, sub in enumerate(sub_lines):
+                    sub_plain = _plain_from_markup(sub)
+                    if not sub_plain.strip():
+                        continue
+                    # Continuation sub-lines (i > 0) within the entry get the
+                    # extra 2-space indent; all other lines use detail_indent.
+                    indent = (
+                        cont_indent if (first_content_line and i > 0) else detail_indent
+                    )
+                    if rich:
+                        console.print(f"{indent}{sub}")
+                    else:
+                        console.print(
+                            f"{indent}{sub_plain}", markup=False, highlight=False
+                        )
+                first_content_line = False
+        except Exception:
+            pass
+        console.print()  # blank separator between tasks
 
 
 def migrate(

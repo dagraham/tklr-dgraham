@@ -793,6 +793,7 @@ class UrgencyComputer:
         self.MIN_HEX_COLOR = self.urgency.colors.min_hex_color
         self.MAX_HEX_COLOR = self.urgency.colors.max_hex_color
         self.STEPS = self.urgency.colors.steps
+        self.HOME = self.env.get_home()
 
         max_priority = 0.0
         try:
