@@ -1229,53 +1229,76 @@ With this entry, the rruleset and datetimes generated show the effect of the tra
 
 [↩︎](#table-of-contents)
 
-### 2.13. Urgency
+### 2.13 Urgency
 
-Since urgency values are used ultimately to give an ordinal ranking of tasks, all that matters is the relative values used to compute the urgency scores. Accordingly, all urgency scores are constrained to fall within the interval from -1.0 to 1.0. The default urgency is 0.0 for a task with no urgency components.
+Every task carries an **urgency score** — a number from 0 to 100 that determines its rank in the Tasks section of the agenda. The score is computed from a small set of task attributes and a configurable model defined in `config.toml`.
 
-There are some situations in which a task will _not_ be displayed in the "urgency list" and there is no need, therefore, to compute its urgency:
+#### The Formula
 
-- Completed tasks are not displayed.
-- Hidden tasks are not displayed. The task is hidden if it has an `@s` entry and an `@n` entry and the date corresponding to `@s - @n` falls sometime after the current date.
-- Waiting tasks are not displayed. A task is waiting if it belongs to a project and has unfinished prerequisites.
-- Only the first _unfinished_ instance of a repeating task is displayed. Subsequent instances are not displayed.
+    urgency = 100 × (primary + secondary) / maximum_possible_urgency
 
-There is one other circumstance in which urgency need not be computed. When the _pinned_ status of the task is toggled on in the user interface, the task is treated as if the computed urgency were equal to `1.0` without any actual computations.
+The score has two independent parts: a **primary** component that captures the task's most pressing reason for attention, and a **secondary** component that accumulates smaller contextual signals. Both are normalized against the maximum achievable score so that 100 always means "as urgent as it gets."
 
-All other tasks will be displayed and ordered by their computed urgency scores. Many of these computations involve datetimes and/or intervals and it is necessary to understand both are represented by integer numbers of seconds - datetimes by the integer number of seconds _since the epoch_ (1970-01-01 00:00:00 UTC) and intervals by the integer numbers of seconds it spans. E.g., for the datetime "2025-01-01 00:00 UTC" this would be `1735689600` and for the interval "1w" this would be the number of seconds in 1 week, `7*24*60*60 = 604800`. This means that an interval can be subtracted from a datetime to obtain another datetime which is "interval" earlier or added to get a datetime "interval" later. One datetime can also be subtracted from another to get the "interval" between the two, with the sign indicating whether the first is later (positive) or earlier (negative). (Adding datetimes, on the other hand, is meaningless.)
+---
 
-Briefly, here is the essence of this method used to compute the urgency scores using "due" as an example. Here is the relevant section from config.toml with the default values:
+#### Primary Component
 
-```toml
-[urgency.due]
-# The "due" urgency increases from 0.0 to "max" as now passes from
-# due - interval to due.
-interval = "1w"
-max = 8.0
-```
+The primary component reflects the single strongest reason a task needs attention. Only one signal wins — they do not add together.
 
-The "due" urgency of a task with an `@s` entry is computed from _now_ (the current datetime), _due_ (the datetime specified by `@s`) and the _interval_ and _max_ settings from _urgency.due_. The computation returns:
+**If the task has a due date:**
 
-- `0.0`
-  if `now < due - interval`
-- `max * (1.0 - (now - due) / interval)`
-  if `due - interval < now <= due`
-- `max`
-  if `now > due`
+    primary = due + pastdue
 
-For a task without an `@s` entry, the "due" urgency is 0.0.
+The presence of a due date is a commitment — it trumps age and priority entirely, regardless of how far away the deadline is. A task due eleven months from now will not drift to the top of the list because it is getting old; it sits quietly with a low score until the due window opens, then rises as the deadline approaches.
 
-Other contributions of the task to urgency are computed similarly. Depending on the configuration settings and the characteristics of the task, the value can be either positive or negative or 0.0 when missing the requisite characteristic(s). 
+- **due** ramps linearly from 0 up to `due.max` (default: 14) over the final `due.interval` (default: 7 days) before the deadline. A task due tomorrow scores near 14; one due in three weeks scores 0.
+- **pastdue** adds on top once the deadline has passed, ramping from 0 to `pastdue.max` (default: 2) over `pastdue.interval` (default: 1 day). An overdue task can score up to 16 on the primary component alone.
 
-For contributions other than *priority* there is a *maximum* value, e.g., for *due*, the default *maximum* is `max = 8.0`.  The maximum possible urgency that can be assigned to a task corresponds to the sum of these *maximum* values plus the value assigned to the highest possible priority, *next*. Call this maximum possible urgency, `Wmax`.
+**If the task has no due date:**
 
-Once all the contributions of a task have been computed, they are aggregated into a single urgency value in the following way. The process begins by setting the initial values of variables `Wn = 0.0` and `Wp = 0.0`. Then for each of the urgency contributions, `v`, the value is added to `Wp` if `v > 0` or `abs(v)` is added to `Wn` if `v` negative. Thus either `Wp` or `Wn` is increased by each addition unless `v = 0`.  When each contribution has been added, the urgency value of the task is computed as follows:
+    primary = max(priority, age_recent)
 
-```python
-urgency = max(Wp - Wn, 0.0) / Wmax
-```
+The higher of explicit priority or inactivity pressure wins.
 
-Thus computed, `0.0 <= urgency <= 1.0` . In *tklr* views, *urgency* is reported as the corresponding percentage of the maximum possible score, i.e., as an integer between 0 and 100. 
+- **priority** is a fixed weight assigned by priority level: p1=16, p2=10, p3=4, p4=0, p5=−2. Negative weights are supported — a p5 task actively pulls urgency down.
+- **recent** ramps from `recent.max` (default: 5) down to 0 over `recent.interval` (default: 6 days) since the task was last modified. A freshly touched task gets a short-lived boost that decays quickly.
+- **age** ramps from 0 to `age.max` (default: 16) over `age.interval` (default: 96 days) since the task was last modified. A task that has gone untouched gradually rises in urgency — use the `touch` command to reset the clock.
+- **age_recent = max(age, recent)** — together these two signals form a smooth curve: `recent` wins immediately after a touch, then fades; `age` takes over as the task goes stale.
+
+---
+
+#### Secondary Component
+
+The secondary component accumulates smaller signals that enrich the score without dominating it. All of them add together:
+
+    secondary = tags + description + extent + blocking + project
+
+| Signal | What it measures | Default max |
+|---|---|---|
+| **tags** | Number of tags, proportional up to a count threshold | 2 |
+| **description** | Whether a description is present (flat bonus) | 2 |
+| **extent** | Scheduled duration, proportional up to a time threshold | 2 |
+| **blocking** | Number of other tasks this one is blocking | 2 |
+| **project** | Whether the task has sub-tasks (jobs) | 2 |
+
+With default settings, secondary can add at most 10 to the raw score.
+
+---
+
+#### Normalization
+
+The maximum raw score is:
+
+    maximum_possible_urgency = primary_max + secondary_max = 16 + 10 = 26
+
+Dividing by 26 and multiplying by 100 maps every task onto a 0–100 scale. A pinned task bypasses the formula entirely and is always displayed at 100.
+
+---
+
+#### Configuring the Model
+
+All weights, maxima, and intervals are set in `config.toml` under the `[urgency]` section. Run `tklr urgency-report` to see the current settings, the computed maxima, and a per-task breakdown showing exactly which components drove each score.
+`
 
 [↩︎](#table-of-contents)
 
@@ -1301,7 +1324,6 @@ then it indicates the completion rate currently needed as a percentage of the or
 - `priority > 100`: behind schedule.
 - `priority = 100`: on schedule.
 - `priority < 100`: ahead of schedule.
-
 
 [↩︎](#table-of-contents)
 

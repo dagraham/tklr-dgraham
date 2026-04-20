@@ -36,7 +36,7 @@ def get_urgency_model_summary(env) -> list[str]:
     return [
         "Current urgency model and settings:",
         "",
-        "  primary = due_pastdue if due else max(priority, age_recent)",
+        "  primary = due_pastdue if task has due date else max(priority, age_recent)",
         "",
         f"    due:         max={fmt_num(urgency.due.max)} interval={urgency.due.interval}",
         f"    pastdue:     max={fmt_num(urgency.pastdue.max)} interval={urgency.pastdue.interval}",

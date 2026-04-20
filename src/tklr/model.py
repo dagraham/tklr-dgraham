@@ -971,12 +971,13 @@ class UrgencyComputer:
         # log_msg(f"computed {recent_contribution = }")
         return recent_contribution
 
-    def urgency_age(self, created_seconds: int, now_seconds: int) -> float:
+    def urgency_age(self, modified_seconds: int, now_seconds: int) -> float:
         """
         This function calculates the urgency contribution for a task based
-        on the current datetime relative to the created datetime. It
+        on the current datetime relative to the last modified datetime. It
         represents an increasing contribution from 0 based on how long ago
-        the task was created, capped at age_max.
+        the task was last modified, capped at age_max. The touch command
+        resets modified, which resets the age clock.
         """
         age_contribution = 0
         age_interval = self.urgency.age.interval
@@ -988,7 +989,7 @@ class UrgencyComputer:
                 0.0,
                 min(
                     age_max,
-                    age_max * (now_seconds - created_seconds) / age_interval_seconds,
+                    age_max * (now_seconds - modified_seconds) / age_interval_seconds,
                 ),
             )
         # log_msg(f"computed {age_contribution = }")
@@ -1070,11 +1071,11 @@ class UrgencyComputer:
             self.urgency_priority(priority_level) if priority_level is not None else 0.0
         )
 
-        age_weight = self.urgency_age(kwargs["created"], kwargs["now"])
+        age_weight = self.urgency_age(kwargs["modified"], kwargs["now"])
         recent_weight = self.urgency_recent(kwargs["modified"], kwargs["now"])
         inactivity_weight = max(age_weight, recent_weight)
 
-        if scheduled_weight:
+        if kwargs.get("due"):
             primary_weight = scheduled_weight
             kept_due = due_weight
             kept_pastdue = pastdue_weight
@@ -4859,9 +4860,21 @@ class DatabaseManager:
                 notice_seconds = due_seconds
 
         self.cursor.execute("DELETE FROM Urgency WHERE record_id = ?", (record_id,))
+        description_text = record.get("description", "") or ""
+        tags_count = len(re.findall(r"#\w+", subject + " " + description_text))
 
         # Handle jobs if present
         if jobs:
+            # For each job id, count unfinished jobs that directly list it as a prereq.
+            blocking_counts = {
+                j["id"]: sum(
+                    1 for other in jobs
+                    if j["id"] in (other.get("reqs") or [])
+                    and other.get("status") != "finished"
+                )
+                for j in jobs if "id" in j
+            }
+
             for job in jobs:
                 status = job.get("status", "")
                 if status != "available":
@@ -4883,7 +4896,7 @@ class DatabaseManager:
                         continue
 
                 job_extent = td_str_to_seconds(job.get("e", "0m"))
-                blocking = job.get("blocking")  # assume already computed elsewhere
+                blocking = blocking_counts.get(job_id, 0)
 
                 urgency, color, weights = self.compute_urgency.from_args_and_weights(
                     now=now_seconds,
@@ -4893,6 +4906,7 @@ class DatabaseManager:
                     extent=job_extent,
                     priority_level=priority_level,
                     blocking=blocking,
+                    tags=tags_count,
                     description=description,
                     jobs=True,
                     pinned=pinned,
@@ -4928,6 +4942,7 @@ class DatabaseManager:
                     due=due_seconds,
                     extent=extent_seconds,
                     priority_level=priority_level,
+                    tags=tags_count,
                     description=description,
                     jobs=False,
                     pinned=pinned,
