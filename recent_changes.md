@@ -1,5 +1,27 @@
 # Recent Changes
 
+## 1.0.25 — 2026-04-20
+
+Since 1.0.24:
+
+Why upgrade:
+- 0 additions, 1 fixes, 3 behavior changes.
+
+Fixed:
+- Fix formatting issue in README.md urgency section
+
+Changed:
+- Update project creation entry in demo script
+- Update task descriptions and improve tag counting logic
+- Update urgency model explanations and code comments
+
+Internal:
+- Refactor urgency weight calculation logic
+- Remove unused urgency report options and refactor code
+
+Technical:
+- 6 files changed, 96 insertions(+), 179 deletions(-)
+
 ## 1.0.24 — 2026-04-19
 
 Since 1.0.23:
@@ -34,20 +56,3 @@ Technical:
 - 7 files changed, 428 insertions(+), 72 deletions(-)
 
 Note: Migration improvements and bug fixes.
-
-## 1.0.22 — 2026-03-30
-
-Since 1.0.21:
-
-Why upgrade:
-- 0 additions, 0 fixes, 2 behavior changes.
-
-Changed:
-- Preserve DTSTART for repeats and always show day delta
-- Clarify tklr installation and require Python 3.12
-
-Internal:
-- Refactor test formatting and due-prefix assertions
-
-Technical:
-- 4 files changed, 37 insertions(+), 33 deletions(-)
