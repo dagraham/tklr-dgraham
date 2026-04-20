@@ -1229,7 +1229,7 @@ With this entry, the rruleset and datetimes generated show the effect of the tra
 
 [↩︎](#table-of-contents)
 
-### 2.13 Urgency
+### 2.13. Urgency
 
 Every task carries an **urgency score** — a number from 0 to 100 that determines its rank in the Tasks section of the agenda. The score is computed from a small set of task attributes and a configurable model defined in `config.toml`.
 
@@ -1390,42 +1390,41 @@ The purpose of <em>Palette View</em> is to display the color settings that are a
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_colors_dual.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
   <p>Pressing "c" toggles the display to show a list of the named colors against the backgrounds currently used for the <em>dark</em> and <em>light</em> themes.
   </p>
-  <p>The color for a setting can be customized in <code>config.toml</code> by first noting the theme in this section
+  <p>The color for a setting can be customized in <code>config.toml</code> by first noting the theme in this section, then changing the relevant color value.
   </p>
-<pre>
-  [ui]
-  theme = "dark"
-</pre>
-<p>
-
-Then, for example, replacing this commented out section
-</p>
-
-<pre>
-  # [ui.palette.dark]
-  # header_color = "#1f4b7a"
-  # jot_full = "#040405"
-</pre>
-
-<p>
-with
-</p>
-
-<pre>
-  [ui.palette.dark]
-  task_color = "dodgerblue"
-</pre>
-
-<p>
-would change the color for the <em>task</em> type for the current <em>dark</em> setting from "lightskyblue" to "dodgerblue". Note that either the color name or the hex value can be used.
-</p>
-
 </div>
 <div style="clear: both;"></div>
+
+For example, with this in `config.toml`:
+
+```
+[ui]
+theme = "dark"
+```
+
+replacing the commented out section
+
+```
+# [ui.palette.dark]
+# header_color = "#1f4b7a"
+# jot_full = "#040405"
+```
+
+with
+
+```
+[ui.palette.dark]
+task_color = "dodgerblue"
+```
+
+would change the color for the _task_ type for the current _dark_ setting from "lightskyblue" to "dodgerblue". Note that either the color name or the hex value can be used.
+
+
 
 ### 2.18. Token Keys 
 
 The table below gives the complete list of both `@-keys` and, when applicable, their `&-key` attributes.  It is generated from the source code automatically so it is always up to date.
+
 
 <!-- BEGIN TOKEN KEYS -->
 
@@ -1478,11 +1477,16 @@ The table below gives the complete list of both `@-keys` and, when applicable, t
 <!-- END TOKEN KEYS -->
 
 
+
 [↩︎](#table-of-contents)
+
+
 
 ## 3. Getting Started
 
-### 3.1. Installing _tklr_
+
+### 3.1. Installing _tklr_ 
+
 
 As a standalone command-line application, <em>tklr</em> is best installed from <em>PyPI</em> using <code>pipx</code>. Before installing, check which version of <code>python3</code> you already have:
 ```
