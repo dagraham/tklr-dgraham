@@ -1074,21 +1074,22 @@ class UrgencyComputer:
         recent_weight = self.urgency_recent(kwargs["modified"], kwargs["now"])
         inactivity_weight = max(age_weight, recent_weight)
 
-        primary_weight = max(scheduled_weight, priority_weight, inactivity_weight)
-
-        if primary_weight == scheduled_weight:
+        if scheduled_weight:
+            primary_weight = scheduled_weight
             kept_due = due_weight
             kept_pastdue = pastdue_weight
             kept_priority = 0.0
             kept_age = 0.0
             kept_recent = 0.0
-        elif primary_weight == priority_weight:
+        elif priority_weight >= inactivity_weight:
+            primary_weight = priority_weight
             kept_due = 0.0
             kept_pastdue = 0.0
             kept_priority = priority_weight
             kept_age = 0.0
             kept_recent = 0.0
         else:
+            primary_weight = inactivity_weight
             kept_due = 0.0
             kept_pastdue = 0.0
             kept_priority = 0.0
