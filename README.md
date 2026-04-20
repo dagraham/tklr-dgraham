@@ -1298,7 +1298,7 @@ Dividing by 26 and multiplying by 100 maps every task onto a 0–100 scale. A pi
 #### Configuring the Model
 
 All weights, maxima, and intervals are set in `config.toml` under the `[urgency]` section. Run `tklr urgency-report` to see the current settings, the computed maxima, and a per-task breakdown showing exactly which components drove each score.
-`
+
 
 [↩︎](#table-of-contents)
 
