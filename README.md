@@ -1372,28 +1372,25 @@ Reminders are automatically removed from <em>inbox.txt</em> as they are imported
 
 The purpose of <em>Palette View</em> is to display the color settings that are available for user customization in <code>config.toml</code> along with the palette of colors available for use in those settings.
 
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_settings_single.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>The opening view shows the current color settings for the currently selected <em>theme</em> which, in this case, is the <em>dark</em> theme.
-  </p>
-</div>
-<div style="clear: both;"></div>
+<img align="right" src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_settings_single.svg" alt="Description" width="460" style="margin-left: 20px; margin-bottom: 10px;">
 
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_settings_dual.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>Pressing "p" toggles a dual display for both of the available themes with <em>dark</em> on the left and <em>light</em> on the right. In both cases, the colors reflect the current settings which, in the absence of customizations, are just the default settings for the two themes.
-  </p>
-</div>
-<div style="clear: both;"></div>
+The opening view shows the current color settings for the currently selected _theme_ which, in this case, is the _dark_ theme.
 
-<div style="overflow: auto;">
-  <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_colors_dual.svg" alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>Pressing "c" toggles the display to show a list of the named colors against the backgrounds currently used for the <em>dark</em> and <em>light</em> themes.
-  </p>
-  <p>The color for a setting can be customized in <code>config.toml</code> by first noting the theme in this section, then changing the relevant color value.
-  </p>
-</div>
-<div style="clear: both;"></div>
+<br clear="all">
+
+<img align="right" src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_settings_dual.svg" alt="Description" width="460" style="margin-left: 20px; margin-bottom: 10px;">
+
+Pressing "p" toggles a dual display for both of the available themes with _dark_ on the left and _light_ on the right. In both cases, the colors reflect the current settings which, in the absence of customizations, are just the default settings for the two themes.
+
+<br clear="all">
+
+<img align="right" src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_colors_dual.svg" alt="Description" width="460" style="margin-left: 20px; margin-bottom: 10px;">
+
+Pressing "c" toggles the display to show a list of the named colors against the backgrounds currently used for the _dark_ and _light_ themes.
+
+The color for a setting can be customized in `config.toml` by first noting the theme in this section, then changing the relevant color value.
+
+<br clear="all">
 
 For example, with this in `config.toml`:
 
