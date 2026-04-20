@@ -4861,7 +4861,11 @@ class DatabaseManager:
 
         self.cursor.execute("DELETE FROM Urgency WHERE record_id = ?", (record_id,))
         description_text = record.get("description", "") or ""
-        tags_count = len(re.findall(r"#\w+", subject + " " + description_text))
+        job_text = " ".join(
+            (j.get("~") or j.get("label") or "") + " " + (j.get("d") or "")
+            for j in jobs
+        )
+        tags_count = len(re.findall(r"#\w+", subject + " " + description_text + " " + job_text))
 
         # Handle jobs if present
         if jobs:

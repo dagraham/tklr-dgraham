@@ -10,7 +10,6 @@ from tklr.controller import Controller
 from tklr.item import Item
 from tklr.tklr_env import TklrEnvironment
 
-
 os.environ["TKLR_HOME"] = "/Users/dag/Projects/tklr-uv/demo"
 
 
@@ -40,7 +39,12 @@ def build_entries() -> list[str]:
         "% Client preferences @d Prefers weekly status email on Fridays. #client",
         "- Capture idea #idea",
         "? Draft: follow-up email template #draft",
-        f"* Project check-in #project @s {tomorrow()} 11:00 @e 30m @b clients/acme",
+        f"* Taskforce check-in @s {tomorrow()} 11:00 @e 30m @b clients/acme",
+        f"""^ Schedule #tennis @s {tomorrow()}
+            @~ create #project &r 1
+            @~ request dates &r 2: 1
+            @~ create #schedule &r 3: 2
+            @~ deliver schedule &r 4: 3""",
         # --- GTD / Tasks View examples -----------------------------------------
         "~ Inbox capture: order printer paper #gtd",
         f"~ Deferred to calendar #gtd @s {tomorrow()} 09:00",
