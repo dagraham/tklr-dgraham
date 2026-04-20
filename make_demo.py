@@ -41,9 +41,9 @@ def build_entries() -> list[str]:
         "? Draft: follow-up email template #draft",
         f"* Taskforce check-in @s {tomorrow()} 11:00 @e 30m @b clients/acme",
         f"""^ Schedule #tennis @s {tomorrow()}
-            @~ create #project &r 1
+            @~ create #project &d for #Tuesdays &r 1
             @~ request dates &r 2: 1
-            @~ create #schedule &r 3: 2
+            @~ create schedule &r 3: 2
             @~ deliver schedule &r 4: 3""",
         # --- GTD / Tasks View examples -----------------------------------------
         "~ Inbox capture: order printer paper #gtd",
