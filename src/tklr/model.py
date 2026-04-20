@@ -793,7 +793,6 @@ class UrgencyComputer:
         self.MIN_HEX_COLOR = self.urgency.colors.min_hex_color
         self.MAX_HEX_COLOR = self.urgency.colors.max_hex_color
         self.STEPS = self.urgency.colors.steps
-        self.HOME = self.env.get_home()
 
         max_priority = 0.0
         try:
@@ -1121,12 +1120,7 @@ class UrgencyComputer:
             "jobs": kwargs.get("jobs", False),
             "pinned": kwargs.get("pinned", False),
         }
-        if bool(kwargs.get("pinned", False)):
-            urgency = 1.0
-            # log_msg("pinned, ignoring weights, returning urgency 1.0")
-        else:
-            urgency = self.compute_partitioned_urgency(weights)
-            # log_msg(f"{weights = }\n  returning {urgency = }")
+        urgency = self.compute_partitioned_urgency(weights)
         return urgency, self.urgency_to_bucket_color(urgency), weights
 
 

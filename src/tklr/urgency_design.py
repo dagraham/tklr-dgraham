@@ -328,57 +328,6 @@ def compute_urgency_screening_report(
     return rows
 
 
-def format_example_line(row, max_possible) -> str:
-    percent = row["percent"]
-    weights = row.get("weights") or {}
-
-    due = float(weights.get("due", 0.0))
-    pastdue = float(weights.get("pastdue", 0.0))
-    age = float(weights.get("age", 0.0))
-    recent = float(weights.get("recent", 0.0))
-    priority = float(weights.get("priority", 0.0))
-    tags = float(weights.get("tags", 0.0))
-    description = float(weights.get("description", 0.0))
-    extent = float(weights.get("extent", 0.0))
-    blocking = float(weights.get("blocking", 0.0))
-    project = float(weights.get("project", 0.0))
-
-    due_pastdue = due + pastdue
-    age_recent = max(age, recent)
-    primary = max(due_pastdue, priority, age_recent)
-    secondary = tags + description + extent + blocking + project
-
-    if primary and secondary:
-        derivation = (
-            f"({fmt_num(primary)} + {fmt_num(secondary)})/{fmt_num(max_possible)}"
-        )
-    elif primary:
-        derivation = f"{fmt_num(primary)}/{fmt_num(max_possible)}"
-    elif secondary:
-        derivation = f"{fmt_num(secondary)}/{fmt_num(max_possible)}"
-    else:
-        derivation = f"0/{fmt_num(max_possible)}"
-
-    contributors = []
-    for key, value in [
-        ("due", due),
-        ("pastdue", pastdue),
-        ("age", age),
-        ("recent", recent),
-        ("priority", priority),
-        ("tags", tags),
-        ("description", description),
-        ("extent", extent),
-        ("blocking", blocking),
-        ("project", project),
-    ]:
-        if value:
-            contributors.append(f"{key}={fmt_num(value)}")
-
-    suffix = f" {' '.join(contributors)}" if contributors else ""
-    return f"{percent} ~ {derivation}{suffix}"
-
-
 _PRIMARY_KEYS = ("due", "pastdue", "age", "recent", "priority")
 _SECONDARY_KEYS = ("tags", "description", "extent", "blocking", "project")
 
@@ -452,10 +401,7 @@ def format_task_urgency_explanation(
     return lines
 
 
-def format_urgency_report(env, rows: list[dict[str, Any]]) -> list[str]:
-    computed = get_urgency_computed_values(env)
-    max_possible = computed["maximum_possible_urgency"]
-
+def format_urgency_report(env) -> list[str]:
     lines: list[str] = []
     lines.append("Urgency report")
     lines.append("")
@@ -467,15 +413,4 @@ def format_urgency_report(env, rows: list[dict[str, Any]]) -> list[str]:
     lines.append("")
     lines.append("urgency: (primary + secondary) / maximum_possible_urgency")
     lines.append("")
-    # lines.append("Examples:")
-    # for row in rows:
-    #     lines.append(f"  {format_example_line(row, max_possible)}")
     return lines
-
-
-def format_urgency_screening_report(
-    env,
-    rows: list[dict[str, Any]],
-    design: str = "base",
-) -> list[str]:
-    return format_urgency_report(env, rows)

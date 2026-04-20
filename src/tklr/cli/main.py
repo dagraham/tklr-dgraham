@@ -31,11 +31,9 @@ from tklr.shared import (
 )
 from tklr.tklr_env import TklrEnvironment, collapse_home
 from tklr.urgency_design import (
-    compute_urgency_screening_report,
     format_task_urgency_explanation,
     format_urgency_report,
     get_urgency_computed_values,
-    get_urgency_model_summary,
 )
 
 # from tklr.view_agenda import run_agenda_view
@@ -1419,12 +1417,6 @@ def details(ctx, record_id, rich):
 )
 @click.pass_context
 @cli.command("urgency-report")
-@click.option("--json", "as_json", is_flag=True, help="Output JSON.")
-@click.option(
-    "--now",
-    "now_text",
-    help="Reference datetime for the screening examples, e.g. '2026-04-01 12:00'.",
-)
 @click.option(
     "--rich",
     "rich",
@@ -1445,30 +1437,15 @@ def details(ctx, record_id, rich):
     help="Maximum line width for detail lines (default: terminal width).",
 )
 @click.pass_context
-def urgency_report(ctx, as_json, now_text, rich, width):
+def urgency_report(ctx, rich, width):
     """
     Show the urgency model settings and the current ranking of all tasks,
     with a per-task breakdown of how each urgency score was computed.
     """
     env = ctx.obj["ENV"]
     db_path = ctx.obj["DB"]
-    report_now = None
-    if now_text:
-        report_now = dt_parser.parse(now_text)
 
-    rows = compute_urgency_screening_report(env, now_dt=report_now)
-
-    if as_json:
-        payload = {
-            "model": get_urgency_model_summary(env),
-            "computed": get_urgency_computed_values(env),
-            "rows": rows,
-        }
-        click.echo(json.dumps(payload, indent=2))
-        return
-
-    # ── model settings section (plain click.echo, same as before) ──────────
-    for line in format_urgency_report(env, rows):
+    for line in format_urgency_report(env):
         click.echo(line)
 
     # ── ranked tasks section ────────────────────────────────────────────────

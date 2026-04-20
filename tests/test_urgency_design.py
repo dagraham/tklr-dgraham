@@ -4,7 +4,6 @@ from tklr.urgency_design import (
     build_urgency_screening_examples,
     build_urgency_structure_examples,
     compute_urgency_screening_report,
-    format_urgency_screening_report,
 )
 
 
@@ -86,37 +85,3 @@ def test_urgency_structure_report_is_sorted_by_urgency(isolated_env):
         assert "args" in row
 
 
-def test_urgency_screening_report_includes_config_summary(isolated_env):
-    rows = compute_urgency_screening_report(
-        isolated_env,
-        now_dt=datetime(2026, 4, 1, 12, 0),
-    )
-    lines = format_urgency_screening_report(isolated_env, rows)
-
-    text = "\n".join(lines)
-    assert "Urgency screening report (base)" in text
-    assert "Current urgency settings:" in text
-    assert "due:" in text
-    assert "pastdue:" in text
-    assert "age:" in text
-    assert "recent:" in text
-    assert "tags:" in text
-    assert "description:" in text
-    assert "priority:" in text
-
-
-def test_urgency_structure_report_heading_includes_design_name(isolated_env):
-    rows = compute_urgency_screening_report(
-        isolated_env,
-        now_dt=datetime(2026, 4, 1, 12, 0),
-        design="structure",
-    )
-    lines = format_urgency_screening_report(
-        isolated_env,
-        rows,
-        design="structure",
-    )
-
-    text = "\n".join(lines)
-    assert "Urgency screening report (structure)" in text
-    assert "Current urgency settings:" in text
