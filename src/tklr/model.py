@@ -47,7 +47,7 @@ from .shared import (
     parse_utc_z,
 )
 
-TAG_RE = re.compile(r"(?<!\w)#([A-Za-z0-9]+)")
+TAG_RE = re.compile(r"(?<!\w)#(\w+)")
 
 
 anniversary_regex = re.compile(r"!(\d{4})!")

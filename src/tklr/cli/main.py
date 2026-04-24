@@ -1550,6 +1550,34 @@ def urgency_report(ctx, rich, width):
         console.print()  # blank separator between tasks
 
 
+@cli.command()
+@click.argument("etm_dir", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--outfile",
+    type=click.Path(dir_okay=False),
+    help="Defaults to [--home]/etm.txt",
+)
+@click.option(
+    "--secret",
+    help="Secret from etm cfg.yaml used to decode @m values. Absent a valid 'secret', @m values will be left encoded. (default: None)",
+)
+@click.option(
+    "--record-ids",
+    is_flag=True,
+    help="Append @# tags with the original etm record ids. (default: False)",
+)
+@click.option(
+    "--include-archive",
+    is_flag=True,
+    help="Include archived etm entries. (default: False)",
+)
+@click.option(
+    "--types",
+    type=click.Choice(MIGRATION_ITEM_TYPES),
+    multiple=True,
+    help="Restrict migration to specific etm item types (default: all).",
+)
+@click.pass_context
 def migrate(
     ctx,
     etm_dir,
