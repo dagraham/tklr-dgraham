@@ -1,5 +1,22 @@
 # Recent Changes
 
+## 1.0.26 — 2026-04-24
+
+Since 1.0.25:
+
+Why upgrade:
+- 1 additions, 0 fixes, 0 behavior changes.
+
+Added:
+- Add migration command with various options to CLI
+
+Docs:
+- Update README.md with improved image formatting and descriptions
+- Update urgency section heading in README.md
+
+Technical:
+- 3 files changed, 73 insertions(+), 44 deletions(-)
+
 ## 1.0.25 — 2026-04-20
 
 Since 1.0.24:
@@ -38,21 +55,3 @@ Internal:
 
 Technical:
 - 11 files changed, 1199 insertions(+), 131 deletions(-)
-
-## 1.0.23 — 2026-04-03
-
-Since 1.0.22:
-
-Why upgrade:
-- 0 additions, 0 fixes, 4 behavior changes.
-
-Changed:
-- Append ETM metadata tag to description
-- Allow ETM tag within description token
-- Clean up formatting and imports in bump.py
-- Enhance ETM migration and import parsing
-
-Technical:
-- 7 files changed, 428 insertions(+), 72 deletions(-)
-
-Note: Migration improvements and bug fixes.
