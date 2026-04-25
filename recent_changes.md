@@ -1,5 +1,15 @@
 # Recent Changes
 
+## 1.0.27 — 2026-04-25
+
+Since 1.0.26:
+
+Why upgrade:
+- Mostly maintenance/internal updates in this release.
+
+Technical:
+- No file-level changes.
+
 ## 1.0.26 — 2026-04-24
 
 Since 1.0.25:
@@ -38,20 +48,3 @@ Internal:
 
 Technical:
 - 6 files changed, 96 insertions(+), 179 deletions(-)
-
-## 1.0.24 — 2026-04-19
-
-Since 1.0.23:
-
-Why upgrade:
-- 2 additions, 0 fixes, 0 behavior changes.
-
-Added:
-- Redesign urgency computation and add screening report
-- Add urgency screening tools and tests
-
-Internal:
-- REFactor urgency report command and model summary
-
-Technical:
-- 11 files changed, 1199 insertions(+), 131 deletions(-)
