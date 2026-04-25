@@ -1,5 +1,7 @@
 import json
 import os
+import subprocess
+import tempfile
 import shutil
 import sys
 import textwrap
@@ -150,6 +152,27 @@ def _resolve_rich_output(env: TklrEnvironment, rich: Optional[bool]) -> bool:
 def get_raw_from_file(path: str) -> str:
     with open(path, "r", encoding="utf-8") as f:
         return f.read().strip()
+
+
+def edit_entry(initial_text: str = "") -> str:
+    editor = os.environ.get("EDITOR") or os.environ.get("VISUAL") or "vi"
+    instructions = (
+        "# Enter one or more tklr reminders below.\n"
+        "# Separate multiple entries with lines containing only: ...\fn"
+        "# Lines starting with '#' are ignored.\n"
+        "#\n"
+    )
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".txt", delete=False, encoding="utf-8"
+    ) as f:
+        f.write(instructions + (initial_text or ""))
+        tmp_path = f.name
+    try:
+        subprocess.run([editor, tmp_path], check=False)
+        with open(tmp_path, encoding="utf-8") as f:
+            return f.read().strip()
+    finally:
+        os.unlink(tmp_path)
 
 
 def get_raw_from_editor() -> str:
