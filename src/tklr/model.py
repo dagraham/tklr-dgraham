@@ -1976,9 +1976,10 @@ class DatabaseManager:
             item.use_id = use["id"]
             return use["id"]
         if strict:
-            raise ValueError(
-                f"Unknown use '{name}'. Use 'tklr uses add \"{name}\"' to create it."
-            )
+            new_use = self.add_use(name, "")
+            item.use = new_use["name"]
+            item.use_id = new_use["id"]
+            return new_use["id"]
         return None
 
     def setup_busy_tables(self):

@@ -267,7 +267,7 @@ Here are some illustrations of how the various types.
   <p>The beginning <code>~</code> type character makes this reminder a <i>task</i> with the following <code>pick up milk</code> as the <i>subject</i>.
   </p>
 
-  <p>Using an <code>@s</code> attribute is optional and, when specified, it sets the time at which the task should be <strong>completed</strong>, not begun. The <code>@e</code> attribute is also optional and, when given, is intepreted as the estimated time period required for completion.
+  <p>Using an <code>@s</code> attribute is optional and, when specified, it sets the time at which the task should be <strong>completed</strong>, not begun. The <code>@e</code> attribute is also optional and, when given, is Possible spelling issue 'interpreted'. as the estimated time period required for completion.
   </p>
 </div>
 <div style="clear:both;"></div>

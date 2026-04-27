@@ -2299,13 +2299,13 @@ Entry: {self.entry}
                 self.use = use["name"]
                 self.use_id = use["id"]
                 return True, use["name"], []
-            summary = self._format_match_list(matches, display_limit=3)
-            suggestion_text = f"\nMatching entries: {summary}." if summary else ""
-            hint = (
-                f"Press F2 to add '{normalized}' as a new use "
-                f"or replace it with an existing use.{suggestion_text}"
+            self.messages.append(
+                f"This will be the first use of '{normalized}'. "
+                f"Please correct before saving if this is not intended."
             )
-            return (False, hint, [])
+            self.use = normalized
+            self.use_id = None
+            return (True, normalized, [])
         self.use = normalized
         self.use_id = None
         return True, normalized, []
