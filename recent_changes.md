@@ -1,5 +1,18 @@
 # Recent Changes
 
+## 1.0.29 — 2026-04-27
+
+Since 1.0.28:
+
+Why upgrade:
+- 0 additions, 1 fixes, 0 behavior changes.
+
+Fixed:
+- Fix spelling mistake in README and improve messaging
+
+Technical:
+- 3 files changed, 11 insertions(+), 10 deletions(-)
+
 ## 1.0.28 — 2026-04-25
 
 Since 1.0.27:
@@ -22,20 +35,3 @@ Why upgrade:
 
 Technical:
 - No file-level changes.
-
-## 1.0.26 — 2026-04-24
-
-Since 1.0.25:
-
-Why upgrade:
-- 1 additions, 0 fixes, 0 behavior changes.
-
-Added:
-- Add migration command with various options to CLI
-
-Docs:
-- Update README.md with improved image formatting and descriptions
-- Update urgency section heading in README.md
-
-Technical:
-- 3 files changed, 73 insertions(+), 44 deletions(-)
