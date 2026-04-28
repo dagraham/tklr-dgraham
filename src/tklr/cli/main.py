@@ -195,6 +195,8 @@ def _version_callback(ctx, _param, value):
         try:
             if parse_version(latest) > parse_version(VERSION):
                 msg += f" ({latest} available on PyPI)"
+            else:
+                msg += " (up to date)"
         except Exception:
             pass
     click.echo(msg)
