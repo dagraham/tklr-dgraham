@@ -42,6 +42,14 @@ cli_rich = false
 # Rounding step (in minutes) for jot extents.
 minutes = 6
 
+# timer_warning_minutes: int (default 90)
+# Minutes elapsed before the jot timer footer indicator turns to a warning color.
+timer_warning_minutes = 90
+
+# timer_urgent_minutes: int (default 180)
+# Minutes elapsed before the jot timer footer indicator turns to an urgent color.
+timer_urgent_minutes = 180
+
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
 # Prefix with '!' to run a standalone command/script (no automatic 'tklr').

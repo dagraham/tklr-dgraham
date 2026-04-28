@@ -7,7 +7,6 @@ import json
 import os
 import re
 import shutil
-import ssl
 import time
 import urllib.request
 from dataclasses import dataclass
@@ -15,7 +14,6 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
-import certifi
 import pyperclip
 
 # from logging import log
@@ -133,49 +131,23 @@ FOOTER = FOOTER_DARK
 DIM_STYLE_DARK = "dim"
 DIM_STYLE_LIGHT = "#4a4a4a"
 DIM_STYLE = DIM_STYLE_DARK
-UPDATE_CHECK_PACKAGE = "tklr-dgraham"
-UPDATE_CHECK_TIMEOUT = 2.0
-_TLS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
-
-
 def check_update_available(
     current_version,
-    package: str = UPDATE_CHECK_PACKAGE,
-    timeout: float = UPDATE_CHECK_TIMEOUT,
+    package: str = "tklr-dgraham",
+    timeout: float = 2.0,
 ) -> bool:
     """
     Query PyPI for the latest published version and return True when a newer
     release is available. Failures are silent so the UI never blocks startup.
     """
-    bug_msg(f"[update-check] Current version: {current_version}")
+    from .versioning import fetch_latest_pypi_version
+
     log_msg(f"[update-check] Current version: {current_version}")
-    if os.environ.get("TKLR_SKIP_UPDATE_CHECK"):
-        return False
-
-    url = f"https://pypi.org/pypi/{package}/json"
-    try:
-        with urllib.request.urlopen(
-            url, timeout=timeout, context=_TLS_CONTEXT
-        ) as response:
-            payload = json.load(response)
-    except Exception as exc:  # pragma: no cover - network best effort
-        log_msg(f"[update-check] Unable to reach PyPI: {exc}")
-        return False
-
-    latest_str = (payload.get("info") or {}).get("version")
-    # bug_msg(f"[update-check] Latest version string from PyPI: {latest_str}")
+    latest_str = fetch_latest_pypi_version(package=package, timeout=timeout)
     if not latest_str:
         return False
-
     try:
-        latest_version = parse_version(latest_str)
-        # bug_msg(f"[update-check] Latest version on PyPI: {latest_version = }")
-    except Exception as exc:
-        log_msg(f"[update-check] Invalid PyPI version '{latest_str}': {exc}")
-        return False
-
-    try:
-        return latest_version > current_version
+        return parse_version(latest_str) > current_version
     except Exception:
         return False
 
@@ -419,16 +391,19 @@ class FooterNoticeBar(Static):
         self.can_focus = False
 
     def _build_renderable(self) -> Table:
-        indicator = ""
         app = getattr(self, "app", None)
+        update_ind = ""
+        timer_ind = ""
         if app:
-            indicator = getattr(app, "update_indicator_text", "") or ""
+            update_ind = getattr(app, "update_indicator_text", "") or ""
+            timer_ind = getattr(app, "timer_indicator_text", "") or ""
+        right = update_ind + timer_ind
         table = Table.grid(padding=(0, 0), expand=True)
         table.add_column(ratio=1)
         table.add_column(no_wrap=True, justify="right")
         table.add_row(
             Text.from_markup(self._text),
-            Text.from_markup(indicator) if indicator else Text(""),
+            Text.from_markup(right) if right else Text(""),
         )
         return table
 
@@ -2648,8 +2623,12 @@ class JotsScreen(WeeksScreen):
         Called by app after the controller recomputes the list pages
         for the currently-selected week (jots only).
         """
-        title, pages = self.app.controller.get_jots_table_and_list(
-            self.app.current_start_date, self.app.selected_week
+        app = self.app
+        timer_id = None
+        if getattr(app, "_jot_timer_state", "none") == "running":
+            timer_id = getattr(app, "_jot_timer_id", None)
+        title, pages = app.controller.get_jots_table_and_list(
+            app.current_start_date, app.selected_week, timer_record_id=timer_id
         )
 
         normalized_pages = pages
@@ -4067,6 +4046,11 @@ class DynamicViewApp(App):
         self.footer_color = colors["footer"]
         self.title_color = colors["title"]
         self.update_indicator_text = ""
+        self.timer_indicator_text = ""
+        self._jot_timer_id: int | None = None
+        self._jot_timer_state = "none"  # "none" | "running"
+        self._jot_timer_start: datetime | None = None
+        self._timer_warning_notified = False
         if self._theme == "light":
             self.status_colors = {
                 "info": "#1f1f1f",
@@ -4135,6 +4119,90 @@ class DynamicViewApp(App):
         except ScreenStackError:
             return
 
+    def _refresh_timer_indicator(self) -> None:
+        if self._jot_timer_state != "running" or self._jot_timer_start is None:
+            if self.timer_indicator_text:
+                self.timer_indicator_text = ""
+                self._refresh_footer_indicator()
+            return
+
+        elapsed_secs = int((datetime.now() - self._jot_timer_start).total_seconds())
+        elapsed_mins = elapsed_secs // 60
+
+        cfg = getattr(getattr(self.controller, "env", None), "config", None)
+        ui_cfg = getattr(cfg, "ui", None)
+        warn_mins = getattr(ui_cfg, "timer_warning_minutes", 90)
+        urgent_mins = getattr(ui_cfg, "timer_urgent_minutes", 180)
+
+        hours = elapsed_mins // 60
+        mins = elapsed_mins % 60
+        time_str = f"{hours}h{mins:02d}m" if hours > 0 else f"{mins}m"
+
+        if elapsed_mins >= urgent_mins:
+            markup = f" [bold red]⏱ {time_str}[/bold red]"
+        elif elapsed_mins >= warn_mins:
+            markup = f" [bold yellow]⏱ {time_str}[/bold yellow]"
+        else:
+            color = getattr(self, "footer_color", FOOTER)
+            markup = f" [{color}]⏱ {time_str}[/{color}]"
+
+        self.timer_indicator_text = markup
+        self._refresh_footer_indicator()
+
+        if elapsed_mins >= warn_mins and not self._timer_warning_notified:
+            self._timer_warning_notified = True
+            self.notify(
+                f"Jot timer has been running for {time_str}.",
+                severity="warning",
+                timeout=5.0,
+            )
+
+    def _toggle_jot_timer(self, record_id: int) -> None:
+        now = datetime.now()
+        if self._jot_timer_state == "running":
+            elapsed_secs = int((now - self._jot_timer_start).total_seconds())
+            old_id = self._jot_timer_id
+            self._jot_timer_state = "none"
+            self._jot_timer_id = None
+            self._jot_timer_start = None
+            self._timer_warning_notified = False
+            self.timer_indicator_text = ""
+            self._refresh_footer_indicator()
+            if old_id == record_id:
+                ok = self.controller.add_jot_elapsed_time(old_id, elapsed_secs, now)
+                mins = elapsed_secs // 60
+                secs = elapsed_secs % 60
+                time_str = f"{mins}m {secs}s" if mins > 0 else f"{secs}s"
+                if ok:
+                    self.notify(
+                        f"Timer stopped — {time_str} added to extent.",
+                        severity="info",
+                        timeout=3.0,
+                    )
+                    if hasattr(self, "refresh_view"):
+                        self.refresh_view()
+                else:
+                    self.notify(
+                        f"Timer stopped ({time_str}). Could not save elapsed time.",
+                        severity="warning",
+                        timeout=3.0,
+                    )
+                return
+            else:
+                ok = self.controller.add_jot_elapsed_time(old_id, elapsed_secs, now)
+                if ok and hasattr(self, "refresh_view"):
+                    self.refresh_view()
+
+        # Start timer for record_id
+        self._jot_timer_id = record_id
+        self._jot_timer_state = "running"
+        self._jot_timer_start = now
+        self._timer_warning_notified = False
+        self._refresh_timer_indicator()
+        if hasattr(self, "refresh_view"):
+            self.refresh_view()
+        self.notify("Jot timer started.", severity="info", timeout=1.5)
+
     async def on_mount(self):
         # open default screen
         self.action_show_agenda()
@@ -4146,6 +4214,7 @@ class DynamicViewApp(App):
         self.set_interval(6, self.check_alerts)
         # Fallback guard: once per minute ensure we notice a missed day rollover.
         self.set_interval(60, self._daily_rollover_guard)
+        self.set_interval(60, self._refresh_timer_indicator)
 
     async def action_check_updates(self) -> None:
         """Manually check PyPI for a newer release and refresh the footer indicator."""
@@ -4586,6 +4655,22 @@ class DynamicViewApp(App):
                     hotkey="s",
                 )
                 add_option("Touch", touch_item, enabled=True, hotkey="t")
+
+                def toggle_timer() -> None:
+                    app._toggle_jot_timer(record_id)
+
+                is_timer_running = (
+                    app._jot_timer_state == "running"
+                    and app._jot_timer_id == record_id
+                )
+                timer_label = "Stop timer" if is_timer_running else "Start timer"
+                add_option(
+                    timer_label,
+                    toggle_timer,
+                    enabled=(view_name == "jots" and itemtype == "-"),
+                    hotkey="w",
+                )
+
                 # add_option("Schedule new instance", schedule_new_instance, enabled=True)
                 # add_option(
                 #     "Reschedule instance" if instance_ts else "Reschedule",
@@ -5010,8 +5095,9 @@ class DynamicViewApp(App):
     def action_show_jots(self):
         self.view = "jots"
         log_msg(f"{self.selected_week = }")
+        timer_id = self._jot_timer_id if self._jot_timer_state == "running" else None
         title, details = self.controller.get_jots_table_and_list(
-            self.current_start_date, self.selected_week
+            self.current_start_date, self.selected_week, timer_record_id=timer_id
         )
         footer = "[bold yellow]?[/bold yellow] Help [bold yellow]/[/bold yellow] Search"
 
@@ -5572,8 +5658,21 @@ class DynamicViewApp(App):
             callback=_after,
         )
 
-    def action_quit(self):
-        self.exit()
+    def action_quit(self) -> None:
+        if self._jot_timer_state == "running" and self._jot_timer_start is not None:
+            elapsed_secs = int((datetime.now() - self._jot_timer_start).total_seconds())
+            mins = elapsed_secs // 60
+            secs = elapsed_secs % 60
+            time_str = f"{mins}m {secs}s" if mins > 0 else f"{secs}s"
+            msg = f"A jot timer has been running for {time_str}.\nQuit anyway?"
+
+            def _after(confirmed: bool | None) -> None:
+                if confirmed:
+                    self.exit()
+
+            self.push_screen(ConfirmPrompt(msg), callback=_after)
+        else:
+            self.exit()
 
     def action_show_help(self):
         scr = self.screen

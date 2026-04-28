@@ -5,6 +5,35 @@ from importlib.metadata import (
     packages_distributions,
 )
 
+_PYPI_PACKAGE = "tklr-dgraham"
+_PYPI_TIMEOUT = 3.0
+
+
+def fetch_latest_pypi_version(
+    package: str = _PYPI_PACKAGE,
+    timeout: float = _PYPI_TIMEOUT,
+) -> str | None:
+    """Return the latest published version string from PyPI, or None on any failure."""
+    import json
+    import os
+    import ssl
+    import urllib.request
+
+    if os.environ.get("TKLR_SKIP_UPDATE_CHECK"):
+        return None
+    try:
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        ctx = ssl.create_default_context()
+    try:
+        url = f"https://pypi.org/pypi/{package}/json"
+        with urllib.request.urlopen(url, timeout=timeout, context=ctx) as resp:
+            payload = json.load(resp)
+        return (payload.get("info") or {}).get("version") or None
+    except Exception:
+        return None
+
 
 def get_version() -> str:
     # Map package → distribution(s), then pick the first match

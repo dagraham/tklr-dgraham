@@ -23,7 +23,7 @@ from dateutil.rrule import rrulestr
 from packaging.version import parse as parse_version
 
 from . import shared as shared_colors
-from .item import Item
+from .item import Item, td_to_td_str
 from .mask import reveal_mask_tokens
 from .model import DatabaseManager, UrgencyComputer, _fmt_naive, td_str_to_seconds
 from .named_colors import css_named_colors
@@ -1528,6 +1528,42 @@ class Controller:
         except Exception:
             pass
 
+    def add_jot_elapsed_time(
+        self, record_id: int, elapsed_seconds: int, stop_time: datetime
+    ) -> bool:
+        """
+        Add elapsed_seconds to the jot's @e extent and set @s to stop_time.
+        Uses apply_textual_edit so tokens and all derived tables are updated correctly.
+        """
+        stop_fmt = self.fmt_user(stop_time)
+
+        def edit_fn(entry_str: str) -> str:
+            # --- update @e ---
+            e_pat = re.compile(r"@e\s+(\S+)")
+            e_match = e_pat.search(entry_str)
+            current_secs = td_str_to_seconds(e_match.group(1)) if e_match else 0
+            new_extent = td_to_td_str(timedelta(seconds=current_secs + elapsed_seconds))
+            if e_match:
+                entry_str = e_pat.sub(f"@e {new_extent}", entry_str, count=1)
+            else:
+                entry_str = entry_str.rstrip() + f" @e {new_extent}"
+
+            # --- update @s (second token won't start with @ or &) ---
+            s_pat = re.compile(r"@s\s+\S+(?:\s+[^@&\s]\S*)?")
+            s_match = s_pat.search(entry_str)
+            if s_match:
+                entry_str = (
+                    entry_str[: s_match.start()]
+                    + f"@s {stop_fmt}"
+                    + entry_str[s_match.end() :]
+                )
+            else:
+                entry_str = entry_str.rstrip() + f" @s {stop_fmt}"
+
+            return entry_str
+
+        return self.apply_textual_edit(record_id, edit_fn)
+
     def schedule_new(self, record_id: int, job_id: int | None, when: datetime) -> bool:
         stamp = self.fmt_user(when)
 
@@ -2165,7 +2201,11 @@ class Controller:
         return title, busy_bar, details
 
     def get_jots_table_and_list(
-        self, start_date: datetime, selected_week: tuple[int, int]
+        self,
+        start_date: datetime,
+        selected_week: tuple[int, int],
+        *,
+        timer_record_id: int | None = None,
     ):
         year, week = selected_week
 
@@ -2187,7 +2227,9 @@ class Controller:
             log_msg(f"[jots] ensure_week_generated_with_topup error: {e}")
 
         start_dt = datetime.strptime(f"{year} {week} 1", "%G %V %u")
-        details, total_minutes = self.get_jot_details(selected_week)
+        details, total_minutes = self.get_jot_details(
+            selected_week, timer_record_id=timer_record_id
+        )
 
         title = f"Jots - {format_iso_week(start_dt)}"
         if total_minutes > 0:
@@ -2390,7 +2432,7 @@ class Controller:
         # log_msg(f"{len(pages) = }, {pages[0] = }, {pages[-1] = }")
         return pages
 
-    def get_jot_details(self, yr_wk):
+    def get_jot_details(self, yr_wk, *, timer_record_id: int | None = None):
         """
         Fetch and format jot rows for a specific week.
         """
@@ -2509,12 +2551,13 @@ class Controller:
             if paren_display:
                 parts.append(paren_display)
 
+            timer_suffix = " [bold]⏱[/bold]" if id == timer_record_id else ""
             row = {
                 "record_id": id,
                 "job_id": job_id,
                 "datetime_id": dt_id,
                 "instance_ts": start_ts,
-                "text": f"[{type_color}]{' '.join(parts)}[/{type_color}]",
+                "text": f"[{type_color}]{' '.join(parts)}[/{type_color}]{timer_suffix}",
             }
             weekday_to_events.setdefault(start_dt.date(), []).append(row)
             day_totals[start_dt.date()] = (

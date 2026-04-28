@@ -78,6 +78,8 @@ class UIConfig(BaseModel):
     agenda_days: int = Field(3, ge=1)
     cli_rich: bool = False
     minutes: int = 6
+    timer_warning_minutes: int = 90
+    timer_urgent_minutes: int = 180
     palette: Dict[str, Dict[str, str]] = Field(default_factory=dict)
     current_command: str = ""
 
@@ -219,6 +221,14 @@ cli_rich = {{ ui.cli_rich | lower }}
 # minutes: int = 3 | 6 | 12 | 15 | 30
 # Rounding step (in minutes) for jot extents.
 minutes = {{ ui.minutes }}
+
+# timer_warning_minutes: int (default 90)
+# Minutes elapsed before the jot timer footer indicator turns to a warning color.
+timer_warning_minutes = {{ ui.timer_warning_minutes }}
+
+# timer_urgent_minutes: int (default 180)
+# Minutes elapsed before the jot timer footer indicator turns to an urgent color.
+timer_urgent_minutes = {{ ui.timer_urgent_minutes }}
 
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'

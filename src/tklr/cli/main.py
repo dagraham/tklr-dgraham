@@ -39,7 +39,7 @@ from tklr.urgency_design import (
 )
 
 # from tklr.view_agenda import run_agenda_view
-from tklr.versioning import get_version
+from tklr.versioning import fetch_latest_pypi_version, get_version
 from tklr.view import DynamicViewApp
 
 
@@ -184,8 +184,30 @@ def get_raw_from_stdin() -> str:
     return sys.stdin.read().strip()
 
 
+def _version_callback(ctx, _param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    from packaging.version import parse as parse_version
+
+    msg = f"tklr version {VERSION}"
+    latest = fetch_latest_pypi_version()
+    if latest:
+        try:
+            if parse_version(latest) > parse_version(VERSION):
+                msg += f" ({latest} available on PyPI)"
+        except Exception:
+            pass
+    click.echo(msg)
+    ctx.exit()
+
+
 @click.group(invoke_without_command=True)
-@click.version_option(VERSION, prog_name="tklr", message="%(prog)s version %(version)s")
+@click.option(
+    "--version", "-V",
+    is_flag=True, is_eager=True, expose_value=False,
+    callback=_version_callback,
+    help="Show the version and exit.",
+)
 @click.option(
     "--home",
     help="Override the Tklr workspace directory (equivalent to setting $TKLR_HOME).",
@@ -1411,34 +1433,6 @@ def details(ctx, record_id, rich):
     _print_detail_lines(console, lines, rich)
 
 
-@cli.command()
-@click.argument("etm_dir", type=click.Path(exists=True, file_okay=False))
-@click.option(
-    "--outfile",
-    type=click.Path(dir_okay=False),
-    help="Defaults to [--home]/etm.txt",
-)
-@click.option(
-    "--secret",
-    help="Secret from etm cfg.yaml used to decode @m values. Absent a valid 'secret', @m values will be left encoded. (default: None)",
-)
-@click.option(
-    "--record-ids",
-    is_flag=True,
-    help="Append @# tags with the original etm record ids. (default: False)",
-)
-@click.option(
-    "--include-archive",
-    is_flag=True,
-    help="Include archived etm entries. (default: False)",
-)
-@click.option(
-    "--types",
-    type=click.Choice(MIGRATION_ITEM_TYPES),
-    multiple=True,
-    help="Restrict migration to specific etm item types (default: all).",
-)
-@click.pass_context
 @cli.command("urgency-report")
 @click.option(
     "--rich",
