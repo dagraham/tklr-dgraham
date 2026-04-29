@@ -3998,18 +3998,10 @@ class Controller:
                 return None
 
         anchor_dt = _parse_dt(instance_ts)
-        start_key = _fmt_naive(anchor_dt) if anchor_dt else None
 
-        occurrences: list[tuple[datetime | None, datetime | None]] = [
-            (_parse_dt(start), _parse_dt(end))
-            for start, end in self.db_manager.get_upcoming_instances_for_record(
-                record_id,
-                limit=limit,
-                start_at=start_key,
-            )
-        ]
+        occurrences: list[tuple[datetime | None, datetime | None]] = []
 
-        if not occurrences and rruleset:
+        if rruleset:
             try:
                 rule_str = self.db_manager._normalize_rruleset(
                     rruleset.replace("\\N", "\n").replace("\\n", "\n")
