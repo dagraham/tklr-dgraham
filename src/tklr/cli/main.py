@@ -1764,6 +1764,63 @@ def _emit_jot_uses_report(
                 lines.append(f"{indent}{extra}")
         return lines
 
+    _sort_key = lambda name: (name.lower() == "unassigned", name.lower())
+
+    def _render_uses(
+        use_labels: list[str],
+        month_key: tuple[int, int],
+        use_map: dict,
+        indent: str,
+        depth: int = 0,
+    ) -> None:
+        groups: dict[str, list[str]] = {}
+        for label in use_labels:
+            parts = label.split(".")
+            prefix = ".".join(parts[: depth + 1]) if len(parts) > depth + 1 else label
+            groups.setdefault(prefix, []).append(label)
+
+        for prefix in sorted(groups.keys(), key=_sort_key):
+            members = sorted(groups[prefix], key=_sort_key)
+            if len(members) > 1:
+                group_minutes = sum(
+                    use_totals.get(month_key, {}).get(m, 0) for m in members
+                )
+                group_header = prefix
+                if group_minutes > 0:
+                    group_header = f"{group_header}: {format_decimal_hours(group_minutes, step_minutes)}"
+                click.echo(f"{indent}{group_header}")
+                _render_uses(members, month_key, use_map, f"{indent}  ", depth + 1)
+            else:
+                use_label = members[0]
+                use_minutes = use_totals.get(month_key, {}).get(use_label, 0)
+                use_header = use_label
+                if use_minutes > 0:
+                    use_header = f"{use_header}: {format_decimal_hours(use_minutes, step_minutes)}"
+                click.echo(f"{indent}{use_header}")
+                record_indent = f"{indent}{tag_pad}"
+                for entry in use_map.get(use_label, []):
+                    if entry["extent"]:
+                        extent_str = format_decimal_hours(
+                            entry["extent_minutes"], step_minutes
+                        )
+                    else:
+                        extent_str = ""
+                    extent_str = extent_str.rjust(4)
+                    time_display = entry["start_dt"].strftime("%H:%M")
+                    day_display = entry["start_dt"].strftime("%-d")
+                    base = f"{record_indent}{time_display} {day_display} {extent_str}"
+                    subject = controller.apply_flags(entry["record_id"], entry["subject"])
+                    for line in wrap_text(base, subject, indent_width=len(record_indent)):
+                        click.echo(line)
+                    if verbose and entry["description"]:
+                        detail_indent = " " * (len(base) + 1)
+                        detail_lines = textwrap.wrap(
+                            entry["description"],
+                            width=max(1, available_width - len(detail_indent)),
+                        )
+                        for dline in detail_lines:
+                            click.echo(f"{detail_indent}{dline}")
+
     title = f"Jot Uses - {label}"
     if total_minutes > 0:
         title = f"{title}: {format_decimal_hours(total_minutes, step_minutes)}"
@@ -1776,45 +1833,8 @@ def _emit_jot_uses_report(
                 f"{month_label}: {format_decimal_hours(month_minutes, step_minutes)}"
             )
         click.echo(month_label)
-
         use_map = month_map[(year, month)]
-        use_indent = "  "
-        record_indent = f"{use_indent}{tag_pad}"
-        for use_label in sorted(
-            use_map.keys(),
-            key=lambda name: (name.lower() == "unassigned", name.lower()),
-        ):
-            use_minutes = use_totals.get((year, month), {}).get(use_label, 0)
-            use_header = f"{use_label}"
-            if use_minutes > 0:
-                use_header = (
-                    f"{use_header}: {format_decimal_hours(use_minutes, step_minutes)}"
-                )
-            click.echo(f"{use_indent}{use_header}")
-            for entry in use_map[use_label]:
-                if entry["extent"]:
-                    extent_str = format_decimal_hours(
-                        entry["extent_minutes"], step_minutes
-                    )
-                else:
-                    extent_str = ""
-                extent_str = extent_str.rjust(4)
-                time_display = entry["start_dt"].strftime("%H:%M")
-                day_display = entry["start_dt"].strftime("%-d")
-                base_prefix = record_indent
-                base = f"{base_prefix}{time_display} {day_display} {extent_str}"
-                subject = controller.apply_flags(entry["record_id"], entry["subject"])
-                indent_width = len(base_prefix)
-                for line in wrap_text(base, subject, indent_width=indent_width):
-                    click.echo(line)
-                if verbose and entry["description"]:
-                    detail_indent = " " * (len(base) + 1)
-                    detail_lines = textwrap.wrap(
-                        entry["description"],
-                        width=max(1, available_width - len(detail_indent)),
-                    )
-                    for dline in detail_lines:
-                        click.echo(f"{detail_indent}{dline}")
+        _render_uses(sorted(use_map.keys(), key=_sort_key), (year, month), use_map, "  ")
 
 
 @cli.command("jots")
