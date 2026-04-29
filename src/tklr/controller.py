@@ -2846,6 +2846,91 @@ class Controller:
                     text += "\n" + indent + extra
             return text
 
+        _sort_key = lambda name: (name.lower() == "unassigned", name.lower())
+
+        def _render_uses(
+            use_labels: list[str],
+            month_key: tuple[int, int],
+            use_map_: dict,
+            indent: str,
+            depth: int = 0,
+        ) -> None:
+            groups: dict[str, list[str]] = {}
+            for label in use_labels:
+                parts = label.split(".")
+                prefix = ".".join(parts[: depth + 1]) if len(parts) > depth + 1 else label
+                groups.setdefault(prefix, []).append(label)
+
+            for prefix in sorted(groups.keys(), key=_sort_key):
+                members = sorted(groups[prefix], key=_sort_key)
+                if len(members) > 1:
+                    group_minutes = sum(
+                        use_totals.get(month_key, {}).get(m, 0) for m in members
+                    )
+                    group_header = f"{indent}{prefix}"
+                    if group_minutes > 0:
+                        group_header = f"{group_header}: {format_decimal_hours(group_minutes, step_minutes)}"
+                    rows.append(
+                        {
+                            "record_id": None,
+                            "job_id": None,
+                            "datetime_id": None,
+                            "instance_ts": None,
+                            "text": f"[{HEADER_COLOR}]{group_header}[/{HEADER_COLOR}]",
+                        }
+                    )
+                    _render_uses(members, month_key, use_map_, f"{indent}  ", depth + 1)
+                else:
+                    use_label = members[0]
+                    use_minutes = use_totals.get(month_key, {}).get(use_label, 0)
+                    use_header = f"{indent}{use_label}"
+                    if use_minutes > 0:
+                        use_header = f"{use_header}: {format_decimal_hours(use_minutes, step_minutes)}"
+                    rows.append(
+                        {
+                            "record_id": None,
+                            "job_id": None,
+                            "datetime_id": None,
+                            "instance_ts": None,
+                            "text": f"[{HEADER_COLOR}]{use_header}[/{HEADER_COLOR}]",
+                        }
+                    )
+                    entry_indent = f"{indent}  "
+                    for entry in use_map_.get(use_label, []):
+                        if entry["extent"]:
+                            extent_display = format_decimal_hours(
+                                entry["extent_minutes"], step_minutes
+                            )
+                        else:
+                            extent_display = ""
+                        time_display = entry["start_dt"].strftime("%H:%M")
+                        day_display = entry["start_dt"].strftime("%-d")
+                        extent_display = extent_display.rjust(4)
+                        base = f"{entry_indent}{time_display} {day_display} {extent_display}"
+                        subject = self.apply_flags(entry["record_id"], entry["subject"])
+                        text = _wrap_subject(base, subject, indent_width=len(entry_indent))
+                        entry_color = (
+                            JOT_COLOR_USE
+                            if entry["use_label"].strip().lower() != "unassigned"
+                            and not entry["extent"]
+                            else JOT_COLOR_NONE
+                            if entry["use_label"].strip().lower() == "unassigned"
+                            and not entry["extent"]
+                            else JOT_COLOR_EXTENT
+                            if entry["use_label"].strip().lower() == "unassigned"
+                            else JOT_COLOR_FULL
+                        )
+                        text = f"[{entry_color}]{text}[/{entry_color}]"
+                        rows.append(
+                            {
+                                "record_id": entry["record_id"],
+                                "job_id": entry["job_id"],
+                                "datetime_id": entry["datetime_id"],
+                                "instance_ts": entry["instance_ts"],
+                                "text": text,
+                            }
+                        )
+
         for year, month in sorted(month_map.keys()):
             month_label = date(year, month, 1).strftime("%b %Y")
             month_minutes = month_totals.get((year, month), 0)
@@ -2860,60 +2945,8 @@ class Controller:
                     "text": f"[{HEADER_COLOR}]{month_label}[/{HEADER_COLOR}]",
                 }
             )
-
             use_map = month_map[(year, month)]
-            for use_label in sorted(
-                use_map.keys(),
-                key=lambda name: (name.lower() == "unassigned", name.lower()),
-            ):
-                use_minutes = use_totals.get((year, month), {}).get(use_label, 0)
-                use_header = f"  {use_label}"
-                if use_minutes > 0:
-                    use_header = f"{use_header}: {format_decimal_hours(use_minutes, step_minutes)}"
-                rows.append(
-                    {
-                        "record_id": None,
-                        "job_id": None,
-                        "datetime_id": None,
-                        "instance_ts": None,
-                        "text": f"[{HEADER_COLOR}]{use_header}[/{HEADER_COLOR}]",
-                    }
-                )
-                for entry in use_map[use_label]:
-                    if entry["extent"]:
-                        extent_display = format_decimal_hours(
-                            entry["extent_minutes"], step_minutes
-                        )
-                    else:
-                        extent_display = ""
-                    time_display = entry["start_dt"].strftime("%H:%M")
-                    day_display = entry["start_dt"].strftime("%-d")
-                    extent_display = extent_display.rjust(4)
-                    base = f"{time_display} {day_display} {extent_display}"
-                    subject = self.apply_flags(entry["record_id"], entry["subject"])
-                    indent_width = 0
-                    text = _wrap_subject(base, subject, indent_width=indent_width)
-                    entry_color = (
-                        JOT_COLOR_USE
-                        if entry["use_label"].strip().lower() != "unassigned"
-                        and not entry["extent"]
-                        else JOT_COLOR_NONE
-                        if entry["use_label"].strip().lower() == "unassigned"
-                        and not entry["extent"]
-                        else JOT_COLOR_EXTENT
-                        if entry["use_label"].strip().lower() == "unassigned"
-                        else JOT_COLOR_FULL
-                    )
-                    text = f"[{entry_color}]{text}[/{entry_color}]"
-                    rows.append(
-                        {
-                            "record_id": entry["record_id"],
-                            "job_id": entry["job_id"],
-                            "datetime_id": entry["datetime_id"],
-                            "instance_ts": entry["instance_ts"],
-                            "text": text,
-                        }
-                    )
+            _render_uses(sorted(use_map.keys(), key=_sort_key), (year, month), use_map, "  ")
 
         if not rows:
             rows.append(
