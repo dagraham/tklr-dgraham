@@ -1,5 +1,18 @@
 # Recent Changes
 
+## 1.0.32 — 2026-04-29
+
+Since 1.0.31:
+
+Why upgrade:
+- 1 additions, 0 fixes, 0 behavior changes.
+
+Added:
+- Implement recursive rendering for uses report
+
+Technical:
+- 1 file changed, 58 insertions(+), 38 deletions(-)
+
 ## 1.0.31 — 2026-04-29
 
 Since 1.0.30:
@@ -26,16 +39,3 @@ Added:
 
 Technical:
 - 6 files changed, 262 insertions(+), 77 deletions(-)
-
-## 1.0.29 — 2026-04-27
-
-Since 1.0.28:
-
-Why upgrade:
-- 0 additions, 1 fixes, 0 behavior changes.
-
-Fixed:
-- Fix spelling mistake in README and improve messaging
-
-Technical:
-- 3 files changed, 11 insertions(+), 10 deletions(-)
