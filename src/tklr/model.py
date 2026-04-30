@@ -3866,7 +3866,8 @@ class DatabaseManager:
                     if itemtype == "~" and rule_dtstart is not None:
                         start = rule_dtstart
                     else:
-                        start = datetime.now()
+                        now = datetime.now()
+                        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
                     end = start + timedelta(weeks=12)
                     try:
                         occs = rule.between(start, end, inc=True)
