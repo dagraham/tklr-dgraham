@@ -1,5 +1,18 @@
 # Recent Changes
 
+## 1.0.35 — 2026-05-01
+
+Since 1.0.34:
+
+Why upgrade:
+- 0 additions, 0 fixes, 1 behavior changes.
+
+Changed:
+- Update DB_LOGIC_VERSION for rebuild logic on startup
+
+Technical:
+- 1 file changed, 9 insertions(+)
+
 ## 1.0.34 — 2026-04-30
 
 Since 1.0.33:
@@ -25,16 +38,3 @@ Added:
 
 Technical:
 - 1 file changed, 86 insertions(+), 53 deletions(-)
-
-## 1.0.32 — 2026-04-29
-
-Since 1.0.31:
-
-Why upgrade:
-- 1 additions, 0 fixes, 0 behavior changes.
-
-Added:
-- Implement recursive rendering for uses report
-
-Technical:
-- 1 file changed, 58 insertions(+), 38 deletions(-)
