@@ -1126,6 +1126,11 @@ class UrgencyComputer:
         return urgency, self.urgency_to_bucket_color(urgency), weights
 
 
+# Increment this whenever a code change requires a forced rebuild of derived
+# tables (DateTimes, alerts, notice, busy weeks, urgency) on next startup.
+DB_LOGIC_VERSION = 1
+
+
 class DatabaseManager:
     def __init__(
         self,
@@ -2137,6 +2142,9 @@ class DatabaseManager:
         Populate derived tables (DateTimes cache, alerts, notice, busy weeks, urgency)
         only when inputs have changed.
         """
+        if not force and self._get_state_value("logic_version") != DB_LOGIC_VERSION:
+            force = True
+
         yr, wk = datetime.now().isocalendar()[:2]
         today_key = date.today().isoformat()
         records_version = self._records_version()
@@ -2149,6 +2157,7 @@ class DatabaseManager:
         work_done |= self._maybe_refresh_busy_tables(force)
         work_done |= self._maybe_populate_urgency(schedule_version, force)
 
+        self._set_state_value("logic_version", DB_LOGIC_VERSION)
         self.after_save_needed = False
 
     def _maybe_extend_datetimes(
