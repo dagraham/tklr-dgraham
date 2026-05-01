@@ -257,6 +257,26 @@ def cli(ctx, home, verbose):
     ctx.obj["VERBOSE"] = verbose
 
 
+@cli.command("help")
+@click.pass_context
+def show_full_help(ctx):
+    """Show help for all commands and subcommands."""
+    lines = []
+
+    def walk(cmd, info_name):
+        sub_ctx = click.Context(cmd, info_name=info_name)
+        lines.append(sub_ctx.get_help())
+        lines.append("")
+        if isinstance(cmd, click.Group):
+            for name in cmd.list_commands(sub_ctx):
+                subcmd = cmd.get_command(sub_ctx, name)
+                if subcmd and name != "help":
+                    walk(subcmd, f"{info_name} {name}")
+
+    walk(ctx.parent.command, "tklr")
+    click.echo_via_pager("\n".join(lines))
+
+
 @cli.command()
 @click.argument("entry", nargs=-1)
 @click.option(
