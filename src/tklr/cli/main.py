@@ -1,9 +1,9 @@
 import json
 import os
-import subprocess
-import tempfile
 import shutil
+import subprocess
 import sys
+import tempfile
 import textwrap
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta
@@ -205,8 +205,11 @@ def _version_callback(ctx, _param, value):
 
 @click.group(invoke_without_command=True)
 @click.option(
-    "--version", "-V",
-    is_flag=True, is_eager=True, expose_value=False,
+    "--version",
+    "-V",
+    is_flag=True,
+    is_eager=True,
+    expose_value=False,
     callback=_version_callback,
     help="Show the version and exit.",
 )
@@ -288,7 +291,7 @@ def show_full_help(ctx):
 @click.option(
     "--batch",
     is_flag=True,
-    help="Use editor to create multiple entries separated by blank lines.",
+    help="Use editor to create multiple reminders separating successive reminders with lines containing only '...'.",
 )
 @click.pass_context
 def add(ctx, entry, file, batch):
@@ -1829,8 +1832,12 @@ def _emit_jot_uses_report(
                     time_display = entry["start_dt"].strftime("%H:%M")
                     day_display = entry["start_dt"].strftime("%-d")
                     base = f"{record_indent}{time_display} {day_display} {extent_str}"
-                    subject = controller.apply_flags(entry["record_id"], entry["subject"])
-                    for line in wrap_text(base, subject, indent_width=len(record_indent)):
+                    subject = controller.apply_flags(
+                        entry["record_id"], entry["subject"]
+                    )
+                    for line in wrap_text(
+                        base, subject, indent_width=len(record_indent)
+                    ):
                         click.echo(line)
                     if verbose and entry["description"]:
                         detail_indent = " " * (len(base) + 1)
@@ -1854,7 +1861,9 @@ def _emit_jot_uses_report(
             )
         click.echo(month_label)
         use_map = month_map[(year, month)]
-        _render_uses(sorted(use_map.keys(), key=_sort_key), (year, month), use_map, "  ")
+        _render_uses(
+            sorted(use_map.keys(), key=_sort_key), (year, month), use_map, "  "
+        )
 
 
 @cli.command("jots")
