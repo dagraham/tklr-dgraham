@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -316,7 +317,7 @@ def add(ctx, entry, file, batch):
 
     def split_entries(content: str) -> list[str]:
         """Split raw text into entries using '...' line as separator."""
-        return [entry.strip() for entry in content.split("\n...\n") if entry.strip()]
+        return [e.strip() for e in re.split(r"\n\.\.\.(?:\n|$)", content) if e.strip()]
 
     def get_entries_from_editor() -> list[str]:
         result = edit_entry()
