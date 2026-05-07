@@ -543,7 +543,7 @@ Times are displayed in the screenshots using _24-hour_ notation. An option can b
 <div style="overflow: auto;">
   <img src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/agenda_screenshot.svg"
 alt="Description" style="float: right; margin-left: 20px; width: 460px; margin-bottom: 10px;">
-  <p>While the listing of events begins with the current day, any all-day events or events whose ending times have already passed such as the one tagged <em>a</em> will be dimmed. Additionally an event, such as the one tagged <em>b</em> whose active period overlaps the current moment will be highlighted.
+  <p>The listing of events begins with the current day and any all-day events. Events whose ending times have already passed such as the one tagged <em>a</em> will be dimmed. Additionally an event, such as the one tagged <em>b</em> whose active period overlaps the current moment will be highlighted.
   </p>
   <p>The first day of events will always include any <em>notices</em> of upcoming events or <em>draft</em> reminders needing completion in addition to any scheduled events for today. In this case the reminder tagged <em>d</em> indicates that there is an event beginning in 5 days (<code>+5d</code>) with a subject beginning with "Amet porro ..." and a <em>notice attribute</em>, <code>@n x</code>, in which <code>x > 5d</code>. This attribute is the reason this notice of the event is being displayed before its scheduled datetime - it will continue to be displayed on the first day (current date) of Agenda View each day until the day of the event.
   </p>

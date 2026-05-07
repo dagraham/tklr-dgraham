@@ -29,6 +29,7 @@ from tklr.shared import (
     format_decimal_hours,
     format_iso_week,
     format_time_range,
+    parse,
     parse_month_spec,
     round_seconds_to_step_minutes,
 )
@@ -55,10 +56,17 @@ class _DateParam(click.ParamType):
         s = str(value).strip().lower()
         if s in ("today", "now"):
             return date.today()
+        env = (ctx.obj or {}).get("ENV") if ctx and ctx.obj else None
+        ui = getattr(getattr(env, "config", None), "ui", None) if env else None
+        yearfirst = getattr(ui, "yearfirst", True)
+        dayfirst = getattr(ui, "dayfirst", False)
         try:
-            return datetime.strptime(s, "%Y-%m-%d").date()
+            result = parse(s, yearfirst=yearfirst, dayfirst=dayfirst)
+            if isinstance(result, (date, datetime)):
+                return result if isinstance(result, date) else result.date()
         except Exception:
-            self.fail("Expected YYYY-MM-DD or 'today'", param, ctx)
+            pass
+        self.fail(f"Unrecognized date '{value}'", param, ctx)
 
 
 class _DateOrInt(click.ParamType):
@@ -752,13 +760,15 @@ def _format_alert_trigger_display(trigger_text: str, ampm: bool) -> str:
 @click.option(
     "--start",
     "start_opt",
-    help="Start date (YYYY-MM-DD) or 'today'. Defaults to today.",
+    type=_DATE,
+    help="Start date or 'today'. Defaults to today.",
 )
 @click.option(
     "--end",
     "end_opt",
+    type=_DATE_OR_INT,
     default="4",
-    help="Either an end date (YYYY-MM-DD) or a number of weeks (int). Default: 4.",
+    help="End date or number of weeks. Default: 4.",
 )
 @click.option(
     "--width",
@@ -808,20 +818,13 @@ def weeks(ctx, start_opt, end_opt, width, rich, ids):
     rich = _resolve_rich_output(env, rich)
 
     # ---- 1) parse start / end into Monday .. Sunday range ----
-    if not start_opt or start_opt.lower() == "today":
-        start_date = datetime.now().date()
-    else:
-        start_date = datetime.strptime(start_opt, "%Y-%m-%d").date()
-
+    start_date = start_opt or datetime.now().date()
     start_monday = start_date - timedelta(days=start_date.weekday())
 
-    # end_opt can be int weeks or a date
-    try:
-        weeks_int = int(end_opt)
-        end_sunday = start_monday + timedelta(weeks=weeks_int, days=6)
-    except (ValueError, TypeError):
-        end_date = datetime.strptime(str(end_opt), "%Y-%m-%d").date()
-        end_sunday = end_date + timedelta(days=(6 - end_date.weekday()) % 7)
+    if isinstance(end_opt, int):
+        end_sunday = start_monday + timedelta(weeks=end_opt, days=6)
+    else:
+        end_sunday = end_opt + timedelta(days=(6 - end_opt.weekday()) % 7)
 
     start_dt = datetime.combine(start_monday, time(0, 0))
     end_dt = datetime.combine(end_sunday, time(23, 59))
@@ -921,13 +924,15 @@ def weeks(ctx, start_opt, end_opt, width, rich, ids):
 @click.option(
     "--start",
     "start_opt",
-    help="Start date (YYYY-MM-DD) or 'today'. Defaults to today.",
+    type=_DATE,
+    help="Start date or 'today'. Defaults to today.",
 )
 @click.option(
     "--end",
     "end_opt",
+    type=_DATE_OR_INT,
     default="7",
-    help="Either an end date (YYYY-MM-DD) or a number of days (int). Default: 7.",
+    help="End date or number of days. Default: 7.",
 )
 @click.option(
     "--width",
@@ -978,17 +983,12 @@ def days(ctx, start_opt, end_opt, width, rich, ids):
     rich = _resolve_rich_output(env, rich)
 
     # ---- 1) parse start / end into date range ----
-    if not start_opt or start_opt.lower() == "today":
-        start_date = datetime.now().date()
-    else:
-        start_date = datetime.strptime(start_opt, "%Y-%m-%d").date()
+    start_date = start_opt or datetime.now().date()
 
-    # end_opt can be int days or a date
-    try:
-        days_int = int(end_opt)
-        end_date = start_date + timedelta(days=days_int - 1)
-    except (ValueError, TypeError):
-        end_date = datetime.strptime(str(end_opt), "%Y-%m-%d").date()
+    if isinstance(end_opt, int):
+        end_date = start_date + timedelta(days=end_opt - 1)
+    else:
+        end_date = end_opt
 
     start_dt = datetime.combine(start_date, time(0, 0))
     end_dt = datetime.combine(end_date, time(23, 59))
