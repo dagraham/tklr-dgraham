@@ -397,7 +397,9 @@ class FooterNoticeBar(Static):
         if app:
             update_ind = getattr(app, "update_indicator_text", "") or ""
             timer_ind = getattr(app, "timer_indicator_text", "") or ""
-        right = update_ind + timer_ind
+        screen = getattr(self, "screen", None)
+        cycle_ind = getattr(screen, "cycle_indicator_text", "") or ""
+        right = update_ind + timer_ind + cycle_ind
         table = Table.grid(padding=(0, 0), expand=True)
         table.add_column(ratio=1)
         table.add_column(no_wrap=True, justify="right")
@@ -2654,85 +2656,112 @@ class JotsScreen(WeeksScreen):
             self.refresh_page()
 
 
+_TAG_RE = re.compile(r"^ {0,8}\[\w+\]([a-z])\[/\w+\]")
+
+
 class FullScreenList(SearchableScreen):
-    """Full-screen list view with paged navigation and tag support."""
+    """Full-screen scrollable list; tags a-z repeat throughout, cycling visible-only."""
 
     def __init__(self, pages, title, header="", footer_content="..."):
         super().__init__()
-        self.pages = pages  # list of (rows, tag_map)
         self.title = title
         self.header = header
         self.footer_content = footer_content
-        # self.footer_content = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
-        self.current_page = 0
-        self.lines = []
-        self.tag_map = {}
-        if self.pages:
-            self.lines, self.tag_map = self.pages[0]
         self.list_with_details: ListWithDetails | None = None
         self.add_class("panel-bg-list")  # FullScreenList
+        self.cycle_indicator_text = ""
 
-    # --- Page Navigation ----------------------------------------------------
-    def next_page(self):
-        if self.current_page < len(self.pages) - 1:
-            self.current_page += 1
-            self.refresh_list()
+        # Flatten pages into a single list
+        self._all_rows: list[str] = []
+        self._tag_indices: dict[str, list[int]] = {}  # tag -> [abs row indices]
+        self._row_record_map: dict[int, tuple] = {}   # row_index -> record tuple
 
-    def previous_page(self):
-        if self.current_page > 0:
-            self.current_page -= 1
-            self.refresh_list()
+        for rows, tag_map in (pages or []):
+            base_idx = len(self._all_rows)
+            self._all_rows.extend(rows)
+            for tag, record in tag_map.items():
+                if len(tag) == 1 and tag.isalpha():
+                    for i, row in enumerate(rows):
+                        m = _TAG_RE.match(row)
+                        if m and m.group(1) == tag:
+                            abs_idx = base_idx + i
+                            self._tag_indices.setdefault(tag, []).append(abs_idx)
+                            self._row_record_map[abs_idx] = record
+                            break
+
+        self._cycle_state: dict[str, int] = {}    # tag -> next cycle position
+        self._cycle_indices: dict[str, list[int]] = {}  # tag -> snapshotted visible indices
+        self._last_tag: str | None = None
+
+    # --- Visible range helper -----------------------------------------------
+    def _get_visible_range(self) -> tuple[int, int]:
+        if self.list_with_details and self.list_with_details._main:
+            main = self.list_with_details._main
+            top = int(main.scroll_offset.y)
+            height = main.size.height
+            return top, top + height
+        return 0, len(self._all_rows)
+
+    def _get_visible_indices_for_tag(self, tag: str) -> list[int]:
+        top, bottom = self._get_visible_range()
+        return [i for i in self._tag_indices.get(tag, []) if top <= i < bottom]
 
     # --- Tag Lookup ---------------------------------------------------------
     def get_record_for_tag(self, tag: str):
-        """Return the record_id corresponding to a tag on the current page."""
-        total_pages = len(self.pages)
-        log_msg(f"{self.current_page = }, {total_pages = }")
-        if total_pages == 0:
+        """Return the first visible record for tag, falling back to first overall."""
+        visible = self._get_visible_indices_for_tag(tag)
+        indices = visible if visible else self._tag_indices.get(tag, [])
+        if not indices:
             return None
-
-        # Guard against stale current_page indices (e.g., when pages changed)
-        index = max(0, min(self.current_page, total_pages - 1))
-        if index != self.current_page:
-            self.current_page = index
-
-        try:
-            _, tag_map = self.pages[self.current_page]
-        except IndexError:
-            return None
-
-        return tag_map.get(tag)
+        return self._row_record_map.get(indices[0])
 
     def show_details_for_tag(self, tag: str) -> None:
-        app = self.app  # DynamicViewApp
-        record = self.get_record_for_tag(tag)
-        log_msg(f"{record = }")
+        app = self.app
+
+        if tag != self._last_tag:
+            # Snapshot visibility now, before any details panel opens/resizes
+            visible = self._get_visible_indices_for_tag(tag)
+            if not visible:
+                color = getattr(app, "footer_color", "yellow")
+                self.cycle_indicator_text = f" [{color}]no '{tag}' in view[/{color}]"
+                self._last_tag = None
+                app._refresh_footer_indicator()
+                return
+            self._cycle_indices[tag] = visible
+            self._cycle_state[tag] = 0
+            self._last_tag = tag
+
+        visible = self._cycle_indices.get(tag, [])
+        if not visible:
+            self._last_tag = None
+            return
+
+        pos = self._cycle_state.get(tag, 0) % len(visible)
+        self._cycle_state[tag] = (pos + 1) % len(visible)
+
+        record = self._row_record_map.get(visible[pos])
         if record:
             record_id, job_id, datetime_id, instance_ts = record
-
             title, lines, meta = app.controller.get_details_for_record(
                 record_id, job_id, datetime_id, instance_ts
             )
-            log_msg(f"{title = }, {lines = }, {meta = }")
             if self.list_with_details:
                 self.list_with_details.show_details(title, lines, meta)
 
-    def _render_page_indicator(self) -> str:
-        total_pages = len(self.pages)
-        if total_pages <= 1:
-            return ""
-        return f" ({self.current_page + 1}/{total_pages})"
+        color = getattr(app, "footer_color", "yellow")
+        if len(visible) > 1:
+            self.cycle_indicator_text = (
+                f" [{color}]{tag} {pos + 1}/{len(visible)}[/{color}]"
+            )
+        else:
+            self.cycle_indicator_text = ""
+        app._refresh_footer_indicator()
 
     # --- Refresh Display ----------------------------------------------------
     def refresh_list(self):
-        page_rows, tag_map = self.pages[self.current_page]
-        self.lines = page_rows
-        self.tag_map = tag_map
         if self.list_with_details:
-            self.list_with_details.update_list(self.lines)
-        # Update header/title with bullet indicator
-        header_text = f"{self.title}{self._render_page_indicator()}"
-        self.query_one("#scroll_title", Static).update(header_text)
+            self.list_with_details.update_list(self._all_rows)
+        self.query_one("#scroll_title", Static).update(self.title)
 
     # --- Compose ------------------------------------------------------------
     def compose(self) -> ComposeResult:
@@ -2751,11 +2780,8 @@ class FullScreenList(SearchableScreen):
 
     def on_mount(self) -> None:
         if self.list_with_details:
-            self.list_with_details.update_list(self.lines)
-        # Add the initial page indicator after mount
-        self.query_one("#scroll_title", Static).update(
-            f"{self.title}{self._render_page_indicator()}"
-        )
+            self.list_with_details.update_list(self._all_rows)
+        self.query_one("#scroll_title", Static).update(self.title)
 
 
 class PaletteScreen(SearchableScreen):
