@@ -131,6 +131,8 @@ FOOTER = FOOTER_DARK
 DIM_STYLE_DARK = "dim"
 DIM_STYLE_LIGHT = "#4a4a4a"
 DIM_STYLE = DIM_STYLE_DARK
+
+
 def check_update_available(
     current_version,
     package: str = "tklr-dgraham",
@@ -237,14 +239,14 @@ pressing [bold]control[/bold] and [bold]u[/bold] simultaneously.
  of items. In these listings, each item begins
  with a tag sequentially generated from 'a', 'b',
  ..., 'z'. When more than 26 tags are required,
- additional pages are appended with left and right
- cursor keys used to move between pages and up and
- down keys to scroll in the list.  Press the
- key of the tag on your keyboard to see the
- details of the item and access related commands
- to edit, reschedule, finish and so forth. To see
- the complete list of available commands press ?
- when the details pane is open.
+ tags begin again with 'a'. Press the key of the
+ tag on your keyboard to see the details of the
+ item and access related commands to edit and so
+ forth. When more than one reminder with the same
+ tag is visible, press the tag key again to cycle
+ through the items. To see the complete list of
+ available commands press ? when the details pane
+ is open.
 [bold][{HEADER_COLOR}]Search[/{HEADER_COLOR}][/bold]
  Press "/" and enter expression to search
    or enter nothing to clear search highlighting.
@@ -2674,9 +2676,9 @@ class FullScreenList(SearchableScreen):
         # Flatten pages into a single list
         self._all_rows: list[str] = []
         self._tag_indices: dict[str, list[int]] = {}  # tag -> [abs row indices]
-        self._row_record_map: dict[int, tuple] = {}   # row_index -> record tuple
+        self._row_record_map: dict[int, tuple] = {}  # row_index -> record tuple
 
-        for rows, tag_map in (pages or []):
+        for rows, tag_map in pages or []:
             base_idx = len(self._all_rows)
             self._all_rows.extend(rows)
             for tag, record in tag_map.items():
@@ -2689,8 +2691,10 @@ class FullScreenList(SearchableScreen):
                             self._row_record_map[abs_idx] = record
                             break
 
-        self._cycle_state: dict[str, int] = {}    # tag -> next cycle position
-        self._cycle_indices: dict[str, list[int]] = {}  # tag -> snapshotted visible indices
+        self._cycle_state: dict[str, int] = {}  # tag -> next cycle position
+        self._cycle_indices: dict[
+            str, list[int]
+        ] = {}  # tag -> snapshotted visible indices
         self._last_tag: str | None = None
 
     # --- Visible range helper -----------------------------------------------
@@ -4686,8 +4690,7 @@ class DynamicViewApp(App):
                     app._toggle_jot_timer(record_id)
 
                 is_timer_running = (
-                    app._jot_timer_state == "running"
-                    and app._jot_timer_id == record_id
+                    app._jot_timer_state == "running" and app._jot_timer_id == record_id
                 )
                 timer_label = "Stop timer" if is_timer_running else "Start timer"
                 add_option(
