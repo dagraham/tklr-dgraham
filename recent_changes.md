@@ -1,5 +1,21 @@
 # Recent Changes
 
+## 1.0.39 — 2026-05-27
+
+Since 1.0.38:
+
+Why upgrade:
+- 1 additions, 0 fixes, 0 behavior changes.
+
+Added:
+- ``` Enhance FullScreenList with cycle indicator support
+
+Internal:
+- ``` Refactor view.py for readability and formatting
+
+Technical:
+- 1 file changed, 95 insertions(+), 66 deletions(-)
+
 ## 1.0.38 — 2026-05-06
 
 Since 1.0.37:
@@ -28,16 +44,3 @@ Internal:
 
 Technical:
 - 1 file changed, 19 insertions(+), 9 deletions(-)
-
-## 1.0.36 — 2026-05-01
-
-Since 1.0.35:
-
-Why upgrade:
-- 1 additions, 0 fixes, 0 behavior changes.
-
-Added:
-- ADD 'help' COMMAND TO SHOW FULL HELP FOR ALL COMMANDS
-
-Technical:
-- 1 file changed, 20 insertions(+)
