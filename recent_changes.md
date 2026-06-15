@@ -1,5 +1,21 @@
 # Recent Changes
 
+## 1.0.40 — 2026-06-15
+
+Since 1.0.39:
+
+Why upgrade:
+- 1 additions, 0 fixes, 1 behavior changes.
+
+Added:
+- ``` Add method to populate urgency in controller
+
+Changed:
+- Update model.py
+
+Technical:
+- 3 files changed, 23 insertions(+), 12 deletions(-)
+
 ## 1.0.39 — 2026-05-27
 
 Since 1.0.38:
@@ -28,19 +44,3 @@ Docs:
 
 Technical:
 - 2 files changed, 29 insertions(+), 29 deletions(-)
-
-## 1.0.37 — 2026-05-03
-
-Since 1.0.36:
-
-Why upgrade:
-- 0 additions, 0 fixes, 1 behavior changes.
-
-Changed:
-- Improve entry splitting regex in split_entries function
-
-Internal:
-- Refactor import order and enhance help text
-
-Technical:
-- 1 file changed, 19 insertions(+), 9 deletions(-)
