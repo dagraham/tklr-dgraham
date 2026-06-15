@@ -2060,6 +2060,9 @@ class Controller:
     def populate_notice(self):
         self.db_manager.populate_notice()
 
+    def populate_urgency(self):
+        self.db_manager.populate_all_urgency()
+
     def refresh_alerts(self):
         self.db_manager.populate_alerts()
 
