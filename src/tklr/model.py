@@ -2155,7 +2155,7 @@ class DatabaseManager:
         work_done |= self._maybe_populate_alerts(today_key, schedule_version, force)
         work_done |= self._maybe_populate_notice(today_key, schedule_version, force)
         work_done |= self._maybe_refresh_busy_tables(force)
-        work_done |= self._maybe_populate_urgency(schedule_version, force)
+        work_done |= self._maybe_populate_urgency(today_key, schedule_version, force)
 
         self._set_state_value("logic_version", DB_LOGIC_VERSION)
         self.after_save_needed = False
@@ -2263,12 +2263,17 @@ class DatabaseManager:
         return True
 
     def _maybe_populate_urgency(
-        self, records_version: str, force: bool, state_key: str = "urgency"
+        self,
+        today_key: str,
+        records_version: str,
+        force: bool,
+        state_key: str = "urgency",
     ) -> bool:
         state = self._get_state_value(state_key, {})
         config_version = self._urgency_config_version()
         if (
             not force
+            and state.get("today") == today_key
             and state.get("version") == records_version
             and state.get("config_version") == config_version
         ):
@@ -2278,6 +2283,7 @@ class DatabaseManager:
         self._set_state_value(
             state_key,
             {
+                "today": today_key,
                 "version": records_version,
                 "config_version": config_version,
             },
@@ -4900,14 +4906,12 @@ class DatabaseManager:
                 job_due = self._next_start_seconds(record_id, job_id)
                 s_seconds = td_str_to_seconds(job.get("s", "0m"))
                 if job_due is None and due_seconds:
-                    job_due = due_seconds + s_seconds
+                    job_due = due_seconds - s_seconds
                 elif job_due is None and s_seconds:
-                    job_due = now_seconds + s_seconds
+                    job_due = now_seconds - s_seconds
 
-                job_notice = td_str_to_seconds(job.get("b", "0m")) or notice_seconds
-                if job_due and job_notice:
-                    hide = job_due - job_notice > now_seconds
-                    if hide:
+                if job_due and notice_seconds:
+                    if job_due - notice_seconds > now_seconds:
                         continue
 
                 job_extent = td_str_to_seconds(job.get("e", "0m"))
