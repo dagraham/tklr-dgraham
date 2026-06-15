@@ -536,7 +536,7 @@ class Controller:
             self.yearfirst = self.env.config.ui.yearfirst
             self.two_digit_year = self.env.config.ui.two_digit_year
             self.history_weight = self.env.config.ui.history_weight
-            self.agenda_days = max(1, self.env.config.ui.agenda_days)
+            self.agenda_days = max(1, self.env.config.ui.rgenda_days)
             self.jot_minutes = self.env.config.ui.minutes
             _yr = "%Y"
             _dm = "%d-%m" if self.dayfirst else "%m-%d"

@@ -2678,12 +2678,18 @@ class FullScreenList(SearchableScreen):
         self._tag_indices: dict[str, list[int]] = {}  # tag -> [abs row indices]
         self._row_record_map: dict[int, tuple] = {}  # row_index -> record tuple
 
-        for rows, tag_map in pages or []:
+        for page_idx, (rows, tag_map) in enumerate(pages or []):
+            # page_tagger prepends a "(continued)" header on overflow pages;
+            # skip it — the flattened view has no page breaks to label.
+            filtered_rows = [
+                row for i, row in enumerate(rows)
+                if not (page_idx > 0 and i == 0 and row.rstrip().endswith("(continued)"))
+            ] if page_idx > 0 else list(rows)
             base_idx = len(self._all_rows)
-            self._all_rows.extend(rows)
+            self._all_rows.extend(filtered_rows)
             for tag, record in tag_map.items():
                 if len(tag) == 1 and tag.isalpha():
-                    for i, row in enumerate(rows):
+                    for i, row in enumerate(filtered_rows):
                         m = _TAG_RE.match(row)
                         if m and m.group(1) == tag:
                             abs_idx = base_idx + i
@@ -4948,6 +4954,7 @@ class DynamicViewApp(App):
         self.controller.new_day()
         self.controller.populate_alerts()
         self.controller.populate_notice()
+        self.controller.populate_urgency()
         # self._apply_update_indicator(check_update_available(VERSION))
         if not refresh:
             return
