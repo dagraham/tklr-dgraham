@@ -536,7 +536,7 @@ class Controller:
             self.yearfirst = self.env.config.ui.yearfirst
             self.two_digit_year = self.env.config.ui.two_digit_year
             self.history_weight = self.env.config.ui.history_weight
-            self.agenda_days = max(1, self.env.config.ui.rgenda_days)
+            self.agenda_days = max(1, self.env.config.ui.agenda_days)
             self.jot_minutes = self.env.config.ui.minutes
             _yr = "%Y"
             _dm = "%d-%m" if self.dayfirst else "%m-%d"
@@ -2858,7 +2858,9 @@ class Controller:
             groups: dict[str, list[str]] = {}
             for label in use_labels:
                 parts = label.split(".")
-                prefix = ".".join(parts[: depth + 1]) if len(parts) > depth + 1 else label
+                prefix = (
+                    ".".join(parts[: depth + 1]) if len(parts) > depth + 1 else label
+                )
                 groups.setdefault(prefix, []).append(label)
 
             for prefix in sorted(groups.keys(), key=_sort_key):
@@ -2908,7 +2910,9 @@ class Controller:
                         extent_display = extent_display.rjust(4)
                         base = f"{entry_indent}{time_display} {day_display} {extent_display}"
                         subject = self.apply_flags(entry["record_id"], entry["subject"])
-                        text = _wrap_subject(base, subject, indent_width=len(entry_indent))
+                        text = _wrap_subject(
+                            base, subject, indent_width=len(entry_indent)
+                        )
                         entry_color = (
                             JOT_COLOR_USE
                             if entry["use_label"].strip().lower() != "unassigned"
@@ -2946,7 +2950,9 @@ class Controller:
                 }
             )
             use_map = month_map[(year, month)]
-            _render_uses(sorted(use_map.keys(), key=_sort_key), (year, month), use_map, "  ")
+            _render_uses(
+                sorted(use_map.keys(), key=_sort_key), (year, month), use_map, "  "
+            )
 
         if not rows:
             rows.append(
