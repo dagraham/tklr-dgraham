@@ -1,5 +1,18 @@
 # Recent Changes
 
+## 1.0.42 — 2026-06-16
+
+Since 1.0.41:
+
+Why upgrade:
+- 1 additions, 0 fixes, 0 behavior changes.
+
+Added:
+- Add configuration options for completions and logs
+
+Technical:
+- 2 files changed, 26 insertions(+), 4 deletions(-)
+
 ## 1.0.41 — 2026-06-15
 
 Since 1.0.40:
@@ -31,19 +44,3 @@ Changed:
 
 Technical:
 - 3 files changed, 23 insertions(+), 12 deletions(-)
-
-## 1.0.39 — 2026-05-27
-
-Since 1.0.38:
-
-Why upgrade:
-- 1 additions, 0 fixes, 0 behavior changes.
-
-Added:
-- ``` Enhance FullScreenList with cycle indicator support
-
-Internal:
-- ``` Refactor view.py for readability and formatting
-
-Technical:
-- 1 file changed, 95 insertions(+), 66 deletions(-)
