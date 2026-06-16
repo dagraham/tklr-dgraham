@@ -2658,7 +2658,7 @@ class JotsScreen(WeeksScreen):
             self.refresh_page()
 
 
-_TAG_RE = re.compile(r"^ {0,8}\[\w+\]([a-z])\[/\w+\]")
+_TAG_RE = re.compile(r"^ {0,8}\[[^\[\]]+\]([a-z])\[/[^\[\]]+\]")
 
 
 class FullScreenList(SearchableScreen):

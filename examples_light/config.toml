@@ -4,6 +4,18 @@ title = "Tklr Configuration"
 # secret: used to encode/decode masked (@m) fields.
 secret = "JdqdNZMJDqYYEyuLLg1G7YcPGw0GIB5E"
 
+# num_completions: int >= 0
+# For infinitely repeating tasks (@r with no &c / no &u):
+#   0 -> keep all completions
+#   N -> keep only the N most recent completions
+num_completions = 6
+
+# num_logs: int >= 0
+# For daily log files "logs/log_YYMMDD.md" and "logs/bug_YYMMDD.md":
+#   0 -> keep all log files
+#   N -> keep only the N most recent files for each kind (log and bug)
+num_logs = 3
+
 [ui]
 # theme: str = 'dark' | 'light'
 theme = "light"
@@ -21,9 +33,22 @@ history_weight = 3
 # Number of event days to display in Agenda view / CLI command.
 agenda_days = 3
 
+# cli_rich: bool = true | false
+# Use Rich colors/styling by default for CLI commands that support
+# the --rich/--plain override pair.
+cli_rich = false
+
 # minutes: int = 3 | 6 | 12 | 15 | 30
 # Rounding step (in minutes) for jot extents.
 minutes = 6
+
+# timer_warning_minutes: int (default 90)
+# Minutes elapsed before the jot timer footer indicator turns to a warning color.
+timer_warning_minutes = 90
+
+# timer_urgent_minutes: int (default 180)
+# Minutes elapsed before the jot timer footer indicator turns to an urgent color.
+timer_urgent_minutes = 180
 
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
@@ -163,9 +188,6 @@ max = 3.0
 
 "fifth" = -5.0
 
-
-# In the default settings, a priority of "5" is the only one that yields
-# a negative value, `-5`, and thus reduces the urgency of the task.
 
 [urgency.description]
 # The "description" urgency equals "max" if the task has an "@d" entry and
