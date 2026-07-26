@@ -4062,6 +4062,17 @@ Entry: {self.entry}
         ):
             due_dt = self._get_start_dt()
             completed_dt = self.completion
+            if isinstance(completed_dt, date) and not isinstance(
+                completed_dt, datetime
+            ):
+                # completion was entered as a bare date (no time component) —
+                # promote to a datetime so arithmetic against due_dt/td works.
+                if isinstance(due_dt, datetime):
+                    completed_dt = datetime.combine(
+                        completed_dt, due_dt.time(), tzinfo=due_dt.tzinfo
+                    )
+                else:
+                    completed_dt = datetime.combine(completed_dt, datetime.min.time())
             raw_offset = offset_tok["token"].split(maxsplit=1)[1]
             td = td_str_to_td(raw_offset.lstrip("~"))
             offset_body = raw_offset.strip()
