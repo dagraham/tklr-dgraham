@@ -960,8 +960,8 @@ class ConfirmPrompt(ModalScreen[Optional[bool]]):
                 yield Static(self.message, id="confirm_message")
 
             yield Static(
-                "Press [bold yellow]Y[/bold yellow] to discard or "
-                "[bold yellow]N[/bold yellow] to keep editing.",
+                "Press [bold yellow]y[/bold yellow] to discard or "
+                "[bold yellow]n[/bold yellow] to keep editing.",
                 id="confirm_instructions",
             )
 
