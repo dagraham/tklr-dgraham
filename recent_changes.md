@@ -1,5 +1,18 @@
 # Recent Changes
 
+## 1.0.45 — 2026-08-25
+
+Since 1.0.44:
+
+Why upgrade:
+- 0 additions, 1 fixes, 0 behavior changes.
+
+Fixed:
+- Add CLI edit/delete/dispatch-alerts/rebuild/doctor; fix config corruption and CLI-add scheduling gap
+
+Technical:
+- 6 files changed, 578 insertions(+), 90 deletions(-)
+
 ## 1.0.44 — 2026-08-25
 
 Since 1.0.43:
@@ -28,16 +41,3 @@ Changed:
 
 Technical:
 - 1 file changed, 11 insertions(+)
-
-## 1.0.42 — 2026-06-16
-
-Since 1.0.41:
-
-Why upgrade:
-- 1 additions, 0 fixes, 0 behavior changes.
-
-Added:
-- Add configuration options for completions and logs
-
-Technical:
-- 2 files changed, 26 insertions(+), 4 deletions(-)
