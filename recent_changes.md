@@ -1,5 +1,21 @@
 # Recent Changes
 
+## 1.0.44 — 2026-08-25
+
+Since 1.0.43:
+
+Why upgrade:
+- 0 additions, 1 fixes, 1 behavior changes.
+
+Fixed:
+- Fix confirmation prompt key instruction case sensitivity
+
+Changed:
+- Require click>=8.4.2 and drop commas from days/weeks docstrings
+
+Technical:
+- 3 files changed, 5 insertions(+), 5 deletions(-)
+
 ## 1.0.43 — 2026-07-26
 
 Since 1.0.42:
@@ -25,19 +41,3 @@ Added:
 
 Technical:
 - 2 files changed, 26 insertions(+), 4 deletions(-)
-
-## 1.0.41 — 2026-06-15
-
-Since 1.0.40:
-
-Why upgrade:
-- 1 additions, 1 fixes, 0 behavior changes.
-
-Added:
-- Add method to populate urgency data in controller
-
-Fixed:
-- Fix typo in agenda_days configuration
-
-Technical:
-- 1 file changed, 13 insertions(+), 4 deletions(-)
