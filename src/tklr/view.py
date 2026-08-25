@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import pyperclip
+from filelock import FileLock, Timeout
 
 # from logging import log
 from packaging.version import parse as parse_version
@@ -4102,6 +4103,27 @@ class DynamicViewApp(App):
         self.CSS_PATH = f"view_{self._theme}.css"
         super().__init__()
         self.controller = controller
+
+        # Alert delivery lock: whichever process holds this (this TUI, or a
+        # `tklr dispatch-alerts` run) owns firing alerts, so the same alert
+        # is never sent twice. Non-blocking: if another instance already
+        # holds it, this session simply doesn't fire alerts itself. Held
+        # for the app's lifetime and released in on_unmount(); even if the
+        # process is killed, the OS releases the underlying file lock, so
+        # delivery is never left permanently stuck.
+        self._alerts_lock: FileLock | None = None
+        env = getattr(controller, "env", None)
+        if env is not None:
+            lock = FileLock(str(env.alerts_lock_path), timeout=0)
+            try:
+                lock.acquire()
+                self._alerts_lock = lock
+            except Timeout:
+                log_msg(
+                    "Another tklr process holds the alerts lock; "
+                    "this session will not fire alerts."
+                )
+
         # self._apply_update_indicator(check_update_available(VERSION))
         self._update_footer_color()
         self.current_start_date = calculate_4_week_start()
@@ -4129,6 +4151,13 @@ class DynamicViewApp(App):
         self._jot_use_filter: str | None = None
         self._palette_mode: str = "current"
         self._palette_view: str = "settings"
+
+    def on_unmount(self) -> None:
+        if self._alerts_lock is not None:
+            try:
+                self._alerts_lock.release()
+            except Exception:
+                pass
 
     def _update_footer_color(self) -> None:
         global FOOTER, DIM_STYLE
@@ -5018,7 +5047,11 @@ class DynamicViewApp(App):
                 "Checking for scheduled alerts...", severity="info", timeout=1.2
             )
         await self._maybe_run_current_command()
-        # execute due alerts
+        # execute due alerts -- only if we hold the alerts lock, so a
+        # `dispatch-alerts` run elsewhere (or another TUI session) doesn't
+        # fire the same alert a second time
+        if self._alerts_lock is None:
+            return
         due = self.controller.get_due_alerts(now)  # list of [alert_id, alert_commands]
         if not due:
             return

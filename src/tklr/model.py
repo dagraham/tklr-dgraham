@@ -16,7 +16,6 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 # from dateutil.tz import gettz
 # import math
-import numpy as np
 from dateutil import parser as dateutil_parser
 from dateutil import tz
 from dateutil.rrule import rrulestr
@@ -82,8 +81,14 @@ def regexp(pattern, value):
 
 
 def utc_now_string():
-    """Return current UTC time as 'YYYYMMDDTHHMMSS'."""
-    return datetime.now(tz.UTC).strftime("%Y%m%dT%H%MZ")
+    """Return current UTC time as 'YYYYMMDDTHHMMSSZ'.
+
+    Second resolution matters here: this feeds Records.created/modified,
+    and _records_version() uses MAX(modified) as a change-detection key
+    for the dependent-table cache. Minute resolution let two writes in
+    the same minute collide on that key.
+    """
+    return datetime.now(tz.UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 def utc_now_to_seconds():
@@ -370,6 +375,8 @@ def fine_busy_bits_for_event(
     Return dict of {year_week: 679-slot uint8 array}
     (7 days × (1 all-day + 96 fifteen-minute blocks))
     """
+    import numpy as np
+
     start = parse(start_str)
     end = parse(end_str) if end_str else None
 
@@ -442,6 +449,8 @@ def _reduce_to_35_slots(arr: np.ndarray) -> np.ndarray:
     Convert 679 fine bits (7 × (1 + 96)) into 35 coarse slots
     (7 × [1 all-day + 4 × 6-hour blocks]).
     """
+    import numpy as np
+
     days = 7
     allday_bits = arr.reshape(days, 97)[:, 0]
     quarters = arr.reshape(days, 97)[:, 1:]  # 7×96
@@ -2159,6 +2168,30 @@ class DatabaseManager:
 
         self._set_state_value("logic_version", DB_LOGIC_VERSION)
         self.after_save_needed = False
+        return work_done
+
+    def find_records_missing_datetimes(self) -> list[tuple[int, str, str]]:
+        """
+        Return (id, itemtype, subject) for records that have a schedule
+        (a non-empty rruleset) but no DateTimes rows at all — the
+        consistency check for `tklr doctor`. Drafts ('?') and finished
+        ('x') records are excluded, as are legitimately-unscheduled
+        records (notes, goals/tasks/projects with no @s), which never
+        get DateTimes rows by design.
+        """
+        self.cursor.execute(
+            """
+            SELECT R.id, R.itemtype, R.subject
+            FROM Records R
+            LEFT JOIN DateTimes D ON D.record_id = R.id
+            WHERE R.itemtype NOT IN ('?', 'x')
+              AND R.rruleset IS NOT NULL
+              AND TRIM(R.rruleset) != ''
+              AND D.record_id IS NULL
+            ORDER BY R.id
+            """
+        )
+        return self.cursor.fetchall()
 
     def _maybe_extend_datetimes(
         self,
@@ -2349,47 +2382,13 @@ class DatabaseManager:
             )
 
     def add_item(self, item: Item) -> int:
-        flags = self._compute_flags(item)
+        """Insert a new record. Delegates to save_record() so the record's
+        DateTimes/Alerts/Notice/Urgency/BusyWeeks rows are generated
+        immediately rather than depending on the cache-gated bulk refresh,
+        which can silently skip a record added in the same minute as
+        another (the change-detection key has only minute resolution)."""
         try:
-            timestamp = utc_now_string()
-            use_id = self._resolve_use_id_for_item(
-                item, strict=bool(getattr(item, "use", ""))
-            )
-            self.cursor.execute(
-                """
-                INSERT INTO Records (
-                    itemtype, subject, description, rruleset, timezone,
-                    extent, alerts, notice, context, use_id, jobs, flags, priority,
-                    tokens, processed, created, modified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    item.itemtype,
-                    item.subject,
-                    item.description,
-                    item.rruleset,
-                    item.tz_str,
-                    item.extent,
-                    json.dumps(item.alerts),
-                    item.notice,
-                    item.context,
-                    use_id,
-                    json.dumps(item.jobs),
-                    flags,
-                    item.priority,
-                    json.dumps(item.tokens),
-                    0,
-                    timestamp,
-                    timestamp,
-                ),
-            )
-            self.commit()
-
-            record_id = self.cursor.lastrowid
-            self.relink_bins_for_record(record_id, item)  # ← add this
-            self._update_hashtags_for_record(record_id, item.subject, item.description)
-            return record_id
-
+            return self.save_record(item)
         except Exception as e:
             print(f"Error adding {item}: {e}")
             raise
@@ -2782,6 +2781,26 @@ class DatabaseManager:
             (now_minus, now_plus),
         )
 
+        return self.cursor.fetchall()
+
+    def get_alerts_due_by(self, now: datetime) -> list[tuple]:
+        """
+        Return all Alerts rows whose trigger_datetime is at or before `now`
+        (due or overdue), oldest first. Unlike get_due_alerts() (a narrow
+        +/- few-second window meant for the TUI's tick loop), this has no
+        upper bound -- callers such as `tklr dispatch-alerts` decide for
+        themselves how late is still worth sending.
+        """
+        now_text = now.strftime("%Y%m%dT%H%M")
+        self.cursor.execute(
+            """
+            SELECT alert_id, record_id, trigger_datetime, start_datetime, alert_name, alert_command
+            FROM Alerts
+            WHERE trigger_datetime <= ?
+            ORDER BY trigger_datetime ASC
+            """,
+            (now_text,),
+        )
         return self.cursor.fetchall()
 
     def get_active_alerts(self):
@@ -3268,11 +3287,15 @@ class DatabaseManager:
     def populate_alerts(self):
         """
         Populate the Alerts table for all records that have alerts defined.
-        Inserts alerts that will trigger between now and local end-of-day.
+        Inserts alerts that will trigger within the next alert_horizon
+        (config, default 24h) -- a rolling window rather than a midnight
+        cliff, so a row exists well before it's due even if nothing else
+        regenerates it in the meantime (e.g. for a scheduler running
+        `tklr dispatch-alerts` between TUI sessions).
         Uses TEXT datetimes ('YYYYMMDD' or 'YYYYMMDDTHHMMSS', local-naive).
         """
         now = datetime.now()
-        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
+        window_end = now + td_str_to_td(self.env.config.alert_horizon)
 
         self.cursor.execute(
             """
@@ -3280,11 +3303,11 @@ class DatabaseManager:
             WHERE trigger_datetime >= ?
             AND trigger_datetime <= ?
             """,
-            (now.strftime("%Y%m%dT%H%M"), end_of_day.strftime("%Y%m%dT%H%M")),
+            (now.strftime("%Y%m%dT%H%M"), window_end.strftime("%Y%m%dT%H%M")),
         )
         self.commit()
 
-        rows = self._generate_alert_rows(now, end_of_day)
+        rows = self._generate_alert_rows(now, window_end)
         for row in rows:
             self.cursor.execute(
                 """
@@ -3307,8 +3330,9 @@ class DatabaseManager:
 
     def populate_alerts_for_record(self, record_id: int):
         """
-        Regenerate alerts for a specific record, for alerts that trigger today
-        (local time), using the same TEXT-based semantics as populate_alerts().
+        Regenerate alerts for a specific record, for alerts that trigger
+        within the next alert_horizon (local time; same rolling window as
+        populate_alerts()), using the same TEXT-based semantics.
         """
 
         # --- small helpers (you can factor these out to avoid duplication) ---
@@ -3333,12 +3357,12 @@ class DatabaseManager:
 
         # --- time window (local-naive) ---
         now = datetime.now()
-        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=0)
+        window_end = now + td_str_to_td(self.env.config.alert_horizon)
 
         now_text = now.strftime("%Y%m%dT%H%M")
-        eod_text = end_of_day.strftime("%Y%m%dT%H%M")
+        window_end_text = window_end.strftime("%Y%m%dT%H%M")
 
-        # Clear old alerts for this record in today's window
+        # Clear old alerts for this record within the horizon window
         self.cursor.execute(
             """
             DELETE FROM Alerts
@@ -3346,7 +3370,7 @@ class DatabaseManager:
             AND trigger_datetime >= ?
             AND trigger_datetime <= ?
             """,
-            (record_id, now_text, eod_text),
+            (record_id, now_text, window_end_text),
         )
         self.commit()
 
@@ -3420,8 +3444,8 @@ class DatabaseManager:
                 for lead_secs in lead_secs_list:
                     trigger_dt = effective_start_dt - timedelta(seconds=lead_secs)
 
-                    # only alerts that trigger today between now and end_of_day
-                    if not (now <= trigger_dt <= end_of_day):
+                    # only alerts that trigger within [now, window_end]
+                    if not (now <= trigger_dt <= window_end):
                         continue
 
                     trigger_text = _to_text_dt(trigger_dt)
@@ -5089,6 +5113,7 @@ class DatabaseManager:
         1 = busy
         2 = conflict
         """
+        import numpy as np
 
         self.cursor.execute("SELECT DISTINCT year_week FROM BusyWeeksFromDateTimes")
         weeks = [row[0] for row in self.cursor.fetchall()]
@@ -5246,6 +5271,8 @@ class DatabaseManager:
             Tue  000000000000111100000000...
             ...
         """
+        import numpy as np
+
         self.cursor.execute(
             "SELECT busybits FROM BusyWeeks WHERE year_week = ?",
             (year_week,),
@@ -5279,6 +5306,8 @@ class DatabaseManager:
 
         Uses 15-min resolution; 96 slots per day.
         """
+        import numpy as np
+
         console = Console()
 
         self.cursor.execute(

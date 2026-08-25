@@ -1706,11 +1706,6 @@ class Controller:
 
         return self.apply_token_edit(record_id, edit_tokens)
 
-    def delete_record(self, record_id: int) -> None:
-        # For jobs you may eventually allow “delete just this job”
-        # but right now delete whole reminder:
-        self.db_manager.delete_item(record_id)
-
     def apply_anniversary_if_needed(
         self, record_id: int, subject: str, instance: datetime
     ) -> str:
@@ -2066,30 +2061,42 @@ class Controller:
     def refresh_alerts(self):
         self.db_manager.populate_alerts()
 
+    def rebuild(self, force: bool = False) -> bool:
+        """Rebuild derived tables (DateTimes, Alerts, Notice, Urgency, BusyWeeks).
+        Returns True if anything was actually rebuilt."""
+        return self.db_manager.populate_dependent_tables(force=force)
+
+    def find_records_missing_datetimes(self) -> list[tuple[int, str, str]]:
+        return self.db_manager.find_records_missing_datetimes()
+
     def refresh_tags(self):
         self.db_manager.populate_tags()
 
-    def execute_alert(self, command: str):
+    def execute_alert(self, command: str) -> bool:
         """
         Execute the given alert command using subprocess.
 
         Args:
             command (str): The command string to execute.
+
+        Returns True on success, False otherwise.
         """
         if not command:
             print("❌ Error: No command provided to execute.")
-            return
+            return False
 
         try:
             # ✅ Use shlex.split() to safely parse the command
             subprocess.run(shlex.split(command), check=True)
             print(f"✅ Successfully executed: {command}")
+            return True
         except subprocess.CalledProcessError as e:
             print(f"❌ Error executing command: {command}\n{e}")
         except FileNotFoundError:
             print(f"❌ Command not found: {command}")
         except Exception as e:
             print(f"❌ Unexpected error: {e}")
+        return False
 
     def execute_due_alerts(self):
         records = self.db_manager.get_due_alerts()
@@ -2107,9 +2114,53 @@ class Controller:
             log_msg(
                 f"Executing alert {alert_name = }, {alert_command = }, {trigger_datetime = }"
             )
-            self.execute_alert(alert_command)
-            # need command to execute command with arguments
-            self.db_manager.mark_alert_executed(alert_id)
+            if self.execute_alert(alert_command):
+                self.db_manager.mark_alert_executed(alert_id)
+
+    def dispatch_alerts(self, max_late_seconds: int | None = None) -> dict:
+        """
+        Fire all due/overdue alerts (for a scheduler -- cron/systemd/launchd
+        -- rather than the TUI's tick loop). For each alert:
+          - if it's more than max_late_seconds late, drop it unfired
+            (a scheduler that missed a long stretch shouldn't burst-fire
+            everything it missed);
+          - otherwise attempt it, and only clear the row on success, so a
+            transient failure (network down, etc.) is retried next run
+            instead of silently lost.
+
+        Returns {"fired": [...], "dropped": [...], "failed": [...]}, each a
+        list of (alert_id, alert_name, alert_command) tuples.
+        """
+        now = datetime.now()
+        due = self.db_manager.get_alerts_due_by(now)
+
+        fired, dropped, failed = [], [], []
+        for (
+            alert_id,
+            record_id,
+            trigger_datetime,
+            start_datetime,
+            alert_name,
+            alert_command,
+        ) in due:
+            try:
+                trigger_dt = datetime.strptime(trigger_datetime, "%Y%m%dT%H%M")
+            except ValueError:
+                trigger_dt = now
+            late_seconds = (now - trigger_dt).total_seconds()
+
+            if max_late_seconds is not None and late_seconds > max_late_seconds:
+                self.db_manager.mark_alert_executed(alert_id)
+                dropped.append((alert_id, alert_name, alert_command))
+                continue
+
+            if self.execute_alert(alert_command):
+                self.db_manager.mark_alert_executed(alert_id)
+                fired.append((alert_id, alert_name, alert_command))
+            else:
+                failed.append((alert_id, alert_name, alert_command))
+
+        return {"fired": fired, "dropped": dropped, "failed": failed}
 
     def get_due_alerts(self, now: datetime) -> List[str]:
         due = []

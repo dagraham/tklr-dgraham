@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Tuple
 
 import click
 from dateutil import parser as dt_parser
+from filelock import FileLock, Timeout
 from rich import box, print
 from rich.console import Console
 from rich.table import Table
@@ -191,6 +192,30 @@ def get_raw_from_editor() -> str:
 
 def get_raw_from_stdin() -> str:
     return sys.stdin.read().strip()
+
+
+def _confirm_apply(ctx: click.Context, prompt_text: str, yes: bool) -> bool:
+    """
+    Shared preview/confirm contract for mutating commands (finish, edit,
+    delete): -y applies immediately; interactively, show the prompt and
+    ask [y/N]; with no terminal on stdin, print the prompt text, apply
+    nothing, and exit 1.
+
+    The non-interactive case is handled explicitly here rather than left
+    to fall out of click.confirm's EOFError -> Abort() behavior, so that
+    running the identical command twice -- once to preview, once with -y
+    -- is a reliable contract: nothing is ever applied without -y.
+    """
+    if yes:
+        return True
+    if not sys.stdin.isatty():
+        click.echo(prompt_text)
+        print(
+            "[yellow]No terminal attached; nothing applied. "
+            "Re-run with -y to apply.[/yellow]"
+        )
+        ctx.exit(1)
+    return click.confirm(prompt_text, default=False)
 
 
 def _version_callback(ctx, _param, value):
@@ -1374,11 +1399,10 @@ def finish(ctx, finish_parts, yes):
     subject = record.get("subject") or "(untitled)"
     finish_label = controller.fmt_user(finish_dt)
 
-    if not yes:
-        prompt = f"Finish {record_id}: {subject!r}\nat {finish_label}?"
-        if not click.confirm(prompt, default=False):
-            print("[yellow]Finish cancelled.[/yellow]")
-            return
+    prompt = f"Finish {record_id}: {subject!r}\nat {finish_label}?"
+    if not _confirm_apply(ctx, prompt, yes):
+        print("[yellow]Finish cancelled.[/yellow]")
+        return
 
     try:
         changed = controller.finish_task(record_id, job_id=None, when=finish_dt)
@@ -1392,6 +1416,188 @@ def finish(ctx, finish_parts, yes):
 
     controller.db_manager.populate_dependent_tables()
     print(f"[green]✔ Finished[/green] {subject!r} ({record_id})\nat {finish_label}")
+
+
+@cli.command()
+@click.argument("edit_parts", nargs=-1)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Apply the edit without prompting for confirmation.",
+)
+@click.pass_context
+def edit(ctx, edit_parts, yes):
+    """
+    Replace a reminder's entire entry text.
+
+    Usage: tklr edit RECORD_ID '<new full entry text>'
+    """
+    if not edit_parts:
+        print("[red]Enter the record id to edit.[/red]")
+        ctx.exit(1)
+
+    id_text = edit_parts[0]
+    try:
+        record_id = int(id_text)
+    except ValueError:
+        print(f"[red]Invalid record id:[/red] {id_text!r}")
+        ctx.exit(1)
+
+    new_text = " ".join(edit_parts[1:]).strip()
+    if not new_text:
+        print("[red]Enter the new entry text.[/red]")
+        ctx.exit(1)
+
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+    controller = Controller(db_path, env)
+
+    old_text = controller.get_entry_from_record(record_id)
+    if not old_text:
+        print(f"[red]No record found with id {record_id}.[/red]")
+        ctx.exit(1)
+
+    if new_text.strip() == old_text.strip():
+        print(
+            "[yellow]No changes; new text is identical to the current entry.[/yellow]"
+        )
+        return
+
+    # Validate before showing the preview, so what's previewed is exactly
+    # what -y would apply -- never a broken entry the user approved blind.
+    draft = Item(env=env, raw=new_text, final=True, controller=controller)
+    if not draft.parse_ok or not draft.itemtype:
+        print(f"[red]✘ Invalid entry:[/red] {draft.parse_message}")
+        ctx.exit(1)
+
+    prompt = (
+        f"Edit {record_id}:\n"
+        f"  before: {old_text}\n"
+        f"  after:  {new_text}\n"
+        "Apply this change?"
+    )
+    if not _confirm_apply(ctx, prompt, yes):
+        print("[yellow]Edit cancelled.[/yellow]")
+        return
+
+    try:
+        changed = controller.apply_textual_edit(record_id, lambda _raw: new_text)
+    except Exception as exc:
+        print(f"[red]Edit failed:[/red] {exc}")
+        ctx.exit(1)
+
+    if not changed:
+        print("[yellow]No changes made.[/yellow]")
+        return
+
+    controller.db_manager.populate_dependent_tables()
+    print(f"[green]✔ Updated[/green] record {record_id}.")
+
+
+@cli.command()
+@click.argument("record_id", type=int)
+@click.option(
+    "--instance",
+    "instance_text",
+    metavar="DATETIME",
+    help="Delete only this occurrence (required if the reminder repeats "
+    "and you don't want to delete the whole thing).",
+)
+@click.option(
+    "--from-instance",
+    "from_instance_text",
+    metavar="DATETIME",
+    help="Delete this occurrence and all subsequent ones.",
+)
+@click.option(
+    "--record",
+    "whole_record",
+    is_flag=True,
+    help="Delete the entire reminder (all occurrences/jobs). Required "
+    "explicitly for a repeating reminder; implied for a non-repeating one.",
+)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    help="Apply the deletion without prompting for confirmation.",
+)
+@click.pass_context
+def delete(ctx, record_id, instance_text, from_instance_text, whole_record, yes):
+    """
+    Delete a reminder. This cannot be undone.
+
+    For a reminder that repeats (@r), you must say which of --instance,
+    --from-instance, or --record you mean -- there is no default.
+    """
+    scope_flags = [instance_text, from_instance_text, whole_record]
+    if sum(1 for f in scope_flags if f) > 1:
+        print(
+            "[red]Specify only one of --instance, --from-instance, or --record.[/red]"
+        )
+        ctx.exit(1)
+
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+    controller = Controller(db_path, env)
+
+    record = controller.db_manager.get_record_as_dictionary(record_id)
+    if not record:
+        print(f"[red]No record found with id {record_id}.[/red]")
+        ctx.exit(1)
+
+    subject = record.get("subject") or "(untitled)"
+    is_repeating = "RRULE" in (record.get("rruleset") or "")
+
+    if is_repeating and not any(scope_flags):
+        print(
+            f"[red]Record {record_id} ({subject!r}) repeats.[/red] "
+            "Specify one of:\n"
+            "  --instance DATETIME       delete just that occurrence\n"
+            "  --from-instance DATETIME  delete that occurrence and all later ones\n"
+            "  --record                  delete the entire reminder"
+        )
+        ctx.exit(1)
+
+    if not is_repeating and (instance_text or from_instance_text):
+        print(
+            f"[red]Record {record_id} ({subject!r}) does not repeat;[/red] "
+            "--instance/--from-instance do not apply. Use --record, or omit "
+            "the scope flags entirely."
+        )
+        ctx.exit(1)
+
+    if instance_text:
+        scope_desc = f"just the occurrence at {instance_text}"
+    elif from_instance_text:
+        scope_desc = f"the occurrence at {from_instance_text} and all later ones"
+    else:
+        scope_desc = "the entire reminder" + (" and all its jobs" if record.get("jobs") and record["jobs"] != "[]" else "")
+
+    prompt = (
+        f"Delete {record_id}: {subject!r}\n"
+        f"  {scope_desc}?\n"
+        "This cannot be undone."
+    )
+    if not _confirm_apply(ctx, prompt, yes):
+        print("[yellow]Delete cancelled.[/yellow]")
+        return
+
+    if instance_text:
+        ok = controller.delete_instance(record_id, instance_text=instance_text)
+    elif from_instance_text:
+        ok = controller.delete_this_and_future(record_id, instance_text=from_instance_text)
+    else:
+        controller.delete_record(record_id)
+        ok = True
+
+    if not ok:
+        print(f"[red]Delete failed;[/red] check that the datetime given is valid.")
+        ctx.exit(1)
+
+    controller.db_manager.populate_dependent_tables()
+    print(f"[green]✔ Deleted[/green] {scope_desc} for {subject!r} ({record_id}).")
 
 
 @cli.command()
@@ -1591,6 +1797,121 @@ def urgency_report(ctx, rich, width):
         except Exception:
             pass
         console.print()  # blank separator between tasks
+
+
+@cli.command()
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Rebuild even if nothing appears to have changed.",
+)
+@click.pass_context
+def rebuild(ctx, force):
+    """
+    Rebuild derived tables (DateTimes, Alerts, Notice, Urgency, BusyWeeks)
+    from Records. Normally these refresh automatically as needed; this is
+    a manual recovery path for when something looks stale.
+    """
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+    controller = Controller(db_path, env)
+
+    changed = controller.rebuild(force=force)
+    if changed:
+        print("[green]✔ Rebuilt derived tables.[/green]")
+    else:
+        print("[blue]Derived tables already up to date; nothing to rebuild.[/blue]")
+
+
+@cli.command()
+@click.pass_context
+def doctor(ctx):
+    """
+    Check the database for records that have a schedule but no DateTimes
+    rows — i.e., reminders that would silently be invisible in the
+    schedule views and never alert. Run `tklr rebuild` to fix any found.
+    """
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+    controller = Controller(db_path, env)
+
+    missing = controller.find_records_missing_datetimes()
+    if not missing:
+        print("[green]✔ No issues found.[/green]")
+        return
+
+    print(
+        f"[red]✘ {len(missing)} record(s) have a schedule but no DateTimes rows:[/red]"
+    )
+    for record_id, itemtype, subject in missing:
+        print(f"  {record_id}\t{itemtype} {subject}")
+    print("\n[yellow]Run 'tklr rebuild --force' to fix.[/yellow]")
+    ctx.exit(1)
+
+
+@cli.command("dispatch-alerts")
+@click.option(
+    "--max-late",
+    "max_late",
+    default="60m",
+    show_default=True,
+    metavar="TIMEDELTA",
+    help="Drop (without firing) any alert more than this overdue, e.g. "
+    "'30m', '2h'. Prevents a scheduler that missed a long stretch from "
+    "bursting out everything it missed at once.",
+)
+@click.pass_context
+def dispatch_alerts(ctx, max_late):
+    """
+    Fire all due/overdue alerts and clear the ones that succeed.
+
+    Alerts normally fire only while `tklr ui` is open (its tick loop is
+    what executes [alerts] commands). This is the scheduler-friendly
+    equivalent: run it from cron/systemd/launchd so alerts are delivered
+    even when no TUI session is open. Safe to run alongside a live TUI --
+    they coordinate via a lock file so an alert is never fired twice.
+    """
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+
+    try:
+        max_late_seconds = td_str_to_seconds(max_late)
+    except Exception:
+        print(f"[red]Invalid --max-late value:[/red] {max_late!r}")
+        ctx.exit(1)
+
+    lock = FileLock(str(env.alerts_lock_path), timeout=0)
+    try:
+        lock.acquire()
+    except Timeout:
+        print(
+            "[blue]tklr ui is currently running; it owns alert delivery. "
+            "Skipping.[/blue]"
+        )
+        return
+
+    try:
+        controller = Controller(db_path, env)
+        result = controller.dispatch_alerts(max_late_seconds=max_late_seconds)
+    finally:
+        lock.release()
+
+    fired = result["fired"]
+    dropped = result["dropped"]
+    failed = result["failed"]
+
+    if not (fired or dropped or failed):
+        print("No alerts due.")
+        return
+
+    for _alert_id, alert_name, alert_command in dropped:
+        print(f"[yellow]dropped (too late)[/yellow] {alert_name}: {alert_command}")
+    for _alert_id, alert_name, alert_command in failed:
+        print(f"[red]✘ failed, will retry[/red] {alert_name}: {alert_command}")
+
+    print(
+        f"\n{len(fired)} fired, {len(dropped)} dropped, {len(failed)} failed."
+    )
 
 
 @cli.command()

@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 import tomllib
 from pathlib import Path
@@ -171,6 +172,7 @@ class TklrConfig(BaseModel):
     secret: str = Field(default_factory=generate_secret)
     num_completions: int = Field(6, ge=0)
     num_logs: int = Field(3, ge=0)
+    alert_horizon: str = "24h"
     ui: UIConfig = UIConfig()
     alerts: dict[str, str] = {}
     urgency: UrgencyConfig = UrgencyConfig()
@@ -195,6 +197,14 @@ num_completions = {{ num_completions }}
 #   0 -> keep all log files
 #   N -> keep only the N most recent files for each kind (log and bug)
 num_logs = {{ num_logs }}
+
+# alert_horizon: timedelta string, e.g. "24h", "6h", "7d"
+# How far ahead of now Alerts rows are generated/kept current. The TUI
+# regenerates this window continuously, so 24h is plenty there. A
+# scheduler (cron/systemd/launchd) running `tklr dispatch-alerts` only
+# sees an alert if its row already exists, so set this past the longest
+# gap you expect between scheduler runs (a week is comfortable).
+alert_horizon = "{{ alert_horizon }}"
 
 [ui]
 # theme: str = 'dark' | 'light'
@@ -283,7 +293,7 @@ two_digit_year = {{ ui.two_digit_year | lower }}
 {% for theme, values in ui.palette | dictsort %}
 [ui.palette.{{ theme }}]
 {% for key, value in values | dictsort %}
-{{ key }} = "{{ value }}"
+{{ key }} = {{ value }}
 {% endfor %}
 
 {% endfor %}
@@ -301,7 +311,7 @@ two_digit_year = {{ ui.two_digit_year | lower }}
 # Additional keys: start (scheduled datetime), time (spoken version of
 # start), location, description.
 {% for key, value in alerts.items() %}
-{{ key }} = '{{ value }}'
+{{ key }} = {{ value }}
 {% endfor %}
 
 # ─── Urgency Configuration ─────────────────────────────────────
@@ -513,10 +523,33 @@ max = {{ urgency.project.max }}
 # ─── Save Config with Comments ───────────────────────────────
 
 
-def save_config_from_template(config: TklrConfig, path: Path):
+def _toml_str(value: str) -> str:
+    """Render a Python string as a TOML string literal, choosing the quote
+    style so the value round-trips even if it contains an apostrophe."""
+    if "'" not in value:
+        return f"'{value}'"
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def _render_config(config: TklrConfig) -> str:
+    """Render CONFIG_TEMPLATE, pre-quoting free-text string values so the
+    result is always valid TOML regardless of what they contain."""
+    context = config.model_dump()
+    context["alerts"] = {k: _toml_str(v) for k, v in context.get("alerts", {}).items()}
+    ui = context.get("ui") or {}
+    palette = ui.get("palette")
+    if palette:
+        context["ui"] = dict(ui)
+        context["ui"]["palette"] = {
+            theme: {k: _toml_str(v) for k, v in values.items()}
+            for theme, values in palette.items()
+        }
     template = Template(CONFIG_TEMPLATE)
-    rendered = template.render(**config.model_dump())
-    path.write_text(rendered.strip() + "\n", encoding="utf-8")
+    return template.render(**context).strip() + "\n"
+
+
+def save_config_from_template(config: TklrConfig, path: Path):
+    path.write_text(_render_config(config), encoding="utf-8")
     print(f"✅ Config with comments written to: {path}")
 
 
@@ -555,6 +588,13 @@ class TklrEnvironment:
     def db_path(self) -> Path:
         return self.home / "tklr.db"
 
+    @property
+    def alerts_lock_path(self) -> Path:
+        """Lock file marking who currently owns alert delivery (the TUI's
+        tick loop, or a `tklr dispatch-alerts` run) so both never fire the
+        same alert. See filelock.FileLock in view.py / cli/main.py."""
+        return self.home / "alerts.lock"
+
     def ensure(self, init_config: bool = True, init_db_fn: Optional[callable] = None):
         self.home.mkdir(parents=True, exist_ok=True)
 
@@ -565,16 +605,12 @@ class TklrEnvironment:
             init_db_fn(self.db_path)
 
     def load_config(self) -> TklrConfig:
-        from jinja2 import Template
-
         # Step 1: Create the file if it doesn't exist
         if not os.path.exists(self.config_path):
             self.home.mkdir(parents=True, exist_ok=True)
             config = TklrConfig()
-            template = Template(CONFIG_TEMPLATE)
-            rendered = template.render(**config.model_dump()).strip() + "\n"
             with open(self.config_path, "w", encoding="utf-8") as f:
-                f.write(rendered)
+                f.write(_render_config(config))
             print(f"✅ Created new config file at {self.config_path}")
             self._config = config
             return config
@@ -585,20 +621,37 @@ class TklrEnvironment:
                 data = tomllib.load(f)
             config = TklrConfig.model_validate(data)
         except (ValidationError, tomllib.TOMLDecodeError) as e:
-            print(f"⚠️ Config error in {self.config_path}: {e}\nUsing defaults.")
-            config = TklrConfig()
+            # Do not let a broken file be replaced by defaults: preserve it
+            # (plus a timestamped-free backup) and use defaults for this run
+            # only, leaving the original on disk for the user to fix.
+            backup = self.config_path.with_suffix(".toml.bad")
+            shutil.copy2(self.config_path, backup)
+            print(
+                f"⚠️ Config error in {self.config_path}: {e}\n"
+                f"   Original preserved at {backup}; using defaults for this run."
+            )
+            self._config = TklrConfig()
+            return self._config
 
-        # Step 3: Always regenerate the canonical version
-        template = Template(CONFIG_TEMPLATE)
-        rendered = template.render(**config.model_dump()).strip() + "\n"
+        # Step 3: Always regenerate the canonical version, but never
+        # overwrite a good file with something that fails to parse.
+        rendered = _render_config(config)
 
         with open(self.config_path, "r", encoding="utf-8") as f:
             current_text = f.read()
 
         if rendered != current_text:
-            with open(self.config_path, "w", encoding="utf-8") as f:
-                f.write(rendered)
-            print(f"✅ Updated {self.config_path} with any missing defaults.")
+            try:
+                tomllib.loads(rendered)
+            except tomllib.TOMLDecodeError as e:
+                print(
+                    f"⚠️ Internal error: regenerated config would be invalid "
+                    f"TOML ({e}); leaving {self.config_path} unchanged."
+                )
+            else:
+                with open(self.config_path, "w", encoding="utf-8") as f:
+                    f.write(rendered)
+                print(f"✅ Updated {self.config_path} with any missing defaults.")
 
         self._config = config
         return config
