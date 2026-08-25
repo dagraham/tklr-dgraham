@@ -14,7 +14,7 @@ dependencies = [
   "packaging>=25.0",
   "pydantic>=2.11.7",
   "jinja2>=3.1.6",
-  "click>=8.2.1",
+  "click>=8.4.2",
   "lorem>=0.1.1",
   "readchar>=4.2.1",
   "numpy>=2.3.3,!=2.4.0",

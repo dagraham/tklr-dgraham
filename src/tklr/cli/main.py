@@ -797,7 +797,7 @@ def _format_alert_trigger_display(trigger_text: str, ampm: bool) -> str:
 @click.pass_context
 def weeks(ctx, start_opt, end_opt, width, rich, ids):
     """
-    weeks(start: date = today(), end: date|int = 4, width: int = 40)
+    weeks(start: date = today(); end: date|int = 4; width: int = 40)
 
     Examples:
       tklr weeks
@@ -961,7 +961,7 @@ def weeks(ctx, start_opt, end_opt, width, rich, ids):
 @click.pass_context
 def days(ctx, start_opt, end_opt, width, rich, ids):
     """
-    days(start: date = today(), end: date|int = 7, width: int = 40)
+    days(start: date = today(); end: date|int = 7; width: int = 40)
 
     Display reminders grouped by date without week grouping.
 
