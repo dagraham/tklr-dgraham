@@ -220,12 +220,12 @@ pressing [bold]control[/bold] and [bold]u[/bold] simultaneously.
 [bold][{HEADER_COLOR}]Key Bindings[/{HEADER_COLOR}][/bold]
 [bold]^q[/bold]    Quit              [bold]^r[/bold]    Record Screenshot
 [bold] +[/bold]    New Reminder      [bold] N[/bold]    New Reminder
-[bold] P[/bold]    Palette           [bold] Y[/bold]    Yearly Calendar
+[bold] S[/bold]    Style             [bold] Y[/bold]    Yearly Calendar
 [bold][{HEADER_COLOR}]Views[/{HEADER_COLOR}][/bold]
  [bold]A[/bold]    Agenda             [bold]M[/bold]    Modified
  [bold]B[/bold]    Bins               [bold]L[/bold]    Later
  [bold]C[/bold]    Completions        [bold]Q[/bold]    Query
- [bold]E[/bold]    Earlier            [bold]R[/bold]    Remaining Alerts
+ [bold]E[/bold]    Earlier            [bold]P[/bold]    Pending Alerts
  [bold]F[/bold]    Find               [bold]T[/bold]    Tasks
  [bold]G[/bold]    Goals              [bold]U[/bold]    Jot Uses
  [bold]H[/bold]    Hash-Tags          [bold]W[/bold]    Weeks
@@ -2798,7 +2798,7 @@ class FullScreenList(SearchableScreen):
 class PaletteScreen(SearchableScreen):
     BINDINGS = [
         ("p", "toggle_palette", "Toggle palette"),
-        ("c", "toggle_palette_colors", "Palette Colors"),
+        ("c", "toggle_palette_colors", "Style Colors"),
     ]
 
     def __init__(
@@ -4026,7 +4026,7 @@ class DynamicViewApp(App):
         ("shift+right", "next_period", ""),
         (SCREENSHOT_BINDING, "take_screenshot", "Take Screenshot"),
         ("escape", "close_details", "Close details"),
-        ("R", "show_alerts", "Show Alerts"),
+        ("P", "show_alerts", "Show Alerts"),
         ("A", "show_agenda", "Show Agenda"),
         ("G", "show_goals", "Goals"),
         ("B", "show_bins", "Bins"),
@@ -4040,7 +4040,7 @@ class DynamicViewApp(App):
         ("F", "show_find", "Find"),
         ("J", "show_jots", "Jots"),
         ("U", "show_jot_uses_menu", "Jot Uses"),
-        ("P", "show_palette", "Palette"),
+        ("S", "show_palette", "Style"),
         ("W", "show_weeks", "Weeks"),
         ("D", "jump_to_date", "Jump to date"),
         ("Y", "show_year", "Year"),
@@ -5202,7 +5202,7 @@ class DynamicViewApp(App):
 
         self.view = "palette"
         footer = (
-            f"[bold {FOOTER}]p[/bold {FOOTER}] Toggle dual palette  "
+            f"[bold {FOOTER}]p[/bold {FOOTER}] Toggle dual style  "
             f"[bold {FOOTER}]c[/bold {FOOTER}] Toggle named colors  "
             f"[bold {FOOTER}]?[/bold {FOOTER}] Help  "
             f"[bold {FOOTER}]/[/bold {FOOTER}] Search"
@@ -5232,7 +5232,7 @@ class DynamicViewApp(App):
             palette = getattr(self, "_list_palette", {})
             dark_colors = palette.get("dark", {})
             light_colors = palette.get("light", {})
-            title = "Palette (dark | light)"
+            title = "Style (dark | light)"
             screen = PaletteScreen(
                 title,
                 left_lines,
@@ -5493,7 +5493,7 @@ class DynamicViewApp(App):
         footer = f"[bold {FOOTER}]?[/bold {FOOTER}] Help  [bold {FOOTER}]/[/bold {FOOTER}] Search"
 
         self.push_screen(
-            FullScreenList(pages, "Remaining Alerts for Today", header, footer)
+            FullScreenList(pages, "Pending Alerts", header, footer)
         )
 
     def _close_details_if_open(self) -> None:

@@ -2804,7 +2804,7 @@ class Controller:
         overrides = getattr(self.env.config.ui, "palette", {}) if self.env else {}
         palette = shared_colors.get_theme_palette(theme, overrides)
         lines = _palette_lines(palette, f"{theme.title()} theme")
-        title = f"Palette ({theme})"
+        title = f"Style ({theme})"
 
         pages = [(lines, {})]
         return pages, title
