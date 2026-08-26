@@ -5758,6 +5758,20 @@ class DatabaseManager:
         row = self.cursor.fetchone()
         return row[0] if row else f"[unknown #{bin_id}]"
 
+    def get_record_ids_for_bin(self, bin_id: int) -> list[int]:
+        """Return ids of records currently linked to this bin (its leaf)."""
+        self.cursor.execute(
+            "SELECT reminder_id FROM ReminderLinks WHERE bin_id = ?", (bin_id,)
+        )
+        return [row[0] for row in self.cursor.fetchall()]
+
+    def get_child_bin_ids(self, bin_id: int) -> list[int]:
+        """Return ids of bins whose container (parent) is this bin."""
+        self.cursor.execute(
+            "SELECT bin_id FROM BinLinks WHERE container_id = ?", (bin_id,)
+        )
+        return [row[0] for row in self.cursor.fetchall()]
+
     def get_parent_bin(self, bin_id: int) -> dict | None:
         """Return parent bin as {'id': ..., 'name': ...} or None if root."""
         self.cursor.execute(

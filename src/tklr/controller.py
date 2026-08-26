@@ -967,11 +967,16 @@ class Controller:
 
         from tklr.item import Item  # or your actual import
 
-        # 2) Parse the entry (Item.__init__ already parses `new_raw`)
-        item = Item(new_raw, controller=self)
+        # 2) Parse the entry (Item.__init__ already parses `new_raw`).
+        # final=True must be passed to the constructor, not set afterward:
+        # do_b's "final" branch (which populates item.bin_paths from @b) only
+        # runs during the initial parse. Setting `.final = True` after
+        # construction is too late -- do_b already ran once in "live
+        # resolver" mode and won't run again, silently leaving bin_paths
+        # empty and stripping the record's bin memberships on save.
+        item = Item(new_raw, controller=self, final=True)
         if not getattr(item, "parse_ok", False):
             return False
-        item.final = True
 
         # 3) Finalize (jobs, rrules, etc.)
         item.finalize_record()
@@ -4881,8 +4886,81 @@ class Controller:
     def create_bin(self, name: str, parent_id: int | None) -> int:
         return self.db_manager.create_bin(name, parent_id)
 
+    def _rewrite_bin_name_in_records(
+        self, record_ids: list[int], old_name: str, new_name: str
+    ) -> None:
+        """
+        Rewrite the @b token of each given record from old_name to new_name.
+
+        Bin lookups are by name only (there's no stable path/id a stored
+        token can point at), so any record whose @b token still names a
+        bin that no longer exists under that name would, on its next
+        save, fail to find it and silently create a brand-new bin with
+        the old name. Callers must rewrite records *after* the bin
+        operation itself (rename/merge) has already taken effect, so the
+        reparse this triggers resolves to the right (already-updated)
+        bin instead of creating a duplicate.
+        """
+        for record_id in record_ids:
+
+            def edit_tokens(tokens: list[dict], _old=old_name, _new=new_name) -> bool:
+                changed = False
+                for t in tokens:
+                    if t.get("k") != "b":
+                        continue
+                    path = (t.get("token", "") or "")[2:].strip()
+                    leaf = path.split("/")[0].strip() if path else ""
+                    if leaf.lower() == _old.strip().lower():
+                        t["token"] = f"@b {_new}"
+                        changed = True
+                return changed
+
+            self.apply_token_edit(record_id, edit_tokens, record_completions=False)
+
     def rename_bin(self, bin_id: int, new_name: str) -> None:
+        """Rename a bin, then rewrite every affected record's @b token."""
+        old_name = self.db_manager.get_bin_name(bin_id)
+        record_ids = self.db_manager.get_record_ids_for_bin(bin_id)
+
         self.db_manager.rename_bin(bin_id, new_name)
+
+        if old_name and old_name.strip().lower() != new_name.strip().lower():
+            self._rewrite_bin_name_in_records(record_ids, old_name, new_name)
+
+    def merge_bin(self, source_id: int, target_id: int) -> None:
+        """
+        Merge bin `source_id` into bin `target_id`: move its reminders and
+        child bins to the target, rewrite affected records' @b tokens to
+        the target's name, then delete the now-empty source bin.
+
+        Order matters, same reasoning as rename_bin: reminders and child
+        bins are relinked (by id, via the existing move machinery) first,
+        so by the time records' tokens are rewritten to the target's name,
+        that name already resolves correctly. delete_bin_if_empty at the
+        end doubles as a correctness check -- if anything was missed, it
+        returns False instead of silently leaving orphaned state.
+        """
+        if source_id == target_id:
+            raise ValueError("Cannot merge a bin into itself.")
+        if self.db_manager.is_system_bin(source_id):
+            raise ValueError("System bins cannot be merged away.")
+
+        source_name = self.db_manager.get_bin_name(source_id)
+        target_name = self.db_manager.get_bin_name(target_id)
+        record_ids = self.db_manager.get_record_ids_for_bin(source_id)
+        child_bin_ids = self.db_manager.get_child_bin_ids(source_id)
+
+        for child_id in child_bin_ids:
+            self.db_manager.move_bin_to_parent(child_id, target_id)
+
+        self._rewrite_bin_name_in_records(record_ids, source_name, target_name)
+
+        if not self.db_manager.delete_bin_if_empty(source_id):
+            raise RuntimeError(
+                f"Merge incomplete: bin {source_id!r} ({source_name!r}) still "
+                "has dependents after moving known reminders and child bins; "
+                "not deleting it."
+            )
 
     def move_bin_under(self, bin_id: int, new_parent_id: int) -> None:
         self.db_manager.move_bin_to_parent(bin_id, new_parent_id)

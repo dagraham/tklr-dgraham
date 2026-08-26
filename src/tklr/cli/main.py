@@ -380,7 +380,14 @@ def add(ctx, entry, file, batch):
             return "\n".join(lines)
 
         def should_autocreate_use() -> bool:
-            return bool(file or batch or not sys.stdin.isatty())
+            # Auto-draft-on-failure (rather than hard-failing) is a safety
+            # net for bulk, human-typed entry via --file/--batch, where
+            # losing one bad entry out of many means re-typing everything.
+            # A plain/piped single entry is almost always a script or
+            # agent call, which already has the exact text it sent and
+            # needs a trustworthy pass/fail signal more than it needs a
+            # silently-saved draft it didn't ask for.
+            return bool(file or batch)
 
         def extract_unknown_use_name(msg: str) -> str | None:
             if not msg:
@@ -477,6 +484,7 @@ def add(ctx, entry, file, batch):
         print("\n\n=== Invalid items ===\n")
         for item in bad_items:
             print(item)
+        ctx.exit(1)
 
 
 @cli.command()

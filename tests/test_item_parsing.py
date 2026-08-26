@@ -261,12 +261,15 @@ class TestBins:
 
     def test_multiple_bins(self, item_factory):
         """Test parsing item with multiple bins."""
-        item = item_factory("~ task @b errands/contexts @b urgent/tags")
+        # Paths must terminate in an existing bin (here, the standard
+        # roots "activities"/"projects") -- a path can't silently create
+        # bins all the way up to an unlinked anchor.
+        item = item_factory("~ task @b errands/activities @b urgent/projects")
 
         assert item.parse_ok, f"Parse failed for '{item.entry}': {item.parse_message}"
         assert item.bin_paths is not None
-        assert bin_path_contains_prefix(item.bin_paths, ["errands", "contexts"])
-        assert bin_path_contains_prefix(item.bin_paths, ["urgent", "tags"])
+        assert bin_path_contains_prefix(item.bin_paths, ["errands", "activities"])
+        assert bin_path_contains_prefix(item.bin_paths, ["urgent", "projects"])
         # assert ["urgent", "tags"] in item.bin_paths
 
     def test_complex_bin_path(self, item_factory):

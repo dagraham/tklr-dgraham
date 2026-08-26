@@ -2483,6 +2483,60 @@ Entry: {self.entry}
         except Exception as e:
             return False, f"Invalid @s value: {e}", []
 
+    def _validate_bin_path(self, parts: List[str]) -> Optional[str]:
+        """
+        Validate a leaf-first @b path (parts[0] is the leaf, parts[1:] are
+        ancestors, nearest first) before it's allowed to create or attach
+        a bin. Returns an error message, or None if the path is valid.
+
+        Two rules, both there to keep Bins/BinLinks/ReminderLinks honest
+        with what's actually written in records' @b tokens:
+
+        - The path must terminate in an existing bin (or, with no
+          ancestors, the leaf itself must already exist). A path cannot
+          be used to silently file a brand-new bin under 'unlinked' --
+          only bins between the leaf and an existing anchor may be new.
+        - Any segment that already exists with a real (non-unlinked)
+          parent must match the parent stated in this path. Otherwise a
+          typo or a stale assumption about the tree on one unrelated
+          entry would silently reparent an already-established bin out
+          from under everything else filed there.
+        """
+        find_id = self.controller.find_bin_id_by_name
+        get_parent = self.controller.get_parent_bin
+
+        anchor = parts[-1]
+        if find_id(anchor) is None:
+            if len(parts) == 1:
+                return (
+                    f"@b {anchor}: no bin named '{anchor}' exists. Provide a "
+                    "path ending in an existing bin to create it, e.g. "
+                    f"'@b {anchor}/library'."
+                )
+            return (
+                f"@b {'/'.join(parts)}: '{anchor}' is not an existing bin. "
+                "A @b path must end in an existing bin -- only the leading "
+                "segment(s) may be new."
+            )
+
+        for i in range(len(parts) - 1):
+            child_name, stated_parent = parts[i], parts[i + 1]
+            child_id = find_id(child_name)
+            if child_id is None:
+                continue  # will be created fresh; nothing to conflict with
+            parent = get_parent(child_id)
+            parent_name = parent["name"] if parent else None
+            is_unlinked = not parent_name or parent_name.strip().lower() == "unlinked"
+            if is_unlinked:
+                continue  # not yet placed anywhere real; fine to attach
+            if parent_name.strip().lower() != stated_parent.strip().lower():
+                return (
+                    f"@b {'/'.join(parts)}: '{child_name}' already exists under "
+                    f"'{parent_name}', not '{stated_parent}'. Use '@b {child_name}' "
+                    "alone to reference it as-is, or correct the path."
+                )
+        return None
+
     def do_b(self, token: dict) -> Tuple[bool, str, List[str]]:
         """
         Live resolver for '@b Leaf/Parent/.../Root' (leaf→root, '/' only).
@@ -2498,6 +2552,12 @@ Entry: {self.entry}
         if self.final or not rev_dict:
             if not parts:
                 return False, "Missing bin path after @b", []
+
+            if self.controller:
+                error = self._validate_bin_path(parts)
+                if error:
+                    return False, error, []
+
             token["token"] = f"@b {parts[0]}"  # keep prefix; no decoration
             if not token.get("_b_resolved"):  # append ONCE (batch runs once anyway)
                 self.bin_paths.append(parts)  # store Leaf→…→Root parts
