@@ -1979,7 +1979,7 @@ class DatabaseManager:
         self, item: Item, *, strict: bool = False
     ) -> int | None:
         name = _clean_use_name(getattr(item, "use", ""))
-        if not name or getattr(item, "itemtype", None) != "-":
+        if not name or getattr(item, "itemtype", None) not in ("-", "*", "~"):
             item.use_id = None
             return None
         if getattr(item, "use_id", None):
@@ -4137,7 +4137,8 @@ class DatabaseManager:
 
     def get_jot_uses_for_period(self, start_date: datetime, end_date: datetime):
         """
-        Retrieve jot entries with extents or uses for use reports, ordered by start time.
+        Retrieve entries for "Used Time" reports: all jots, plus any event
+        or task tagged with @u (which requires @s), ordered by start time.
         """
         start_key = _to_key(start_date)
         end_key = _to_key(end_date)
@@ -4152,12 +4153,13 @@ class DatabaseManager:
             r.extent,
             r.id,
             dt.job_id,
-            u.name
+            u.name,
+            r.itemtype
         FROM DateTimes dt
         JOIN Records r ON dt.record_id = r.id
         LEFT JOIN Uses u ON r.use_id = u.id
         WHERE
-            r.itemtype = '-' AND
+            (r.itemtype = '-' OR (r.itemtype IN ('*', '~') AND u.name IS NOT NULL)) AND
             -- normalized end >= period start
             (
                 CASE

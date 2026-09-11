@@ -227,7 +227,7 @@ pressing [bold]control[/bold] and [bold]u[/bold] simultaneously.
  [bold]C[/bold]    Completions        [bold]Q[/bold]    Query
  [bold]E[/bold]    Earlier            [bold]P[/bold]    Pending Alerts
  [bold]F[/bold]    Find               [bold]T[/bold]    Tasks
- [bold]G[/bold]    Goals              [bold]U[/bold]    Jot Uses
+ [bold]G[/bold]    Goals              [bold]U[/bold]    Used Time
  [bold]H[/bold]    Hash-Tags          [bold]W[/bold]    Weeks
  [bold]J[/bold]    Jots
 [bold][{HEADER_COLOR}]Weeks View Navigation[/{HEADER_COLOR}][/bold]
@@ -4039,7 +4039,7 @@ class DynamicViewApp(App):
         ("H", "show_tags", "Show Hash-Tags"),
         ("F", "show_find", "Find"),
         ("J", "show_jots", "Jots"),
-        ("U", "show_jot_uses_menu", "Jot Uses"),
+        ("U", "show_jot_uses_menu", "Used Time"),
         ("S", "show_palette", "Style"),
         ("W", "show_weeks", "Weeks"),
         ("D", "jump_to_date", "Jump to date"),
@@ -5339,7 +5339,7 @@ class DynamicViewApp(App):
         )
 
     def action_show_jot_uses_menu(self):
-        message = "Jot Uses"
+        message = "Used Time"
         options = [
             ("L) List/edit uses", "l"),
             ("C) Current month uses", "c"),

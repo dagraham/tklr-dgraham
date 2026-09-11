@@ -2852,6 +2852,7 @@ class Controller:
             record_id,
             job_id,
             use_name,
+            itemtype,
         ) in raw:
             if not start_ts:
                 continue
@@ -2871,13 +2872,16 @@ class Controller:
             use_totals.setdefault(month_key, {}).setdefault(use_label, 0)
             use_totals[month_key][use_label] += extent_minutes
             total_minutes += extent_minutes
+            display_subject = subject or "(untitled)"
+            if itemtype and itemtype != "-":
+                display_subject = f"{itemtype} {display_subject}"
             month_map.setdefault(month_key, {}).setdefault(use_label, []).append(
                 {
                     "record_id": record_id,
                     "job_id": job_id,
                     "datetime_id": dt_id,
                     "instance_ts": start_ts,
-                    "subject": subject or "(untitled)",
+                    "subject": display_subject,
                     "description": description or "",
                     "extent": extent or "",
                     "extent_minutes": extent_minutes,
@@ -3020,11 +3024,11 @@ class Controller:
                     "job_id": None,
                     "datetime_id": None,
                     "instance_ts": None,
-                    "text": f"[{HEADER_COLOR}]No matching jots found.[/{HEADER_COLOR}]",
+                    "text": f"[{HEADER_COLOR}]No matching entries found.[/{HEADER_COLOR}]",
                 }
             )
 
-        title = f"Jot Uses - {label}"
+        title = f"Used Time - {label}"
         if total_minutes > 0:
             title = f"{title}: {format_decimal_hours(total_minutes, step_minutes)}"
         if use_filter and use_filter.strip() and use_filter.strip().lower() != "all":

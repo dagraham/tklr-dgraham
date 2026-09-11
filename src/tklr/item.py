@@ -638,9 +638,17 @@ all_keys = (
 )
 
 allowed = {
-    "*": common_methods + datetime_methods + repeating_methods + wrap_methods + ["i"],
-    "x": common_methods + datetime_methods + task_methods + repeating_methods + ["~"],
-    "~": common_methods + datetime_methods + task_methods + repeating_methods,
+    "*": common_methods
+    + datetime_methods
+    + repeating_methods
+    + wrap_methods
+    + ["i", "u"],
+    "x": common_methods
+    + datetime_methods
+    + task_methods
+    + repeating_methods
+    + ["~", "u"],
+    "~": common_methods + datetime_methods + task_methods + repeating_methods + ["u"],
     "!": common_methods + ["s", "t", "f", "k"],
     "-": ["s", "u", "d", "e", "b"],  # s will default to now if missing
     "^": common_methods + datetime_methods + job_methods + repeating_methods,
@@ -2268,8 +2276,12 @@ Entry: {self.entry}
         return True, chosen, []
 
     def do_use(self, token):
-        if self.itemtype != "-":
-            return False, "@u is only valid for jot entries.", []
+        if self.itemtype not in ("-", "*", "~"):
+            return False, "@u is only valid for jot, event, and task entries.", []
+        if self.itemtype in ("*", "~") and not any(
+            t.get("k") == "s" for t in self.relative_tokens
+        ):
+            return False, "@u on an event or task also requires @s.", []
         raw = token["token"][2:].strip()
         if not raw:
             return False, "Use cannot be empty", []

@@ -2066,6 +2066,7 @@ def _emit_jot_uses_report(
         record_id,
         job_id,
         use_name,
+        itemtype,
     ) in rows:
         if not start_ts:
             continue
@@ -2083,13 +2084,16 @@ def _emit_jot_uses_report(
         use_totals.setdefault(month_key, {}).setdefault(use_label, 0)
         use_totals[month_key][use_label] += extent_minutes
         total_minutes += extent_minutes
+        display_subject = subject or "(untitled)"
+        if itemtype and itemtype != "-":
+            display_subject = f"{itemtype} {display_subject}"
         month_map.setdefault(month_key, {}).setdefault(use_label, []).append(
             {
                 "record_id": record_id,
                 "job_id": job_id,
                 "datetime_id": dt_id,
                 "instance_ts": start_ts,
-                "subject": subject or "(untitled)",
+                "subject": display_subject,
                 "description": description or "",
                 "extent": extent or "",
                 "extent_minutes": extent_minutes,
@@ -2098,7 +2102,7 @@ def _emit_jot_uses_report(
         )
 
     if not month_map:
-        click.echo("No matching jots found.")
+        click.echo("No matching entries found.")
         return
 
     width = shutil.get_terminal_size((80, 20)).columns
@@ -2178,7 +2182,7 @@ def _emit_jot_uses_report(
                         for dline in detail_lines:
                             click.echo(f"{detail_indent}{dline}")
 
-    title = f"Jot Uses - {label}"
+    title = f"Used Time - {label}"
     if total_minutes > 0:
         title = f"{title}: {format_decimal_hours(total_minutes, step_minutes)}"
     click.echo(title)
@@ -2215,7 +2219,7 @@ def _emit_jot_uses_report(
 )
 @click.pass_context
 def jots_report(ctx, months, use_filter, verbose):
-    """List jots with extents, grouped by month then use."""
+    """List used time (jots, plus @u-tagged events/tasks), grouped by month then use."""
     env = ctx.obj["ENV"]
     db_path = ctx.obj["DB"]
     _emit_jot_uses_report(env, db_path, months, use_filter, verbose, tag_pad="  ")
