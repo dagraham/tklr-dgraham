@@ -3150,21 +3150,36 @@ Entry: {self.entry}
     def _advance_dtstart_and_decrement_count(self, new_dtstart: datetime) -> None:
         """Advance @s to `new_dtstart` and decrement any &c COUNT token."""
         formatted_start = self.fmt_user(new_dtstart)
+        s_tok = None
         for tok in self.relative_tokens:
             if tok.get("t") == "@" and tok.get("k") == "s":
                 tok["token"] = f"@s {formatted_start} "
+                s_tok = tok
                 break
-        else:
-            self.relative_tokens.append(
-                {
-                    "token": f"@s {formatted_start} ",
-                    "t": "@",
-                    "k": "s",
-                }
-            )
+        if s_tok is None:
+            s_tok = {
+                "token": f"@s {formatted_start} ",
+                "t": "@",
+                "k": "s",
+            }
+            self.relative_tokens.append(s_tok)
 
         self._decrement_count_token()
-        self._reparse_from_tokens()
+
+        # Mutating the token's text alone doesn't update self.dtstart/
+        # dtstart_str -- those are only (re)computed when do_s actually
+        # runs on the token, which normally happens once, during the
+        # initial dispatch pass over the raw entry. Re-run it now, then
+        # rebuild the rruleset the same way finalize_record() does for a
+        # fresh parse. (Going through _reparse_from_tokens() /
+        # rebuild_from_tokens() instead would read @s's text verbatim into
+        # the rruleset's DTSTART, baking in fmt_user()'s loose display
+        # format -- not valid RRULE syntax, so later occurrence lookups
+        # against it silently find nothing.)
+        self.do_s(s_tok)
+        rruleset = self.finalize_rruleset()
+        if rruleset:
+            self.rruleset = rruleset
 
     def _decrement_count_token(self) -> None:
         """Reduce the first &c token by one (removing it when it reaches zero)."""
@@ -3575,6 +3590,7 @@ Entry: {self.entry}
                     if cdt:
                         completed_dts.append(cdt)
 
+            reset_for_next_cycle = False
             if completed_dts:
                 finished_dt = max(completed_dts)
                 finished_str = self.fmt_user(finished_dt)
@@ -3585,7 +3601,6 @@ Entry: {self.entry}
                 # }
                 # self.add_token(tok)
                 self._replace_or_add_token("f", finished_str)
-                self._set_itemtype_token("x")
                 self.has_f = True
                 # self.completion = finished_dt
                 first, second = self._get_first_two_occurrences()
@@ -3593,11 +3608,30 @@ Entry: {self.entry}
                     finished_dt,
                     first,
                 )
+                is_rrule = bool(self.rruleset and "RRULE" in self.rruleset)
+                if not is_rrule:
+                    # One-shot project: no further cycles, mark done. A
+                    # repeating project (@r) is left as "^" here --
+                    # finalize_record() calls finish() right after this
+                    # (has_f is now True), and finish()'s own RRULE
+                    # handling both advances @s to the next cycle and
+                    # marks it "x" only once the repeat is actually
+                    # exhausted (COUNT/UNTIL reached).
+                    self._set_itemtype_token("x")
+                else:
+                    reset_for_next_cycle = True
 
             # strip per-job @f tokens after promoting to record-level @f
             for job in job_map.values():
                 job.pop("f", None)
             self._remove_job_finish_tokens()
+
+            if reset_for_next_cycle:
+                # Every job's "status" above was classified as "finished"
+                # before @f was stripped -- stale now that a repeating
+                # project is starting its next cycle. Recompute statuses
+                # (available/waiting) from the now-clean job_map.
+                return self.finalize_jobs(list(job_map.values()))
 
         # --- finalize ---
         self.jobs = list(job_map.values())

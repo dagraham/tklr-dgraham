@@ -1056,17 +1056,16 @@ class Controller:
             # Don’t blow away the record with an empty line by accident.
             return False
 
-        # Re-parse + finalize using Item so rruleset / jobs / flags / etc. stay consistent.
+        # Re-parse + finalize using Item so rruleset / jobs / flags / etc. stay
+        # consistent. parse_input() already calls finalize_record() itself
+        # once `final` is set, so don't call it again here -- a second pass
+        # would re-run finish()-triggered advancement (e.g. rolling @s to
+        # the next RRULE occurrence) a second time, double-advancing it.
         item = Item(entry, controller=self)
         item.final = True
         item.parse_input(entry)
         if not getattr(item, "parse_ok", False):
             log_msg(f"apply_token_edit: parse failed for {record_id=}")
-            return False
-
-        item.finalize_record()
-        if not getattr(item, "parse_ok", False):
-            log_msg(f"apply_token_edit: finalize failed for {record_id=}")
             return False
 
         # This will also rebuild the tokens column from the new Item state.
