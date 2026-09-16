@@ -3843,15 +3843,19 @@ class DatabaseManager:
             rule_str = self._localize_rruleset(rule_str, record_timezone)
         is_aware = ("Z" in raw_rule) or ("TZID=" in rule_str)
 
-        # Nothing to do without any schedule
-        if not rule_str:
-            return
-
-        # Optional: clear existing rows for this record
+        # Optional: clear existing rows for this record. Must happen even
+        # when there's no schedule to regenerate below -- otherwise a
+        # record that's just had its @s removed keeps its old DateTimes
+        # row forever, and views that key off DateTimes (Agenda, etc.)
+        # keep showing it as if it were still scheduled.
         if clear_existing:
             self.cursor.execute(
                 "DELETE FROM DateTimes WHERE record_id = ?", (record_id,)
             )
+
+        # Nothing (more) to do without any schedule
+        if not rule_str:
+            return
 
         # Parse jobs (if any)
         jobs = _parse_jobs_json(jobs_json)

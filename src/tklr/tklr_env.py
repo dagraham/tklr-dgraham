@@ -557,8 +557,10 @@ def save_config_from_template(config: TklrConfig, path: Path):
 
 
 def collapse_home(path: str | Path) -> str:
-    path = Path(path).expanduser().resolve()
-    str_path = path.as_posix()
+    # Normalize without resolve()'s symlink-following: a symlinked
+    # $TKLR_HOME (e.g. ~/tklr -> a cloud-sync folder) should still
+    # display as the friendly symlink path, not its real target.
+    str_path = os.path.abspath(str(Path(path).expanduser()))
     str_path = str_path.replace(str(Path.home()), "~")
     return str_path
 
