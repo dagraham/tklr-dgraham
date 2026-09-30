@@ -381,7 +381,7 @@ It is worth noting the different roles of two attributes in events and tasks.
   @~ sand &r 4: 3
   @~ paint &r 5: 4 
   @d these tasks must be done in order, 
-     each is a prerequiste for the next
+     each is a prerequisite for the next
 </code>
 <code>
 ^ Apply fertilizer
@@ -399,6 +399,9 @@ It is worth noting the different roles of two attributes in events and tasks.
       </p>
       <p>
       The labels provided by the <code>&r</code> entries are required, with or without prerequisites, for each of the component <code>@~</code> tasks. 
+      </p>
+      <p>
+      Wherever a project task is listed, e.g., in <em>Agenda</em> or <em>Weeks</em> view, it is displayed as the task name followed by <code>∊</code>, the (possibly shortened) project name and three integers separated by slashes: <em>available</em>/<em>waiting</em>/<em>finished</em>. <em>Available</em> is the number of unfinished tasks whose prerequisites, if any, are all finished, i.e., tasks that could be done now. <em>Waiting</em> is the number of unfinished tasks that still have at least one unfinished prerequisite. <em>Finished</em> is the number of tasks already completed. E.g., once "pick up materials" in the dog house project has been finished, "cut pieces" becomes available while "assemble", "sand" and "paint" are still waiting, so the counts are <code>1/3/1</code>. For the fertilizer project, with no prerequisites, all three tasks are available from the start: <code>3/0/0</code>.
       </p>
     </div>
 <div style="clear:both;"></div>
