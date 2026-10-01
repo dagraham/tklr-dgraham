@@ -1,5 +1,19 @@
 # Recent Changes
 
+## 1.0.49 — 2026-10-01
+
+Since 1.0.48:
+
+Why upgrade:
+- 0 additions, 0 fixes, 2 behavior changes.
+
+Changed:
+- Treat @g links with a scheme but no host as URLs
+- Explain available/waiting/finished counts shown for project tasks
+
+Technical:
+- 4 files changed, 69 insertions(+), 14 deletions(-)
+
 ## 1.0.48 — 2026-09-16
 
 Since 1.0.47:
@@ -26,19 +40,3 @@ Changed:
 
 Technical:
 - 5 files changed, 41 insertions(+), 19 deletions(-)
-
-## 1.0.46 — 2026-08-26
-
-Since 1.0.45:
-
-Why upgrade:
-- 0 additions, 1 fixes, 1 behavior changes.
-
-Fixed:
-- Fix bin data-integrity bugs: dropped links, unsafe rename/merge, unvalidated @b paths
-
-Changed:
-- Relabel Remaining Alerts -> Pending Alerts (P) and Palette -> Style (S)
-
-Technical:
-- 6 files changed, 179 insertions(+), 16 deletions(-)
