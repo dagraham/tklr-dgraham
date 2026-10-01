@@ -2,21 +2,28 @@ import contextlib
 import io
 import os
 import platform
+import re
 import subprocess
 import sys
 from importlib import resources
 from pathlib import Path
 from typing import Union
-from urllib.parse import urlparse
+
+
+# 2+ character scheme, so a Windows drive letter (C:\...) is not a URL.
+_SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]+:")
 
 
 def _looks_like_url(target: str) -> bool:
-    parsed = urlparse(target)
-    if not parsed.scheme:
+    """
+    True for anything with a URL scheme -- including handler-registered
+    schemes with no host, such as mu4e:msgid:..., message:<id>,
+    notmuch://?query=... -- unless a local file by that name exists.
+    """
+    target = (target or "").strip()
+    if not _SCHEME_RE.match(target):
         return False
-    if parsed.netloc:
-        return True
-    return parsed.scheme in {"mailto", "tel"}
+    return not Path(target).expanduser().exists()
 
 
 def open_with_default(target: Union[str, Path]) -> None:

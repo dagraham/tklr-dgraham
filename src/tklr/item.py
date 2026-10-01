@@ -18,7 +18,6 @@ from math import ceil
 # from tklr.model import dt_to_dtstr
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple, Union
-from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 from dateutil import tz
@@ -2666,12 +2665,10 @@ Entry: {self.entry}
         return True, pretty, []
 
     def _looks_like_url(self, s: str) -> bool:
-        """Heuristic: valid scheme and netloc."""
-        try:
-            parsed = urlparse(s)
-            return bool(parsed.scheme and parsed.netloc)
-        except Exception:
-            return False
+        # Same test open_with_default() uses, so validation and opening agree.
+        from .use_system import _looks_like_url
+
+        return _looks_like_url(s)
 
     def _looks_like_path(self, s: str) -> bool:
         """
