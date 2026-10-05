@@ -1,5 +1,18 @@
 # Recent Changes
 
+## 1.0.50 — 2026-10-05
+
+Since 1.0.49:
+
+Why upgrade:
+- 0 additions, 0 fixes, 1 behavior changes.
+
+Changed:
+- Accept "<datetime> +/- <period>" wherever a datetime is entered
+
+Technical:
+- 4 files changed, 116 insertions(+), 3 deletions(-)
+
 ## 1.0.49 — 2026-10-01
 
 Since 1.0.48:
@@ -27,16 +40,3 @@ Fixed:
 
 Technical:
 - 4 files changed, 62 insertions(+), 23 deletions(-)
-
-## 1.0.47 — 2026-09-11
-
-Since 1.0.46:
-
-Why upgrade:
-- 0 additions, 0 fixes, 1 behavior changes.
-
-Changed:
-- Allow @u on scheduled events/tasks; rename Jot Uses report to Used Time
-
-Technical:
-- 5 files changed, 41 insertions(+), 19 deletions(-)
