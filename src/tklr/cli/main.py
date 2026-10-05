@@ -32,6 +32,7 @@ from tklr.shared import (
     format_time_range,
     parse,
     parse_month_spec,
+    parse_with_offset,
     round_seconds_to_step_minutes,
 )
 from tklr.tklr_env import TklrEnvironment, collapse_home
@@ -1388,7 +1389,9 @@ def finish(ctx, finish_parts, yes):
     when_text = " ".join(finish_parts[1:]).strip()
     if when_text:
         try:
-            finish_dt = dt_parser.parse(when_text)
+            finish_dt = parse_with_offset(when_text, dt_parser.parse)
+            if not isinstance(finish_dt, datetime):
+                finish_dt = datetime.combine(finish_dt, datetime.min.time())
         except (ValueError, dt_parser.ParserError) as exc:
             print(f"[red]Could not parse finish datetime:[/red] {exc}")
             ctx.exit(1)

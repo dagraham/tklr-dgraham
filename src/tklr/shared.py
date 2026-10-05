@@ -390,6 +390,59 @@ def fmt_user(dt_str: str) -> str:
     return dt.strftime("%Y-%m-%d %H:%M")
 
 
+# "<datetime> + <period>" / "<datetime> - <period>". The period needs at
+# least one unit letter, so date separators ("2026-10-13") never match; a
+# trailing bare number takes the next smaller unit ("17h15" = 17h15m).
+_PERIOD_OFFSET_RE = re.compile(
+    r"^(?P<base>.*?)\s*(?P<sign>[+-])\s*(?P<period>(?:\d+[wdhms])+\d*)\s*$",
+    re.IGNORECASE,
+)
+_PERIOD_UNIT_SECONDS = {"w": 604800, "d": 86400, "h": 3600, "m": 60, "s": 1}
+_NEXT_SMALLER_UNIT = {"w": "d", "d": "h", "h": "m", "m": "s"}
+
+
+def split_period_offset(text: str) -> tuple[str, timedelta | None]:
+    """'today + 90d' -> ('today', 90 days); no offset -> (text, None)."""
+    m = _PERIOD_OFFSET_RE.match((text or "").strip())
+    if not m:
+        return text, None
+    period = m["period"].lower()
+    if period[-1].isdigit():
+        last_unit = re.findall(r"[wdhms]", period)[-1]
+        if last_unit not in _NEXT_SMALLER_UNIT:
+            return text, None
+        period += _NEXT_SMALLER_UNIT[last_unit]
+    seconds = sum(
+        int(n) * _PERIOD_UNIT_SECONDS[u] for n, u in re.findall(r"(\d+)([wdhms])", period)
+    )
+    td = timedelta(seconds=seconds)
+    return m["base"].strip(), (-td if m["sign"] == "-" else td)
+
+
+def parse_with_offset(text: str, base_parser):
+    """
+    Parse `text` with `base_parser`, also accepting "today"/"now" and an
+    optional trailing "+/- <period>". A bare offset ("+2d") is relative to
+    today if the period is whole days, otherwise to now. A date plus a
+    whole-day period stays a date; otherwise the result is a datetime.
+    """
+    base, td = split_period_offset(text)
+    base_lc = (base or "").strip().lower()
+    if base_lc == "today" or (base_lc == "" and td is not None and td.seconds == 0):
+        obj = date.today()
+    elif base_lc in ("now", ""):
+        obj = datetime.now().replace(second=0, microsecond=0)
+    else:
+        obj = base_parser(base)
+    if td is None:
+        return obj
+    if isinstance(obj, date) and not isinstance(obj, datetime):
+        if td.seconds == 0 and td.microseconds == 0:
+            return obj + td
+        obj = datetime.combine(obj, datetime.min.time())
+    return obj + td
+
+
 def parse(s, yearfirst: bool = True, dayfirst: bool = False):
     """
     Parse free-form date/datetime text using the configured ordering rules.
@@ -401,7 +454,7 @@ def parse(s, yearfirst: bool = True, dayfirst: bool = False):
     pi = parserinfo(
         dayfirst=dayfirst, yearfirst=yearfirst
     )  # FIXME: should come from config
-    dt = dateutil_parse(s, parserinfo=pi)
+    dt = parse_with_offset(s, lambda text: dateutil_parse(text, parserinfo=pi))
     if isinstance(dt, date) and not isinstance(dt, datetime):
         return dt
     if isinstance(dt, datetime):

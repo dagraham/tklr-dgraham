@@ -21,7 +21,7 @@ from typing import Iterable, List, Optional, Tuple, Union
 from zoneinfo import ZoneInfo
 
 from dateutil import tz
-from dateutil.parser import parse as parse_dt
+from dateutil.parser import parse as _dateutil_parse
 
 # from dateutil.parser import parse as duparse
 from dateutil.rrule import rruleset, rrulestr
@@ -35,9 +35,15 @@ from .shared import (
     fmt_utc_z,
     log_msg,
     parse_utc_z,
+    parse_with_offset,
     print_msg,
     timedelta_str_to_seconds,
 )
+
+
+def parse_dt(text: str, **kwargs):
+    """dateutil's parse, also accepting today/now and '+/- <period>'."""
+    return parse_with_offset(text, lambda base: _dateutil_parse(base, **kwargs))
 
 local_timezone = get_localzone_name()  # e.g., "America/New_York"
 
