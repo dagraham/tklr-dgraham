@@ -974,17 +974,14 @@ class Controller:
         # construction is too late -- do_b already ran once in "live
         # resolver" mode and won't run again, silently leaving bin_paths
         # empty and stripping the record's bin memberships on save.
+        # With final=True the constructor's parse also runs finalize_record()
+        # (jobs, rrules, @f handling), so don't call it again: a second pass
+        # re-runs finish() and, e.g., increments a goal's @k twice.
         item = Item(new_raw, controller=self, final=True)
         if not getattr(item, "parse_ok", False):
             return False
 
-        # 3) Finalize (jobs, rrules, etc.)
-        item.finalize_record()
-
-        if not getattr(item, "parse_ok", False):
-            return False
-
-        # 4) Save back into the same record (and regen DateTimes, Alerts, etc.)
+        # 3) Save back into the same record (and regen DateTimes, Alerts, etc.)
         self.db_manager.save_record(item, record_id=record_id)
         # 🔁 NEW: record completion if one was produced
         # completion = getattr(item, "completions", None)

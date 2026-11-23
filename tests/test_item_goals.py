@@ -202,3 +202,22 @@ def test_agenda_event_window_respects_config(temp_db_path, test_env):
         assert len(header_rows) == 2
     finally:
         ctrl.db_manager.conn.close()
+
+
+def test_finish_goal_increments_k_by_one(frozen_time, test_controller, item_factory):
+    """Each finish of a goal must advance @k by exactly 1."""
+    item = item_factory("! intervals @s 2025-01-13 @t 3/1w")
+    record_id = test_controller.add_item(item)
+
+    def k_value():
+        rec = test_controller.db_manager.get_record_as_dictionary(record_id)
+        for token in rec["tokens"].split('"token": "')[1:]:
+            text = token.split('"', 1)[0]
+            if text.startswith("@k "):
+                return int(text[3:])
+        return None
+
+    test_controller.finish_task(record_id, job_id=None, when=datetime(2025, 1, 15, 9))
+    assert k_value() == 1
+    test_controller.finish_task(record_id, job_id=None, when=datetime(2025, 1, 15, 10))
+    assert k_value() == 2
