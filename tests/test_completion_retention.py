@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from tklr.item import Item
+from rich.text import Text
 
 
 def _dt(y: int, m: int, d: int, hh: int = 0, mm: int = 0) -> datetime:
@@ -111,18 +112,21 @@ def test_completions_view_omits_midnight_time(test_controller, test_env):
     test_controller.two_digit_year = False
     test_controller.AMPM = True
 
-    completed_local = datetime(2025, 1, 5, 10, 15).astimezone()
-    test_controller.db_manager.add_completion(rid, (completed_local, None))
+    midnight = datetime(2025, 1, 5, 0, 0).astimezone()
+    test_controller.db_manager.add_completion(rid, (midnight, None))
+    morning = datetime(2025, 1, 6, 10, 15).astimezone()
+    test_controller.db_manager.add_completion(rid, (morning, None))
 
     pages, _header = test_controller.get_completions()
     assert pages
     rows, _tag_map = pages[0]
     record_rows = [row for row in rows if "[/not bold]   [" in row]
-    assert record_rows
-    row_text = record_rows[0]
-    assert "[not bold]05-01-2025[/not bold]" in row_text, row_text
-    assert "00:00" not in row_text
-    assert "12a" not in row_text
+    assert len(record_rows) == 2
+    newest, oldest = (Text.from_markup(r).plain for r in record_rows)
+    assert "06-01-2025 10:15a" in newest, newest
+    assert "05-01-2025   ~" in oldest, oldest
+    assert "00:00" not in oldest
+    assert "12a" not in oldest
 
 
 def test_completions_view_keeps_non_midnight_time(test_controller, test_env):

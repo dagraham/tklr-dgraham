@@ -221,3 +221,42 @@ def test_finish_goal_increments_k_by_one(frozen_time, test_controller, item_fact
     assert k_value() == 1
     test_controller.finish_task(record_id, job_id=None, when=datetime(2025, 1, 15, 10))
     assert k_value() == 2
+
+
+def _goal_tokens(test_controller, record_id):
+    import json
+
+    rec = test_controller.db_manager.get_record_as_dictionary(record_id)
+    return {
+        t["k"]: t["token"]
+        for t in json.loads(rec["tokens"])
+        if t.get("t") == "@" and t.get("k") in ("s", "k")
+    }
+
+
+def test_finish_goal_records_amounts_and_drops_overflow(
+    frozen_time, test_controller, item_factory
+):
+    item = item_factory("! steps @s 2025-01-13 @t 30000/1w")
+    rid = test_controller.add_item(item)
+
+    assert test_controller.finish_goal(rid, 7000)
+    assert test_controller.finish_goal(rid, 7000)
+    assert _goal_tokens(test_controller, rid)["k"] == "@k 14000"
+
+    # 14000 + 20000 meets the 30000 target: next week, overflow dropped.
+    assert test_controller.finish_goal(rid, 20000)
+    tokens = _goal_tokens(test_controller, rid)
+    assert "k" not in tokens
+    assert "2025-01-20" in tokens["s"]
+
+    amounts = [row[-1] for row in test_controller.db_manager.get_completions(rid)]
+    assert sorted(amounts) == [7000, 7000, 20000]
+
+
+def test_finish_goal_rejects_non_positive_amount(
+    frozen_time, test_controller, item_factory
+):
+    rid = test_controller.add_item(item_factory("! steps @s 2025-01-13 @t 30000/1w"))
+    assert not test_controller.finish_goal(rid, 0)
+    assert "k" not in _goal_tokens(test_controller, rid)

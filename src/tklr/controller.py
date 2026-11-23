@@ -24,6 +24,7 @@ from packaging.version import parse as parse_version
 
 from . import shared as shared_colors
 from .item import Item, td_to_td_str
+from .item import parse as parse_entry_dt
 from .mask import reveal_mask_tokens
 from .model import DatabaseManager, UrgencyComputer, _fmt_naive, td_str_to_seconds
 from .named_colors import css_named_colors
@@ -1440,7 +1441,74 @@ class Controller:
         except Exception as exc:
             log_msg(f"Unable to record completion for {record_id}: {exc}")
 
+    def finish_goal(
+        self, record_id: int, amount: int = 1, when: datetime | None = None
+    ) -> bool:
+        """
+        Record `amount` toward a goal's current period (@k). When @k reaches
+        the @t target, the period is met: @s advances by one @t period and
+        @k is removed (any excess is dropped -- the target is per period).
+        A Completions row records the amount, stamped `when` (default now).
+        """
+        if amount < 1:
+            return False
+        rec = self.db_manager.get_record_as_dictionary(record_id)
+        if not rec or rec.get("itemtype") != "!":
+            return False
+        when = when or datetime.now()
+        period_start = {}
+
+        def edit_tokens(tokens: list[dict]) -> bool:
+            def find(key):
+                return next(
+                    (t for t in tokens if t.get("t") == "@" and t.get("k") == key),
+                    None,
+                )
+
+            t_tok, s_tok, k_tok = find("t"), find("s"), find("k")
+            if not (t_tok and s_tok):
+                return False
+            try:
+                target_text, period_text = t_tok["token"][2:].strip().split("/")
+                target = int(target_text)
+            except ValueError:
+                return False
+            ok, period_secs = timedelta_str_to_seconds(period_text.strip())
+            start = parse_entry_dt(s_tok["token"][2:].strip())
+            if not ok or start is None:
+                return False
+            period_start["due"] = start
+
+            done = int(k_tok["token"][2:].strip()) if k_tok else 0
+            done += amount
+            if done < target:
+                if k_tok:
+                    k_tok["token"] = f"@k {done}"
+                else:
+                    tokens.insert(
+                        tokens.index(t_tok) + 1,
+                        {"token": f"@k {done}", "t": "@", "k": "k"},
+                    )
+            else:
+                s_tok["token"] = f"@s {self.fmt_user(start + timedelta(seconds=period_secs))}"
+                if k_tok:
+                    tokens.remove(k_tok)
+            return True
+
+        changed = self.apply_token_edit(
+            record_id, edit_tokens, record_completions=False
+        )
+        if changed:
+            due = period_start.get("due")
+            if isinstance(due, date) and not isinstance(due, datetime):
+                due = datetime.combine(due, datetime.min.time())
+            self.db_manager.add_completion(record_id, (when, due), amount=amount)
+        return changed
+
     def finish_task(self, record_id: int, job_id: int | None, when: datetime) -> bool:
+        rec = self.db_manager.get_record_as_dictionary(record_id)
+        if job_id is None and rec and rec.get("itemtype") == "!":
+            return self.finish_goal(record_id, 1, when)
         stamp = self.fmt_user(when)
 
         # ---- Case 1: project job ----
@@ -3836,8 +3904,8 @@ class Controller:
     def _build_completion_items(
         self,
         records: list[
-            tuple[int, str, str, str, datetime | None, datetime]
-            | tuple[int, int, str, str, str, datetime | None, datetime]
+            tuple[int, str, str, str, datetime | None, datetime, int | None]
+            | tuple[int, int, str, str, str, datetime | None, datetime, int | None]
         ],
         *,
         empty_message: str | None = None,
@@ -3866,7 +3934,7 @@ class Controller:
             if idx % 26 == 0:
                 previous_completion_date = None
             completion_id: int | None
-            if len(row) == 7:
+            if len(row) == 8:
                 (
                     completion_id,
                     record_id,
@@ -3875,6 +3943,7 @@ class Controller:
                     itemtype,
                     due_dt,
                     completed_dt,
+                    amount,
                 ) = row
             else:
                 (
@@ -3884,6 +3953,7 @@ class Controller:
                     itemtype,
                     due_dt,
                     completed_dt,
+                    amount,
                 ) = row
                 completion_id = None
 
@@ -3912,6 +3982,9 @@ class Controller:
 
             type_color = TYPE_TO_COLOR.get(itemtype, "white")
             when_frag = f"[not bold]{when_str}[/not bold]"
+            amount_frag = f" +{amount}" if amount is not None else ""
+            if amount_frag:
+                subject = subject.rstrip()
 
             rows.append(
                 {
@@ -3919,7 +3992,7 @@ class Controller:
                     "job_id": None,
                     "datetime_id": completion_id,
                     "instance_ts": due_dt.strftime("%Y%m%dT%H%M") if due_dt else "none",
-                    "text": f"{when_frag}   [{type_color}]{itemtype} {subject}[/{type_color}]",
+                    "text": f"{when_frag}   [{type_color}]{itemtype} {subject}{amount_frag}[/{type_color}]",
                 }
             )
 

@@ -987,12 +987,14 @@ class TextPrompt(ModalScreen[Optional[str]]):
         message: str = "",
         initial: str = "",
         placeholder: str = "",
+        select_initial: bool = False,
     ):
         super().__init__()
         self._title = title or "Input"
         self._message = message.strip()
         self._initial = initial or ""
         self._placeholder = placeholder
+        self._select_initial = select_initial
         self._input: Input | None = None
 
     def compose(self) -> ComposeResult:
@@ -1017,7 +1019,10 @@ class TextPrompt(ModalScreen[Optional[str]]):
     def on_mount(self) -> None:
         self._input = self.query_one("#text_prompt_input", Input)
         self._input.focus()
-        if self._initial:
+        if self._initial and self._select_initial:
+            # Typing replaces the default; Enter alone accepts it.
+            self.call_after_refresh(self._input.select_all)
+        elif self._initial:
             self._input.cursor_position = len(self._initial)
 
     @on(Input.Submitted)
@@ -4475,6 +4480,38 @@ class DynamicViewApp(App):
                     return
                 job = f" {job_id}" if job_id else ""
                 id_part = f"({record_id}{job})"
+
+                if itemtype == "!" and not job_id:
+
+                    def _after_amount(result: str | None) -> None:
+                        if result is None:
+                            return
+                        try:
+                            amount = int(result.strip() or "1")
+                        except ValueError:
+                            amount = 0
+                        if amount < 1:
+                            app.notify(
+                                "Enter a positive whole number.", severity="error"
+                            )
+                            return
+                        ctrl.finish_goal(record_id, amount)
+                        if hasattr(app, "refresh_view"):
+                            app.refresh_view()
+
+                    app.push_screen(
+                        TextPrompt(
+                            "Record completions",
+                            message=(
+                                f"Number of completions to record for "
+                                f"[{LIGHT_SKY_BLUE}]{subject} {id_part}[/{LIGHT_SKY_BLUE}]"
+                            ),
+                            initial="1",
+                            select_initial=True,
+                        ),
+                        callback=_after_amount,
+                    )
+                    return
                 due = (
                     f"\nDue: [{LIGHT_SKY_BLUE}]{fmt_user(first)}[/{LIGHT_SKY_BLUE}]"
                     if first

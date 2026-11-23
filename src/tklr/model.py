@@ -119,9 +119,9 @@ def _fmt_utc(dt_aware_utc: datetime) -> str:
     """
     Format any datetime into the storage key space, preferring UTC when tz-aware.
     """
-    if isinstance(dt_aware_utc, date):
+    if not isinstance(dt_aware_utc, datetime):  # a datetime is also a date
         return _fmt_date(dt_aware_utc)
-    if isinstance(dt_aware_utc, datetime) and dt_aware_utc.tzinfo is None:
+    if dt_aware_utc.tzinfo is None:
         return _fmt_naive(dt_aware_utc)
     return dt_aware_utc.astimezone(tz.UTC).strftime(DT_FMT) + "Z"
 
@@ -1453,9 +1453,16 @@ class DatabaseManager:
                 record_id  INTEGER NOT NULL,
                 completed  TEXT NOT NULL,  -- UTC-aware: "YYYYMMDDTHHMMZ"
                 due        TEXT,           -- optional UTC-aware: "YYYYMMDDTHHMMZ"
+                amount     INTEGER,        -- goals: quantity recorded by this finish
                 FOREIGN KEY(record_id) REFERENCES Records(id) ON DELETE CASCADE
             );
         """)
+        completion_cols = {
+            row[1]
+            for row in self.cursor.execute("PRAGMA table_info(Completions)").fetchall()
+        }
+        if "amount" not in completion_cols:
+            self.cursor.execute("ALTER TABLE Completions ADD COLUMN amount INTEGER")
         self.cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_completions_record_id
             ON Completions(record_id);
@@ -2530,6 +2537,7 @@ class DatabaseManager:
         self,
         record_id: int,
         completion: tuple[datetime, datetime | None],
+        amount: int | None = None,
     ) -> None:
         """Store a completion record as UTC-aware compact strings."""
         if completion is None:
@@ -2540,34 +2548,32 @@ class DatabaseManager:
         due_str = _fmt_utc(due_dt) if due_dt else None
 
         # Idempotency guard: avoid duplicate completion rows when finish flows
-        # pass through multiple completion-recording paths.
-        self.cursor.execute(
-            """
-            SELECT 1
-            FROM Completions
-            WHERE record_id = ?
-              AND completed = ?
-              AND (
-                    (due IS NULL AND ? IS NULL)
-                    OR due = ?
-                  )
-            LIMIT 1
-            """,
-            (record_id, completed_str, due_str, due_str),
-        )
-        if self.cursor.fetchone():
-            return
+        # pass through multiple completion-recording paths. Not for goal
+        # amounts: two separate entries in the same minute are both real.
+        if amount is None:
+            self.cursor.execute(
+                """
+                SELECT 1
+                FROM Completions
+                WHERE record_id = ?
+                  AND completed = ?
+                  AND (
+                        (due IS NULL AND ? IS NULL)
+                        OR due = ?
+                      )
+                LIMIT 1
+                """,
+                (record_id, completed_str, due_str, due_str),
+            )
+            if self.cursor.fetchone():
+                return
 
         self.cursor.execute(
             """
-            INSERT INTO Completions (record_id, completed, due)
-            VALUES (?, ?, ?)
+            INSERT INTO Completions (record_id, completed, due, amount)
+            VALUES (?, ?, ?, ?)
             """,
-            (
-                record_id,
-                completed_str,
-                due_str,
-            ),
+            (record_id, completed_str, due_str, amount),
         )
         self._prune_completion_history_if_needed(record_id)
         self.commit()
@@ -2624,7 +2630,7 @@ class DatabaseManager:
         Return all completions for a given record, sorted newest first.
 
         Returns:
-            [(record_id, subject, description, itemtype, due_dt, completed_dt)]
+            [(record_id, subject, description, itemtype, due_dt, completed_dt, amount)]
         """
         self.cursor.execute(
             """
@@ -2634,7 +2640,8 @@ class DatabaseManager:
                 r.description,
                 r.itemtype,
                 c.due,
-                c.completed
+                c.completed,
+                c.amount
             FROM Completions c
             JOIN Records r ON c.record_id = r.id
             WHERE r.id = ?
@@ -2651,8 +2658,9 @@ class DatabaseManager:
                 itype,
                 parse_utc_z(due) if due else None,
                 parse_utc_z(comp),
+                amount,
             )
-            for (rid, subj, desc, itype, due, comp) in rows
+            for (rid, subj, desc, itype, due, comp, amount) in rows
         ]
 
     def get_all_completions(self):
@@ -2660,7 +2668,7 @@ class DatabaseManager:
         Return all completions across all records, newest first.
 
         Rows:
-            [(record_id, subject, description, itemtype, due_dt, completed_dt)]
+            [(record_id, subject, description, itemtype, due_dt, completed_dt, amount)]
         """
         self.cursor.execute(
             """
@@ -2670,7 +2678,8 @@ class DatabaseManager:
                 r.description,
                 r.itemtype,
                 c.due,
-                c.completed
+                c.completed,
+                c.amount
             FROM Completions c
             JOIN Records r ON c.record_id = r.id
             ORDER BY c.completed DESC
@@ -2685,8 +2694,9 @@ class DatabaseManager:
                 itype,
                 parse_utc_z(due) if due else None,
                 parse_utc_z(comp),
+                amount,
             )
-            for (rid, subj, desc, itype, due, comp) in rows
+            for (rid, subj, desc, itype, due, comp, amount) in rows
         ]
 
     def get_all_completions_with_ids(self):
@@ -2694,7 +2704,7 @@ class DatabaseManager:
         Return all completions across all records, newest first.
 
         Rows:
-            [(completion_id, record_id, subject, description, itemtype, due_dt, completed_dt)]
+            [(completion_id, record_id, subject, description, itemtype, due_dt, completed_dt, amount)]
         """
         self.cursor.execute(
             """
@@ -2705,7 +2715,8 @@ class DatabaseManager:
                 r.description,
                 r.itemtype,
                 c.due,
-                c.completed
+                c.completed,
+                c.amount
             FROM Completions c
             JOIN Records r ON c.record_id = r.id
             ORDER BY c.completed DESC, c.id DESC
@@ -2721,8 +2732,9 @@ class DatabaseManager:
                 itype,
                 parse_utc_z(due) if due else None,
                 parse_utc_z(comp),
+                amount,
             )
-            for (completion_id, rid, subj, desc, itype, due, comp) in rows
+            for (completion_id, rid, subj, desc, itype, due, comp, amount) in rows
         ]
 
     def delete_completion(self, completion_id: int) -> bool:

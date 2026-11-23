@@ -1373,7 +1373,8 @@ def query(ctx, query_parts, limit, ids, rich):
 @click.pass_context
 def finish(ctx, finish_parts, yes):
     """
-    Mark a reminder finished, providing the id and, optionally, the completion datetime.
+    Mark a reminder finished, providing the id and, optionally, the completion
+    datetime -- or, for a goal, the number of completions to record (default 1).
     """
     if not finish_parts:
         print("[red]Enter the record id to finish.[/red]")
@@ -1385,6 +1386,39 @@ def finish(ctx, finish_parts, yes):
     except ValueError:
         print(f"[red]Invalid record id:[/red] {id_text!r}")
         ctx.exit(1)
+
+    env = ctx.obj["ENV"]
+    db_path = ctx.obj["DB"]
+    controller = Controller(db_path, env)
+
+    record = controller.db_manager.get_record_as_dictionary(record_id)
+    if not record:
+        print(f"[red]No record found with id {record_id}.[/red]")
+        ctx.exit(1)
+    subject = record.get("subject") or "(untitled)"
+
+    if record.get("itemtype") == "!":
+        amount_text = " ".join(finish_parts[1:]).strip() or "1"
+        try:
+            amount = int(amount_text)
+        except ValueError:
+            amount = 0
+        if amount < 1:
+            print(
+                f"[red]For a goal, give the number of completions to record "
+                f"(a positive whole number), not[/red] {amount_text!r}"
+            )
+            ctx.exit(1)
+        prompt = f"Record {amount} for goal {record_id}: {subject!r}?"
+        if not _confirm_apply(ctx, prompt, yes):
+            print("[yellow]Finish cancelled.[/yellow]")
+            return
+        if not controller.finish_goal(record_id, amount):
+            print("[red]Finish failed;[/red] the goal needs both @s and @t.")
+            ctx.exit(1)
+        controller.db_manager.populate_dependent_tables()
+        print(f"[green]✔ Recorded[/green] {amount} for {subject!r} ({record_id})")
+        return
 
     when_text = " ".join(finish_parts[1:]).strip()
     if when_text:
@@ -1398,16 +1432,6 @@ def finish(ctx, finish_parts, yes):
     else:
         finish_dt = datetime.now()
 
-    env = ctx.obj["ENV"]
-    db_path = ctx.obj["DB"]
-    controller = Controller(db_path, env)
-
-    record = controller.db_manager.get_record_as_dictionary(record_id)
-    if not record:
-        print(f"[red]No record found with id {record_id}.[/red]")
-        ctx.exit(1)
-
-    subject = record.get("subject") or "(untitled)"
     finish_label = controller.fmt_user(finish_dt)
 
     prompt = f"Finish {record_id}: {subject!r}\nat {finish_label}?"

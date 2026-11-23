@@ -419,12 +419,12 @@ It is worth noting the different roles of two attributes in events and tasks.
 </div>
 <div style="clear:both;"></div>
 
-When a *goal* is created, the attribute `@k 0` is automatically added to indicate that the current *completion count* is zero. When a completion is recorded for the *goal*, this count is automatically increased by one. This process continues until
+When a *goal* is created, the attribute `@k 0` is automatically added to indicate that the current *completion count* is zero. Finishing a *goal* asks for the number of completions to record, 1 by default, and adds it to this count. Larger numbers make quantity goals possible: with `@t 30000/1w` for steps, finishing with 7000 records 7000 steps. From the command line, `tklr finish <id> 7000` does the same. Each entry, with its amount, is listed in *Completions View*. This process continues until
 
 1. the period allowed for completing the goal expires or
 2. the completion count reaches the target number of completions
 
-In either case, `@k` is reset to zero and `@s` is reset to the previous value *plus* the period allowed for completion of the goal, i.e, to the *end* of the period originally allowed for completion.
+In either case, `@k` is reset to zero and `@s` is reset to the previous value *plus* the period allowed for completion of the goal, i.e, to the *end* of the period originally allowed for completion. Any amount beyond the target is not carried over: the target applies to each period separately.
 
 #### 1.2.10. A _jot_: taking a walk
 
