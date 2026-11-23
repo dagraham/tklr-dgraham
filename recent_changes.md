@@ -1,5 +1,21 @@
 # Recent Changes
 
+## 1.0.51 — 2026-11-23
+
+Since 1.0.50:
+
+Why upgrade:
+- 0 additions, 1 fixes, 1 behavior changes.
+
+Fixed:
+- Fix finishing a goal incrementing @k by 2
+
+Changed:
+- Record an amount when finishing a goal instead of a datetime
+
+Technical:
+- 7 files changed, 272 insertions(+), 67 deletions(-)
+
 ## 1.0.50 — 2026-10-05
 
 Since 1.0.49:
@@ -26,17 +42,3 @@ Changed:
 
 Technical:
 - 4 files changed, 69 insertions(+), 14 deletions(-)
-
-## 1.0.48 — 2026-09-16
-
-Since 1.0.47:
-
-Why upgrade:
-- 0 additions, 2 fixes, 0 behavior changes.
-
-Fixed:
-- Fix repeating project cancelled when its last job finishes
-- Fix stale DateTimes row when @s is removed; display symlinked TKLR_HOME as-is
-
-Technical:
-- 4 files changed, 62 insertions(+), 23 deletions(-)
