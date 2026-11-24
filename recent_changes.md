@@ -1,5 +1,18 @@
 # Recent Changes
 
+## 1.0.52 — 2026-11-24
+
+Since 1.0.51:
+
+Why upgrade:
+- 1 additions, 0 fixes, 0 behavior changes.
+
+Added:
+- Add HTML agenda for phones and make current_command actually run
+
+Technical:
+- 7 files changed, 179 insertions(+), 9 deletions(-)
+
 ## 1.0.51 — 2026-11-23
 
 Since 1.0.50:
@@ -28,17 +41,3 @@ Changed:
 
 Technical:
 - 4 files changed, 116 insertions(+), 3 deletions(-)
-
-## 1.0.49 — 2026-10-01
-
-Since 1.0.48:
-
-Why upgrade:
-- 0 additions, 0 fixes, 2 behavior changes.
-
-Changed:
-- Treat @g links with a scheme but no host as URLs
-- Explain available/waiting/finished counts shown for project tasks
-
-Technical:
-- 4 files changed, 69 insertions(+), 14 deletions(-)
