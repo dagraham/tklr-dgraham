@@ -1357,11 +1357,14 @@ There are two ways in which *tklr* supports remote usage through the the <em>clo
 
 #### 2.16.1. To access to your schedule
 
-With this entry in <em>config.toml</em> in your home directory:
+With these entries in <em>config.toml</em> in your home directory:
 
-<code>current_command = "!tklr agenda --width 46"</code>
+<pre><code>current_command = "agenda --html"
+current_path = "~/Library/Mobile Documents/com~apple~CloudDocs/agenda.html"</code></pre>
 
-<em>tklr</em> will automatically output the result of the <code>agenda</code> command to the file <em>current.txt</em> in your home directory, creating the file if necessary and otherwise overwriting it whenever it needs to be updated. With a link to your home directory in <em>iCloud</em>, your agenda, trimmed to 46 characters to fit comfortably on your <em>iPhone</em> screen in portrait mode, will always be available to you. The same approach could be used with <code>weeks</code>, <code>days</code> or any other <em>tklr</em> command. The application <em>Textastic</em> is ideal for displaying the monospaced output and works well with <em>iCloud</em> files.
+<em>tklr</em> will write your agenda as a web page to that file in <em>iCloud Drive</em> when the <em>tklr</em> UI starts and then, while it is running, whenever a reminder is added or changed and at the start of each day. On your <em>iPhone</em>, open <em>agenda.html</em> in the <em>Files</em> app or <em>Safari</em> and, from <em>Safari</em>, add it to your Home Screen for one-tap access. Tap any reminder to expand its details, including any <code>@g</code> link, and tap again to collapse it. The values of masked <code>@m</code> fields are not included in the page.
+
+<code>current_command</code> can be any <em>tklr</em> command, e.g., <code>"agenda --width 46"</code> or <code>"days --end 8 --width 46"</code> for plain text, and <code>current_path</code> defaults to <em>current.txt</em> in your home directory. A <code>current_path</code> that is not absolute is taken relative to your home directory. Prefix <code>current_command</code> with <code>!</code> to run a command other than <em>tklr</em>.
 
 #### 2.16.2. To record reminders
 

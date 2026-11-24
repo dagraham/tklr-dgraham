@@ -563,8 +563,14 @@ def check(ctx, entry):
     is_flag=True,
     help="Append record ids in parentheses for each reminder row.",
 )
+@click.option(
+    "--html",
+    "as_html",
+    is_flag=True,
+    help="Output a self-contained HTML page; tap a reminder to show its details.",
+)
 @click.pass_context
-def agenda(ctx, width, rich, ids):
+def agenda(ctx, width, rich, ids, as_html):
     """
     Display the current agenda: events for the next 3 days with drafts and notices along with tasks ordered by urgency.
 
@@ -577,6 +583,18 @@ def agenda(ctx, width, rich, ids):
     db = ctx.obj["DB"]
     verbose = ctx.obj["VERBOSE"]
 
+    if as_html:
+        import contextlib
+        import io
+
+        from tklr.agenda_html import build_agenda_html
+
+        # Stray status prints (e.g. cache warnings) would corrupt the page
+        # when current_command captures stdout to a file.
+        with contextlib.redirect_stdout(io.StringIO()):
+            page = build_agenda_html(Controller(db, env))
+        sys.stdout.write(page)
+        return
     controller = Controller(db, env)
     rows = controller.get_agenda(yield_rows=True)
     rich = _resolve_rich_output(env, rich)
@@ -2250,3 +2268,7 @@ def jots_report(ctx, months, use_filter, verbose):
     env = ctx.obj["ENV"]
     db_path = ctx.obj["DB"]
     _emit_jot_uses_report(env, db_path, months, use_filter, verbose, tag_pad="  ")
+
+
+if __name__ == "__main__":
+    cli()

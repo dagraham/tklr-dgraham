@@ -83,6 +83,7 @@ class UIConfig(BaseModel):
     timer_urgent_minutes: int = 180
     palette: Dict[str, Dict[str, str]] = Field(default_factory=dict)
     current_command: str = ""
+    current_path: str = "current.txt"
 
     @field_validator("minutes")
     @classmethod
@@ -243,9 +244,14 @@ timer_urgent_minutes = {{ ui.timer_urgent_minutes }}
 # current_command: optional CLI snippet to run after saving changes in the UI.
 # Example: 'days --end 8 --width 46'
 # Prefix with '!' to run a standalone command/script (no automatic 'tklr').
-# The output of this command will be written to "current.txt" in the Tklr home
-# directory.
+# The output of this command is written to current_path (below).
 current_command = "{{ ui.current_command }}"
+
+# current_path: where current_command's output is written. A relative path is
+# taken relative to the Tklr home directory; "~" is expanded. E.g., to keep an
+# agenda page in iCloud for your phone, set current_command = "agenda --html"
+# and current_path = "~/Library/Mobile Documents/com~apple~CloudDocs/agenda.html"
+current_path = "{{ ui.current_path }}"
 
 # dayfirst and yearfirst settings
 # These settings are used to resolve ambiguous date entries involving

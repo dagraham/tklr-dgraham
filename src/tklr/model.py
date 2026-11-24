@@ -2174,7 +2174,9 @@ class DatabaseManager:
         work_done |= self._maybe_populate_urgency(today_key, schedule_version, force)
 
         self._set_state_value("logic_version", DB_LOGIC_VERSION)
-        self.after_save_needed = False
+        # Leave after_save_needed alone: it means "run current_command" and
+        # is cleared by Controller.consume_after_save_command(). Clearing it
+        # here cancelled that run after every save (and at startup).
         return work_done
 
     def find_records_missing_datetimes(self) -> list[tuple[int, str, str]]:

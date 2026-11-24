@@ -5120,13 +5120,19 @@ class DynamicViewApp(App):
             home = Path.home() / ".config" / "tklr"
         else:
             home = Path(home)
-        return home / "current.txt"
+        ui = getattr(getattr(self.controller.env, "config", None), "ui", None)
+        target = Path(getattr(ui, "current_path", "") or "current.txt").expanduser()
+        return target if target.is_absolute() else home / target
 
     def _write_current_output(self, data: bytes) -> None:
         path = self._current_output_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         text = data.decode("utf-8", errors="replace")
-        path.write_text(text, encoding="utf-8")
+        # Write then rename, so a syncing service (iCloud, Dropbox) never
+        # picks up a half-written file.
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(text, encoding="utf-8")
+        tmp.replace(path)
 
     async def _run_current_command(self, args: list[str], display: str) -> None:
         env = os.environ.copy()
