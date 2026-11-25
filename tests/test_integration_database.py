@@ -116,7 +116,10 @@ class TestDatabaseOperations:
             )
             assert s_token is not None
 
-            expected = test_controller.fmt_user(date(2026, 4, 25))
+            # The overdue 2026-02-25 occurrence is the one finished, so @s
+            # advances to the next one (it used to skip to 04-25 because the
+            # windowed DateTimes rebuild dropped the overdue anchor).
+            expected = test_controller.fmt_user(date(2026, 3, 25))
             assert s_token.get("token") == f"@s {expected}"
 
 

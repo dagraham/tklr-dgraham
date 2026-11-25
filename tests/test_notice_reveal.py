@@ -26,3 +26,20 @@ def test_notice_hidden_task_appears_when_window_opens(
     assert rid in _agenda_record_ids(test_controller)
     assert db.urgency_revealed_between(later - 3 * 3600, later)
     assert not db.urgency_revealed_between(later, later + 60)
+
+
+def test_repeating_task_due_beyond_window_stays_hidden(test_controller, item_factory):
+    # First occurrence ~11 months out: beyond the 12-week DateTimes window.
+    due = (datetime.now() + timedelta(days=330)).strftime("%Y-%m-%d")
+    item = item_factory(f"~ yearly @s {due} @r y @n 14d")
+    assert item.parse_ok, item.parse_message
+    rid = test_controller.add_item(item)
+    db = test_controller.db_manager
+
+    # The weekly windowed regeneration must keep the due anchor.
+    now = datetime.now()
+    db.generate_datetimes_for_period(now, now + timedelta(weeks=12))
+    db.populate_urgency_from_record(rid)
+
+    assert db._next_start_seconds(rid) is not None
+    assert rid not in _agenda_record_ids(test_controller)

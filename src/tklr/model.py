@@ -1137,7 +1137,7 @@ class UrgencyComputer:
 
 # Increment this whenever a code change requires a forced rebuild of derived
 # tables (DateTimes, alerts, notice, busy weeks, urgency) on next startup.
-DB_LOGIC_VERSION = 2  # 2: Urgency.visible_from
+DB_LOGIC_VERSION = 3  # 2: Urgency.visible_from; 3: keep repeating-task anchor
 
 
 class DatabaseManager:
@@ -2180,7 +2180,10 @@ class DatabaseManager:
         work_done |= self._maybe_refresh_busy_tables(force)
         work_done |= self._maybe_populate_urgency(today_key, schedule_version, force)
 
-        self._set_state_value("logic_version", DB_LOGIC_VERSION)
+        if self._get_state_value("logic_version") != DB_LOGIC_VERSION:
+            self._set_state_value("logic_version", DB_LOGIC_VERSION)
+            # Persist it, or every launch repeats the full rebuild.
+            self.conn.commit()
         # Leave after_save_needed alone: it means "run current_command" and
         # is cleared by Controller.consume_after_save_command(). Clearing it
         # here cancelled that run after every save (and at startup).
@@ -3920,6 +3923,16 @@ class DatabaseManager:
                         if hi.tzinfo is None:
                             hi = hi.replace(tzinfo=tz.UTC)
                         occs = rule.between(lo, hi, inc=True)
+                    # A repeating task's first occurrence is its due anchor
+                    # (Urgency and @n hiding key off it); keep it even when
+                    # it lies outside the window, e.g. more than 12 weeks out.
+                    if itemtype == "~":
+                        try:
+                            first = rule[0]
+                        except (IndexError, TypeError):
+                            first = None
+                        if first is not None and first not in occs:
+                            yield first
                     for cur in occs:
                         yield cur
                 else:
