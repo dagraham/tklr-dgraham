@@ -1,5 +1,18 @@
 # Recent Changes
 
+## 1.0.54 — 2026-11-25
+
+Since 1.0.53:
+
+Why upgrade:
+- 0 additions, 0 fixes, 1 behavior changes.
+
+Changed:
+- Keep a repeating task's due date when DateTimes is rebuilt
+
+Technical:
+- 3 files changed, 36 insertions(+), 3 deletions(-)
+
 ## 1.0.53 — 2026-11-25
 
 Since 1.0.52:
@@ -26,19 +39,3 @@ Added:
 
 Technical:
 - 7 files changed, 179 insertions(+), 9 deletions(-)
-
-## 1.0.51 — 2026-11-23
-
-Since 1.0.50:
-
-Why upgrade:
-- 0 additions, 1 fixes, 1 behavior changes.
-
-Fixed:
-- Fix finishing a goal incrementing @k by 2
-
-Changed:
-- Record an amount when finishing a goal instead of a datetime
-
-Technical:
-- 7 files changed, 272 insertions(+), 67 deletions(-)
