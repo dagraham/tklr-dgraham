@@ -1,5 +1,19 @@
 # Recent Changes
 
+## 1.0.53 — 2026-11-25
+
+Since 1.0.52:
+
+Why upgrade:
+- 0 additions, 0 fixes, 2 behavior changes.
+
+Changed:
+- Show @n-hidden tasks when their notice window opens
+- note current_path = "agenda.html" for a synced tklr home
+
+Technical:
+- 4 files changed, 105 insertions(+), 39 deletions(-)
+
 ## 1.0.52 — 2026-11-24
 
 Since 1.0.51:
@@ -28,16 +42,3 @@ Changed:
 
 Technical:
 - 7 files changed, 272 insertions(+), 67 deletions(-)
-
-## 1.0.50 — 2026-10-05
-
-Since 1.0.49:
-
-Why upgrade:
-- 0 additions, 0 fixes, 1 behavior changes.
-
-Changed:
-- Accept "<datetime> +/- <period>" wherever a datetime is entered
-
-Technical:
-- 4 files changed, 116 insertions(+), 3 deletions(-)
