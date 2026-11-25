@@ -1137,7 +1137,7 @@ class UrgencyComputer:
 
 # Increment this whenever a code change requires a forced rebuild of derived
 # tables (DateTimes, alerts, notice, busy weeks, urgency) on next startup.
-DB_LOGIC_VERSION = 1
+DB_LOGIC_VERSION = 2  # 2: Urgency.visible_from
 
 
 class DatabaseManager:
@@ -1434,9 +1434,16 @@ class DatabaseManager:
                 color     TEXT,                                 -- optional precomputed color
                 status    TEXT    NOT NULL,                     -- "next","waiting","scheduled",…
                 weights   TEXT,                                 -- JSON of component weights (optional)
+                visible_from INTEGER,                           -- epoch secs; hidden before (@n)
                 FOREIGN KEY (record_id) REFERENCES Records(id) ON DELETE CASCADE
             );
         """)
+        urgency_cols = {
+            row[1]
+            for row in self.cursor.execute("PRAGMA table_info(Urgency)").fetchall()
+        }
+        if "visible_from" not in urgency_cols:
+            self.cursor.execute("ALTER TABLE Urgency ADD COLUMN visible_from INTEGER")
         self.cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_urgency_record
             ON Urgency(record_id);
@@ -4323,10 +4330,20 @@ class DatabaseManager:
             ON fd.record_id = u.record_id
             AND COALESCE(fd.job_id, -1) = COALESCE(u.job_id, -1)
             WHERE r.itemtype != 'x'
+              AND (u.visible_from IS NULL OR u.visible_from <= ?)
             ORDER BY pinned DESC, u.urgency DESC, u.id ASC
-            """
+            """,
+            (utc_now_to_seconds(),),
         )
         return self.cursor.fetchall()
+
+    def urgency_revealed_between(self, after: int, until: int) -> bool:
+        """True if some hidden (@n) task's notice window opened in (after, until]."""
+        row = self.cursor.execute(
+            "SELECT 1 FROM Urgency WHERE visible_from > ? AND visible_from <= ? LIMIT 1",
+            (after, until),
+        ).fetchone()
+        return row is not None
 
     def get_urgency_entry(
         self,
@@ -4354,13 +4371,14 @@ class DatabaseManager:
                     subject
                 FROM Urgency
                 WHERE record_id = ?
+                  AND (visible_from IS NULL OR visible_from <= ?)
                 ORDER BY
                     CASE WHEN job_id IS NULL THEN 0 ELSE 1 END,
                     urgency DESC,
                     id ASC
                 LIMIT 1
                 """,
-                (record_id,),
+                (record_id, utc_now_to_seconds()),
             )
         else:
             self.cursor.execute(
@@ -4374,10 +4392,11 @@ class DatabaseManager:
                     subject
                 FROM Urgency
                 WHERE record_id = ? AND job_id = ?
+                  AND (visible_from IS NULL OR visible_from <= ?)
                 ORDER BY id ASC
                 LIMIT 1
                 """,
-                (record_id, job_id),
+                (record_id, job_id, utc_now_to_seconds()),
             )
         return self.cursor.fetchone()
 
@@ -4954,9 +4973,11 @@ class DatabaseManager:
                 elif job_due is None and s_seconds:
                     job_due = now_seconds - s_seconds
 
-                if job_due and notice_seconds:
-                    if job_due - notice_seconds > now_seconds:
-                        continue
+                # Hidden until the @n notice window opens. Stored anyway, with
+                # visible_from, so Agenda shows it on time without a rebuild.
+                visible_from = None
+                if job_due and notice_seconds and job_due - notice_seconds > now_seconds:
+                    visible_from = job_due - notice_seconds
 
                 job_extent = td_str_to_seconds(job.get("e", "0m"))
                 blocking = blocking_counts.get(job_id, 0)
@@ -4977,8 +4998,8 @@ class DatabaseManager:
 
                 self.cursor.execute(
                     """
-                    INSERT INTO Urgency (record_id, job_id, subject, urgency, color, status, weights)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO Urgency (record_id, job_id, subject, urgency, color, status, weights, visible_from)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         record_id,
@@ -4988,45 +5009,49 @@ class DatabaseManager:
                         color,
                         status,
                         json.dumps(weights),
+                        visible_from,
                     ),
                 )
 
         else:
-            hide = (
+            # Hidden until the @n notice window opens. Stored anyway, with
+            # visible_from, so Agenda shows it on time without a rebuild.
+            visible_from = None
+            if (
                 due_seconds
                 and notice_seconds
                 and due_seconds - notice_seconds > now_seconds
+            ):
+                visible_from = due_seconds - notice_seconds
+            urgency, color, weights = self.compute_urgency.from_args_and_weights(
+                now=now_seconds,
+                created=created_seconds,
+                modified=modified_seconds,
+                due=due_seconds,
+                extent=extent_seconds,
+                priority_level=priority_level,
+                tags=tags_count,
+                description=description,
+                jobs=False,
+                pinned=pinned,
             )
-            if not hide:
-                urgency, color, weights = self.compute_urgency.from_args_and_weights(
-                    now=now_seconds,
-                    created=created_seconds,
-                    modified=modified_seconds,
-                    due=due_seconds,
-                    extent=extent_seconds,
-                    priority_level=priority_level,
-                    tags=tags_count,
-                    description=description,
-                    jobs=False,
-                    pinned=pinned,
-                )
 
-                self.cursor.execute(
-                    """
-                    INSERT INTO Urgency (record_id, job_id, subject, urgency, color, status, weights)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        record_id,
-                        None,
-                        subject,
-                        urgency,
-                        color,
-                        # record.get("status", "next"),
-                        "next",
-                        json.dumps(weights),
-                    ),
-                )
+            self.cursor.execute(
+                """
+                INSERT INTO Urgency (record_id, job_id, subject, urgency, color, status, weights, visible_from)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    record_id,
+                    None,
+                    subject,
+                    urgency,
+                    color,
+                    "next",
+                    json.dumps(weights),
+                    visible_from,
+                ),
+            )
 
         self.commit()
 

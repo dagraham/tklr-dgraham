@@ -4151,6 +4151,7 @@ class DynamicViewApp(App):
         self.today: date | None = None
         self.run_daily_tasks(refresh=False)
         self._last_inbox_check = datetime.min
+        self._last_reveal_check = int(time.time())
         self._current_command_task: asyncio.Task | None = None
         self._jot_use_month_spec: str | None = None
         self._jot_use_filter: str | None = None
@@ -5077,6 +5078,16 @@ class DynamicViewApp(App):
                 f"checking for updates: {now.hour = }, {now.minute = }, {now.second = }"
             )
             self._apply_update_indicator(check_update_available(VERSION))
+
+        ## A hidden (@n) task's notice window opened: show it now
+        now_ts = int(time.time())
+        if self.controller.db_manager.urgency_revealed_between(
+            self._last_reveal_check, now_ts
+        ):
+            self.controller.db_manager.after_save_needed = True  # current_command
+            if self.view == "agenda":
+                self.action_show_agenda()
+        self._last_reveal_check = now_ts
 
         ## Check alerts every 10 minutes
         if now.minute % 10 == 0 and now.second == 0:
