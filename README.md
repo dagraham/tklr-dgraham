@@ -1366,6 +1366,8 @@ current_path = "~/Library/Mobile Documents/com~apple~CloudDocs/agenda.html"</cod
 
 <code>current_command</code> can be any <em>tklr</em> command, e.g., <code>"agenda --width 46"</code> or <code>"days --end 8 --width 46"</code> for plain text, and <code>current_path</code> defaults to <em>current.txt</em> in your home directory. A <code>current_path</code> that is not absolute is taken relative to your home directory. Prefix <code>current_command</code> with <code>!</code> to run a command other than <em>tklr</em>.
 
+If your <em>tklr</em> home directory is in <em>Google Drive</em>, or any other synced folder, there is no need for a separate path: <code>current_path = "agenda.html"</code> puts the page in your home directory, and the <em>Google Drive</em> app on your <em>iPhone</em> will display it.
+
 #### 2.16.2. To record reminders
 
 The key here is parallel file, <em>inbox.txt</em>, in your home directory. Normally this file has zero length, but if you edit it using, say, <em>Textastic</em> and record one or more reminders using exactly the same format that you would use with <em>tklr</em> and being careful to leave a blank line between reminders, then the next time <em>tklr</em> checks the length of this file and notices that it is greater than zero, it will import each of the reminders.  
