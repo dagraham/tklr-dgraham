@@ -69,7 +69,7 @@ class PriorityConfig(RootModel[dict[str, float]]):
 
 # ─── Config Schema ─────────────────────────────────────────────────
 class UIConfig(BaseModel):
-    theme: str = Field("dark", pattern="^(dark|light)$")
+    theme: str = Field("dark", pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
     show_completed: bool = True
     ampm: bool = False
     dayfirst: bool = False
@@ -208,7 +208,10 @@ num_logs = {{ num_logs }}
 alert_horizon = "{{ alert_horizon }}"
 
 [ui]
-# theme: str = 'dark' | 'light'
+# theme: str = name of a theme. Built in: dark, light, nord, gruvbox-dark,
+# gruvbox-light, solarized-dark, solarized-light, catppuccin-mocha,
+# catppuccin-latte. Add your own as $TKLR_HOME/themes/<name>.toml (see README).
+# The Style view (S) lists all themes; press t there to try the next one.
 theme = "{{ ui.theme }}"
 
 # ampm: bool = true | false
@@ -286,7 +289,11 @@ two_digit_year = {{ ui.two_digit_year | lower }}
 # event_color, available_color, task_color, waiting_color, finished_color,
 # note_color, pastdue_color, notice_color, goal_color, draft_color,
 # bin_color, active_bin_color, chore_color, jot_color, jot_none, jot_extent,
-# jot_use, jot_full, urgency_min_color, urgency_max_color, goal_min_color, goal_max_color
+# jot_use, jot_full, urgency_min_color, urgency_max_color, goal_min_color,
+# goal_max_color, title_color, footer_color, dim_style, busy_color,
+# conflict_color, allday_color, busy_header_color, match_color, status_info,
+# status_warning, status_error
+# The table name is the theme name, e.g. [ui.palette.nord].
 #
 # [ui.palette.dark]
 # header_color = "#1f4b7a"

@@ -1,17 +1,13 @@
+/* tklr window styles, shared by every theme.
+   Colours are the $tklr-* variables from the [ui] table of the active theme
+   (see themes/dark.toml); themes.py lists what each one is for. */
+
 /* ── Screen ───────────────────────────────────────── */
 Screen {
   layout: vertical;
-  background: #373737 100%;
+  background: $tklr-background 100%;
   opacity: 100%;
 }
-
-/* Screen, */
-/* SafeScreen, */
-/* ScrollableList, */
-/* ListWithDetails { */
-/*   layout: vertical; */
-/*   background: #373737; */
-/* } */
 
 /* ── Titles ───────────────────────────────────────── */
 #table_title,
@@ -24,8 +20,8 @@ Screen {
 #dt_title,
 #ed_title,
 #bins_title {
-  color: white;
-  border-bottom: solid #7f7f7f;
+  color: $tklr-foreground;
+  border-bottom: solid $tklr-rule;
   text-style: bold;
   text-align: center;
   padding: 1 1 0 1;
@@ -43,18 +39,20 @@ ScrollView {
 }
 
 #custom_footer {
-  color: white;
+  color: $tklr-foreground;
   text-style: bold;
-  border-top: #7f7f7f;
+  border-top: $tklr-rule;
   padding: 0 1 1 1;
 }
+
 /* ── Details Pane ───────────────────────────── */
 #details-pane {
   dock: bottom;
   layout: vertical; /* header then body */
-  border-top: heavy #7f7f7f; /* optional separator */
+  border-top: heavy $tklr-rule;
   height: 14; /* fixed: 2 rows for header + 12 for body */
   padding: 0 1 1 1;
+  background: $tklr-surface;
 }
 
 #details-pane.hidden {
@@ -67,22 +65,25 @@ ScrollView {
   overflow: hidden;
   text-overflow: ellipsis;
   padding: 0 1;
+  color: $tklr-text;
 }
 
 #details-body {
   height: 1fr; /* fills remaining space in the pane */
   border: none;
+  color: $tklr-text;
 }
 
 #details-body-content {
   border: none;
 }
 
-/* (Optional) Help panel styles you already had */
+/* Help panel */
 #help_panel {
   width: 100%;
   height: 100%;
-  border: solid #7f7f7f;
+  border: solid $tklr-rule;
+  background: $tklr-background;
 }
 #help_layout {
   height: 1fr;
@@ -92,59 +93,45 @@ ScrollView {
 }
 
 .dim-rule {
-  color: #7f7f7f;
+  color: $tklr-dim-rule;
+  background: $tklr-message-background;
   height: 1;
 }
 
-/* ---- DatetimePrompt Layout ---- */
-
-/* Padding Supply 1, 2 or 4 integers separated by a space */
-/*       e.g. padding: 1; */
-/*       e.g. padding: 1 2;     # Vertical, horizontal */
-/*       e.g. padding: 1 2 3 4; # Top, right, bottom, left */
-
+/* ── Prompts (datetime, editor, use) ──────────────── */
 /* Title bar FOR ALL TITLES */
 .title-class {
   text-align: center;
-  color: white;
+  color: $tklr-foreground;
   text-style: bold;
-  border-bottom: solid #7f7f7f;
-  /* background: #373737; */
+  border-bottom: solid $tklr-rule;
 }
 
-/* Horizontal rule */
-.dim-rule {
-  color: #555555;
-  background: #373737;
-}
-
-/* Live feedback (“→ parsed datetime”) */
+/* Live feedback ("→ parsed datetime") */
 #dt_feedback {
-  color: limegreen;
+  color: $tklr-accent;
   padding: 0 1;
 }
+
 /* Message block just under the title */
 #dt_message {
-  color: #cccccc; /* soft grey */
-  background: #373737;
+  color: $tklr-muted;
+  background: $tklr-message-background;
   padding: 0 1 1 1;
-  /* text-align: center; */
 }
 
 #dt_entry:focus {
-  border: solid #7f7f7f;
-  /* background: #373737; */
-  background: #2e2e2e;
-  color: white;
+  border: solid $tklr-input-border;
+  background: $tklr-input-background;
+  color: $tklr-foreground;
 }
 
 /* Fixed universal instructions */
 #dt_instructions {
-  color: #cccccc;
-  background: #373737;
+  color: $tklr-muted;
+  background: $tklr-message-background;
   padding: 0 1;
   text-align: center;
-  /* text-style: dim; */
 }
 
 #ed_prompt {
@@ -152,29 +139,24 @@ ScrollView {
   height: 1fr;
   padding: 0 1;
 }
-/* Message block just under the title */
 
 #ed_instructions {
-  color: #cccccc;
-  background: #373737;
+  color: $tklr-muted;
+  background: $tklr-message-background;
   padding: 0 1;
   text-align: center;
-  /* text-style: dim; */
 }
 
 #ed_message {
-  color: #cccccc; /* soft grey */
-  background: #373737;
+  color: $tklr-muted;
+  background: $tklr-message-background;
   padding: 0 1;
-  /* text-align: center; */
 }
 
 #ed_entry:focus {
-  border: solid #7f7f7f;
-  /* background: #373737; */
-  background: #3a3a3a;
-  /* background: #2e2e2e; */
-  color: white;
+  border: solid $tklr-input-border;
+  background: $tklr-input-background;
+  color: $tklr-foreground;
   padding: 0 0;
 }
 
@@ -192,7 +174,7 @@ ScrollView {
 
 #ed_feedback {
   height: auto;
-  color: limegreen;
+  color: $tklr-accent;
   padding: 0 1 0 1;
 }
 
@@ -200,38 +182,27 @@ ScrollView {
   height: 1fr;
   overflow: auto;
 }
+
+/* ── Lists ────────────────────────────────────────── */
 /* Container that holds a main list + details list */
 ListWithDetails {
   layout: vertical;
-  /* background: #373737; */
 }
 
 /* Main list fills available space */
 ListWithDetails > #main-list {
-  /* background: #373737; */
   height: 1fr;
 }
 
 /* Details list appears at bottom when shown and scrolls if long */
 ListWithDetails > #details-list {
-  /* background: #373737; */
   height: auto;
-  max-height: 14; /* tweak to taste */
-  border-top: solid #7f7f7f; /* optional separator */
-  /* border-bottom: solid #7f7f7f; */
-  /* padding-left: 1; */
-  /* border: none; */
+  max-height: 14;
+  border-top: solid $tklr-rule;
 }
 
 ListWithDetails > #details_text {
-  /* background: #373737; */
-  color: yellow;
-  /* height: auto; */
-  /* max-height: 14;  */
-  /* border-top: solid #7f7f7f; */
-  /* border-bottom: solid #7f7f7f; */
-  /* padding-left: 1; */
-  /* border: none; */
+  color: $tklr-emphasis;
   padding: 1 0;
 }
 
@@ -242,72 +213,57 @@ ListWithDetails > #details-list.hidden {
 .busy-bar {
   text-style: bold;
   text-align: center;
-  /* padding: 0 0 1 0; */
   height: auto;
-  /* border: none; */
-  border-bottom: #7f7f7f; /* optional separator */
+  border-bottom: $tklr-rule;
+  color: $tklr-text;
 }
 
 /* ── BinHierarchyScreen ───────────────────────────── */
-
 /* Make the tree fill the vertical space between Header and Footer */
 #bins-tree {
-  height: 1fr; /* grow to fill */
+  height: 1fr;
   margin: 0;
-  padding: 0 1; /* match your other lists */
-  /* border: solid #7f7f7f; */
-  background: #373737; /* same dark base */
-  color: #e0e0e0; /* legible on dark */
-  overflow: auto; /* scroll if tall */
+  padding: 0 1;
+  background: $tklr-surface;
+  color: $tklr-text;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  scrollbar-color: $tklr-rule $tklr-message-background; /* thumb, track */
 }
 
-/* Stronger focus ring to mirror inputs’ focus state */
 #bins-tree:focus {
-  /* border: heavy #7f7f7f; */
-  background: #2e2e2e; /* slight focus darken like #dt_entry / #ed_entry */
+  background: $tklr-input-background;
 }
 
-/* Optional: tighten header/footer to your house style */
 BinHierarchyScreen > Header,
 BinHierarchyScreen > Footer {
-  background: #373737;
-  color: white;
+  background: $tklr-background;
+  color: $tklr-foreground;
   border: none;
 }
 
-/* ── Tree niceties (Textual’s internal parts) ───────
-   These selectors are supported by Textual’s Tree widget.
-   If you’re on a very old Textual, you can safely delete them. */
-
 /* Guides (│ ├ └) */
 #bins-tree .tree--guides {
-  color: #7f7f7f;
+  color: $tklr-rule;
 }
 
 /* The row your cursor is on */
 #bins-tree .tree--cursor {
-  background: #2e2e2e;
-  color: white;
+  background: $tklr-highlight;
+  color: $tklr-foreground;
   text-style: bold;
 }
 
 /* Labels (node text) */
 #bins-tree .tree--label {
-  color: #e0e0e0;
+  color: $tklr-text;
 }
 
-/* Expanded node labels a touch bolder for hierarchy pop */
 #bins-tree .tree--label.-expanded {
   text-style: bold;
 }
 
 /* Dim disabled nodes (if you ever mark any) */
 #bins-tree .-disabled .tree--label {
-  color: #7f7f7f;
-}
-
-/* Scrollbar to match the rest of the app (works on recent Textual) */
-#bins-tree {
-  scrollbar-gutter: stable;
-  scrollbar-color: #7f7f7f #373737; /* thumb, track */
+  color: $tklr-rule;
 }

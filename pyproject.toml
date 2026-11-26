@@ -7,7 +7,7 @@ readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12,<4.0"
 dependencies = [
-  "textual>=0.60",
+  "textual>=1.0",
   "python-dateutil>=2.8.2",
   "tzlocal>=5.3.1",
   "certifi>=2024.2.2",
@@ -49,7 +49,7 @@ package-dir = { "" = "src" }
 include-package-data = true  # <- important
 
 [tool.setuptools.package-data]
-"tklr" = ["*.css", "sounds/*.aiff", "sounds/*.wav", "sounds/*.mp3"]
+"tklr" = ["*.css", "themes/*.toml", "sounds/*.aiff", "sounds/*.wav", "sounds/*.mp3"]
 
 [tool.pyright]
 typeCheckingMode = "off" # or "basic"

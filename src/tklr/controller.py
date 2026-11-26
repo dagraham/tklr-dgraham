@@ -23,6 +23,7 @@ from dateutil.rrule import rrulestr
 from packaging.version import parse as parse_version
 
 from . import shared as shared_colors
+from . import themes
 from .item import Item, td_to_td_str
 from .item import parse as parse_entry_dt
 from .mask import reveal_mask_tokens
@@ -549,9 +550,27 @@ class Controller:
         self.datetimefmt = f"{self.datefmt} {self.timefmt}"
         self.query_engine = QueryEngine()
         ui = getattr(self.env.config, "ui", None) if self.env else None
-        self.ui_theme = getattr(ui, "theme", "dark") if ui else "dark"
-        self.dim_style = "dim" if self.ui_theme == "dark" else "#4a4a4a"
+        shared_colors.set_theme_home(getattr(self.env, "home", None) if self.env else None)
+        self.theme_warning: str | None = None
+        self.set_theme(getattr(ui, "theme", "dark") if ui else "dark")
+
+    def set_theme(self, name: str) -> str | None:
+        """Make ``name`` the active theme (falling back to dark).
+
+        The single place theme state changes, at startup and when switching
+        themes while running. Returns a warning if ``name`` couldn't be used.
+        """
+        resolved, warning = themes.resolve_theme(name, shared_colors._THEME_HOME)
+        if warning:
+            log_msg(warning)
+        self.theme = resolved
+        self.theme_warning = warning
+        # Overrides in [ui.palette.<name>] are looked up under the name in use.
+        self.ui_theme = resolved.name
         self._apply_theme_colors()
+        self.palette = dict(shared_colors.ACTIVE_PALETTE)
+        self.dim_style = self.palette.get("dim_style") or "dim"
+        return warning
 
     def fmt_user(self, dt: date | datetime) -> str:
         """
@@ -2386,16 +2405,15 @@ class Controller:
         DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         assert len(bits) == 35, "expected 35 bits (7×5)"
 
-        theme = getattr(self, "ui_theme", "dark")
+        palette = getattr(self, "palette", None) or shared_colors.ACTIVE_PALETTE
         if busy_color is None:
-            busy_color = "green" if theme == "dark" else "#1f7a1f"
+            busy_color = palette.get("busy_color", "green")
         if conflict_color is None:
-            conflict_color = "red" if theme == "dark" else "#c62828"
+            conflict_color = palette.get("conflict_color", "red")
         if allday_color is None:
-            allday_color = "#ffbf00" if theme == "dark" else "#ff9100"
+            allday_color = palette.get("allday_color", "#ffbf00")
         if header_color is None:
-            # header_color = "cyan" if theme == "dark" else "#1f395a"
-            header_color = LEMON_CHIFFON if theme == "dark" else "#1f395a"
+            header_color = palette.get("busy_header_color", LEMON_CHIFFON)
 
         # --- Header line
         header = "│".join(f" {d:^3} " for d in DAYS)
@@ -2867,12 +2885,41 @@ class Controller:
                 lines.append(
                     f"[{color}]  {itemtype} {label}[/{color}] {_display_color(color)}"
                 )
+            lines.append(f"[{header}]Titles, footers and status[/{header}]")
+            for key in (
+                "title_color",
+                "footer_color",
+                "match_color",
+                "dim_style",
+                "status_info",
+                "status_warning",
+                "status_error",
+            ):
+                color = palette.get(key) or "white"
+                lines.append(f"  [{color}]{key}[/{color}] {_display_color(color)}")
+            lines.append(f"[{header}]Busy bar[/{header}]")
+            for key in (
+                "busy_color",
+                "conflict_color",
+                "allday_color",
+                "busy_header_color",
+            ):
+                color = palette.get(key) or "white"
+                lines.append(
+                    f"  [{color}]██[/{color}] {key} {_display_color(color)}"
+                )
             return lines
 
         theme = self.ui_theme if mode == "current" else mode
         overrides = getattr(self.env.config.ui, "palette", {}) if self.env else {}
         palette = shared_colors.get_theme_palette(theme, overrides)
-        lines = _palette_lines(palette, f"{theme.title()} theme")
+        resolved = shared_colors.get_theme(theme)
+        heading = f"{theme} theme"
+        if len(resolved.chain) > 1:
+            heading += f" (based on {resolved.chain[1]})"
+        lines = _palette_lines(palette, heading)
+        if resolved.credit:
+            lines.insert(1, f"[{self.dim_style}]{resolved.credit}[/{self.dim_style}]")
         title = f"Style ({theme})"
 
         pages = [(lines, {})]

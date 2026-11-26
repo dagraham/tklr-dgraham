@@ -72,7 +72,7 @@ Ready to dive deeper? This introduction is best viewed at [GitHub.io](https://da
           <li><a href="#214-priority">2.14. Priority</a></li>
           <li><a href="#215-open-with-default">2.15. Open with default</a></li>
           <li><a href="#216-away-from-your-computer-use-the-cloud">2.16. Away from your computer? Use the cloud</a></li>
-          <li><a href="#217-palette-view-customizing-theme-color-settings">2.17. Palette View: Customizing Theme Color Settings</a></li>
+          <li><a href="#217-themes-and-the-palette-view">2.17. Themes and the Palette View</a></li>
           <li><a href="#218-token-keys">2.18. Token Keys</a></li>
         </ul>
       </details>
@@ -1376,38 +1376,52 @@ As they are imported, reminder types other than <em>jots</em> are recorded with 
 
 Reminders are automatically removed from <em>inbox.txt</em> as they are imported so that the length of this file will be restored to zero and ready for subsequent additions. When you next open <em>tklr</em>, all the "drafts" will be listed together on the current day of the events listing in <em>Agenda View</em> ready for you to make any edits you like to the "drafts" and remove the <code>?</code> prefixes. The <em>jots</em> will be listed in <em>Jots View</em>.
 
-### 2.17. Palette View: Customizing Theme Color Settings
+### 2.17. Themes and the Palette View
 
-The purpose of <em>Palette View</em> is to display the color settings that are available for user customization in <code>config.toml</code> along with the palette of colors available for use in those settings.
+#### 2.17.1. Choosing a theme
+
+Colors come from a _theme_, chosen in `config.toml`:
+
+```
+[ui]
+theme = "nord"
+```
+
+These themes are built in:
+
+| theme | | theme | |
+| --- | --- | --- | --- |
+| `dark` (default) | | `light` | |
+| `nord` | dark | `solarized-light` | light |
+| `gruvbox-dark` | dark | `gruvbox-light` | light |
+| `solarized-dark` | dark | `catppuccin-latte` | light |
+| `catppuccin-mocha` | dark | | |
+
+A theme sets both the window colors (background, borders, titles, entry fields) and the colors used for reminders in lists and details, so pick the one that best matches your terminal's own background. If `theme` names a theme that can't be found, _tklr_ says so when it starts and uses `dark`.
+
+#### 2.17.2. Palette View
 
 <img align="right" src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_settings_single.svg" alt="Description" width="460" style="margin-left: 20px; margin-bottom: 10px;">
 
-The opening view shows the current color settings for the currently selected _theme_ which, in this case, is the _dark_ theme.
+Press "S" to open <em>Palette View</em>. It shows every color setting of the current theme, each drawn in its own color, and below them the list of available themes with the current one marked.
 
 <br clear="all">
 
 <img align="right" src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_settings_dual.svg" alt="Description" width="460" style="margin-left: 20px; margin-bottom: 10px;">
 
-Pressing "p" toggles a dual display for both of the available themes with _dark_ on the left and _light_ on the right. In both cases, the colors reflect the current settings which, in the absence of customizations, are just the default settings for the two themes.
+In this view:
+
+- "t" switches to the next theme straight away, so you can try each one on your own reminders. The switch lasts until you quit; to keep a theme, set `theme` in `config.toml`.
+- "p" toggles a dual display with the current theme on the left and the next theme ("t" would switch to it) on the right.
+- "c" toggles a list of the named colors, shown against the _dark_ and _light_ backgrounds.
 
 <br clear="all">
+
+#### 2.17.3. Changing individual colors
 
 <img align="right" src="https://raw.githubusercontent.com/dagraham/tklr-dgraham/master/screenshots/palette_colors_dual.svg" alt="Description" width="460" style="margin-left: 20px; margin-bottom: 10px;">
 
-Pressing "c" toggles the display to show a list of the named colors against the backgrounds currently used for the _dark_ and _light_ themes.
-
-The color for a setting can be customized in `config.toml` by first noting the theme in this section, then changing the relevant color value.
-
-<br clear="all">
-
-For example, with this in `config.toml`:
-
-```
-[ui]
-theme = "dark"
-```
-
-replacing the commented out section
+Any color setting listed in <em>Palette View</em> can be changed for a theme in `config.toml`, in a table named after the theme. For example, with `theme = "dark"`, replacing the commented-out section
 
 ```
 # [ui.palette.dark]
@@ -1422,9 +1436,54 @@ with
 task_color = "dodgerblue"
 ```
 
-would change the color for the _task_ type for the current _dark_ setting from "lightskyblue" to "dodgerblue". Note that either the color name or the hex value can be used.
+changes the color for the _task_ type from "lightskyblue" to "dodgerblue". Either a color name or a hex value can be used. These tables apply only to the theme they name: `[ui.palette.dark]` doesn't affect `nord`, even though `nord` is based on `dark`.
 
+<br clear="all">
 
+#### 2.17.4. Making your own theme
+
+For more than a few changes, or to change window colors, make a theme of your own. A theme is a small file in the `themes` folder of your _tklr_ home directory, for example `~/.config/tklr/themes/paper.toml` (the title of the help screen, "?", shows your home directory). It names a `base` theme and lists only the colors that differ:
+
+```toml
+name = "paper"
+base = "light"
+
+[ui]                       # window colors
+background = "#fdf6e3"
+foreground = "#3b3a36"
+rule = "#c9c1ad"
+
+[palette]                  # reminder colors, as in Palette View
+event_color = "#3a7d2c"
+task_color = "#2a5fa8"
+```
+
+Then set `theme = "paper"` in `config.toml`. A file with the same name as a built-in theme, such as `themes/light.toml`, replaces it. The built-in files in the `themes` folder of the installed _tklr_ package are good starting points and list every key.
+
+The `[ui]` keys are:
+
+| key | used for |
+| --- | --- |
+| `background` | the screen background |
+| `foreground` | titles, footers and entry text |
+| `text` | details and the bins tree |
+| `list_text` | list text |
+| `muted` | prompt messages and instructions |
+| `rule` | borders and separators |
+| `dim_rule` | the faint rule in prompts |
+| `accent` | live feedback in entry prompts |
+| `emphasis` | highlighted details text |
+| `surface` | lists, the details pane, help and the bins tree |
+| `message_background` | prompt message and instruction rows |
+| `input_background` | the focused entry field |
+| `input_border` | the focused entry field's border |
+| `highlight` | the cursor row in the bins tree |
+
+When your theme sets `background`, `foreground` or `rule`, the keys normally derived from it follow your value unless you set them too. `surface`, `message_background`, `input_background` and `highlight` follow `background`; `text`, `list_text`, `muted` and `emphasis` follow `foreground`; `dim_rule` and `input_border` follow `rule`. So setting just `background`, `foreground` and `rule`, as above, gives a consistent window. Setting `textual = "textual-light"` (or another Textual theme name, such as `nord`) also restyles Textual's own widgets, such as notifications.
+
+The `[palette]` keys are the settings shown in <em>Palette View</em>. Besides the reminder colors, they include `title_color`, `footer_color`, `match_color` (search matches), `dim_style` (de-emphasized text: `"dim"` or a color), `status_info`, `status_warning`, `status_error`, and the busy bar's `busy_color`, `conflict_color`, `allday_color` and `busy_header_color`.
+
+If a theme file can't be read or its `base` chain loops, _tklr_ reports it at startup and uses `dark`.
 
 ### 2.18. Token Keys 
 

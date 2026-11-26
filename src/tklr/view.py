@@ -60,7 +60,10 @@ from .item import Item
 from .mask import reveal_mask_tokens
 from .query import QueryError, QueryMatch
 from .shared import (
+    ACTIVE_PALETTE,
     TYPE_TO_COLOR,
+    get_theme,
+    theme_names,
     bug_msg,
     calculate_4_week_start,
     duration_in_words,
@@ -125,12 +128,10 @@ CANCEL_LABEL = "esc"
 NOTE_COLOR = DARK_SALMON
 NOTICE_COLOR = GOLD
 
-# Styles that differ by theme (mutated at runtime)
+# Defaults; the active theme replaces these at startup (_update_footer_color)
 FOOTER_DARK = "#FF8C00"
-FOOTER_LIGHT = "#1660a0"
 FOOTER = FOOTER_DARK
 DIM_STYLE_DARK = "dim"
-DIM_STYLE_LIGHT = "#4a4a4a"
 DIM_STYLE = DIM_STYLE_DARK
 
 
@@ -257,7 +258,8 @@ pressing [bold]control[/bold] and [bold]u[/bold] simultaneously.
     return text.splitlines()
 
 
-QueryHelpText = f"""\
+def query_help_text() -> list[str]:
+    return f"""\
 [bold][{TITLE_COLOR}]Query Builder[{TITLE_COLOR}][/bold]
 [bold][{HEADER_COLOR}]Syntax[/{HEADER_COLOR}][/bold]
  command field [args]
@@ -2120,7 +2122,7 @@ class ScrollableList(ScrollView):
         self,
         lines: List[str],
         *,
-        match_color: str = MATCH_COLOR,
+        match_color: str | None = None,
         bg_color: str | None = None,
         text_color: str | None = None,
         **kwargs,
@@ -2129,7 +2131,7 @@ class ScrollableList(ScrollView):
         self._text_color = text_color
         base_style = Style(color=self._text_color) if self._text_color else Style()
         self.console = Console(style=base_style)
-        self.match_color = match_color
+        self.match_color = match_color or MATCH_COLOR
         self._bg_color = bg_color or "#373737"
         self.row_bg = Style(bgcolor=self._bg_color)  # ← row background color
         self.styles.background = self._bg_color
@@ -2804,6 +2806,7 @@ class PaletteScreen(SearchableScreen):
     BINDINGS = [
         ("p", "toggle_palette", "Toggle palette"),
         ("c", "toggle_palette_colors", "Style Colors"),
+        ("t", "next_theme", "Next theme"),
     ]
 
     def __init__(
@@ -2895,6 +2898,9 @@ class PaletteScreen(SearchableScreen):
 
     def action_toggle_palette_colors(self):
         self.app.action_toggle_palette_colors()
+
+    def action_next_theme(self):
+        self.app.action_next_theme()
 
 
 class UseListScreen(FullScreenList):
@@ -4064,49 +4070,17 @@ class DynamicViewApp(App):
     ]
 
     def __init__(self, controller) -> None:
-        theme = getattr(getattr(controller, "env", None), "config", None)
-        theme = getattr(getattr(theme, "ui", None), "theme", "dark")
-        self._theme = theme if theme in {"dark", "light"} else "dark"
-        palette = {
-            "dark": {
-                "list_bg": "#373737",
-                "list_text": "white",
-                "footer": FOOTER,
-                "title": TITLE_COLOR,
-            },
-            "light": {
-                "list_bg": "#fdfdfd",
-                "list_text": "#1f1f1f",
-                "footer": FOOTER_LIGHT,
-                "title": "#204060",
-            },
-        }
-        self._list_palette = palette
-        colors = palette[self._theme]
-        self.list_bg_color = colors["list_bg"]
-        self.list_text_color = colors["list_text"]
-        self.footer_color = colors["footer"]
-        self.title_color = colors["title"]
         self.update_indicator_text = ""
         self.timer_indicator_text = ""
         self._jot_timer_id: int | None = None
         self._jot_timer_state = "none"  # "none" | "running"
         self._jot_timer_start: datetime | None = None
         self._timer_warning_notified = False
-        if self._theme == "light":
-            self.status_colors = {
-                "info": "#1f1f1f",
-                "warning": "#a65c00",
-                "error": "#b00020",
-            }
-        else:
-            self.status_colors = {
-                "info": "white",
-                "warning": "yellow",
-                "error": "red",
-            }
-        self.CSS_PATH = f"view_{self._theme}.css"
+        self.CSS_PATH = "view.css"
+        # Window colours must be known before App.__init__ parses the CSS.
+        self._load_theme_colors(controller)
         super().__init__()
+        self._register_textual_theme()
         self.controller = controller
 
         # Alert delivery lock: whichever process holds this (this TUI, or a
@@ -4165,10 +4139,79 @@ class DynamicViewApp(App):
             except Exception:
                 pass
 
+    # ── Themes ──────────────────────────────────────────────────────
+    def _load_theme_colors(self, controller) -> None:
+        """Copy the controller's active theme into the app's colour attributes."""
+        resolved = getattr(controller, "theme", None) or get_theme("dark")
+        palette = getattr(controller, "palette", None) or dict(ACTIVE_PALETTE)
+        self._theme = resolved.name
+        self._resolved_theme = resolved
+        self._tklr_css_vars = resolved.css_variables()
+        self.list_bg_color = resolved.ui["surface"]
+        self.list_text_color = resolved.ui["list_text"]
+        self.footer_color = palette.get("footer_color", FOOTER_DARK)
+        self.title_color = palette.get("title_color", TITLE_COLOR)
+        self.status_colors = {
+            "info": palette.get("status_info", "white"),
+            "warning": palette.get("status_warning", "yellow"),
+            "error": palette.get("status_error", "red"),
+        }
+        self._theme_palette = palette
+
+    def get_theme_variable_defaults(self) -> dict[str, str]:
+        # Supplies the $tklr-* variables used in view.css.
+        return dict(getattr(self, "_tklr_css_vars", {}))
+
+    def _register_textual_theme(self) -> None:
+        """Use the theme's Textual base for Textual's own widgets."""
+        wanted = self._resolved_theme.textual
+        if wanted in self.available_themes and wanted != self.theme:
+            self.theme = wanted
+
+    def apply_theme(self, name: str) -> str | None:
+        """Switch to theme ``name`` while running (not saved to config)."""
+        warning = self.controller.set_theme(name)
+        self._load_theme_colors(self.controller)
+        self._update_footer_color()
+        footer_color = self.footer_color
+        self.details_footer = (
+            f"[bold {footer_color}]?[/bold {footer_color}] Help "
+            f"[bold {footer_color}]/[/bold {footer_color}] Search  "
+            f"[bold {footer_color}]Enter[/bold {footer_color}] Reminder menu "
+        )
+        self._register_textual_theme()
+        self.refresh_css(animate=False)
+        refresher = self.VIEW_REFRESHERS.get(self.view)
+        if refresher and hasattr(self, refresher):
+            getattr(self, refresher)()
+        return warning
+
+    def action_next_theme(self) -> None:
+        names = theme_names()
+        if not names:
+            return
+        try:
+            nxt = names[(names.index(self._theme) + 1) % len(names)]
+        except ValueError:
+            nxt = names[0]
+        warning = self.apply_theme(nxt)
+        if warning:
+            self.notify(warning, severity="warning", timeout=4)
+        else:
+            self.notify(
+                f'Theme "{nxt}" for this session. To keep it, set '
+                f'theme = "{nxt}" in config.toml.',
+                timeout=4,
+            )
+
     def _update_footer_color(self) -> None:
-        global FOOTER, DIM_STYLE
+        global FOOTER, DIM_STYLE, TITLE_COLOR, HEADER_COLOR, MATCH_COLOR
+        palette = getattr(self, "_theme_palette", None) or ACTIVE_PALETTE
         FOOTER = self.footer_color
-        DIM_STYLE = DIM_STYLE_LIGHT if self._theme == "light" else DIM_STYLE_DARK
+        DIM_STYLE = palette.get("dim_style") or DIM_STYLE_DARK
+        TITLE_COLOR = palette.get("title_color", TITLE_COLOR)
+        HEADER_COLOR = palette.get("label_color", HEADER_COLOR)
+        MATCH_COLOR = palette.get("match_color", MATCH_COLOR)
 
     def _apply_update_indicator(self, has_update: bool) -> None:
         color = getattr(self, "footer_color", FOOTER)
@@ -4277,6 +4320,9 @@ class DynamicViewApp(App):
     async def on_mount(self):
         # open default screen
         self.action_show_agenda()
+        warning = getattr(self.controller, "theme_warning", None)
+        if warning:
+            self.notify(warning, severity="warning", timeout=8)
 
         # your alert timers as-is
         now = datetime.now()
@@ -5256,50 +5302,53 @@ class DynamicViewApp(App):
 
         self.view = "palette"
         footer = (
-            f"[bold {FOOTER}]p[/bold {FOOTER}] Toggle dual style  "
-            f"[bold {FOOTER}]c[/bold {FOOTER}] Toggle named colors  "
-            f"[bold {FOOTER}]?[/bold {FOOTER}] Help  "
-            f"[bold {FOOTER}]/[/bold {FOOTER}] Search"
+            f"[bold {FOOTER}]t[/bold {FOOTER}] Next theme  "
+            f"[bold {FOOTER}]p[/bold {FOOTER}] Compare with next  "
+            f"[bold {FOOTER}]c[/bold {FOOTER}] Named colors  "
+            f"[bold {FOOTER}]?[/bold {FOOTER}] Help"
         )
 
         if self._palette_view == "colors":
             left_lines, right_lines, title = self.controller.get_named_color_columns()
-            palette = getattr(self, "_list_palette", {})
-            dark_bg = palette.get("dark", {}).get("list_bg")
-            light_bg = palette.get("light", {}).get("list_bg")
             screen = PaletteScreen(
                 title,
                 left_lines,
                 right_lines=right_lines,
                 footer_content=footer,
-                left_bg=dark_bg,
-                right_bg=light_bg,
+                left_bg=get_theme("dark").ui["surface"],
+                right_bg=get_theme("light").ui["surface"],
             )
             self.show_screen(screen)
             return
 
-        if self._palette_mode == "both":
-            left_pages, _ = self.controller.get_palette_preview_pages("dark")
-            right_pages, _ = self.controller.get_palette_preview_pages("light")
+        names = theme_names()
+        if self._palette_mode == "both" and len(names) > 1:
+            try:
+                other = names[(names.index(self._theme) + 1) % len(names)]
+            except ValueError:
+                other = names[0]
+            left_pages, _ = self.controller.get_palette_preview_pages(self._theme)
+            right_pages, _ = self.controller.get_palette_preview_pages(other)
             left_lines = left_pages[0][0] if left_pages else []
             right_lines = right_pages[0][0] if right_pages else []
-            palette = getattr(self, "_list_palette", {})
-            dark_colors = palette.get("dark", {})
-            light_colors = palette.get("light", {})
-            title = "Style (dark | light)"
+            other_ui = get_theme(other).ui
+            title = f"Style ({self._theme} | {other})"
             screen = PaletteScreen(
                 title,
                 left_lines,
                 right_lines=right_lines,
                 footer_content=footer,
-                left_bg=dark_colors.get("list_bg"),
-                left_text=dark_colors.get("list_text"),
-                right_bg=light_colors.get("list_bg"),
-                right_text=light_colors.get("list_text"),
+                left_bg=self.list_bg_color,
+                left_text=self.list_text_color,
+                right_bg=other_ui["surface"],
+                right_text=other_ui["foreground"],
             )
         else:
             pages, title = self.controller.get_palette_preview_pages("current")
             lines = pages[0][0] if pages else []
+            lines = lines + ["", f"[{HEADER_COLOR}]Themes[/{HEADER_COLOR}]"] + [
+                f"  {'▶' if n == self._theme else ' '} {n}" for n in names
+            ]
             screen = PaletteScreen(
                 title,
                 lines,
@@ -5807,7 +5856,7 @@ class DynamicViewApp(App):
             lines = build_details_help(meta)
             self.push_screen(HelpScreen(lines))
         elif self.view == "query":
-            self.push_screen(HelpScreen(QueryHelpText))
+            self.push_screen(HelpScreen(query_help_text()))
         else:
             env = getattr(self.controller, "env", None)
             home_display = None

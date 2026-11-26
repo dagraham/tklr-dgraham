@@ -17,7 +17,7 @@ _INTERNAL_PREFIXES = ("rruleset:", "id/cr/md:", "instance:")
 _MASK_RE = re.compile(r"(@m\s*(?:\[/[^\]]*\]\s*)?)[^\n]*")
 
 _STYLE = """
-body { background:#1e1e1e; color:#ddd; margin:0; padding:12px;
+body { background:%(bg)s; color:%(fg)s; margin:0; padding:12px;
        font:15px/1.4 ui-monospace, Menlo, monospace; }
 h1 { font-size:17px; margin:0 0 10px; }
 .h { margin:14px 0 4px; }
@@ -25,10 +25,29 @@ details { margin:2px 0; }
 summary { list-style:none; cursor:pointer; white-space:pre-wrap; }
 summary::-webkit-details-marker { display:none; }
 .d { white-space:pre-wrap; margin:4px 0 10px 1.5em; padding-left:8px;
-     border-left:2px solid #555; }
-a { color:#87cefa; }
-footer { margin-top:18px; color:#888; font-size:12px; }
+     border-left:2px solid %(rule)s; }
+a { color:%(link)s; }
+footer { margin-top:18px; color:%(muted)s; font-size:12px; }
 """
+
+# The page's original colours, kept for the default dark theme.
+_DARK_PAGE = {
+    "bg": "#1e1e1e", "fg": "#ddd", "rule": "#555", "link": "#87cefa", "muted": "#888"
+}
+
+
+def _page_colors(controller) -> dict[str, str]:
+    theme = getattr(controller, "theme", None)
+    if theme is None or theme.name == "dark":
+        return dict(_DARK_PAGE)
+    palette = getattr(controller, "palette", None) or {}
+    return {
+        "bg": theme.ui["background"],
+        "fg": theme.ui["text"],
+        "rule": theme.ui["rule"],
+        "link": palette.get("label_color", theme.ui["foreground"]),
+        "muted": theme.ui["muted"],
+    }
 
 
 def _markup_to_html(markup: str) -> str:
@@ -99,7 +118,8 @@ def build_agenda_html(controller, *, now: datetime | None = None) -> str:
     return (
         "<!DOCTYPE html>\n<html><head><meta charset=\"utf-8\">\n"
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-        f"<title>Agenda</title><style>{_STYLE}</style></head><body>\n"
+        f"<title>Agenda</title><style>{_STYLE % _page_colors(controller)}</style>"
+        "</head><body>\n"
         "<h1>Agenda</h1>\n" + "\n".join(out) + f"\n<footer>Updated {stamp}</footer>\n"
         "</body></html>\n"
     )

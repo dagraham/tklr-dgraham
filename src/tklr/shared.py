@@ -16,6 +16,7 @@ from .versioning import get_version
 
 from tklr.tklr_env import TklrEnvironment
 from .named_colors import css_named_colors
+from . import themes as _themes
 
 # Avoid touching env.config at import time so --help remains side-effect free.
 env = TklrEnvironment()
@@ -131,72 +132,45 @@ type_color = GOLDENROD
 at_color = GOLDENROD
 am_color = GOLDENROD
 
+# Themes are TOML files (see themes.py). User themes live in $TKLR_HOME/themes;
+# the controller calls set_theme_home() so lookups here can see them.
+_THEME_HOME: Path | None = None
+
+# The palette of the active theme. Updated in place by apply_theme_palette(),
+# so code holding a reference always sees the current theme.
+ACTIVE_PALETTE: dict[str, str] = {}
+
+# Built-in dark/light palettes (legacy keys), kept for callers that used them.
 THEME_PALETTES = {
-    "dark": {
-        "label_color": "lightskyblue",
-        "type_color": "goldenrod",
-        "at_color": "goldenrod",
-        "am_color": "goldenrod",
-        "header_color": "lemonchiffon",
-        "event_color": "limegreen",
-        "available_color": "lightskyblue",
-        "task_color": "lightskyblue",
-        "waiting_color": "darkgray",
-        "finished_color": "gray",
-        "note_color": "darksalmon",
-        "pastdue_color": "darkorange",
-        "notice_color": "gold",
-        "goal_color": "palegoldenrod",
-        "draft_color": "orangered",
-        "bin_color": "goldenrod",
-        "active_bin_color": "gold",
-        "chore_color": "khaki",
-        "jot_color": "deepskyblue",
-        "jot_none": "deepskyblue",
-        "jot_extent": "orchid",
-        "jot_use": "goldenrod",
-        "jot_full": "palegreen",
-        "urgency_min_color": "lightskyblue",
-        "urgency_max_color": "yellow",
-        "goal_min_color": "lightskyblue",
-        "goal_max_color": "yellow",
-    },
-    "light": {
-        "label_color": "royalblue",
-        "type_color": "firebrick",
-        "at_color": "firebrick",
-        "am_color": "firebrick",
-        "header_color": "darkslategray",
-        "event_color": "green",
-        "available_color": "blue",
-        "task_color": "blue",
-        "waiting_color": "darkslategray",
-        "finished_color": "slategray",
-        "note_color": "saddlebrown",
-        "pastdue_color": "brown",
-        "notice_color": "brown",
-        "goal_color": "blueviolet",
-        "draft_color": "crimson",
-        "bin_color": "brown",
-        "active_bin_color": "olive",
-        "chore_color": "darkolivegreen",
-        "jot_color": "royalblue",
-        "jot_none": "royalblue",
-        "jot_extent": "darkorchid",
-        "jot_use": "darkgoldenrod",
-        "jot_full": "green",
-        "urgency_min_color": "steelblue",
-        "urgency_max_color": "firebrick",
-        "goal_min_color": "steelblue",
-        "goal_max_color": "firebrick",
-    },
+    name: {k: _themes.load_theme(name).palette[k] for k in _themes.LEGACY_PALETTE_KEYS}
+    for name in ("dark", "light")
 }
+
+# Rich's terminal colour names: left as names so they keep following the
+# terminal's own palette instead of becoming fixed CSS colours.
+_ANSI_NAMES = frozenset(
+    {"default", "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white"}
+)
+
+
+def set_theme_home(home: Path | str | None) -> None:
+    global _THEME_HOME
+    _THEME_HOME = Path(home) if home else None
+
+
+def get_theme(theme: str | None) -> "_themes.ResolvedTheme":
+    """Resolve a theme by name (falling back to dark), honouring user themes."""
+    return _themes.resolve_theme(theme, _THEME_HOME)[0]
+
+
+def theme_names() -> list[str]:
+    return list(_themes.available_themes(_THEME_HOME))
 
 
 def get_theme_palette(
     theme: str, overrides: dict[str, dict[str, str]] | None = None
 ) -> dict[str, str]:
-    palette = dict(THEME_PALETTES.get(theme, THEME_PALETTES["dark"]))
+    palette = dict(get_theme(theme).palette)
     if overrides is None:
         overrides = {}
     theme_overrides: dict[str, str] = {}
@@ -207,17 +181,27 @@ def get_theme_palette(
     for key, value in theme_overrides.items():
         if key in palette and value:
             palette[key] = value.strip()
-    palette = {key: _normalize_color(value) for key, value in palette.items()}
-    return palette
+    return {
+        key: _normalize_color(value, keep_ansi=key not in _LEGACY_KEYS)
+        for key, value in palette.items()
+    }
 
 
-def _normalize_color(value: str) -> str:
+_LEGACY_KEYS = frozenset(_themes.LEGACY_PALETTE_KEYS)
+
+
+def _normalize_color(value: str, *, keep_ansi: bool = False) -> str:
     if not value:
         return value
     candidate = value.strip()
     if candidate.startswith("#"):
         return candidate
-    lookup = css_named_colors.get(candidate.lower())
+    lowered = candidate.lower()
+    if keep_ansi and (
+        lowered in _ANSI_NAMES or lowered.startswith("bright_") or lowered == "dim"
+    ):
+        return candidate
+    lookup = css_named_colors.get(lowered)
     return lookup if lookup else candidate
 
 
@@ -229,6 +213,8 @@ def apply_theme_palette(
     type_overrides: dict[str, str] | None = None,
 ) -> dict[str, str]:
     palette = get_theme_palette(theme, overrides)
+    ACTIVE_PALETTE.clear()
+    ACTIVE_PALETTE.update(palette)
     globals().update(
         label_color=palette["label_color"],
         type_color=palette["type_color"],
