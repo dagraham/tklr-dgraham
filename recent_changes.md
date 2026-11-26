@@ -1,5 +1,20 @@
 # Recent Changes
 
+## 1.1.0 — 2026-11-26
+
+Since 1.0.54:
+
+Why upgrade:
+- 1 additions, 0 fixes, 0 behavior changes.
+
+Added:
+- Add file-based colour themes with seven new built-in themes
+
+Technical:
+- 20 files changed, 1391 insertions(+), 532 deletions(-)
+
+Note: Themes: see README 2.17
+
 ## 1.0.54 — 2026-11-25
 
 Since 1.0.53:
@@ -26,16 +41,3 @@ Changed:
 
 Technical:
 - 4 files changed, 105 insertions(+), 39 deletions(-)
-
-## 1.0.52 — 2026-11-24
-
-Since 1.0.51:
-
-Why upgrade:
-- 1 additions, 0 fixes, 0 behavior changes.
-
-Added:
-- Add HTML agenda for phones and make current_command actually run
-
-Technical:
-- 7 files changed, 179 insertions(+), 9 deletions(-)
