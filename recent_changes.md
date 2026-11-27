@@ -1,5 +1,20 @@
 # Recent Changes
 
+## 1.1.1 — 2026-11-27
+
+Since 1.1.0:
+
+Why upgrade:
+- 0 additions, 0 fixes, 1 behavior changes.
+
+Changed:
+- Fit long list lines to the window with an ellipsis, keeping flags
+
+Technical:
+- 2 files changed, 63 insertions(+), 2 deletions(-)
+
+Note: Fit long list lines to the window with an ellipsis, keeping flags
+
 ## 1.1.0 — 2026-11-26
 
 Since 1.0.54:
@@ -27,17 +42,3 @@ Changed:
 
 Technical:
 - 3 files changed, 36 insertions(+), 3 deletions(-)
-
-## 1.0.53 — 2026-11-25
-
-Since 1.0.52:
-
-Why upgrade:
-- 0 additions, 0 fixes, 2 behavior changes.
-
-Changed:
-- Show @n-hidden tasks when their notice window opens
-- note current_path = "agenda.html" for a synced tklr home
-
-Technical:
-- 4 files changed, 105 insertions(+), 39 deletions(-)
