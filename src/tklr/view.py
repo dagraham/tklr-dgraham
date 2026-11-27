@@ -530,7 +530,7 @@ class ListWithDetails(Container):
             [], id="main-list", bg_color=bg_color, text_color=text_color
         )
         self._details = ScrollableList(
-            [], id="details-list", bg_color=bg_color, text_color=text_color
+            [], id="details-list", bg_color=bg_color, text_color=text_color, wrap=True
         )
         self._details.add_class("hidden")
         yield self._main
@@ -2104,6 +2104,7 @@ class HelpScreen(Screen):
                 id="help_list",
                 bg_color=bg_color,
                 text_color=text_color,
+                wrap=True,
             ),
             FooterDisplay(self._footer),
             id="help_layout",
@@ -2153,9 +2154,14 @@ class ScrollableList(ScrollView):
         match_color: str | None = None,
         bg_color: str | None = None,
         text_color: str | None = None,
+        wrap: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
+        # wrap=True: lines too wide for the widget continue on the next row
+        # (details, help). Otherwise they are shortened with "…" (lists).
+        self._wrap = wrap
+        self._layout_width = 0
         self._text_color = text_color
         base_style = Style(color=self._text_color) if self._text_color else Style()
         self.console = Console(style=base_style)
@@ -2167,15 +2173,45 @@ class ScrollableList(ScrollView):
         self._base_style = (
             Style(color=self._text_color) if self._text_color else Style()
         )
-        self.lines: List[Text] = [
-            Text.from_markup(line, style=self._base_style) for line in lines
-        ]
-        width = shutil.get_terminal_size().columns - 3
-        self.virtual_size = Size(width, len(self.lines))
-
         self.search_term: Optional[str] = None
         self.matches: List[int] = []
         self.current_match_idx: int = -1
+        self._source: List[Text] = [
+            Text.from_markup(line, style=self._base_style) for line in lines
+        ]
+        self._layout_lines()
+
+    def _text_width(self) -> int:
+        """Columns available for text: the widget width less any scrollbar."""
+        try:
+            width = self.scrollable_content_region.width
+        except Exception:
+            width = 0
+        return width or self.size.width or (shutil.get_terminal_size().columns - 3)
+
+    def _layout_lines(self) -> None:
+        """Build the displayed rows from the source lines for the current width."""
+        width = self._text_width()
+        self._layout_width = width
+        if self._wrap and width > 0:
+            rows: List[Text] = []
+            for text in self._source:
+                if text.cell_len <= width:
+                    rows.append(text)
+                else:
+                    rows.extend(text.wrap(self.console, width, overflow="fold"))
+            self.lines = rows
+        else:
+            self.lines = list(self._source)
+        self.virtual_size = Size(width, len(self.lines))
+
+    def on_resize(self, event) -> None:
+        if self._wrap and self._text_width() != self._layout_width:
+            term = self.search_term
+            self._layout_lines()
+            if term:
+                self.set_search_term(term)
+            self.refresh()
 
     def on_mount(self):
         self._apply_background_styles()
@@ -2203,12 +2239,10 @@ class ScrollableList(ScrollView):
     def update_list(self, new_lines: List[str]) -> None:
         """Replace the list content and refresh."""
         # log_msg(f"{new_lines = }")
-        self.lines = [
+        self._source = [
             Text.from_markup(line, style=self._base_style) for line in new_lines if line
         ]
-        # log_msg(f"{self.lines = }")
-        width = shutil.get_terminal_size().columns - 3
-        self.virtual_size = Size(width, len(self.lines))
+        self._layout_lines()
         # Clear any existing search (content likely changed)
         self.clear_search()
         self.refresh()
@@ -2266,7 +2300,10 @@ class ScrollableList(ScrollView):
             )
 
         # copy so we can stylize safely; shorten to the width, keeping flags
-        line_text = fit_line(self.lines[y], self.size.width)
+        if self._wrap:
+            line_text = self.lines[y].copy()
+        else:
+            line_text = fit_line(self.lines[y], self._text_width())
 
         # search highlight (doesn't touch background)
         if self.search_term and y in self.matches:
