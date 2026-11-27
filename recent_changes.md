@@ -1,5 +1,18 @@
 # Recent Changes
 
+## 1.1.2 — 2026-11-27
+
+Since 1.1.1:
+
+Why upgrade:
+- 0 additions, 0 fixes, 1 behavior changes.
+
+Changed:
+- Wrap long lines in details and help instead of truncating them
+
+Technical:
+- 1 file changed, 48 insertions(+), 11 deletions(-)
+
 ## 1.1.1 — 2026-11-27
 
 Since 1.1.0:
@@ -29,16 +42,3 @@ Technical:
 - 20 files changed, 1391 insertions(+), 532 deletions(-)
 
 Note: Themes: see README 2.17
-
-## 1.0.54 — 2026-11-25
-
-Since 1.0.53:
-
-Why upgrade:
-- 0 additions, 0 fixes, 1 behavior changes.
-
-Changed:
-- Keep a repeating task's due date when DateTimes is rebuilt
-
-Technical:
-- 3 files changed, 36 insertions(+), 3 deletions(-)
