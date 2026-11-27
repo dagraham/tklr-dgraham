@@ -166,6 +166,34 @@ ONEWK = 7 * ONEDAY
 # TYPE_TO_COLOR - moved to shared.py
 
 
+# Reminder flags (𝕒𝕘𝕠𝕣 ...) that apply_flags() appends after a space.
+_TRAILING_FLAGS_RE = re.compile(r" [\U0001D538-\U0001D56B]+\s*$")
+
+
+def fit_line(text: Text, width: int) -> Text:
+    """Return a copy of ``text`` that fits in ``width`` cells.
+
+    A line that is too long is shortened with an ellipsis, keeping any
+    trailing reminder flags so they stay visible.
+    """
+    if width <= 0 or text.cell_len <= width:
+        return text.copy()
+    head, tail = text, Text()
+    match = _TRAILING_FLAGS_RE.search(text.plain)
+    if match:
+        tail = text[match.start() :]
+        tail.rstrip()
+        # Keep the flags only if a useful part of the line still fits.
+        if width - tail.cell_len >= 4:
+            head = text[: match.start()]
+        else:
+            tail = Text()
+    head = head.copy()
+    head.rstrip()
+    head.truncate(width - tail.cell_len, overflow="ellipsis")
+    return head + tail if tail.plain else head
+
+
 def build_details_help(meta: dict) -> list[str]:
     subject = meta.get("subject")
 
@@ -2237,8 +2265,8 @@ class ScrollableList(ScrollView):
                 self.size.width,
             )
 
-        # copy so we can stylize safely
-        line_text = self.lines[y].copy()
+        # copy so we can stylize safely; shorten to the width, keeping flags
+        line_text = fit_line(self.lines[y], self.size.width)
 
         # search highlight (doesn't touch background)
         if self.search_term and y in self.matches:
